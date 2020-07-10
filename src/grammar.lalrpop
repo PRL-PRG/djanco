@@ -65,13 +65,64 @@ FEATURE: Feature = {
             <property: (dot COMMITS_PROPERTY)?> => {
         Feature::Commits { parameters: compose_parameters!(head, tail), property: property.map(|e| e.1)}
     },
+
+    additions (open_paren close_paren)? <property: (dot ADDITIONS_PROPERTY)?> => {
+        Feature::Additions { parameters: Vec::new(), property: property.map(|e| e.1) }
+    },
+
+    additions open_paren <head: ADDITIONS_PARAMETER> <tail: (comma ADDITIONS_PARAMETER)*> comma? close_paren
+            <property: (dot ADDITIONS_PROPERTY)?> => {
+        Feature::Additions { parameters: compose_parameters!(head, tail), property: property.map(|e| e.1)}
+    },
+
+    deletions (open_paren close_paren)? <property: (dot DELETIONS_PROPERTY)?> => {
+        Feature::Deletions { parameters: Vec::new(), property: property.map(|e| e.1) }
+    },
+
+    deletions open_paren <head: DELETIONS_PARAMETER> <tail: (comma DELETIONS_PARAMETER)*> comma? close_paren
+            <property: (dot DELETIONS_PROPERTY)?> => {
+        Feature::Deletions { parameters: compose_parameters!(head, tail), property: property.map(|e| e.1)}
+    },
+
+    changes (open_paren close_paren)? <property: (dot CHANGES_PROPERTY)?> => {
+        Feature::Changes { parameters: Vec::new(), property: property.map(|e| e.1) }
+    },
+
+    changes open_paren <head: CHANGES_PARAMETER> <tail: (comma CHANGES_PARAMETER)*> comma? close_paren
+            <property: (dot CHANGES_PROPERTY)?> => {
+        Feature::Changes { parameters: compose_parameters!(head, tail), property: property.map(|e| e.1)}
+    },
 }
 
 COMMITS_PARAMETER: Parameter = {
     path <operator: STRING_OPERATOR> <pattern: PATTERN> => Parameter::Path { operator, pattern },
 }
 
+ADDITIONS_PARAMETER: Parameter = {
+    path <operator: STRING_OPERATOR> <pattern: PATTERN> => Parameter::Path { operator, pattern },
+}
+
+DELETIONS_PARAMETER: Parameter = {
+    path <operator: STRING_OPERATOR> <pattern: PATTERN> => Parameter::Path { operator, pattern },
+}
+
+CHANGES_PARAMETER: Parameter = {
+    path <operator: STRING_OPERATOR> <pattern: PATTERN> => Parameter::Path { operator, pattern },
+}
+
 COMMITS_PROPERTY: Property = {
+    elapsed_time (open_paren close_paren)? => Property::ElapsedTime,
+}
+
+ADDITIONS_PROPERTY: Property = {
+    elapsed_time (open_paren close_paren)? => Property::ElapsedTime,
+}
+
+DELETIONS_PROPERTY: Property = {
+    elapsed_time (open_paren close_paren)? => Property::ElapsedTime,
+}
+
+CHANGES_PROPERTY: Property = {
     elapsed_time (open_paren close_paren)? => Property::ElapsedTime,
 }
 

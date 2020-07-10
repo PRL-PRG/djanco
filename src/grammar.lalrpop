@@ -1,0 +1,68 @@
+use std::str::FromStr;
+use std::collections::VecDeque;
+use ast::{Feature, Property, Filter};
+
+grammar;
+
+// Lexer
+match {
+    r"\s*" => { },                                              // ignore whitespace
+    r"/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/|(//.*)" => { }, // comments: /**/ and //
+
+    // all keywords
+    "commits" = commits,
+    "path" = path,
+
+    // symbols
+    "(" = open,
+    ")" = close,
+    "==" = eq,
+    "!=" = ne,
+    "<" = lt,
+    "<=" = le,
+    ">" = gt,
+    ">=" = ge,
+
+    // literals
+    r"[-]?[0-9]+" => INTEGER,
+    r#""([^\\"]|\\[~ntr\\])*""# => STRING,
+}
+
+
+
+FEATURE: Feature {
+    commits (paren_open <COMMITS_PARAMETERS> paren_close)?
+}
+
+COMMITS_PARAMETERS {
+
+}
+
+COMMITS_PARAMETER {
+    path STRING_OPERATOR PATTERN
+}
+
+
+INTEGER: i32 => {
+    i32::from_str(<>).unwrap(),
+}
+
+PATTERN: String => {
+    <s: STRING> => s[1..s.len()-1].to_string(),
+}
+
+STRING_OPERATOR: StringOperator {
+    "=="    =>  StringOperator::Equal,
+    "!="    =>  StringOperator::Different,
+}
+
+RELATIONAL_OPERATOR: RelationalOperator {
+    "=="    =>  RelationalOperator::Equal,
+    "!="    =>  RelationalOperator::Different,
+    "<"     =>  RelationalOperator::Less,
+    "<="    =>  RelationalOperator::LessEqual,
+    ">"     =>  RelationalOperator::Greater,
+    ">="    =>  RelationalOperator::GreaterEqual,
+}
+
+

@@ -10,7 +10,7 @@ pub struct Expression {
     tail: Vec<(Connective, Feature)>,
 }
 
-#[derive(PartialEq,Debug,Clone)]
+#[derive(PartialEq,Debug,Copy,Clone)]
 pub enum Connective {
     Conjunction,
     //Disjunction
@@ -29,19 +29,19 @@ pub enum Parameter {
     Path { operator: StringOperator, pattern: String }
 }
 
-#[derive(PartialEq,Debug,Clone)]
+#[derive(PartialEq,Debug,Copy,Clone)]
 pub enum Property {
     ElapsedTime,
     //Percentile(u32),
 }
 
-#[derive(PartialEq,Debug,Clone)]
+#[derive(PartialEq,Debug,Copy,Clone)]
 pub enum StringOperator {
     Equal,
     Different,
 }
 
-#[derive(PartialEq,Debug,Clone)]
+#[derive(PartialEq,Debug,Copy,Clone)]
 pub enum RelationalOperator {
     Equal,
     Different,
@@ -58,11 +58,22 @@ impl Query {
 }
 
 impl Expression {
-    pub fn head (head: Feature) -> Expression {
-        Expression { head, tail: Vec::new() }
-    }
     pub fn new (head: Feature, tail: Vec<(Connective, Feature)>) -> Expression {
         Expression { head, tail }
+    }
+    pub fn from_feature (head: Feature) -> Expression {
+        Expression { head, tail: Vec::new() }
+    }
+    pub fn from_features (connective: Connective, mut features: Vec<Feature>) -> Result<Expression, String> {
+        if features.length() < 1 {
+            Err("At least one feature must be provided.");
+        }
+
+        let head: Feature = features.remove(0);
+        let tail: Vec<(Connective, Feature)> =
+            features.into_iter().map(|feature| (connective, feature)).collect();
+
+        Ok(Expression { head, tail })
     }
 }
 

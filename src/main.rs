@@ -21,8 +21,12 @@ mod tests {
     use crate::parse;
     use crate::ast::{Query, Expression, Feature, Parameter, Property, Connective};
 
-    fn wrap(feature: Feature) -> Query {
-        Query::simple(Expression::head(feature))
+    fn one_feature(feature: Feature) -> Query {
+        Query::simple(Expression::from_feature(feature))
+    }
+
+    fn conjunction(features: Vec<Feature>) -> Query {
+        Query::simple(Expression::from_features(Connective::Conjunction, features))
     }
 
     fn parse_ok(input: &str, expected: Query) {
@@ -30,215 +34,279 @@ mod tests {
     }
 
     #[test] fn test_commits() {
-        parse_ok("commits",
-                 wrap(Feature::commits_simple()))
+        let input = "commits";
+        let expected = one_feature(Feature::commits_simple());
+
+        parse_ok(input,expected);
     }
 
     #[test] fn test_commits_with_empty_parens() {
-        parse_ok("commits()",
-                 wrap(Feature::commits_simple()))
+        let input = "commits()";
+        let expected = one_feature(Feature::commits_simple());
+
+        parse_ok(input,expected);
     }
 
     #[test] fn test_commits_with_equal_path_filter() {
-        let parameter = Parameter::path_equal_str("test/*");
-        parse_ok(r#"commits(path=="test/*")"#,
-                 wrap(Feature::commits_with_parameter(parameter)))
+        let input = r#"commits(path=="test/*")"#;
+        let expected = one_feature(Feature::commits_with_parameter(Parameter::path_equal_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_commits_with_different_path_filter() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"commits(path!="test/*")"#,
-                 wrap(Feature::commits_with_parameter(parameter)))
+        let input = r#"commits(path!="test/*")"#;
+        let expected = one_feature(Feature::commits_with_parameter(Parameter::path_different_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_commits_with_extra_comma() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"commits(path!="test/*",)"#,
-                 wrap(Feature::commits_with_parameter(parameter)))
+        let input = r#"commits(path!="test/*",)"#;
+        let expected = one_feature(Feature::commits_with_parameter(Parameter::path_different_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_commits_with_elapsed_time() {
-        parse_ok("commits.elapsedTime",
-                 wrap(Feature::commits_with_property(Property::ElapsedTime)))
+        let input = "commits.elapsedTime";
+        let expected = one_feature(Feature::commits_with_property(Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_commits_with_elapsed_time_and_empty_parens_() {
-        parse_ok("commits().elapsedTime()",
-                 wrap(Feature::commits_with_property(Property::ElapsedTime)))
+        let input = "commits().elapsedTime()";
+        let expected = one_feature(Feature::commits_with_property(Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_commits_with_equal_path_filter_and_elapsed_time() {
         let parameter = Parameter::path_equal_str("test/*");
-        parse_ok(r#"commits(path=="test/*").elapsedTime"#,
-                 wrap(Feature::commits(vec![parameter], Property::ElapsedTime)))
+        let input = r#"commits(path=="test/*").elapsedTime"#;
+        let expected = one_feature(Feature::commits(vec![parameter], Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_commits_with_different_path_filter_and_elapsed_time() {
         let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"commits(path!="test/*").elapsedTime"#,
-                 wrap(Feature::commits(vec![parameter], Property::ElapsedTime)))
+        let input = r#"commits(path!="test/*").elapsedTime"#;
+        let expected = one_feature(Feature::commits(vec![parameter], Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions() {
-        parse_ok("additions",
-                 wrap(Feature::additions_simple()))
+        let input = "additions";
+        let expected = one_feature(Feature::additions_simple());
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_empty_parens() {
-        parse_ok("additions()",
-                 wrap(Feature::additions_simple()))
+        let input = "additions()";
+        let expected = one_feature(Feature::additions_simple());
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_equal_path_filter() {
-        let parameter = Parameter::path_equal_str("test/*");
-        parse_ok(r#"additions(path=="test/*")"#,
-                 wrap(Feature::additions_with_parameter(parameter)))
+        let input = r#"additions(path=="test/*")"#;
+        let expected = one_feature(Feature::additions_with_parameter(Parameter::path_equal_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_different_path_filter() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"additions(path!="test/*")"#,
-                 wrap(Feature::additions_with_parameter(parameter)))
+        let input = r#"additions(path!="test/*")"#;
+        let expected = one_feature(Feature::additions_with_parameter(Parameter::path_different_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_extra_comma() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"additions(path!="test/*",)"#,
-                 wrap(Feature::additions_with_parameter(parameter)))
+        let input = r#"additions(path!="test/*",)"#;
+        let expected = one_feature(Feature::additions_with_parameter(Parameter::path_different_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_elapsed_time() {
-        parse_ok("additions.elapsedTime",
-                 wrap(Feature::additions_with_property(Property::ElapsedTime)))
+        let input = "additions.elapsedTime";
+        let expected = one_feature(Feature::additions(vec![], Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_elapsed_time_and_empty_parens_() {
-        parse_ok("additions().elapsedTime()",
-                 wrap(Feature::additions_with_property(Property::ElapsedTime)))
+        let input = "additions().elapsedTime()";
+        let expected = one_feature(Feature::additions(vec![], Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_equal_path_filter_and_elapsed_time() {
         let parameter = Parameter::path_equal_str("test/*");
-        parse_ok(r#"additions(path=="test/*").elapsedTime"#,
-                 wrap(Feature::additions(vec![parameter], Property::ElapsedTime)))
+        let input = r#"additions(path=="test/*").elapsedTime"#;
+        let expected = one_feature(Feature::additions(vec![parameter], Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_different_path_filter_and_elapsed_time() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"additions(path!="test/*").elapsedTime"#,
-                 wrap(Feature::additions(vec![parameter], Property::ElapsedTime)))
+        let input = r#"additions(path!="test/*").elapsedTime"#;
+        let expected = one_feature(Feature::additions(vec![Parameter::path_different_str("test/*")],
+                                                      Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions() {
-        parse_ok("deletions",
-                 wrap(Feature::deletions_simple()))
+        let input = "deletions";
+        let expected = one_feature(Feature::deletions_simple());
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_empty_parens() {
-        parse_ok("deletions()",
-                 wrap(Feature::deletions_simple()))
+        let input = "deletions()";
+        let expected = one_feature(Feature::deletions_simple());
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_equal_path_filter() {
-        let parameter = Parameter::path_equal_str("test/*");
-        parse_ok(r#"deletions(path=="test/*")"#,
-                 wrap(Feature::deletions_with_parameter(parameter)))
+        let input = r#"deletions(path=="test/*")"#;
+        let expected = one_feature(Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_different_path_filter() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"deletions(path!="test/*")"#,
-                 wrap(Feature::deletions_with_parameter(parameter)))
+        let input = r#"deletions(path!="test/*")"#;
+        let expected = one_feature(Feature::deletions_with_parameter(Parameter::path_different_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_extra_comma() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"deletions(path!="test/*",)"#,
-                 wrap(Feature::deletions_with_parameter(parameter)))
+        let input = r#"deletions(path!="test/*",)"#;
+        let expected = one_feature(Feature::deletions_with_parameter(Parameter::path_different_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_elapsed_time() {
-        parse_ok("deletions.elapsedTime",
-                 wrap(Feature::deletions_with_property(Property::ElapsedTime)))
+        let input = "deletions.elapsedTime";
+        let expected = one_feature(Feature::deletions_with_property(Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_elapsed_time_and_empty_parens_() {
-        parse_ok("deletions().elapsedTime()",
-                 wrap(Feature::deletions_with_property(Property::ElapsedTime)))
+        let input = "deletions().elapsedTime()";
+        let expected = one_feature(Feature::deletions_with_property(Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_equal_path_filter_and_elapsed_time() {
-        let parameter = Parameter::path_equal_str("test/*");
-        parse_ok(r#"deletions(path=="test/*").elapsedTime"#,
-                 wrap(Feature::deletions(vec![parameter], Property::ElapsedTime)))
+        let input = r#"deletions(path=="test/*").elapsedTime"#;
+        let expected = one_feature(Feature::deletions(vec![Parameter::path_equal_str("test/*")],
+                                                      Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_different_path_filter_and_elapsed_time() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"deletions(path!="test/*").elapsedTime"#,
-                 wrap(Feature::deletions(vec![parameter], Property::ElapsedTime)))
+        let input = r#"deletions(path!="test/*").elapsedTime"#;
+        let expected = one_feature(Feature::deletions(vec![Parameter::path_different_str("test/*")],
+                                                      Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes() {
-        parse_ok("changes",
-                 wrap(Feature::changes_simple()))
+        let input = "changes";
+        let expected = one_feature(Feature::changes_simple());
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_empty_parens() {
-        parse_ok("changes()",
-                 wrap(Feature::changes_simple()))
+        let input = "changes()";
+        let expected = one_feature(Feature::changes_simple());
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_equal_path_filter() {
-        let parameter = Parameter::path_equal_str("test/*");
-        parse_ok(r#"changes(path=="test/*")"#,
-                 wrap(Feature::changes_with_parameter(parameter)))
+        let input = r#"changes(path=="test/*")"#;
+        let expected = one_feature(Feature::changes_with_parameter(Parameter::path_equal_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_different_path_filter() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"changes(path!="test/*")"#,
-                 wrap(Feature::changes_with_parameter(parameter)))
+        let input = r#"changes(path!="test/*")"#;
+        let expected = one_feature(Feature::changes_with_parameter(Parameter::path_different_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_extra_comma() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"changes(path!="test/*",)"#,
-                 wrap(Feature::changes_with_parameter(parameter)))
+        let input = r#"changes(path!="test/*",)"#;
+        let expected = one_feature(Feature::changes_with_parameter(Parameter::path_different_str("test/*")));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_elapsed_time() {
-        parse_ok("changes.elapsedTime",
-                 wrap(Feature::changes_with_property(Property::ElapsedTime)))
+        let input = "changes.elapsedTime";
+        let expected = one_feature(Feature::changes_with_property(Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_elapsed_time_and_empty_parens_() {
-        parse_ok("changes().elapsedTime()",
-                 wrap(Feature::changes_with_property(Property::ElapsedTime)))
+        let input = "changes().elapsedTime()";
+        let expected = one_feature(Feature::changes_with_property(Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_equal_path_filter_and_elapsed_time() {
-        let parameter = Parameter::path_equal_str("test/*");
-        parse_ok(r#"changes(path=="test/*").elapsedTime"#,
-                 wrap(Feature::changes(vec![parameter], Property::ElapsedTime)))
+        let input = r#"changes(path=="test/*").elapsedTime"#;
+        let expected = one_feature(Feature::changes(vec![Parameter::path_equal_str("test/*")],
+                                                    Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_different_path_filter_and_elapsed_time() {
-        let parameter = Parameter::path_different_str("test/*");
-        parse_ok(r#"changes(path!="test/*").elapsedTime"#,
-                 wrap(Feature::changes(vec![parameter], Property::ElapsedTime)))
+        let input = r#"changes(path!="test/*").elapsedTime"#;
+        let expected = one_feature(Feature::changes(vec![Parameter::path_different_str("test/*")],
+                                                    Property::ElapsedTime));
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_and_connector_2() {
-        parse_ok(r#"commits && changes"#,
-                 Query::simple(Expression::new(Feature::commits_simple(),
-                                        vec![(Connective::Conjunction, Feature::changes_simple())])))
+        let input = r#"commits && changes"#;
+        let expected = conjunction(vec![Feature::commits_simple(),
+                                        Feature::changes_simple()]);
+
+        parse_ok(input, expected);
     }
 
     #[test] fn test_and_connector_3() {
-        parse_ok(r#"commits && changes && additions"#,
-                 Query::simple(Expression::new(Feature::commits_simple(),
-                                               vec![(Connective::Conjunction, Feature::changes_simple()),
-                                                    (Connective::Conjunction, Feature::additions_simple())])))
+        let input = r#"commits && changes && additions"#;
+        let expected = conjunction(vec![Feature::commits_simple(),
+                                        Feature::changes_simple(),
+                                        Feature::additions_simple()]);
+
+        parse_ok(input, expected);
     }
 }

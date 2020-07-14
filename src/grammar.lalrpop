@@ -37,7 +37,7 @@ match {
     "<=" => le,
     ">"  => gt,
     ">=" => ge,
-    "&&" => or,
+    "&&" => and,
 
     // literals
     r"[-]?[0-9]+"               => INT,
@@ -127,7 +127,7 @@ CHANGES_PROPERTY: Property = {
 }
 
 CONNECTIVE: Connective = {
-    or => Connective::Conjunction,
+    and => Connective::Conjunction,
 }
 
 //NUMBER: i32 = {

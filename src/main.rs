@@ -19,7 +19,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use crate::parse;
-    use crate::ast::{Query, Expression, Feature, Parameter, Property};
+    use crate::ast::{Query, Expression, Feature, Parameter, Property, Connective};
 
     fn wrap(feature: Feature) -> Query {
         Query::simple(Expression::head(feature))
@@ -227,5 +227,18 @@ mod tests {
         let parameter = Parameter::path_different_str("test/*");
         parse_ok(r#"changes(path!="test/*").elapsedTime"#,
                  wrap(Feature::changes(vec![parameter], Property::ElapsedTime)))
+    }
+
+    #[test] fn test_and_connector_2() {
+        parse_ok(r#"commits && changes"#,
+                 Query::simple(Expression::new(Feature::commits_simple(),
+                                        vec![(Connective::Conjunction, Feature::changes_simple())])))
+    }
+
+    #[test] fn test_and_connector_3() {
+        parse_ok(r#"commits && changes && additions"#,
+                 Query::simple(Expression::new(Feature::commits_simple(),
+                                               vec![(Connective::Conjunction, Feature::changes_simple()),
+                                                    (Connective::Conjunction, Feature::additions_simple())])))
     }
 }

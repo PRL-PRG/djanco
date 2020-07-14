@@ -7,13 +7,45 @@ lalrpop_mod!(pub grammar); // synthesized by LALRPOP
 
 pub fn parse(input: &str) -> Result<ast::Query, String> {
     match grammar::QUERYParser::new().parse(input) {
-        Err(e) => Err(format!("{:?}", e)),
         Ok(ast) => Ok(ast),
+        Err(e)  => Err(format!("{:?}", e)),
+    }
+}
+
+macro_rules! prompt {
+    () => {
+        print!("> ");
+        io::stdout().flush().expect("Could not flush stdout");
     }
 }
 
 fn main() {
-    println!("{:?}", parse("commits"));
+    use std::io::{self, BufRead, Write};
+
+    println!();
+    println!("Available features (optional parameters in parentheses):");
+    println!();
+    println!("    commits(path==GLOB, path!=GLOB)");
+    println!("    changes(path==GLOB, path!=GLOB)");
+    println!("    additions(path==GLOB, path!=GLOB)");
+    println!("    deletions(path==GLOB, path!=GLOB)");
+    println!();
+    println!();
+    println!("Available connectives between features:");
+    println!();
+    println!("    &&");
+    println!();
+    println!();
+
+    prompt!();
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        let query: &str = &line.unwrap();
+        println!("Parsing: {}", query);
+        println!("AST:     {:?}", parse(query));
+
+        prompt!();
+    }
 }
 
 #[cfg(test)]
@@ -26,7 +58,8 @@ mod tests {
     }
 
     fn conjunction(features: Vec<Feature>) -> Query {
-        Query::simple(Expression::from_features(Connective::Conjunction, features))
+        assert!(features.len() > 1);
+        Query::simple(Expression::from_features(Connective::Conjunction, features).unwrap())
     }
 
     fn parse_ok(input: &str, expected: Query) {

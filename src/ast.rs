@@ -65,15 +65,15 @@ impl Expression {
         Expression { head, tail: Vec::new() }
     }
     pub fn from_features (connective: Connective, mut features: Vec<Feature>) -> Result<Expression, String> {
-        if features.length() < 1 {
-            Err("At least one feature must be provided.");
+        if features.len() < 1 {
+            return Err("At least one feature must be provided.".to_string());
         }
 
         let head: Feature = features.remove(0);
         let tail: Vec<(Connective, Feature)> =
             features.into_iter().map(|feature| (connective, feature)).collect();
 
-        Ok(Expression { head, tail })
+        return Ok(Expression { head, tail })
     }
 }
 

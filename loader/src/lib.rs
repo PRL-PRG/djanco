@@ -1,3 +1,7 @@
+mod selectors;
+
+extern crate ghql;
+
 #[cfg(test)]
 mod tests {
     #[test]

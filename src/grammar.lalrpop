@@ -2,6 +2,7 @@
 
 use crate::compose_parameters;
 
+use crate::ast;
 use crate::ast::Query;
 use crate::ast::Expression;
 use crate::ast::Feature;
@@ -25,6 +26,7 @@ match {
     "changes"     => changes,
     "path"        => path,
     "elapsedTime" => elapsed_time,
+    "and"         => and,
 
     // symbols
     ","  => comma,
@@ -37,7 +39,6 @@ match {
     "<=" => le,
     ">"  => gt,
     ">=" => ge,
-    "&&" => and,
 
     // literals
     r"[-]?[0-9]+"               => INT,
@@ -45,15 +46,30 @@ match {
 }
 
 pub QUERY: Query = {
-    <expression: EXPRESSION> => Query::simple(expression),
+    <expressions: EXPRESSIONS> => Query::simple(expressions),
+}
+
+EXPRESSIONS: ast::Expressions = {
+    <head: EXPRESSION> <tail: (CONNECTIVE_AND_EXPRESSION)*> => ast::Expressions::new(head, tail),
+}
+
+CONNECTIVE_AND_EXPRESSION: (Connective, Expression) = {
+    <connective: CONNECTIVE> <expression: EXPRESSION> => (connective, expression),
 }
 
 EXPRESSION: Expression = {
-    <head: FEATURE> <tail: (CONNECTIVE_AND_FEATURE)*> => Expression::new(head, tail),
-}
-
-CONNECTIVE_AND_FEATURE: (Connective, Feature) = {
-    <connective: CONNECTIVE> <feature: FEATURE> => (connective, feature),
+    <feature: FEATURE> => {
+        Expression::from_feature(feature)
+    },
+    <left: FEATURE> <operator: RELATIONAL_OPERATOR> <right: NUMBER> => {
+        Expression::new(operator, ast::Operand::from_feature(left), ast::Operand::from_number(right))
+    },
+    <left: NUMBER> <operator: RELATIONAL_OPERATOR> <right: FEATURE> => {
+        Expression::new(operator, ast::Operand::from_number(left), ast::Operand::from_feature(right))
+    },
+    <left: FEATURE> <operator: RELATIONAL_OPERATOR> <right: FEATURE> => {
+        Expression::new(operator, ast::Operand::from_feature(left), ast::Operand::from_feature(right))
+    },
 }
 
 FEATURE: Feature = {
@@ -130,9 +146,10 @@ CONNECTIVE: Connective = {
     and => Connective::Conjunction,
 }
 
-//NUMBER: i32 = {
-//    INTEGER => i32::from_str(<>).unwrap(),
-//}
+NUMBER: i64 = {
+    //INT => i64::from_str(<>).unwrap(),
+    INT => (<>).parse::<i64>().unwrap(),
+}
 
 PATTERN: String = {
     <s: STRING> => s[1..s.len()-1].to_string(),

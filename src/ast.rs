@@ -1,13 +1,25 @@
 #[derive(PartialEq,Debug,Clone)]
 pub struct Query {
     //assignments: Vector<Assignment>
-    expression: Expression,
+    pub expressions: Expressions,
 }
 
 #[derive(PartialEq,Debug,Clone)]
-pub struct Expression {
-    head: Feature,
-    tail: Vec<(Connective, Feature)>,
+pub struct Expressions {
+    pub head: Expression,
+    pub tail: Vec<(Connective, Expression)>,
+}
+
+#[derive(PartialEq,Debug,Clone)]
+pub enum Operand {
+    Feature(Feature),
+    Number(i64),
+}
+
+#[derive(PartialEq,Debug,Clone)]
+pub enum Expression {
+    Simple(Feature),
+    Compound { operator: RelationalOperator, left: Operand, right: Operand },
 }
 
 #[derive(PartialEq,Debug,Copy,Clone)]
@@ -52,28 +64,46 @@ pub enum RelationalOperator {
 }
 
 impl Query {
-    pub fn simple (expression: Expression) -> Query {
-        Query {expression}
+    pub fn simple (expressions: Expressions) -> Query {
+        Query {expressions}
+    }
+}
+
+impl Expressions {
+    pub fn new (head: Expression, tail: Vec<(Connective, Expression)>) -> Expressions {
+        Expressions { head, tail }
+    }
+    pub fn from_expression (head: Expression) -> Expressions {
+        Expressions { head, tail: Vec::new() }
+    }
+    pub fn from_expressions (connective: Connective, mut expressions: Vec<Expression>) -> Result<Expressions, String> {
+        if expressions.len() < 1 {
+            return Err("At least one feature must be provided.".to_string());
+        }
+
+        let head: Expression = expressions.remove(0);
+        let tail: Vec<(Connective, Expression)> =
+            expressions.into_iter().map(|expression| (connective, expression)).collect();
+
+        return Ok(Expressions { head, tail })
     }
 }
 
 impl Expression {
-    pub fn new (head: Feature, tail: Vec<(Connective, Feature)>) -> Expression {
-        Expression { head, tail }
+    pub fn from_feature(feature: Feature) -> Expression {
+        Expression::Simple(feature)
     }
-    pub fn from_feature (head: Feature) -> Expression {
-        Expression { head, tail: Vec::new() }
+    pub fn new(operator: RelationalOperator, left: Operand, right: Operand) -> Expression {
+        Expression::Compound { operator, left, right }
     }
-    pub fn from_features (connective: Connective, mut features: Vec<Feature>) -> Result<Expression, String> {
-        if features.len() < 1 {
-            return Err("At least one feature must be provided.".to_string());
-        }
+}
 
-        let head: Feature = features.remove(0);
-        let tail: Vec<(Connective, Feature)> =
-            features.into_iter().map(|feature| (connective, feature)).collect();
-
-        return Ok(Expression { head, tail })
+impl Operand {
+    pub fn from_feature(feature: Feature) -> Operand {
+        Operand::Feature(feature)
+    }
+    pub fn from_number(number: i64) -> Operand {
+        Operand::Number(number)
     }
 }
 
@@ -168,4 +198,3 @@ macro_rules! compose_parameters {
         parameters
     }}
 }
-

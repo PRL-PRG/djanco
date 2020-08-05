@@ -1,5 +1,5 @@
 [package]
-name = "GHQL"
+name = "ghql"
 version = "0.1.0"
 authors = ["Konrad Siek <konrad.siek@gmail.com>"]
 edition = "2018"

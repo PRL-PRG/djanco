@@ -1,5 +1,5 @@
 pub mod ast;
-//pub mod printer;
+pub mod printer;
 
 #[macro_use]
 extern crate lalrpop_util;
@@ -17,6 +17,7 @@ pub fn parse(input: &str) -> Result<ast::Query, String> {
 mod tests {
     use crate::parse;
     use crate::ast::*;
+    use crate::printer::Source;
 
     fn one_feature(feature: Feature) -> Query {
         one_expression(Expression::from_feature(feature))
@@ -53,6 +54,10 @@ mod tests {
 
     fn parse_ok(input: &str, expected: Query) {
         assert_eq!(parse(input), Ok(expected));
+    }
+
+    fn print_ok(input: Query, expected: &str) {
+        assert_eq!(input.to_source(), expected.to_string());
     }
 
     #[test] fn test_commits() {
@@ -118,21 +123,21 @@ mod tests {
     }
 
     #[test] fn test_commits_with_equal_path_filter() {
-        let input = r#"commits(path=="test/*")"#;
+        let input = r#"commits(path == "test/*")"#;
         let expected = one_feature(Feature::commits_with_parameter(Parameter::path_equal_str("test/*")));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_commits_with_different_path_filter() {
-        let input = r#"commits(path!="test/*")"#;
+        let input = r#"commits(path != "test/*")"#;
         let expected = one_feature(Feature::commits_with_parameter(Parameter::path_different_str("test/*")));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_commits_with_filter_equal_something() {
-        let input = r#"commits(path=="test/*") == 42"#;
+        let input = r#"commits(path == "test/*") == 42"#;
         let expected = one_comparison(RelationalOperator::Equal,
                                       Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -141,7 +146,7 @@ mod tests {
     }
 
     #[test] fn test_commits_with_filter_different_something() {
-        let input = r#"commits(path=="test/*") != 42"#;
+        let input = r#"commits(path == "test/*") != 42"#;
         let expected = one_comparison(RelationalOperator::Different,
                                       Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -150,7 +155,7 @@ mod tests {
     }
 
     #[test] fn test_commits_with_filter_less_something() {
-        let input = r#"commits(path=="test/*") < 42"#;
+        let input = r#"commits(path == "test/*") < 42"#;
         let expected = one_comparison(RelationalOperator::Less,
                                       Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -159,7 +164,7 @@ mod tests {
     }
 
     #[test] fn test_commits_with_filter_less_equal_something() {
-        let input = r#"commits(path=="test/*") <= 42"#;
+        let input = r#"commits(path == "test/*") <= 42"#;
         let expected = one_comparison(RelationalOperator::LessEqual,
                                       Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -168,7 +173,7 @@ mod tests {
     }
 
     #[test] fn test_commits_with_filter_greater_something() {
-        let input = r#"commits(path=="test/*") > 42"#;
+        let input = r#"commits(path == "test/*") > 42"#;
         let expected = one_comparison(RelationalOperator::Greater,
                                       Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -177,7 +182,7 @@ mod tests {
     }
 
     #[test] fn test_commits_with_filter_greater_equal_something() {
-        let input = r#"commits(path=="test/*") >= 42"#;
+        let input = r#"commits(path == "test/*") >= 42"#;
         let expected = one_comparison(RelationalOperator::GreaterEqual,
                                       Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -186,7 +191,7 @@ mod tests {
     }
 
     #[test] fn test_commits_with_extra_comma() {
-        let input = r#"commits(path!="test/*",)"#;
+        let input = r#"commits(path != "test/*",)"#;
         let expected = one_feature(Feature::commits_with_parameter(Parameter::path_different_str("test/*")));
 
         parse_ok(input, expected);
@@ -208,7 +213,7 @@ mod tests {
 
     #[test] fn test_commits_with_equal_path_filter_and_elapsed_time() {
         let parameter = Parameter::path_equal_str("test/*");
-        let input = r#"commits(path=="test/*").elapsedTime"#;
+        let input = r#"commits(path == "test/*").elapsedTime"#;
         let expected = one_feature(Feature::commits(vec![parameter], Property::ElapsedTime));
 
         parse_ok(input, expected);
@@ -216,7 +221,7 @@ mod tests {
 
     #[test] fn test_commits_with_different_path_filter_and_elapsed_time() {
         let parameter = Parameter::path_different_str("test/*");
-        let input = r#"commits(path!="test/*").elapsedTime"#;
+        let input = r#"commits(path != "test/*").elapsedTime"#;
         let expected = one_feature(Feature::commits(vec![parameter], Property::ElapsedTime));
 
         parse_ok(input, expected);
@@ -285,21 +290,21 @@ mod tests {
     }
 
     #[test] fn test_additions_with_equal_path_filter() {
-        let input = r#"additions(path=="test/*")"#;
+        let input = r#"additions(path == "test/*")"#;
         let expected = one_feature(Feature::additions_with_parameter(Parameter::path_equal_str("test/*")));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_different_path_filter() {
-        let input = r#"additions(path!="test/*")"#;
+        let input = r#"additions(path != "test/*")"#;
         let expected = one_feature(Feature::additions_with_parameter(Parameter::path_different_str("test/*")));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_filter_equal_something() {
-        let input = r#"additions(path=="test/*") == 42"#;
+        let input = r#"additions(path == "test/*") == 42"#;
         let expected = one_comparison(RelationalOperator::Equal,
                                       Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -308,7 +313,7 @@ mod tests {
     }
 
     #[test] fn test_additions_with_filter_different_something() {
-        let input = r#"additions(path=="test/*") != 42"#;
+        let input = r#"additions(path == "test/*") != 42"#;
         let expected = one_comparison(RelationalOperator::Different,
                                       Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -317,7 +322,7 @@ mod tests {
     }
 
     #[test] fn test_additions_with_filter_less_something() {
-        let input = r#"additions(path=="test/*") < 42"#;
+        let input = r#"additions(path == "test/*") < 42"#;
         let expected = one_comparison(RelationalOperator::Less,
                                       Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -326,7 +331,7 @@ mod tests {
     }
 
     #[test] fn test_additions_with_filter_less_equal_something() {
-        let input = r#"additions(path=="test/*") <= 42"#;
+        let input = r#"additions(path == "test/*") <= 42"#;
         let expected = one_comparison(RelationalOperator::LessEqual,
                                       Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -335,7 +340,7 @@ mod tests {
     }
 
     #[test] fn test_additions_with_filter_greater_something() {
-        let input = r#"additions(path=="test/*") > 42"#;
+        let input = r#"additions(path == "test/*") > 42"#;
         let expected = one_comparison(RelationalOperator::Greater,
                                       Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -344,7 +349,7 @@ mod tests {
     }
 
     #[test] fn test_additions_with_filter_greater_equal_something() {
-        let input = r#"additions(path=="test/*") >= 42"#;
+        let input = r#"additions(path == "test/*") >= 42"#;
         let expected = one_comparison(RelationalOperator::GreaterEqual,
                                       Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -353,7 +358,7 @@ mod tests {
     }
 
     #[test] fn test_additions_with_extra_comma() {
-        let input = r#"additions(path!="test/*",)"#;
+        let input = r#"additions(path != "test/*",)"#;
         let expected = one_feature(Feature::additions_with_parameter(Parameter::path_different_str("test/*")));
 
         parse_ok(input, expected);
@@ -375,14 +380,14 @@ mod tests {
 
     #[test] fn test_additions_with_equal_path_filter_and_elapsed_time() {
         let parameter = Parameter::path_equal_str("test/*");
-        let input = r#"additions(path=="test/*").elapsedTime"#;
+        let input = r#"additions(path == "test/*").elapsedTime"#;
         let expected = one_feature(Feature::additions(vec![parameter], Property::ElapsedTime));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_additions_with_different_path_filter_and_elapsed_time() {
-        let input = r#"additions(path!="test/*").elapsedTime"#;
+        let input = r#"additions(path != "test/*").elapsedTime"#;
         let expected = one_feature(Feature::additions(vec![Parameter::path_different_str("test/*")],
                                                       Property::ElapsedTime));
 
@@ -452,21 +457,21 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_equal_path_filter() {
-        let input = r#"deletions(path=="test/*")"#;
+        let input = r#"deletions(path == "test/*")"#;
         let expected = one_feature(Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_different_path_filter() {
-        let input = r#"deletions(path!="test/*")"#;
+        let input = r#"deletions(path != "test/*")"#;
         let expected = one_feature(Feature::deletions_with_parameter(Parameter::path_different_str("test/*")));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_deletions_with_filter_equal_something() {
-        let input = r#"deletions(path=="test/*") == 42"#;
+        let input = r#"deletions(path == "test/*") == 42"#;
         let expected = one_comparison(RelationalOperator::Equal,
                                       Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -475,7 +480,7 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_filter_different_something() {
-        let input = r#"deletions(path=="test/*") != 42"#;
+        let input = r#"deletions(path == "test/*") != 42"#;
         let expected = one_comparison(RelationalOperator::Different,
                                       Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -484,7 +489,7 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_filter_less_something() {
-        let input = r#"deletions(path=="test/*") < 42"#;
+        let input = r#"deletions(path == "test/*") < 42"#;
         let expected = one_comparison(RelationalOperator::Less,
                                       Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -493,7 +498,7 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_filter_less_equal_something() {
-        let input = r#"deletions(path=="test/*") <= 42"#;
+        let input = r#"deletions(path == "test/*") <= 42"#;
         let expected = one_comparison(RelationalOperator::LessEqual,
                                       Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -502,7 +507,7 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_filter_greater_something() {
-        let input = r#"deletions(path=="test/*") > 42"#;
+        let input = r#"deletions(path == "test/*") > 42"#;
         let expected = one_comparison(RelationalOperator::Greater,
                                       Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -511,7 +516,7 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_filter_greater_equal_something() {
-        let input = r#"deletions(path=="test/*") >= 42"#;
+        let input = r#"deletions(path == "test/*") >= 42"#;
         let expected = one_comparison(RelationalOperator::GreaterEqual,
                                       Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -520,7 +525,7 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_extra_comma() {
-        let input = r#"deletions(path!="test/*",)"#;
+        let input = r#"deletions(path != "test/*",)"#;
         let expected = one_feature(Feature::deletions_with_parameter(Parameter::path_different_str("test/*")));
 
         parse_ok(input, expected);
@@ -541,7 +546,7 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_equal_path_filter_and_elapsed_time() {
-        let input = r#"deletions(path=="test/*").elapsedTime"#;
+        let input = r#"deletions(path == "test/*").elapsedTime"#;
         let expected = one_feature(Feature::deletions(vec![Parameter::path_equal_str("test/*")],
                                                       Property::ElapsedTime));
 
@@ -549,7 +554,7 @@ mod tests {
     }
 
     #[test] fn test_deletions_with_different_path_filter_and_elapsed_time() {
-        let input = r#"deletions(path!="test/*").elapsedTime"#;
+        let input = r#"deletions(path != "test/*").elapsedTime"#;
         let expected = one_feature(Feature::deletions(vec![Parameter::path_different_str("test/*")],
                                                       Property::ElapsedTime));
 
@@ -619,21 +624,21 @@ mod tests {
     }
 
     #[test] fn test_changes_with_equal_path_filter() {
-        let input = r#"changes(path=="test/*")"#;
+        let input = r#"changes(path == "test/*")"#;
         let expected = one_feature(Feature::changes_with_parameter(Parameter::path_equal_str("test/*")));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_different_path_filter() {
-        let input = r#"changes(path!="test/*")"#;
+        let input = r#"changes(path != "test/*")"#;
         let expected = one_feature(Feature::changes_with_parameter(Parameter::path_different_str("test/*")));
 
         parse_ok(input, expected);
     }
 
     #[test] fn test_changes_with_filter_equal_something() {
-        let input = r#"changes(path=="test/*") == 42"#;
+        let input = r#"changes(path == "test/*") == 42"#;
         let expected = one_comparison(RelationalOperator::Equal,
                                       Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -642,7 +647,7 @@ mod tests {
     }
 
     #[test] fn test_changes_with_filter_different_something() {
-        let input = r#"changes(path=="test/*") != 42"#;
+        let input = r#"changes(path == "test/*") != 42"#;
         let expected = one_comparison(RelationalOperator::Different,
                                       Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -651,7 +656,7 @@ mod tests {
     }
 
     #[test] fn test_changes_with_filter_less_something() {
-        let input = r#"changes(path=="test/*") < 42"#;
+        let input = r#"changes(path == "test/*") < 42"#;
         let expected = one_comparison(RelationalOperator::Less,
                                       Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -660,7 +665,7 @@ mod tests {
     }
 
     #[test] fn test_changes_with_filter_less_equal_something() {
-        let input = r#"changes(path=="test/*") <= 42"#;
+        let input = r#"changes(path == "test/*") <= 42"#;
         let expected = one_comparison(RelationalOperator::LessEqual,
                                       Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -669,7 +674,7 @@ mod tests {
     }
 
     #[test] fn test_changes_with_filter_greater_something() {
-        let input = r#"changes(path=="test/*") > 42"#;
+        let input = r#"changes(path == "test/*") > 42"#;
         let expected = one_comparison(RelationalOperator::Greater,
                                       Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -678,7 +683,7 @@ mod tests {
     }
 
     #[test] fn test_changes_with_filter_greater_equal_something() {
-        let input = r#"changes(path=="test/*") >= 42"#;
+        let input = r#"changes(path == "test/*") >= 42"#;
         let expected = one_comparison(RelationalOperator::GreaterEqual,
                                       Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
                                       42);
@@ -687,7 +692,7 @@ mod tests {
     }
 
     #[test] fn test_changes_with_extra_comma() {
-        let input = r#"changes(path!="test/*",)"#;
+        let input = r#"changes(path != "test/*",)"#;
         let expected = one_feature(Feature::changes_with_parameter(Parameter::path_different_str("test/*")));
 
         parse_ok(input, expected);
@@ -708,7 +713,7 @@ mod tests {
     }
 
     #[test] fn test_changes_with_equal_path_filter_and_elapsed_time() {
-        let input = r#"changes(path=="test/*").elapsedTime"#;
+        let input = r#"changes(path == "test/*").elapsedTime"#;
         let expected = one_feature(Feature::changes(vec![Parameter::path_equal_str("test/*")],
                                                     Property::ElapsedTime));
 
@@ -716,7 +721,7 @@ mod tests {
     }
 
     #[test] fn test_changes_with_different_path_filter_and_elapsed_time() {
-        let input = r#"changes(path!="test/*").elapsedTime"#;
+        let input = r#"changes(path != "test/*").elapsedTime"#;
         let expected = one_feature(Feature::changes(vec![Parameter::path_different_str("test/*")],
                                                     Property::ElapsedTime));
 
@@ -758,5 +763,630 @@ mod tests {
                  (Feature::additions_simple(), RelationalOperator::Less,      42)]);
 
         parse_ok(input, expected);
+    }
+
+    //------------------------------------------------------------------------
+    // Printing
+    //------------------------------------------------------------------------
+
+    #[test] fn print_commits() {
+        let expected = "commits";
+        let input = one_feature(Feature::commits_simple());
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_equal_something() {
+        let expected = "commits == 42";
+        let input = one_comparison(RelationalOperator::Equal,
+                                      Feature::commits_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_different_something() {
+        let expected = "commits != 42";
+        let input = one_comparison(RelationalOperator::Different,
+                                      Feature::commits_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_less_something() {
+        let expected = "commits < 42";
+        let input = one_comparison(RelationalOperator::Less,
+                                      Feature::commits_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_less_equal_something() {
+        let expected = "commits <= 42";
+        let input = one_comparison(RelationalOperator::LessEqual,
+                                      Feature::commits_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_greater_something() {
+        let expected = "commits > 42";
+        let input = one_comparison(RelationalOperator::Greater,
+                                      Feature::commits_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_greater_equal_something() {
+        let expected = "commits >= 42";
+        let input = one_comparison(RelationalOperator::GreaterEqual,
+                                      Feature::commits_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_with_equal_path_filter() {
+        let expected = r#"commits(path == "test/*")"#;
+        let input = one_feature(Feature::commits_with_parameter(Parameter::path_equal_str("test/*")));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_commits_with_different_path_filter() {
+        let expected = r#"commits(path != "test/*")"#;
+        let input = one_feature(Feature::commits_with_parameter(Parameter::path_different_str("test/*")));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_commits_with_filter_equal_something() {
+        let expected = r#"commits(path == "test/*") == 42"#;
+        let input = one_comparison(RelationalOperator::Equal,
+                                      Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_with_filter_different_something() {
+        let expected = r#"commits(path == "test/*") != 42"#;
+        let input = one_comparison(RelationalOperator::Different,
+                                      Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_with_filter_less_something() {
+        let expected = r#"commits(path == "test/*") < 42"#;
+        let input = one_comparison(RelationalOperator::Less,
+                                      Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_with_filter_less_equal_something() {
+        let expected = r#"commits(path == "test/*") <= 42"#;
+        let input = one_comparison(RelationalOperator::LessEqual,
+                                      Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_with_filter_greater_something() {
+        let expected = r#"commits(path == "test/*") > 42"#;
+        let input = one_comparison(RelationalOperator::Greater,
+                                      Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_with_filter_greater_equal_something() {
+        let expected = r#"commits(path == "test/*") >= 42"#;
+        let input = one_comparison(RelationalOperator::GreaterEqual,
+                                      Feature::commits_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_commits_with_elapsed_time() {
+        let expected = "commits.elapsedTime";
+        let input = one_feature(Feature::commits_with_property(Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_commits_with_equal_path_filter_and_elapsed_time() {
+        let parameter = Parameter::path_equal_str("test/*");
+        let expected = r#"commits(path == "test/*").elapsedTime"#;
+        let input = one_feature(Feature::commits(vec![parameter], Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_commits_with_different_path_filter_and_elapsed_time() {
+        let parameter = Parameter::path_different_str("test/*");
+        let expected = r#"commits(path != "test/*").elapsedTime"#;
+        let input = one_feature(Feature::commits(vec![parameter], Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_additions() {
+        let expected = "additions";
+        let input = one_feature(Feature::additions_simple());
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_additions_equal_something() {
+        let expected = "additions == 42";
+        let input = one_comparison(RelationalOperator::Equal,
+                                      Feature::additions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_different_something() {
+        let expected = "additions != 42";
+        let input = one_comparison(RelationalOperator::Different,
+                                      Feature::additions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_less_something() {
+        let expected = "additions < 42";
+        let input = one_comparison(RelationalOperator::Less,
+                                      Feature::additions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_less_equal_something() {
+        let expected = "additions <= 42";
+        let input = one_comparison(RelationalOperator::LessEqual,
+                                      Feature::additions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_greater_something() {
+        let expected = "additions > 42";
+        let input = one_comparison(RelationalOperator::Greater,
+                                      Feature::additions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_greater_equal_something() {
+        let expected = "additions >= 42";
+        let input = one_comparison(RelationalOperator::GreaterEqual,
+                                      Feature::additions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_with_equal_path_filter() {
+        let expected = r#"additions(path == "test/*")"#;
+        let input = one_feature(Feature::additions_with_parameter(Parameter::path_equal_str("test/*")));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_additions_with_different_path_filter() {
+        let expected = r#"additions(path != "test/*")"#;
+        let input = one_feature(Feature::additions_with_parameter(Parameter::path_different_str("test/*")));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_additions_with_filter_equal_something() {
+        let expected = r#"additions(path == "test/*") == 42"#;
+        let input = one_comparison(RelationalOperator::Equal,
+                                      Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_with_filter_different_something() {
+        let expected = r#"additions(path == "test/*") != 42"#;
+        let input = one_comparison(RelationalOperator::Different,
+                                      Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_with_filter_less_something() {
+        let expected = r#"additions(path == "test/*") < 42"#;
+        let input = one_comparison(RelationalOperator::Less,
+                                      Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_with_filter_less_equal_something() {
+        let expected = r#"additions(path == "test/*") <= 42"#;
+        let input = one_comparison(RelationalOperator::LessEqual,
+                                      Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_with_filter_greater_something() {
+        let expected = r#"additions(path == "test/*") > 42"#;
+        let input = one_comparison(RelationalOperator::Greater,
+                                      Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_with_filter_greater_equal_something() {
+        let expected = r#"additions(path == "test/*") >= 42"#;
+        let input = one_comparison(RelationalOperator::GreaterEqual,
+                                      Feature::additions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_additions_with_elapsed_time() {
+        let expected = "additions.elapsedTime";
+        let input = one_feature(Feature::additions(vec![], Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_additions_with_equal_path_filter_and_elapsed_time() {
+        let parameter = Parameter::path_equal_str("test/*");
+        let expected = r#"additions(path == "test/*").elapsedTime"#;
+        let input = one_feature(Feature::additions(vec![parameter], Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_additions_with_different_path_filter_and_elapsed_time() {
+        let expected = r#"additions(path != "test/*").elapsedTime"#;
+        let input = one_feature(Feature::additions(vec![Parameter::path_different_str("test/*")],
+                                                      Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_deletions() {
+        let expected = "deletions";
+        let input = one_feature(Feature::deletions_simple());
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_deletions_equal_something() {
+        let expected = "deletions == 42";
+        let input = one_comparison(RelationalOperator::Equal,
+                                      Feature::deletions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_different_something() {
+        let expected = "deletions != 42";
+        let input = one_comparison(RelationalOperator::Different,
+                                      Feature::deletions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_less_something() {
+        let expected = "deletions < 42";
+        let input = one_comparison(RelationalOperator::Less,
+                                      Feature::deletions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_less_equal_something() {
+        let expected = "deletions <= 42";
+        let input = one_comparison(RelationalOperator::LessEqual,
+                                      Feature::deletions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_greater_something() {
+        let expected = "deletions > 42";
+        let input = one_comparison(RelationalOperator::Greater,
+                                      Feature::deletions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_greater_equal_something() {
+        let expected = "deletions >= 42";
+        let input = one_comparison(RelationalOperator::GreaterEqual,
+                                      Feature::deletions_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_with_equal_path_filter() {
+        let expected = r#"deletions(path == "test/*")"#;
+        let input = one_feature(Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_deletions_with_different_path_filter() {
+        let expected = r#"deletions(path != "test/*")"#;
+        let input = one_feature(Feature::deletions_with_parameter(Parameter::path_different_str("test/*")));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_deletions_with_filter_equal_something() {
+        let expected = r#"deletions(path == "test/*") == 42"#;
+        let input = one_comparison(RelationalOperator::Equal,
+                                      Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_with_filter_different_something() {
+        let expected = r#"deletions(path == "test/*") != 42"#;
+        let input = one_comparison(RelationalOperator::Different,
+                                      Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_with_filter_less_something() {
+        let expected = r#"deletions(path == "test/*") < 42"#;
+        let input = one_comparison(RelationalOperator::Less,
+                                      Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_with_filter_less_equal_something() {
+        let expected = r#"deletions(path == "test/*") <= 42"#;
+        let input = one_comparison(RelationalOperator::LessEqual,
+                                      Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_with_filter_greater_something() {
+        let expected = r#"deletions(path == "test/*") > 42"#;
+        let input = one_comparison(RelationalOperator::Greater,
+                                      Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_with_filter_greater_equal_something() {
+        let expected = r#"deletions(path == "test/*") >= 42"#;
+        let input = one_comparison(RelationalOperator::GreaterEqual,
+                                      Feature::deletions_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_deletions_with_elapsed_time() {
+        let expected = "deletions.elapsedTime";
+        let input = one_feature(Feature::deletions_with_property(Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_deletions_with_equal_path_filter_and_elapsed_time() {
+        let expected = r#"deletions(path == "test/*").elapsedTime"#;
+        let input = one_feature(Feature::deletions(vec![Parameter::path_equal_str("test/*")],
+                                                      Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_deletions_with_different_path_filter_and_elapsed_time() {
+        let expected = r#"deletions(path != "test/*").elapsedTime"#;
+        let input = one_feature(Feature::deletions(vec![Parameter::path_different_str("test/*")],
+                                                      Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_changes() {
+        let expected = "changes";
+        let input = one_feature(Feature::changes_simple());
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_changes_equal_something() {
+        let expected = "changes == 42";
+        let input = one_comparison(RelationalOperator::Equal,
+                                      Feature::changes_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_different_something() {
+        let expected = "changes != 42";
+        let input = one_comparison(RelationalOperator::Different,
+                                      Feature::changes_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_less_something() {
+        let expected = "changes < 42";
+        let input = one_comparison(RelationalOperator::Less,
+                                      Feature::changes_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_less_equal_something() {
+        let expected = "changes <= 42";
+        let input = one_comparison(RelationalOperator::LessEqual,
+                                      Feature::changes_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_greater_something() {
+        let expected = "changes > 42";
+        let input = one_comparison(RelationalOperator::Greater,
+                                      Feature::changes_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_greater_equal_something() {
+        let expected = "changes >= 42";
+        let input = one_comparison(RelationalOperator::GreaterEqual,
+                                      Feature::changes_simple(), 42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_with_equal_path_filter() {
+        let expected = r#"changes(path == "test/*")"#;
+        let input = one_feature(Feature::changes_with_parameter(Parameter::path_equal_str("test/*")));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_changes_with_different_path_filter() {
+        let expected = r#"changes(path != "test/*")"#;
+        let input = one_feature(Feature::changes_with_parameter(Parameter::path_different_str("test/*")));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_changes_with_filter_equal_something() {
+        let expected = r#"changes(path == "test/*") == 42"#;
+        let input = one_comparison(RelationalOperator::Equal,
+                                      Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_with_filter_different_something() {
+        let expected = r#"changes(path == "test/*") != 42"#;
+        let input = one_comparison(RelationalOperator::Different,
+                                      Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_with_filter_less_something() {
+        let expected = r#"changes(path == "test/*") < 42"#;
+        let input = one_comparison(RelationalOperator::Less,
+                                      Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_with_filter_less_equal_something() {
+        let expected = r#"changes(path == "test/*") <= 42"#;
+        let input = one_comparison(RelationalOperator::LessEqual,
+                                      Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_with_filter_greater_something() {
+        let expected = r#"changes(path == "test/*") > 42"#;
+        let input = one_comparison(RelationalOperator::Greater,
+                                      Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_with_filter_greater_equal_something() {
+        let expected = r#"changes(path == "test/*") >= 42"#;
+        let input = one_comparison(RelationalOperator::GreaterEqual,
+                                      Feature::changes_with_parameter(Parameter::path_equal_str("test/*")),
+                                      42);
+
+        print_ok(input,expected);
+    }
+
+    #[test] fn print_changes_with_elapsed_time() {
+        let expected = "changes.elapsedTime";
+        let input = one_feature(Feature::changes_with_property(Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_changes_with_equal_path_filter_and_elapsed_time() {
+        let expected = r#"changes(path == "test/*").elapsedTime"#;
+        let input = one_feature(Feature::changes(vec![Parameter::path_equal_str("test/*")],
+                                                    Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_changes_with_different_path_filter_and_elapsed_time() {
+        let expected = r#"changes(path != "test/*").elapsedTime"#;
+        let input = one_feature(Feature::changes(vec![Parameter::path_different_str("test/*")],
+                                                    Property::ElapsedTime));
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_and_connector_2() {
+        let expected = r#"commits and changes"#;
+        let input = feature_conjunction(vec![Feature::commits_simple(),
+                                                Feature::changes_simple()]);
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_and_connector_3() {
+        let expected = r#"commits and changes and additions"#;
+        let input = feature_conjunction(vec![Feature::commits_simple(),
+                                                Feature::changes_simple(),
+                                                Feature::additions_simple()]);
+
+        print_ok(input, expected);
+    }
+
+
+    #[test] fn print_and_connector_comparisons_2() {
+        let expected = r#"commits == 42 and changes != 42"#;
+        let input = comparison_conjunction(
+            vec![(Feature::commits_simple(), RelationalOperator::Equal,     42),
+                 (Feature::changes_simple(), RelationalOperator::Different, 42)]);
+
+        print_ok(input, expected);
+    }
+
+    #[test] fn print_and_connector_comparisons_3() {
+        let expected = r#"commits == 42 and changes != 42 and additions < 42"#;
+        let input = comparison_conjunction(
+            vec![(Feature::commits_simple(),   RelationalOperator::Equal,     42),
+                 (Feature::changes_simple(),   RelationalOperator::Different, 42),
+                 (Feature::additions_simple(), RelationalOperator::Less,      42)]);
+
+        print_ok(input, expected);
     }
 }

@@ -21,6 +21,16 @@ fn main() {
     println!("    deletions(path==GLOB, path!=GLOB)");
     println!();
     println!();
+    println!("Available operators used on features:");
+    println!();
+    println!("    FEATURE == VALUE, VALUE == FEATURE");
+    println!("    FEATURE != VALUE, VALUE != FEATURE");
+    println!("    FEATURE >  VALUE, VALUE >  FEATURE");
+    println!("    FEATURE >= VALUE, VALUE >= FEATURE");
+    println!("    FEATURE <  VALUE, VALUE <  FEATURE");
+    println!("    FEATURE <= VALUE, VALUE <= FEATURE");
+    println!();
+    println!();
     println!("Available connectives between features:");
     println!();
     println!("    &&");

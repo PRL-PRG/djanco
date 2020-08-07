@@ -7,5 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#dcd = { path = "../../dejacode-downloader/" }   # https://github.com/PRL-PRG/dejacode-downloader
+dcd  = { path = "../../dejacode-downloader/" }                  # https://github.com/PRL-PRG/dejacode-downloader
 ghql = { path = "/home/kondziu/Workspace/GHQL" }                # https://github.com/kondziu/GHQL
+glob = "0.2.11"

@@ -1,3 +1,5 @@
+use glob;
+
 #[derive(PartialEq,Debug,Clone)]
 pub struct Query {
     //assignments: Vector<Assignment>
@@ -38,7 +40,7 @@ pub enum Feature {
 
 #[derive(PartialEq,Debug,Clone)]
 pub enum Parameter {
-    Path { operator: StringOperator, pattern: String }
+    Path { operator: StringOperator, pattern: glob::Pattern }
 }
 
 #[derive(PartialEq,Debug,Copy,Clone)]
@@ -175,16 +177,28 @@ impl Feature {
 
 impl Parameter {
     pub fn path_equal(pattern: String) -> Parameter {
-        Parameter::Path { operator: StringOperator::Equal, pattern }
+        Parameter::Path {
+            operator: StringOperator::Equal,
+            pattern: glob::Pattern::new(&pattern).unwrap()
+        }
     }
     pub fn path_different(pattern: String) -> Parameter {
-        Parameter::Path { operator: StringOperator::Different, pattern }
+        Parameter::Path {
+            operator: StringOperator::Different,
+            pattern: glob::Pattern::new(&pattern).unwrap()
+        }
     }
     pub fn path_equal_str(pattern: &str) -> Parameter {
-        Parameter::Path { operator: StringOperator::Equal, pattern: pattern.to_string() }
+        Parameter::Path {
+            operator: StringOperator::Equal,
+            pattern: glob::Pattern::new(pattern).unwrap()
+        }
     }
     pub fn path_different_str(pattern: &str) -> Parameter {
-        Parameter::Path { operator: StringOperator::Different, pattern: pattern.to_string() }
+        Parameter::Path {
+            operator: StringOperator::Different,
+            pattern: glob::Pattern::new(pattern).unwrap()
+        }
     }
 }
 

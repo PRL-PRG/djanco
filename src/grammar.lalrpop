@@ -11,6 +11,7 @@ use crate::ast::Parameter;
 use crate::ast::Property;
 use crate::ast::StringOperator;
 use crate::ast::RelationalOperator;
+use glob;
 
 grammar;
 
@@ -151,8 +152,8 @@ NUMBER: i64 = {
     INT => (<>).parse::<i64>().unwrap(),
 }
 
-PATTERN: String = {
-    <s: STRING> => s[1..s.len()-1].to_string(),
+PATTERN: glob::Pattern = {
+    <s: STRING> => glob::Pattern::new(&s[1..s.len()-1]).unwrap(),
 }
 
 STRING_OPERATOR: StringOperator = {

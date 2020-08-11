@@ -1,10 +1,14 @@
 use std::collections::{HashSet, HashMap};
 use std::iter::FromIterator;
-use crate::api::*;
 
+use dcd::Database;
+use dcd::{Commit,   Project,   User};
+use dcd::{CommitId, ProjectId, UserId};
+
+// Iterates over all projects.
 pub struct ProjectIter<'a> {
     current:  ProjectId,
-    total:    ProjectId,
+    total:    u64,
     database: &'a dyn Database,
 }
 
@@ -22,15 +26,20 @@ impl<'a> Iterator for ProjectIter<'a> {
         if !(self.current < self.total) { // TODO I think the if is probably unnecessary.
             return None;
         }
-        let project = self.database.get_project(self.current);
-        self.current += 1;
-        return project;
+        if let Some(project) = self.database.get_project(self.current) {
+            self.current += 1;
+            return Some(project);
+        }
+
+        panic!("Database returned None for ProjectId={}", self.current); // FIXME maybe better handling
     }
 }
 
+// Iterates over all commits.
+// FIXME: can be done easier now
 pub struct CommitIter<'a> {
     current_project:  ProjectId,
-    total_projects:   ProjectId,
+    total_projects:   u64,
     visited_commits:  HashSet<CommitId>,
     commits_to_visit: HashSet<CommitId>,
     database:         &'a dyn Database,
@@ -43,12 +52,13 @@ impl<'a> CommitIter<'a> {
         let project = database.get_project(current_project);
         let visited_commits = HashSet::new();
 
-        let heads: Option<HashMap<String, CommitId>> = project.map(|project| {
-            match project.heads {
-                Some(heads) => heads,
-                None => HashMap::new(),
-            }
-        });
+        let heads: Option<HashMap<String, CommitId>> = project.heads;
+        //.map(|project| {
+        //    match project.heads {
+        //        Some(heads) => heads,
+        //        None => HashMap::new(),
+        //    }
+        //});
 
         let commits_to_visit = match heads {
             Some(heads) => HashSet::from_iter(heads.values().map(|e| *e)),
@@ -110,9 +120,41 @@ impl<'a> Iterator for CommitIter<'a> {
     }
 }
 
+// Iterates over all users.
+pub struct UserIter<'a> {
+    current:  UserId,
+    total:    u64,
+    database: &'a dyn Database,
+}
+
+impl<'a> UserIter<'a> {
+    pub fn from(database: &impl Database) -> UserIter {  // TODO This would probably work better as .iter() in Database
+        let total = database.num_users();
+        UserIter { current: 0, total, database }
+    }
+}
+
+impl<'a> Iterator for UserIter<'a> {
+    type Item = &'a User;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !(self.current < self.total) { // TODO I think the if is probably unnecessary.
+            return None;
+        }
+
+        if let Some(user) = self.database.get_user(self.current) {
+            self.current += 1;
+            return Some(user);
+        }
+
+        panic!("Database returned None for UserId={}", self.current); // FIXME maybe better handling
+    }
+}
+
+// Iterates over all commits within a specific project.
 pub struct ProjectCommitIter<'a> {
     visited:  HashSet<CommitId>,
-    to_visit: HashSet<CommitId>,
+    to_visit: HashSet<u64>,
     database: &'a dyn Database,
 }
 
@@ -145,36 +187,10 @@ impl<'a> Iterator for ProjectCommitIter<'a> {
     }
 }
 
-struct MockDatabase {
-    projects:  HashMap<ProjectId, Project>,
-    commits:   HashMap<CommitId, Commit>,
-    snapshots: HashMap<BlobId, Snapshot>,
-    paths:     HashMap<PathId, FilePath>,
-    users:     HashMap<UserId, User>,
+// Iterates over all users within a specific project.
+pub struct ProjectUserIter<'a> {
+    visited:  HashSet<CommitId>,
+    to_visit: HashSet<CommitId>,
+    database: &'a dyn Database,
 }
 
-impl Database for MockDatabase {
-    fn num_projects(&self) -> u64 {
-        self.projects.len() as u64
-    }
-
-    fn get_user(&self, id: UserId) -> Option<&User> {
-        self.users.get(&id)
-    }
-
-    fn get_snapshot(&self, id: BlobId) -> Option<Snapshot> {
-        self.snapshots.get(&id).map(|snapshot| snapshot.clone())
-    }
-
-    fn get_file_path(&self, id: PathId) -> Option<FilePath> {
-        self.paths.get(&id).map(|path| path.clone())
-    }
-
-    fn get_commit(&self, id: CommitId) -> Option<Commit> {
-        self.commits.get(&id).map(|commit| commit.clone())
-    }
-
-    fn get_project(&self, id: ProjectId) -> Option<Project> {
-        self.projects.get(&id).map(|project| project.clone())
-    }
-}

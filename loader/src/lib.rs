@@ -1,17 +1,22 @@
-mod need;
-mod filters;
-mod tables;
+mod mockdb;
 mod preprocess;
-mod selectors;
-mod api; // this will be replaced with the api from the downloader
-mod api_extensions;
+pub mod selectors;
+//mod api; // this will be replaced with the api from the downloader
+//mod iterators;
 
 extern crate ghql;
 
 #[cfg(test)]
 mod tests {
+
+    //use dcd::Database;
+    //use dcd::DCD;
+
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        // let dcd = DCD::new("/dejavuii/dejacode/dataset-small-stars".to_string());
+        // for project in dcd.projects() {
+        //     println!("{:?}", project);
+        // }
     }
 }

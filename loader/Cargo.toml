@@ -10,3 +10,4 @@ edition = "2018"
 dcd  = { path = "../../dejacode-downloader/" }                  # https://github.com/PRL-PRG/dejacode-downloader
 ghql = { path = "/home/kondziu/Workspace/GHQL" }                # https://github.com/kondziu/GHQL
 glob = "0.2.11"
+itertools = "0.9.0"

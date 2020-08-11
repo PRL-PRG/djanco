@@ -1,87 +1,64 @@
 use std::collections::HashSet;
-use ghql::ast::{Query, Expressions, Expression, Feature, Connective};
-use crate::api::Database;
-use crate::api_extensions::{ProjectIter, ProjectCommitIter};
+use dcd::{ProjectId, Database, Project};
+use std::cmp::Ordering;
+use itertools::Itertools;
 
-type Project = u32;
+pub type Language = String;
 
-trait Selector {
-    fn select(&self, database: &impl Database) -> HashSet<Project>;
+trait MetaAwareProject {
+    fn get_stars(&self)             -> Option<u64>;
+    fn get_stars_or_zero(&self)     -> u64;
+    fn get_language(&self)          -> Option<String>;
+    fn get_language_or_empty(&self) -> String;
 }
 
-impl Selector for Query {
-    fn select(&self, database: &impl Database) -> HashSet<Project> {
-        match self {
-            Query {expressions} => expressions.select(database),
+impl MetaAwareProject for Project {
+    fn get_stars(&self) -> Option<u64> {
+        self.metadata.get("stars").map(|s| s.parse().unwrap())
+    }
+
+    fn get_stars_or_zero(&self) -> u64 {
+        match self.metadata.get("stars") {
+            Some(s) => s.parse::<u64>().unwrap(),
+            None => 0u64,
+        }
+    }
+
+    fn get_language(&self) -> Option<String> {
+        self.metadata.get("ght_language").map(|s| s.trim().to_string())
+    }
+
+    fn get_language_or_empty(&self) -> String {
+        match self.metadata.get("ght_language") {
+            Some(s) => s.trim().to_string(),
+            None => String::new(),
         }
     }
 }
 
-impl Selector for Expressions {
-    fn select(&self, database: &impl Database) -> HashSet<Project> {
-        let head_selection = self.head.select(database);
-        self.tail.iter().fold(head_selection, |selection, (connective, feature)| {
-            connective.combine(selection, feature.select(database))
+pub fn group_by_language_order_by_stars_top_n(database: &impl Database,
+                                              top_n: usize)
+                                              -> HashSet<ProjectId> {
+
+    let star_sorter_descending = |p1: &Project, p2: &Project| {
+        match (p1.get_stars(), p2.get_stars()) {
+            (Some(n1), Some(n2)) =>
+                     if n1 < n2 { Ordering::Greater }
+                else if n1 > n2 { Ordering::Less    }
+                else            { Ordering::Equal   },
+
+            (None, None) =>       Ordering::Equal,
+            (None,    _) =>       Ordering::Greater,
+            (_,    None) =>       Ordering::Less,
+        }
+    };
+
+    database.projects()
+        .group_by(|p| p.get_language()).into_iter()
+        .flat_map(|(language, group)| {
+            let mut projects: Vec<Project> = group.collect();
+            projects.sort_by(star_sorter_descending);
+            projects.iter().take(top_n).map(|p| p.id).collect::<Vec<ProjectId>>()
         })
-    }
-}
-
-impl Selector for Expression {
-    fn select(&self, database: &impl Database) -> HashSet<Project> {
-        match self {
-            Expression::Simple(feature) => {
-                feature.select(database)
-            },
-            Expression::Compound { operator: _, left: _, right: _ } => {
-                unimplemented!();
-            },
-        }
-    }
-}
-
-fn commit_number_project_filter(project: &Project,
-                                minimum_number_of_commits: usize,
-                                path: Option<String>) {
-
-
-}
-
-// fn get_projects_by_commits(minimum_number_of_commits: usize) -> HashSet<Project> {
-//     ProjectIter::from(database).filter(|project| {
-//         let commits = ProjectCommitIter::from(database, project).count();
-//         commits > minimum_number_of_commits
-//     }).collect()
-// }
-
-impl Selector for Feature {
-    fn select(&self, database: &impl Database) -> HashSet<Project> {
-        match self {
-            Feature::Commits { parameters: _, property: _ } => {
-                unimplemented!();
-            },
-            Feature::Additions { parameters: _, property: _ } => {
-                unimplemented!();
-            },
-            Feature::Deletions { parameters: _, property: _ } => {
-                unimplemented!();
-            },
-            Feature::Changes { parameters: _, property: _ } => {
-                unimplemented!();
-            },
-        }
-    }
-}
-
-trait Combinator {
-    fn combine(&self, left: HashSet<Project>, right: HashSet<Project>) -> HashSet<Project>;
-}
-
-impl Combinator for Connective {
-    fn combine(&self, left: HashSet<Project>, right: HashSet<Project>) -> HashSet<Project> {
-        match self {
-            Connective::Conjunction => {
-                left.intersection(&right).map(|e| e.clone()).collect::<HashSet<Project>>()
-            }
-        }
-    }
+        .collect()
 }

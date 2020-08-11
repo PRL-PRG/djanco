@@ -38,7 +38,7 @@ impl MetaAwareProject for Project {
 
 pub fn group_by_language_order_by_stars_top_n(database: &impl Database,
                                               top_n: usize)
-                                              -> HashSet<ProjectId> {
+                                              -> Vec<ProjectId> {
 
     let star_sorter_descending = |p1: &Project, p2: &Project| {
         match (p1.get_stars(), p2.get_stars()) {

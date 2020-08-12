@@ -1,6 +1,7 @@
 use dcd::{DCD, Database};
-use loader::selectors::*;
+use selector::selectors::*;
 use std::time::Instant;
+use selector::meta::ProjectMeta;
 
 macro_rules! with_elapsed_seconds {
     ($thing:expr) => {{
@@ -22,8 +23,5 @@ fn main() {
         println!("{:?} {:?} {:?}", project_id, project.get_language(), project.get_stars())
     }
 
-    println!();
-    println!("Data loading time: {}s", loading_time);
-    println!("Query execution time: {}s", query_execution_time);
-    println!();
+    eprintln!("elapsed time: loading = {}s, query = {}s", loading_time, query_execution_time);
 }

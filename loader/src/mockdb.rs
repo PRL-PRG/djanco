@@ -27,9 +27,9 @@ impl Database for MockDatabase {
         self.users.len() as u64
     }
 
-    fn num_file_paths(&self) -> u64 {
-        self.paths.len() as u64
-    }
+    // fn num_file_paths(&self) -> u64 {
+    //     self.paths.len() as u64
+    // }
 
     fn get_project(&self, id: ProjectId) -> Option<Project> {
         self.projects.get(id as usize).map(|project| project.clone())
@@ -43,9 +43,9 @@ impl Database for MockDatabase {
         self.users.get(id as usize)
     }
 
-    fn get_file_path(&self, id: u64) -> Option<FilePath> {
-        self.paths.get(id as usize).map(|path| path.clone())
-    }
+    // fn get_file_path(&self, id: u64) -> Option<FilePath> {
+    //     self.paths.get(id as usize).map(|path| path.clone())
+    // }
 
     // fn get_snapshot(&self, id: BlobId) -> Option<Snapshot> {
     //     self.snapshots.get(&id).map(|snapshot| snapshot.clone())
@@ -54,10 +54,6 @@ impl Database for MockDatabase {
 
 macro_rules! get_mod {
     ($map: expr, $index: expr) => { $map[($index) % $map.len()] }
-}
-
-macro_rules! copy_sorted {
-    ($collection: expr) => {{ let mut v = Vec::from_iter($collection.into_iter()); v.sort(); v }}
 }
 
 impl MockDatabase {
@@ -130,8 +126,8 @@ impl MockDatabase {
                         author_time: 0,
                         message: None,      // TODO currently ignored
                         changes: None,      // TODO currently ignored
-                        additions: None,    // TODO currently ignored
-                        deletions: None     // TODO currently ignored
+                        //additions: None,    // TODO currently ignored
+                        //deletions: None     // TODO currently ignored
                     };
                     if commit.parents.len() == 0 {
                         print!("{}", commit.id);

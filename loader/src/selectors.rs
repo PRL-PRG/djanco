@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use dcd::{ProjectId, Database, Project};
 use std::cmp::Ordering;
 use itertools::Itertools;
@@ -57,7 +56,7 @@ pub fn group_by_language_order_by_stars_top_n(database: &impl Database,
         .map(|p| (p.get_language(), p))
         .into_group_map()
         .into_iter()
-        .flat_map(|(language, mut projects)| {
+        .flat_map(|(_language, mut projects)| {
             projects.sort_by(star_sorter_descending);
             projects.iter().take(top_n).map(|p| p.id).collect::<Vec<ProjectId>>()
         })

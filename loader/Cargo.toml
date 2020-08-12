@@ -1,5 +1,5 @@
 [package]
-name = "selector"
+name = "select"
 version = "0.2.0"
 authors = ["Konrad Siek <konrad.siek@gmail.com>"]
 edition = "2018"

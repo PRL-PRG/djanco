@@ -1,7 +1,9 @@
-use dcd::{DCD, Database};
-use selector::selectors::*;
 use std::time::Instant;
-use selector::meta::ProjectMeta;
+
+use dcd::{DCD, Database};
+
+use select::selectors::*;
+use select::meta::ProjectMeta;
 
 macro_rules! with_elapsed_seconds {
     ($thing:expr) => {{

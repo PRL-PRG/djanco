@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use dcd::Database;
+use dcd::{Database, FilePath};
 use dcd::{Commit,   Project,   User, };
 use dcd::{CommitId, ProjectId, UserId};
 use std::iter::FromIterator;
@@ -10,8 +10,8 @@ pub struct MockDatabase {
     projects:  Vec<Project>,
     commits:   Vec<Commit>,
     users:     Vec<User>,
+    paths:     Vec<FilePath>,
     // snapshots: HashMap<BlobId, Snapshot>,
-    // paths:     HashMap<PathId, FilePath>,
 }
 
 impl Database for MockDatabase {
@@ -27,6 +27,10 @@ impl Database for MockDatabase {
         self.users.len() as u64
     }
 
+    fn num_file_paths(&self) -> u64 {
+        self.paths.len() as u64
+    }
+
     fn get_project(&self, id: ProjectId) -> Option<Project> {
         self.projects.get(id as usize).map(|project| project.clone())
     }
@@ -39,12 +43,12 @@ impl Database for MockDatabase {
         self.users.get(id as usize)
     }
 
+    fn get_file_path(&self, id: u64) -> Option<FilePath> {
+        self.paths.get(id as usize).map(|path| path.clone())
+    }
+
     // fn get_snapshot(&self, id: BlobId) -> Option<Snapshot> {
     //     self.snapshots.get(&id).map(|snapshot| snapshot.clone())
-    // }
-
-    // fn get_file_path(&self, id: PathId) -> Option<FilePath> {
-    //     self.paths.get(&id).map(|path| path.clone())
     // }
 }
 
@@ -124,8 +128,10 @@ impl MockDatabase {
                         committer_time: 0,
                         author_id,
                         author_time: 0,
-                        message: None,
-                        changes: None
+                        message: None,      // TODO currently ignored
+                        changes: None,      // TODO currently ignored
+                        additions: None,    // TODO currently ignored
+                        deletions: None     // TODO currently ignored
                     };
                     if commit.parents.len() == 0 {
                         print!("{}", commit.id);
@@ -159,11 +165,11 @@ impl MockDatabase {
             projects.push(project);
         }
 
-
-        MockDatabase {
+        return MockDatabase {
             projects,
             commits,
             users,
+            paths: vec![] // TODO currently ignored
         }
     }
 

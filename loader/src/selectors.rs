@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 pub type Language = String;
 
-trait MetaAwareProject {
+pub trait MetaAwareProject {
     fn get_stars(&self)             -> Option<u64>;
     fn get_stars_or_zero(&self)     -> u64;
     fn get_language(&self)          -> Option<String>;
@@ -54,9 +54,10 @@ pub fn group_by_language_order_by_stars_top_n(database: &impl Database,
     };
 
     database.projects()
-        .group_by(|p| p.get_language()).into_iter()
-        .flat_map(|(language, group)| {
-            let mut projects: Vec<Project> = group.collect();
+        .map(|p| (p.get_language(), p))
+        .into_group_map()
+        .into_iter()
+        .flat_map(|(language, mut projects)| {
             projects.sort_by(star_sorter_descending);
             projects.iter().take(top_n).map(|p| p.id).collect::<Vec<ProjectId>>()
         })

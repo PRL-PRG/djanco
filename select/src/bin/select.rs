@@ -26,6 +26,8 @@ struct Configuration {
 
     #[structopt(short = "n", long = "top-n")]
     top_n: Option<usize>,
+
+
 }
 
 impl Configuration {
@@ -78,8 +80,8 @@ mod io {
     }
 
     fn write_anything_to_output<Formatter> (configuration: &Configuration,
-                                   project_ids: &Vec<ProjectId>,
-                                   printer: Formatter)
+                                            project_ids: &Vec<ProjectId>,
+                                            printer: Formatter)
 
         where Formatter: Fn(ProjectId) -> String {
 

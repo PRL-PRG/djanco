@@ -40,6 +40,7 @@ pub enum Direction {
 
 #[derive(Copy,Debug,Clone)]
 pub enum Sorter {
+    AsIs,
     ByStars  (Direction),
     ByCommits(Direction), // FIXME expensive!
     ByUser   (Direction), // FIXME expensive!
@@ -101,6 +102,9 @@ impl Sorter {
                         Direction::Descending => ascending_ordering.reverse(),
                     }
                 }
+            ),
+            Sorter::AsIs => Box::new(
+                |_p1: &Project, _p2: &Project| Ordering::Equal
             ),
         }
     }

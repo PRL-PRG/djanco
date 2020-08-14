@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 dcd  = { path = "../../dejacode-downloader/" }                  # https://github.com/PRL-PRG/dejacode-downloader
-ghql = { path = "/home/kondziu/Workspace/GHQL" }                # https://github.com/kondziu/GHQL
+ghql = { path = "../ghql/" }
 glob = "0.2.11"
 itertools = "0.9.0"
 structopt = "0.3.16"

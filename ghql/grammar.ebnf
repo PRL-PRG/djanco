@@ -1,0 +1,39 @@
+QUERY       ::= EXPRESSIONS;
+EXPRESSIONS ::= EXPRESSION {CONNECTIVE EXPRESSION};
+
+CONNECTIVE ::= 'and';
+
+EXPRESSION ::= FEATURE
+            |  FEATURE RELATIONAL_OPERATOR VALUE
+            |  VALUE   RELATIONAL_OPERATOR FEATURE
+            |  FEATURE RELATIONAL_OPERATOR FEATURE
+            ;
+
+FEATURE    ::= 'commits'   [COMMITS_PARAMETERS]   ['.' COMMITS_PROPERTY]
+            |  'additions' [ADDITIONS_PARAMETERS] ['.' ADDITIONS_PROPERTY]
+            |  'deletions' [DELETIONS_PARAMETERS] ['.' DELETIONS_PROPERTY]
+            |  'changes'   [CHANES_PARAMETERS]    ['.' CHANGES_PROPERTY]
+            ;
+
+VALUE      ::= INTEGER;
+         
+COMMITS_PARAMETERS   ::= '(' ')' | '(' COMMITS_PARAMETER   {',' COMMITS_PARAMETER}   [','] ')';
+ADDITIONS_PARAMETERS ::= '(' ')' | '(' ADDITIONS_PARAMETER {',' ADDITIONS_PARAMETER} [','] ')';
+DELETIONS_PARAMETERS ::= '(' ')' | '(' DELETIONS_PARAMETER {',' DELETIONS_PARAMETER} [','] ')';
+CHANGES_PARAMETERS   ::= '(' ')' | '(' CHANGES_PARAMETER   {',' CHANGES_PARAMETER}   [','] ')';
+
+COMMITS_PARAMETER:   ::= 'path' STRING_OPERATOR PATTERN;
+ADDITIONS_PARAMETER  ::= 'path' STRING_OPERATOR PATTERN;
+DELETIONS_PARAMETER  ::= 'path' STRING_OPERATOR PATTERN;
+CHANGES_PARAMETER    ::= 'path' STRING_OPERATOR PATTERN;
+
+COMMITS_PROPERTY     ::= 'elapsedTime' ['(' ')'];
+ADDITIONS_PROPERTY   ::= 'elapsedTime' ['(' ')'];
+DELETIONS_PROPERTY   ::= 'elapsedTime' ['(' ')'];
+CHANGES_PROPERTY     ::= 'elapsedTime' ['(' ')'];
+
+STRING_OPERATOR      ::= '==' | '!=';
+RELATIONAL_OPERATOR  ::= '==' | '!=' | '<' | '<=' | '>' | '>=';
+
+PATTERN ::= ? regexp: "([^\\"]|\\[~ntr\\])*" ?;
+INTEGER ::= ? regexp: [-]?[0-9]+ ?;

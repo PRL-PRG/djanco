@@ -1,9 +1,9 @@
 use structopt::StructOpt;
-use clap::arg_enum;
 use dcd::DCD;
 use select::selectors;
 use std::path::{Path, PathBuf};
 use regex::Regex;
+use select::selectors::{Filter, Sorter, Sampler};
 
 macro_rules! with_elapsed_seconds {
     ($thing:expr) => {{
@@ -13,17 +13,7 @@ macro_rules! with_elapsed_seconds {
     }}
 }
 
-arg_enum! {
-    #[derive(Debug)]
-    enum OrderBy { Stars, Commits, Users }
-}
-
-arg_enum! {
-    #[derive(Debug)]
-    enum Direction { Ascending, Descending }
-}
-
-fn parse_filter_string (input: &str) -> Result<selectors::Filter, String> {
+fn parse_filter_string (input: &str) -> Result<Filter, String> {
     let possible_filters = "(commits|users|stars)";
     let possible_operators = "(>|<|>=|=|==|=<)";
     let possible_values = "([0-9]+)([KM]?)";
@@ -64,7 +54,38 @@ fn parse_filter_string (input: &str) -> Result<selectors::Filter, String> {
     unreachable!()
 }
 
-fn parse_sampler_string (input: &str) -> Result<selectors::Sampler, String> {
+fn parse_sorter_string (input: &str) -> Result<Sorter, String> {
+    let possible_sorters = "(commits|users|stars)";
+    let possible_directions = r"(\(ascending\)|\(descending\)|\(\)|)";
+    let expression =
+        format!(r"^{}{}$", possible_sorters, possible_directions);
+    let regex = Regex::new(expression.as_str()).unwrap();
+
+    if !regex.is_match(input) {
+        return Err(format!("Cannot parse sorter specification. \
+                            Input string `{}` does not match regex `{}`", input, expression));
+    }
+
+    for capture in regex.captures(input).iter() {
+        let direction= match &capture[2] {
+            "(ascending)"  => selectors::Direction::Ascending,
+            "(descending)" => selectors::Direction::Descending,
+            "()"           => selectors::Direction::Descending,
+            ""             => selectors::Direction::Descending,
+            _              => unreachable!(),
+        };
+        let sorter = match &capture[1] {
+            "commits"  => selectors::Sorter::ByCommits(direction),
+            "users"    => selectors::Sorter::ByUser(direction),
+            "stars"    => selectors::Sorter::ByStars(direction),
+            _          => unreachable!(),
+        };
+        return Ok(sorter);
+    }
+    unreachable!()
+}
+
+fn parse_sampler_string (input: &str) -> Result<Sampler, String> {
     let possible_samplers = "(top|random)";
     let possible_values = "([0-9]+)([KM]?)";
     let expression =
@@ -105,19 +126,13 @@ struct Configuration {
     #[structopt(long = "show-details")]
     show_details: bool,
 
-    #[structopt(short = "n", long = "top-n", name="N")]
-    top_n: Option<usize>,
-
-    #[structopt(long="order-by", possible_values=&OrderBy::variants(), case_insensitive=true)]
-    order_by: Option<OrderBy>,
-
-    #[structopt(long="direction", possible_values=&Direction::variants(), case_insensitive=true)]
-    direction: Option<Direction>,
+    #[structopt(long="order-by", parse(try_from_str = parse_sorter_string))]
+    order_by: Option<selectors::Sorter>,
 
     #[structopt(long="filter", parse(try_from_str = parse_filter_string))]
     filter: Option<selectors::Filter>,
 
-    #[structopt(long="sample", parse(try_from_str = parse_sampler_string))]
+    #[structopt(long="take", parse(try_from_str = parse_sampler_string))]
     sampler: Option<selectors::Sampler>,
 }
 
@@ -133,57 +148,25 @@ impl Configuration {
     fn output_path_as_path(&self) -> &Path {
         self.output_path.as_path()
     }
-
-    // fn show_details_as_bool(&self) -> bool {
-    //     //match self.show_details  {
-    //         Some(v) => v,
-    //         None => false,
-    //     }
-    // }
-
-    fn top_n_as_usize(&self) -> usize {
-        match self.top_n  {
-            Some(v) => v,
-            None => 100, // FIXME
-        }
-    }
 }
 
 mod query_weaver {
-    use crate::{Configuration, OrderBy, Direction};
-    use select::selectors;
-    use select::selectors::Sorter;
-    use dcd::{Database, Project};
-    use std::cmp::Ordering;
+    use select::selectors::{Sorter, Sampler, Filter, Query};
+    use crate::Configuration;
 
-    fn weave_sorter_from<'a>(configuration: &Configuration, database: &'a impl Database) -> Box<dyn Fn(&Project, &Project) -> Ordering + 'a> {
-        match (&configuration.order_by, &configuration.direction) {
-            (None, direction) => {
-                if let Some(direction) = direction {
-                    eprintln!("No sorter specified, so direction {:?} is ignored.", direction);
-                }
-                Sorter::AsIs.create(database)
-            },
-
-            (Some(ordering), direction) => {
-                let direction = if let Some(Direction::Ascending) = direction {
-                    selectors::Direction::Ascending
-                } else {
-                    selectors::Direction::Descending
-                };
-
-                return match ordering {
-                    OrderBy::Stars => Sorter::ByStars(direction).create(database),
-                    OrderBy::Commits => Sorter::ByCommits(direction).create(database),
-                    OrderBy::Users => Sorter::ByUser(direction).create(database),
-                }
-            },
+    macro_rules! value_or_default {
+        ($obj:expr,$default:expr) => {
+            match $obj {
+                Some(actual) => actual,
+                None         => $default,
+            }
         }
     }
 
-    fn weave_query_from(configuration: &Configuration, database: &impl Database) {
-
-        //let ordering = weave_sorter_from(configuration, database);
+    pub(crate) fn weave_query_from(configuration: &Configuration) -> Query {
+        Query::from(value_or_default!(configuration.filter, Filter::Everything),
+                    value_or_default!(configuration.order_by, Sorter::AsIs),
+                    value_or_default!(configuration.sampler, Sampler::Everything))
     }
 }
 
@@ -268,9 +251,11 @@ fn main() {
         DCD::new(configuration.dataset_path_as_string())
     );
 
-    eprintln!("Executing query, selecting top {} project for each language", configuration.top_n_as_usize());
+    let query = query_weaver::weave_query_from(&configuration);
+    eprintln!("Executing query");
     let (projects, query_execution_time) = with_elapsed_seconds!(
-        selectors::group_by_language_order_by_stars_top_n(&database, configuration.top_n_as_usize())
+        //selectors::group_by_language_order_by_stars_top_n(&database, configuration.top_n_as_usize())
+        query.execute(&database)
     );
 
     eprintln!("Writing results to `{}`", configuration.output_path_as_string());

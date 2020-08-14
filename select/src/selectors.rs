@@ -5,7 +5,47 @@ use itertools::Itertools;
 //use rand::seq::SliceRandom;
 use crate::meta::ProjectMeta;
 
-#[derive(Debug,Clone)]
+#[derive(Copy,Clone)]
+pub struct Query {
+    sorter:  Sorter,        /*sorts*/
+    sampler: Sampler,       /*samples*/
+    filter:  Filter,        /*filtes*/
+}
+
+impl Query {
+    pub fn new() -> Query {
+        Query {
+            sorter:   Sorter::AsIs,
+            sampler:  Sampler::Everything,
+            filter:   Filter::Everything,
+        }
+    }
+
+    pub fn from(filter:  Filter, sorter:  Sorter, sampler: Sampler) -> Query {
+        Query { filter, sampler, sorter }
+    }
+
+    pub fn execute(&self, database: &impl Database) -> Vec<ProjectId> {
+        let filter = self.filter.create(database);
+        let sampler = self.sampler.create();
+        let sorter = self.sorter.create(database);
+
+        database.projects()
+            .map(|p| (p.get_language(), p))
+            .into_group_map()
+            .into_iter()
+            .map(|(_language, projects)| {
+                projects.into_iter().filter(&filter).collect::<Vec<Project>>()
+            })
+            .flat_map(|mut projects| {
+                projects.sort_by(&sorter);
+                sampler(projects).iter().map(|p| p.id).collect::<Vec<ProjectId>>()
+            })
+            .collect()
+    }
+}
+
+#[derive(Copy,Debug,Clone)]
 pub enum Sampler {
     Everything,
     Head(usize),
@@ -165,6 +205,7 @@ impl Filter {
     }
 }
 
+#[allow(dead_code)]
 fn group_by_language_and_select<Filter, Sorter, Sampler>(database: &impl Database,
                                                          filter:   Filter,
                                                          sorter:   Sorter,
@@ -187,25 +228,4 @@ fn group_by_language_and_select<Filter, Sorter, Sampler>(database: &impl Databas
             sampler(projects).iter().map(|p| p.id).collect::<Vec<ProjectId>>()
         })
         .collect()
-}
-
-pub fn group_by_language_order_by_stars_top_n(database: &impl Database,
-                                              top_n: usize)
-                                              -> Vec<ProjectId> {
-
-    group_by_language_and_select(/*database*/       database,
-                                 /*project_filter*/ Filter::Everything.create(database),
-                                 /*project_sorter*/ Sorter::ByStars(Direction::Descending).create(database),
-                                 /*sampler*/        Sampler::Head(top_n).create())
-}
-
-pub fn group_by_language_min_commits_order_by_stars_top_n(database: &impl Database,
-                                                          min_commits: usize,
-                                                          top_n: usize)
-                                                          -> Vec<ProjectId> {
-
-    group_by_language_and_select(/*database*/       database,
-                                 /*project_filter*/ Filter::ByStars(Relation::EqualOrMoreThan(min_commits)).create(database),
-                                 /*project_sorter*/ Sorter::ByStars(Direction::Descending).create(database),
-                                 /*sampler*/        Sampler::Head(top_n).create())
 }

@@ -4,8 +4,13 @@ use itertools::Itertools;
 //use rand::SeedableRng;
 //use rand::seq::SliceRandom;
 use crate::meta::ProjectMeta;
+use std::cell::RefCell;
+use std::rc::Rc;
+use rand_pcg::Pcg64Mcg;
+use rand::{SeedableRng, RngCore};
+use rand::seq::IteratorRandom;
 
-#[derive(Copy,Clone)]
+#[derive(Clone)]
 pub struct Query {
     sorter:  Sorter,        /*sorts*/
     sampler: Sampler,       /*samples*/
@@ -27,8 +32,8 @@ impl Query {
 
     pub fn execute(&self, database: &impl Database) -> Vec<ProjectId> {
         let filter = self.filter.create(database);
-        let sampler = self.sampler.create();
         let sorter = self.sorter.create(database);
+        let mut sampler = self.sampler.create();
 
         database.projects()
             .map(|p| (p.get_language(), p))
@@ -45,29 +50,35 @@ impl Query {
     }
 }
 
-#[derive(Copy,Debug,Clone)]
+#[derive(Debug,Clone,Copy)]
 pub enum Sampler {
     Everything,
     Head(usize),
-    // Random(&'a mut SeedableRng<Seed=u64>, usize),
+    Random { seed: u128, sample_size: usize },
 }
 
 impl Sampler {
-    pub fn create(&self) -> Box<dyn Fn(Vec<Project>) -> Vec<Project>> {
-        match *self {
+    pub fn create(&self) -> Box<dyn FnMut(Vec<Project>) -> Vec<Project>> {
+        match self {
             Sampler::Everything => Box::new(
                 move |projects: Vec<Project>| { projects }
             ),
-            Sampler::Head(n) => Box::new(
-                move |projects: Vec<Project>| {
+            Sampler::Head(n) => {
+                let n = *n;
+                Box::new(move |projects: Vec<Project>| {
                     projects.into_iter().take(n).collect::<Vec<Project>>()
-                }
-            ),
-            // Sampler::Random(rng, n) => Box::new(
-            //     move |projects: Vec<Project>| {
-            //         projects.choose_multiple(rng, n).collect()
-            //     }
-            // ),
+                })
+            },
+            Sampler::Random { seed, sample_size } => {
+                let seed_bytes = seed.to_be_bytes();
+                let mut rng = Pcg64Mcg::from_seed(seed_bytes);
+                let size = *sample_size;
+                Box::new(move |projects: Vec<Project>| {
+                     projects
+                         .into_iter()
+                         .choose_multiple(&mut rng, size)
+                })
+            },
         }
     }
 }
@@ -156,6 +167,7 @@ pub enum Filter {
     ByCommits(Relation), // FIXME expensive
     ByUsers(Relation),   // FIXME expensive
     ByStars(Relation),   // FIXME expensive
+    ByPaths(Relation),   // FIXME expensive
 }
 
 #[derive(Copy,Debug,Clone)]
@@ -199,6 +211,13 @@ impl Filter {
             Filter::ByUsers(operator) => Box::new(
                 move |project: &Project| {
                     operator.apply(database.user_ids_from(&project).count())
+                }
+            ),
+            Filter::ByPaths(operator) => Box::new(
+                move |project: &Project| {
+                    database.get_commit(11);
+                    database.
+                    //operator.apply(database.)
                 }
             ),
         }

@@ -86,8 +86,8 @@ fn parse_sorter_string (input: &str) -> Result<Sorter, String> {
 }
 
 fn parse_sampler_string (input: &str) -> Result<Sampler, String> {
+    let possible_values = "([0-9]+)([KM]?)(,([0-9]+))?";
     let possible_samplers = "(top|random)";
-    let possible_values = "([0-9]+)([KM]?)";
     let expression =
         format!(r"^{}\({}\)$", possible_samplers, possible_values);
     let regex = Regex::new(expression.as_str()).unwrap();
@@ -104,10 +104,14 @@ fn parse_sampler_string (input: &str) -> Result<Sampler, String> {
             ""  =>       1usize,
             _   => unreachable!(),
         };
-        let number = (&capture[2]).parse::<usize>().unwrap() * multiplier;
+        let seed = match capture.get(5).map(|m| m.as_str()) {
+            Some(s) => s.parse::<u128>().unwrap(),
+            None => 0u128,
+        };
+        let sample_size = (&capture[2]).parse::<usize>().unwrap() * multiplier;
         let sampler = match &capture[1] {
-            "top"      => selectors::Sampler::Head(number),
-            "random"   => unimplemented!(),
+            "top"      => selectors::Sampler::Head(sample_size),
+            "random"   => selectors::Sampler::Random { sample_size, seed },
             _          => unreachable!(),
         };
         return Ok(sampler);

@@ -140,8 +140,8 @@ struct Configuration {
     #[structopt(long="take", parse(try_from_str = parse_sampler_string))]
     sampler: Option<selectors::Sampler>,
 
-    // #[structopt(long = "use-cache")]
-    // use_cache: bool,
+    #[structopt(long = "use-cache")]
+    use_cache: bool,
 }
 
 impl Configuration {
@@ -258,7 +258,7 @@ fn main() {
     let (dcd, loading_time) = with_elapsed_seconds!(
         DCD::new(configuration.dataset_path_as_string())
     );
-    let database = CachedDatabase::from(&dcd);
+    let database = CachedDatabase::from(&dcd, !configuration.use_cache);
 
     let query = query_weaver::weave_query_from(&configuration);
     eprintln!("Executing query");

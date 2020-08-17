@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 pub struct CachedDatabase<'a> {
     database: &'a dyn Database,
+    bypass:   bool,
 
     projects: RefCell<HashMap<ProjectId, Project>>,
     commits:  RefCell<HashMap<CommitId,  Commit>>,
@@ -11,9 +12,11 @@ pub struct CachedDatabase<'a> {
 }
 
 impl<'a> CachedDatabase<'a> {
-    pub fn from(database: &'a impl Database) -> Self {
+    pub fn from(database: &'a impl Database, bypass: bool) -> Self {
         CachedDatabase {
             database,
+            bypass,
+
             projects: RefCell::new(HashMap::new()),
             commits:  RefCell::new(HashMap::new()),
             paths:    RefCell::new(HashMap::new()),
@@ -39,6 +42,10 @@ impl<'a> Database for CachedDatabase<'a> {
     }
 
     fn get_project(&self, id: ProjectId) -> Option<Project> {
+        if self.bypass {
+            return self.database.get_project(id)
+        }
+
         let mut projects = self.projects.borrow_mut();
 
         if let Some(project) = projects.get(&id) {
@@ -56,6 +63,10 @@ impl<'a> Database for CachedDatabase<'a> {
     }
 
     fn get_commit(&self, id: CommitId) -> Option<Commit> {
+        if self.bypass {
+            return self.database.get_commit(id)
+        }
+
         let mut commits = self.commits.borrow_mut();
 
         if let Some(commit) = commits.get(&id) {
@@ -78,6 +89,10 @@ impl<'a> Database for CachedDatabase<'a> {
     }
 
     fn get_file_path(&self, id: PathId) -> Option<FilePath> {
+        if self.bypass {
+            return self.database.get_file_path(id)
+        }
+
         let mut paths = self.paths.borrow_mut();
 
         if let Some(path) = paths.get(&id) {

@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-
+use git2::Oid;
 use dcd::{Database, FilePath};
 use dcd::{Commit,   Project,   User, };
 use dcd::{CommitId, ProjectId, UserId};
@@ -118,6 +118,7 @@ impl MockDatabase {
                     users_in_project.insert(author_id);
 
                     let commit = Commit {
+                        hash: Oid::from_str(commit_id.to_string().as_str()).unwrap(),
                         id: commit_id as u64,
                         parents,
                         committer_id,

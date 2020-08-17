@@ -4,10 +4,8 @@ use itertools::Itertools;
 //use rand::SeedableRng;
 //use rand::seq::SliceRandom;
 use crate::meta::ProjectMeta;
-use std::cell::RefCell;
-use std::rc::Rc;
 use rand_pcg::Pcg64Mcg;
-use rand::{SeedableRng, RngCore};
+use rand::SeedableRng;
 use rand::seq::IteratorRandom;
 
 #[derive(Clone)]
@@ -167,7 +165,6 @@ pub enum Filter {
     ByCommits(Relation), // FIXME expensive
     ByUsers(Relation),   // FIXME expensive
     ByStars(Relation),   // FIXME expensive
-    ByPaths(Relation),   // FIXME expensive
 }
 
 #[derive(Copy,Debug,Clone)]
@@ -211,13 +208,6 @@ impl Filter {
             Filter::ByUsers(operator) => Box::new(
                 move |project: &Project| {
                     operator.apply(database.user_ids_from(&project).count())
-                }
-            ),
-            Filter::ByPaths(operator) => Box::new(
-                move |project: &Project| {
-                    database.get_commit(11);
-                    database.
-                    //operator.apply(database.)
                 }
             ),
         }

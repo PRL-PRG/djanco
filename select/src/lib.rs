@@ -1,3 +1,4 @@
+pub mod cachedb;
 pub mod meta;
 pub mod mockdb;
 pub mod selectors;

@@ -4,6 +4,7 @@ use select::selectors;
 use std::path::{Path, PathBuf};
 use regex::Regex;
 use select::selectors::{Filter, Sorter, Sampler};
+use select::cachedb::CachedDatabase;
 
 macro_rules! with_elapsed_seconds {
     ($thing:expr) => {{
@@ -138,6 +139,9 @@ struct Configuration {
 
     #[structopt(long="take", parse(try_from_str = parse_sampler_string))]
     sampler: Option<selectors::Sampler>,
+
+    // #[structopt(long = "use-cache")]
+    // use_cache: bool,
 }
 
 impl Configuration {
@@ -251,9 +255,10 @@ fn main() {
     println!("{:?}", configuration);
 
     eprintln!("Loading dataset at `{}`", configuration.dataset_path_as_string());
-    let (database, loading_time) = with_elapsed_seconds!(
+    let (dcd, loading_time) = with_elapsed_seconds!(
         DCD::new(configuration.dataset_path_as_string())
     );
+    let database = CachedDatabase::from(&dcd);
 
     let query = query_weaver::weave_query_from(&configuration);
     eprintln!("Executing query");

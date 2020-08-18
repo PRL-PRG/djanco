@@ -179,11 +179,11 @@ pub enum Relation {
 impl Relation {
     fn apply(&self, value: usize) -> bool {
         match *self {
-            Relation::Equal          (spec) => spec == value,
-            Relation::EqualOrMoreThan(spec) => spec >  value,
-            Relation::EqualOrLessThan(spec) => spec <= value,
-            Relation::MoreThan       (spec) => spec >= value,
-            Relation::LessThan       (spec) => spec <  value,
+            Relation::Equal          (threshold) => value == threshold,
+            Relation::EqualOrMoreThan(threshold) => value >= threshold,
+            Relation::EqualOrLessThan(threshold) => value <= threshold,
+            Relation::MoreThan       (threshold) => value >  threshold,
+            Relation::LessThan       (threshold) => value <  threshold,
         }
     }
 }

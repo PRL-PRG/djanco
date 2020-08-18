@@ -182,6 +182,14 @@ mod tests {
     use std::collections::HashSet;
     use itertools::__std_iter::FromIterator;
 
+    macro_rules! copy_sorted {
+        ($v:expr) => {{
+            let mut s = Vec::from_iter($v.into_iter());
+            s.sort();
+            s
+        }}
+    }
+
     fn create_db() -> MockDatabase {
         MockDatabase::example(
             /*how_many_projects:          */ 10,

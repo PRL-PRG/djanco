@@ -1,4 +1,7 @@
 use std::cell::RefCell;
+use select::query::project::GroupKey;
+use dcd::{Project, Database, DCD};
+use select::mockdb::MockDatabase;
 
 struct State {
     value: u32,
@@ -12,12 +15,20 @@ fn make_closure() -> Box<dyn FnMut() -> u32> {
     })
 }
 
-struct IteratorHolder<I: Iterator<Item = u32>> {
-    iter: I,
+trait Doom {
+    fn iterator<'a>(d: &'a impl Database) -> IteratorHolder<'a> {
+        let vec: Vec<(GroupKey,Vec<Project>)> = vec![];
+        IteratorHolder { iter: Box::new(vec.into_iter()), d}
+    }
 }
 
-impl<I> Iterator for IteratorHolder<I> where I: Iterator<Item=u32> {
-    type Item = u32;
+struct IteratorHolder<'a> {
+    iter: Box<dyn Iterator<Item=(GroupKey,Vec<Project>)>>,
+    d: &'a dyn Database,
+}
+
+impl<'a> Iterator for IteratorHolder<'a> {
+    type Item = (GroupKey,Vec<Project>);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
@@ -28,9 +39,9 @@ impl<I> Iterator for IteratorHolder<I> where I: Iterator<Item=u32> {
 
 fn main() {
     let mut closure = make_closure();
-    let vec: Vec<u32> = vec![];
+    let vec: Vec<(GroupKey,Vec<Project>)> = vec![];
 
-    IteratorHolder { iter: vec.into_iter() };
+    //IteratorHolder { iter: Box::new(vec.into_iter()), d: &() };
 
     // println!("{}", closure());
     // println!("{}", closure());

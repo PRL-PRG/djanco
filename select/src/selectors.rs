@@ -215,7 +215,7 @@ impl Filter {
 }
 
 #[allow(dead_code)]
-pub fn filter_soirt_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
+pub fn filter_sort_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
                                                        filter:   Filter,
                                                        sorter:   Sorter,
                                                        sampler:  Sampler)
@@ -240,10 +240,10 @@ pub fn filter_soirt_and_sample<Filter, Sorter, Sampler>(database: &impl Database
 }
 
 #[allow(dead_code)]
-pub fn sort_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
-                                                sorter:   Sorter,
-                                                sampler:  Sampler)
-                                                -> Vec<Project>
+pub fn sort_and_sample<Sorter, Sampler>(database: &impl Database,
+                                        sorter:   Sorter,
+                                        sampler:  Sampler)
+                                        -> Vec<Project>
 
     where Sorter:           Fn(&Project, &Project) -> Ordering,
           Sampler:          Fn(Vec<Project>) -> Vec<Project> {

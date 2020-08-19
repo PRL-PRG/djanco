@@ -1,4 +1,4 @@
-use dcd::{ProjectIter, Database, Project};
+use dcd::{Database, Project, ProjectIter};
 use crate::query::project::{Group, Property, GroupKey};
 use itertools::Itertools;
 use crate::meta::ProjectMeta;
@@ -65,12 +65,12 @@ pub mod project {
     }
 }
 
-pub trait ProjectQuery<'a,I> where I: Iterator<Item=(GroupKey,Vec<Project>)> {
-    fn group_by(self, group: &project::Group, database: &'a impl Database) -> ProjectGroups<'a,I>;
+pub trait ProjectQuery<'a>  {
+    fn group_by(self, group: &project::Group, database: &'a impl Database) -> ProjectGroups<'a>;
 }
 
-impl<'a,I> ProjectQuery<'a,I> for ProjectIter<'a> where I: Iterator<Item=(GroupKey,Vec<Project>)> {
-    fn group_by(self, group: &project::Group, database: &'a impl Database) -> ProjectGroups<'a,I> { // FIXME remove database from parameters... somehow
+impl<'a> ProjectQuery<'a> for ProjectIter<'a>  {
+    fn group_by(self, group: &project::Group, database: &'a impl Database) -> ProjectGroups<'a> { // FIXME remove database from parameters... somehow
         macro_rules! group_by {
            ($f:expr, $key_mapper:expr) => {{
                 self
@@ -102,24 +102,24 @@ impl<'a,I> ProjectQuery<'a,I> for ProjectIter<'a> where I: Iterator<Item=(GroupK
             Group::Conjunction(_) => unimplemented!(),
         };
 
-        ProjectGroups { data:vector.into_iter(), database };
+        //ProjectGroups { data: Box::new(vector.into_iter()), database };
         unimplemented!()
     }
 }
 
 #[derive(Clone)]
-pub struct ProjectGroups<'a,I: Iterator<Item=(GroupKey,Vec<Project>)>> {
-    data: I,
+pub struct ProjectGroups<'a> {
+    //data: Box<dyn Iterator<Item=u32>>,
     database: &'a dyn Database,
 }
 
-impl<'a,I> ProjectGroups<'a,I> where I: Iterator<Item=(GroupKey,Vec<Project>)> {
-    fn new(data: I, database: &'a impl Database) -> ProjectGroups<'a,I> {
-        ProjectGroups{ data, database }
-    }
+impl<'a> ProjectGroups<'a> {
+     //fn new(data: impl Iter, database: &'a impl Database) -> ProjectGroups<'a> {
+    //    ProjectGroups{ data, database }
+   // }
 }
 
-impl<'a,I> Iterator for ProjectGroups<'a,I> where I: Iterator<Item=(GroupKey,Vec<Project>)> {
+impl<'a> Iterator for ProjectGroups<'a> {
     type Item = (GroupKey, Vec<Project>);
 
     fn next(&mut self) -> Option<Self::Item> {

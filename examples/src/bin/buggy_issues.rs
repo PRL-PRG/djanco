@@ -29,23 +29,10 @@ fn main() {
     eprintln!("Executing query");
     let (projects, query_execution_time) = with_elapsed_seconds!({
 
-        let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_issue_count_or_zero());
+        let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_buggy_issue_count_or_zero());
         let how_sample = top!(50);
 
         sort_and_sample(&database, how_sort, how_sample)
-
-        // Equivalent to this:
-        //
-        //     database
-        //         .projects()
-        //         .map(|p| (p.get_language(), p))
-        //         .into_group_map()
-        //         .into_iter()
-        //         .flat_map(|(_language, mut projects)| {
-        //             projects.sort_by(&how_sort);
-        //             how_sample(projects)
-        //         })
-        //         .collect();
     });
 
     eprintln!("Writing results to `{}`", configuration.output_path_as_string());

@@ -8,6 +8,10 @@ pub trait ProjectMeta {
     fn get_stars_or_zero(&self)                                -> u64;
     fn get_language(&self)                                     -> Option<String>;
     fn get_language_or_empty(&self)                            -> String;
+    fn get_issue_count(&self)                                  -> Option<u64>;
+    fn get_issue_count_or_zero(&self)                          -> u64 ;
+    fn get_buggy_issue_count(&self)                            -> Option<u64>;
+    fn get_buggy_issue_count_or_zero(&self)                    -> u64;
     fn get_head_count(&self)                                   -> usize;
 
     fn get_commit_count_in(&self,    database: &impl Database) -> usize;
@@ -43,6 +47,22 @@ impl ProjectMeta for Project {
             Some(s) => s.trim().to_string(),
             None => String::new(),
         }
+    }
+
+    fn get_issue_count(&self) -> Option<u64> {
+        self.metadata.get("ght_issue").map(|e| e.parse::<u64>().unwrap())
+    }
+
+    fn get_issue_count_or_zero(&self) -> u64 {
+        self.metadata.get("ght_issue_bug").map_or(0u64, |e| e.parse::<u64>().unwrap())
+    }
+
+    fn get_buggy_issue_count(&self) -> Option<u64> {
+        self.metadata.get("ght_issue").map(|e| e.parse::<u64>().unwrap())
+    }
+
+    fn get_buggy_issue_count_or_zero(&self) -> u64 {
+        self.metadata.get("ght_issue_bug").map_or(0u64, |e| e.parse::<u64>().unwrap())
     }
 
     fn get_head_count(&self) -> usize {

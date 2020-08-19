@@ -215,11 +215,11 @@ impl Filter {
 }
 
 #[allow(dead_code)]
-fn group_by_language_and_select<Filter, Sorter, Sampler>(database: &impl Database,
-                                                         filter:   Filter,
-                                                         sorter:   Sorter,
-                                                         sampler:  Sampler)
-                                                         -> Vec<ProjectId>
+pub fn filter_soirt_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
+                                                       filter:   Filter,
+                                                       sorter:   Sorter,
+                                                       sampler:  Sampler)
+                                                       -> Vec<Project>
 
     where Filter:           Fn(&Project) -> bool,
           Sorter:           Fn(&Project, &Project) -> Ordering,
@@ -234,7 +234,27 @@ fn group_by_language_and_select<Filter, Sorter, Sampler>(database: &impl Databas
         })
         .flat_map(|mut projects| {
             projects.sort_by(&sorter);
-            sampler(projects).iter().map(|p| p.id).collect::<Vec<ProjectId>>()
+            sampler(projects)
+        })
+        .collect()
+}
+
+#[allow(dead_code)]
+pub fn sort_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
+                                                sorter:   Sorter,
+                                                sampler:  Sampler)
+                                                -> Vec<Project>
+
+    where Sorter:           Fn(&Project, &Project) -> Ordering,
+          Sampler:          Fn(Vec<Project>) -> Vec<Project> {
+
+    database.projects()
+        .map(|p| (p.get_language(), p))
+        .into_group_map()
+        .into_iter()
+        .flat_map(|(_language, mut projects)| {
+            projects.sort_by(&sorter);
+            sampler(projects)
         })
         .collect()
 }

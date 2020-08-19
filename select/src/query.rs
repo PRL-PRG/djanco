@@ -1,14 +1,22 @@
 use dcd::{ProjectIter, Database, Project};
-use crate::query::project::{Group, Property, TimeResolution, GroupKey};
+use crate::query::project::{Group, Property, GroupKey};
 use itertools::Itertools;
 use crate::meta::ProjectMeta;
-use std::collections::HashMap;
+use std::time::Duration;
 
 pub mod project {
-    use std::time::{Instant, Duration};
-
     #[derive(Debug, Copy, Clone)]
     pub enum TimeResolution { Days, Months, Years }
+
+    impl TimeResolution {
+        pub fn as_secs(&self) -> u64 {
+            match self {
+                TimeResolution::Days   => 60/*sec*/ * 60/*min*/ * 24/*hr*/,
+                TimeResolution::Months => 60/*sec*/ * 60/*min*/ * 24/*hr*/ * 30/*days*/,
+                TimeResolution::Years  => 60/*sec*/ * 60/*min*/ * 24/*hr*/ * 365/*days*/,
+            }
+        }
+    }
 
     #[derive(Debug, Copy, Clone)]
     pub enum Property { Commits, Paths, Heads, Authors, Committers, Users }
@@ -35,11 +43,11 @@ pub mod project {
     #[derive(Debug, Clone)]
     pub enum GroupKey {
         // Things we can read directly
-        TimeOfLastUpdate(Instant),
+        TimeOfLastUpdate(i64),
 
         // Things we can read from metadata
         Language(String),
-        Stars(usize),
+        Stars(u64),
 
         // Things we can count
         Commits(usize),
@@ -50,41 +58,72 @@ pub mod project {
         Users(usize),
 
         // Things we can calculate or derive
-        Duration(Duration),
+        Duration { time: u64, resolution: TimeResolution },
 
         // Complex groupings
         Conjunction(Vec<GroupKey>),
     }
 }
 
-pub trait ProjectQuery {
-    fn group_by(self, group: &project::Group, database: &impl Database) -> Vec<Vec<Project>>;
+pub trait ProjectQuery<'a,I> where I: Iterator<Item=(GroupKey,Vec<Project>)> {
+    fn group_by(self, group: &project::Group, database: &'a impl Database) -> ProjectGroups<'a,I>;
 }
 
-impl ProjectQuery for ProjectIter<'_> {
-    fn group_by(self, group: &project::Group, database: &impl Database) -> Vec<Vec<Project>> { // FIXME remove database from parameters... somehow
+impl<'a,I> ProjectQuery<'a,I> for ProjectIter<'a> where I: Iterator<Item=(GroupKey,Vec<Project>)> {
+    fn group_by(self, group: &project::Group, database: &'a impl Database) -> ProjectGroups<'a,I> { // FIXME remove database from parameters... somehow
         macro_rules! group_by {
-           ($f:expr) => { self.map($f).into_group_map().into_iter().map(|(_, g)| g).collect() }
+           ($f:expr, $key_mapper:expr) => {{
+                self
+                  .map($f).into_group_map().into_iter()
+                  .map(|(k, g)| ($key_mapper(k), g))
+                  .collect() // TODO try Box?
+           }}
         }
 
-        match &group {
-            Group::TimeOfLastUpdate => group_by!(|p| (p.last_update, p)),
-            Group::Language         => group_by!(|p| (p.get_language_or_empty(), p)),
-            Group::Stars            => group_by!(|p| (p.get_stars_or_zero(), p)),
+        let vector: Vec<(GroupKey,Vec<Project>)> =
+            match &group {
+            Group::TimeOfLastUpdate            => group_by!(|p| (p.last_update, p),             |k| GroupKey::TimeOfLastUpdate(k)),
+            Group::Language                    => group_by!(|p| (p.get_language_or_empty(), p), |k| GroupKey::Language(k)),
+            Group::Stars                       => group_by!(|p| (p.get_stars_or_zero(), p),     |k| GroupKey::Stars(k)),
 
-            Group::Duration(TimeResolution::Days)   => unimplemented!(),
-            Group::Duration(TimeResolution::Months) => unimplemented!(),
-            Group::Duration(TimeResolution::Years)  => unimplemented!(),
+            Group::Count(Property::Heads)      => group_by!(|p| (p.get_head_count(), p),                 |k| GroupKey::Heads(k)),
+            Group::Count(Property::Commits)    => group_by!(|p| (p.get_commit_count_in(database), p),    |k| GroupKey::Commits(k)),
+            Group::Count(Property::Paths)      => group_by!(|p| (p.get_path_count_in(database), p),      |k| GroupKey::Paths(k)),
+            Group::Count(Property::Committers) => group_by!(|p| (p.get_committer_count_in(database), p), |k| GroupKey::Committers(k)),
+            Group::Count(Property::Authors)    => group_by!(|p| (p.get_author_count_in(database), p),    |k| GroupKey::Authors(k)),
+            Group::Count(Property::Users)      => group_by!(|p| (p.get_user_count_in(database), p),      |k| GroupKey::Users(k)),
 
-            Group::Count(Property::Heads)      => group_by!(|p| (p.get_head_count(), p)),
-            Group::Count(Property::Commits)    => group_by!(|p| (p.get_commit_count_in(database), p)),
-            Group::Count(Property::Paths)      => group_by!(|p| (p.get_path_count_in(database), p)),
-            Group::Count(Property::Committers) => group_by!(|p| (p.get_committer_count_in(database), p)),
-            Group::Count(Property::Authors)    => group_by!(|p| (p.get_author_count_in(database), p)),
-            Group::Count(Property::Users)      => group_by!(|p| (p.get_user_count_in(database), p)),
+            Group::Duration(resolution) => {
+                let as_secs = |v:Duration| v.as_secs();
+                group_by!(|p| (p.get_age(database).map_or(0u64, as_secs) / resolution.as_secs(), p),
+                          |k| GroupKey::Duration { time: k, resolution: *resolution })
+            },
 
             Group::Conjunction(_) => unimplemented!(),
-        }
+        };
+
+        ProjectGroups { data:vector.into_iter(), database };
+        unimplemented!()
+    }
+}
+
+#[derive(Clone)]
+pub struct ProjectGroups<'a,I: Iterator<Item=(GroupKey,Vec<Project>)>> {
+    data: I,
+    database: &'a dyn Database,
+}
+
+impl<'a,I> ProjectGroups<'a,I> where I: Iterator<Item=(GroupKey,Vec<Project>)> {
+    fn new(data: I, database: &'a impl Database) -> ProjectGroups<'a,I> {
+        ProjectGroups{ data, database }
+    }
+}
+
+impl<'a,I> Iterator for ProjectGroups<'a,I> where I: Iterator<Item=(GroupKey,Vec<Project>)> {
+    type Item = (GroupKey, Vec<Project>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unimplemented!()
     }
 }
 
@@ -157,7 +196,8 @@ mod test {
     //     furthermore if our template doesn't suffice, the user-programmer can also use standard
     //     rust facilities to get what they need
 
-    use dcd::{DCD, Database};
+    use dcd::*;
+    use crate::query::project::*;
 
     // Benchmark Q1:
     // group projects by language
@@ -167,8 +207,12 @@ mod test {
     //   *  take top N=50
     // flatten to list of IDs
     #[test] fn top_stars_per_language() {
-        let dataset = DCD::new("/dejavuii/dejacode/dataset-tiny".to_string());
-        let projects = dataset.projects();
+        //let dataset = DCD::new("/dejavuii/dejacode/dataset-tiny".to_string());
+        //let projects = dataset.projects();
+
+        let vector: Vec<(GroupKey, Vec<Project>)> = vec![];
+        println!("{:?}",vector.iter());
+        assert!(false)
     }
 
 

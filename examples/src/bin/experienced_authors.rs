@@ -10,7 +10,6 @@ use select::meta::ProjectMeta;
 
 use dcd::{DCD, Database};
 use dcd::Project;
-use dcd::Commit;
 use dcd::UserId;
 //use dcd::Database;
 

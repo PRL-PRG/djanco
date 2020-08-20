@@ -85,7 +85,23 @@ Group by language, sort by average size of commit messages, take top 50 in each 
 cargo run --bin commit_message_sizes -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="commit_message_sizes.csv"
 ```
 
-# Hacking togethet queries
+Group by language, filter out all projects who have fewer than 25 commits authored by experienced authors, sort by 
+number of commits, take top 50 in each language. An experienced author is one for whom at least 2 years passed between 
+authoring their first and their most recent commit.
+
+```sh
+cargo run --bin experienced_authors -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="experienced_authors.csv"
+```
+
+Group by language, filter out all projects who have fewer than 50% commits authored by experienced authors, sort by 
+number of commits, take top 50 in each language. An experienced author is one for whom at least 2 years passed between 
+authoring their first and their most recent commit.
+
+```sh
+cargo run --bin experienced_authors_ratio -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="experienced_authors_ratio.csv"
+```
+
+# Hacking together queries
 
 First we need access to the dataset:
 

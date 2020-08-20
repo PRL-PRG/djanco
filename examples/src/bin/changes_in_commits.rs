@@ -36,28 +36,18 @@ fn main() {
                     c.changes.map_or(0, |m| m.len())
                 }).collect();
 
-            let average_changes_per_commit =
+            let average_changes_per_commit = if changes_per_commit.len() == 0 {
+                0u64
+            } else {
                 changes_per_commit.iter().fold(0u64, |s: u64, c: &usize| (*c as u64) + s)
-                / changes_per_commit.len() as u64;
+                / changes_per_commit.len() as u64
+            };
 
             average_changes_per_commit
         });
         let how_sample = top!(50);
 
         sort_and_sample(&database, how_sort, how_sample)
-
-        // Equivalent to this:
-        //
-        //     database
-        //         .projects()
-        //         .map(|p| (p.get_language(), p))
-        //         .into_group_map()
-        //         .into_iter()
-        //         .flat_map(|(_language, mut projects)| {
-        //             projects.sort_by(&how_sort);
-        //             how_sample(projects)
-        //         })
-        //         .collect();
     });
 
     eprintln!("Writing results to `{}`", configuration.output_path_as_string());

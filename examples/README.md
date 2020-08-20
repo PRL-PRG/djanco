@@ -27,14 +27,6 @@ cargo build
 cd ..
 ```
 
-Prepare a dataset using the downloader's toolchain from a pre-downloaded sample, for example:
-
-```sh
-cd dejacode-downloader/target/release
-./dcd-ghtorrent "$USER/my-datasets/dataset-15lang-1K" "/dejavuii/dejacode/ghtorrent/sample-15-1000/" --new
-cd ../..
-```
-
 Install cargo if needed (linux/mac):
 
 ```sh
@@ -58,25 +50,25 @@ cd dejacode-server/examples
 Group by language, sort by number of commits, take top 50 in each language
 
 ```sh
-cargo run --package examples --bin commits -- --dataset="$USER/my-datasets/dataset-15lang-1K"" --output="commits.csv"
+cargo run --package examples --bin commits -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="commits.csv"
 ```
 
 Group by language, sort by average number of changes in project's commits, take top 50 in each language.
 
 ```sh
-cargo run --package examples --bin changes_in_commits -- --dataset="$USER/my-datasets/dataset-15lang-1K"" --output="changes_in_commits.csv"
+cargo run --package examples --bin changes_in_commits -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="changes_in_commits.csv"
 ```
 
 Group by language, sort by number of issues in a project, take top 50 in each language:
 
 ```sh
-cargo run --package examples --bin issues -- --dataset="$USER/my-datasets/dataset-15lang-1K"" --output="issues.csv"
+cargo run --package examples --bin issues -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="issues.csv"
 ```
 
 Group by language, sort by number of buggy issues in a project, take top 50 in each language:
 
 ```sh
-cargo run --package examples --bin buggy_issues -- --dataset="$USER/my-datasets/dataset-15lang-1K"" --output="buggy_issues.csv"
+cargo run --package examples --bin buggy_issues -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="buggy_issues.csv"
 ```
 
 Group by language, sort by average size of commit messages, take top 50 in each language

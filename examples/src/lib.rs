@@ -77,6 +77,9 @@ pub struct Configuration {
 
     #[structopt(long = "show-details")]
     pub show_details: bool,
+
+    #[structopt(long = "do-not-cache")]
+    pub skip_cache: bool,
 }
 
 impl Configuration {

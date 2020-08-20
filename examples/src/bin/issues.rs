@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 use select::selectors::sort_and_sample;
 use select::meta::ProjectMeta;
+use select::cachedb::CachedDatabase;
 
 use dcd::DCD;
 use dcd::Project;
@@ -22,9 +23,11 @@ fn main() {
     let configuration = Configuration::from_args();
 
     eprintln!("Loading dataset at `{}`", configuration.dataset_path_as_string());
-    let (database, loading_time) = with_elapsed_seconds!(
+    let (dcd, loading_time) = with_elapsed_seconds!(
         DCD::new(configuration.dataset_path_as_string())
     );
+
+    let database = CachedDatabase::from(&dcd, configuration.skip_cache);
 
     eprintln!("Executing query");
     let (projects, query_execution_time) = with_elapsed_seconds!({

@@ -205,7 +205,7 @@ This closure removes all projects that have fewer than 5 users:
     }
 ```
 
-The we can plug it into the coordinating function like this:
+Then we can plug it into the coordinating function like this:
 
 ```rust
    let projects: Vec<Project> = filter_sort_and_sample(&database, filter, sorter, sampler) 

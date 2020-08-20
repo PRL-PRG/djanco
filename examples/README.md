@@ -79,6 +79,12 @@ Group by language, sort by number of buggy issues in a project, take top 50 in e
 cargo run --package examples --bin buggy_issues -- --dataset="$USER/my-datasets/dataset-15lang-1K"" --output="buggy_issues.csv"
 ```
 
+Group by language, sort by average size of commit messages, take top 50 in each language
+
+```sh
+cargo run --bin commit_message_sizes -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="commit_message_sizes.csv"
+```
+
 # Hacking togethet queries
 
 First we need access to the dataset:

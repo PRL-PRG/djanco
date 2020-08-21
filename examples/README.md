@@ -93,6 +93,12 @@ authoring their first and their most recent commit.
 cargo run --release --bin experienced_authors_ratio -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="experienced_authors_ratio.csv"
 ```
 
+Group by language, sort by stars take top 50 in each language.
+
+```sh
+cargo run --release --bin stars -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="stars.csv"
+```
+
 # Hacking together queries
 
 First we need access to the dataset:

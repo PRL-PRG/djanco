@@ -70,7 +70,7 @@ impl ProjectMeta for Project {
     }
 
     fn get_commit_count_in(&self, database: &impl Database) -> usize {
-        database.commits_from(self).count()
+        database.bare_commits_from(self).count()
     }
 
     fn get_user_count_in(&self, _database: &impl Database) -> usize {

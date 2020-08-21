@@ -80,7 +80,7 @@ impl<'a> ProjectQuery<'a> for ProjectIter<'a>  {
            }}
         }
 
-        let vector: Vec<(GroupKey,Vec<Project>)> =
+        let _vector: Vec<(GroupKey,Vec<Project>)> =
             match &group {
             Group::TimeOfLastUpdate            => group_by!(|p| (p.last_update, p),             |k| GroupKey::TimeOfLastUpdate(k)),
             Group::Language                    => group_by!(|p| (p.get_language_or_empty(), p), |k| GroupKey::Language(k)),

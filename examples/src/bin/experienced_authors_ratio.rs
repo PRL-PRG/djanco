@@ -21,7 +21,6 @@ use examples::Configuration;
 use examples::Direction;
 use examples::io::*;
 
-
 fn main() {
     let configuration = Configuration::from_args();
 
@@ -40,7 +39,7 @@ fn main() {
         let required_ratio_of_commits_by_experienced_authors: f64 = 0.5;
 
         let author_experience: HashMap<UserId, u64> =
-            database.commits()
+            database.bare_commits()
                 .map(|c| (c.author_id, c.author_time))
                 .into_group_map()
                 .into_iter()
@@ -61,7 +60,7 @@ fn main() {
         let how_filter = |p: &Project| {
             let commit_has_experienced_author: Vec<bool> =
                 database
-                    .commits_from(p)
+                    .bare_commits_from(p)
                     .map(|c| { author_experience.get(&c.author_id).map_or(0u64, |e| *e) })
                     .map(|experience_in_seconds| experience_in_seconds > required_experience)
                     .collect();

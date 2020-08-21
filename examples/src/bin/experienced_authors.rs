@@ -75,9 +75,9 @@ fn main() {
         filter_sort_and_sample(&database, how_filter, how_sort, how_sample)
     });
 
-    for p in &projects {
-        println!("{}", p.url);
-    }
+    // for p in &projects {
+    //     println!("{}", p.url);
+    // }
 
     eprintln!("Writing results to `{}`", configuration.output_path_as_string());
     let (_, writing_to_output_time) = with_elapsed_seconds!(

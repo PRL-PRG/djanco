@@ -139,7 +139,7 @@ pub mod io {
         write_anything_to_output(configuration, projects, |project| {
             let language = to_string_or_empty!(project.get_language());
             let stars = to_string_or_empty!(project.get_stars());
-            format!("{}, {}, {}", project.id, language, stars).to_string()
+            format!("{}, {}, {}, {}", project.id, project.url, language, stars).to_string()
         })
     }
 

@@ -83,6 +83,12 @@ impl<'a> Database for CachedDatabase<'a> {
         return None;
     }
 
+    fn get_commit_bare(&self, id: CommitId) -> Option<Commit> {
+        // there is little point in caching bare commits.
+        return self.database.get_commit_bare(id);
+    }
+
+
     fn get_user(&self, id: UserId) -> Option<&User> {
         // Already cached.
         self.database.get_user(id)

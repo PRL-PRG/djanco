@@ -39,6 +39,10 @@ impl Database for MockDatabase {
         self.commits.get(id as usize).map(|commit| commit.clone())
     }
 
+    fn get_commit_bare(&self, id: CommitId) -> Option<Commit> {
+        self.commits.get(id as usize).map(|commit| commit.clone())
+    }
+
     fn get_user(&self, id: UserId) -> Option<&User> {
         self.users.get(id as usize)
     }

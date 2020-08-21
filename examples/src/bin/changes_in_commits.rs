@@ -35,7 +35,7 @@ fn main() {
 
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| {
             let changes_per_commit: Vec<usize> =
-                database.commits_from(p).map(|c: Commit| {
+                database.bare_commits_from(p).map(|c: Commit| {
                     c.changes.map_or(0, |m| m.len())
                 }).collect();
 

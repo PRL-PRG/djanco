@@ -88,7 +88,6 @@ impl<'a> Database for CachedDatabase<'a> {
         return self.database.get_commit_bare(id);
     }
 
-
     fn get_user(&self, id: UserId) -> Option<&User> {
         // Already cached.
         self.database.get_user(id)

@@ -1,3 +1,4 @@
+mod io;
 pub mod query;
 pub mod cachedb;
 pub mod meta;

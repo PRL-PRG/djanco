@@ -91,6 +91,9 @@ pub struct Configuration {
 
     #[structopt(name = "QUERIES")]
     pub queries: Vec<String>,
+
+    #[structopt(parse(from_os_str), short = "p", long = "persistent-cache", name = "PERSISTENT_CACHE_PATH")]
+    pub persistent_cache_path: Option<PathBuf>,
 }
 
 impl Configuration {
@@ -123,6 +126,17 @@ impl Configuration {
     pub fn timing_log_as_string(&self) -> String {
         self.timing_log.as_os_str().to_str().unwrap().to_string()
     }
+
+    pub fn persistent_cache_path_as_string(&self) -> Option<String> {
+        match &self.persistent_cache_path {
+            None => None,
+            Some(p) => Some(p.as_os_str().to_str().unwrap().to_string()),
+        }
+    }
+
+    pub fn use_persistent_cache(&self) -> bool {
+        self.persistent_cache_path.is_some()
+    }
 }
 
 macro_rules! to_string_or_empty {
@@ -142,6 +156,7 @@ pub mod io {
     use std::fs::{File, OpenOptions, create_dir_all};
     use std::io::Write;
     use select::meta::ProjectMeta;
+    use itertools::Itertools;
 
     fn error_on_write_to_output(configuration: &Configuration, error: &impl Error) {
         panic!("cannot write to {} ({})", configuration.output_path_as_string(), error);
@@ -152,10 +167,10 @@ pub mod io {
                                            projects: &Vec<Project>,
                                            printer: Formatter)
         where Formatter: Fn(&Project) -> String {
-        create_dir_all(&configuration.output_path);
+        create_dir_all(&configuration.output_path).unwrap();
         match File::create(&configuration.output_path_for(query)) {
             Ok(mut file) => {
-                for project in projects.iter() {
+                for project in projects.iter().sorted_by_key(|p| p.id) {
                     let line = printer(project);
                     if let Err(e) = writeln!(file, "{}", line) {
                         error_on_write_to_output(configuration, &e)

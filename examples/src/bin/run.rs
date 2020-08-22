@@ -1,6 +1,6 @@
 use structopt::StructOpt;
 
-use select::cachedb::CachedDatabase;
+use select::cachedb::{CachedDatabase, PersistentIndex};
 
 use dcd::DCD;
 
@@ -18,7 +18,14 @@ fn main() {
         DCD::new(configuration.dataset_path_as_string())
     );
 
-    let database = CachedDatabase::from(&dcd, configuration.skip_cache);
+    let cd = CachedDatabase::from(&dcd, configuration.skip_cache);
+
+    match configuration.persistent_cache_path_as_string() {
+        Some(path) => eprintln!("Pre-loading selected dataset items to/from `{}`", path),
+        None       => eprintln!("Skipping pre-loading selected dataset items"),
+    }
+    let database =
+        PersistentIndex::from(&cd, configuration.persistent_cache_path.clone()).unwrap();
 
     let queries =
         if configuration.queries.len() != 0 { configuration.queries.clone() } else { Queries::all() };

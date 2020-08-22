@@ -229,12 +229,23 @@ pub fn filter_sort_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
         .map(|p| (p.get_language(), p))
         .into_group_map()
         .into_iter()
-        .map(|(_language, projects)| {
-            projects.into_iter().filter(&filter).collect::<Vec<Project>>()
+        .map(|(language, projects)| {
+            println!("Filtering projects for language {}...", language.as_deref().unwrap_or("?"));
+            println!("    {} projects at the outset", projects.len());
+            let filtered_projects =
+                projects.into_iter().filter(&filter).collect::<Vec<Project>>();
+            println!("    {} projects after filtering", filtered_projects.len());
+            (language, filtered_projects)
         })
-        .flat_map(|mut projects| {
+        .flat_map(|(language, mut projects)| {
+            println!("Sorting projects for language {}...", language.as_deref().unwrap_or("?"));
+            println!("    {} projects to sort", projects.len());
             projects.sort_by(&sorter);
-            sampler(projects)
+            println!("Sampling projects for language {}...", language.as_deref().unwrap_or("?"));
+            println!("    {} projects at the outset", projects.len());
+            let sampled_projects = sampler(projects);
+            println!("    {} projects after sampling", sampled_projects.len());
+            sampled_projects
         })
         .collect()
 }
@@ -246,15 +257,21 @@ pub fn sort_and_sample<Sorter, Sampler>(database: &impl Database,
                                         -> Vec<Project>
 
     where Sorter:           Fn(&Project, &Project) -> Ordering,
-          Sampler:          Fn(Vec<Project>) -> Vec<Project> {
+          Sampler:          Fn(Vec<Project>) -> Vec<Project> {git s
 
     database.projects()
         .map(|p| (p.get_language(), p))
         .into_group_map()
         .into_iter()
-        .flat_map(|(_language, mut projects)| {
+        .flat_map(|(language, mut projects)| {
+            println!("Sorting projects for language {}...", language.as_deref().unwrap_or("?"));
+            println!("    {} projects to sort", projects.len());
             projects.sort_by(&sorter);
-            sampler(projects)
+            println!("Sampling projects for language {}...",language.as_deref().unwrap_or("?"));
+            println!("    {} projects at the outset", projects.len());
+            let sampled_projects = sampler(projects);
+            println!("    {} projects after sampling", sampled_projects.len());
+            sampled_projects
         })
         .collect()
 }

@@ -134,6 +134,10 @@ impl<'a> Database for CachedDatabase<'a> {
     // }
 }
 
+pub struct PersistentIndex {
+
+}
+
 #[derive(Debug)]
 pub struct PersistentProjectCommitIndex {
     project_ids_and_their_commit_ids: Vec<Vec<CommitId>>,

@@ -45,7 +45,7 @@ fn main() {
         eprintln!("    {}s writing to output", writing_to_output_time);
 
         eprintln!("Logging elapsed time to `{}`", configuration.timing_log_as_string());
-        log_timing(&configuration, "stars", loading_time, query_execution_time, writing_to_output_time);
+        log_timing(&configuration, query, loading_time, query_execution_time, writing_to_output_time);
     }
     eprintln!("Done executing {} queries", queries.len());
 }

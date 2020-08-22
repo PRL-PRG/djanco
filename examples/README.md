@@ -50,31 +50,31 @@ cd dejacode-server/examples
 Group by language, sort by number of commits, take top 50 in each language
 
 ```sh
-cargo run --release --package examples --bin commits -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="commits.csv"
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" commits 
 ```
 
 Group by language, sort by average number of changes in project's commits, take top 50 in each language.
 
 ```sh
-cargo run --release --package examples --bin changes_in_commits -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="changes_in_commits.csv"
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" changes_in_commits 
 ```
 
 Group by language, sort by number of issues in a project, take top 50 in each language:
 
 ```sh
-cargo run --release --package examples --bin issues -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="issues.csv"
+cargo run --release --bin run  -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" issues
 ```
 
 Group by language, sort by number of buggy issues in a project, take top 50 in each language:
 
 ```sh
-cargo run --release --package examples --bin buggy_issues -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="buggy_issues.csv"
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" buggy_issues 
 ```
 
 Group by language, sort by average size of commit messages, take top 50 in each language
 
 ```sh
-cargo run --release --bin commit_message_sizes -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="commit_message_sizes.csv"
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" commit_message_sizes
 ```
 
 Group by language, filter out all projects who have fewer than 25 commits authored by experienced authors, sort by 
@@ -82,7 +82,7 @@ number of commits, take top 50 in each language. An experienced author is one fo
 authoring their first and their most recent commit.
 
 ```sh
-cargo run --release --bin experienced_authors -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="experienced_authors.csv"
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" experienced_authors
 ```
 
 Group by language, filter out all projects who have fewer than 50% commits authored by experienced authors, sort by 
@@ -90,13 +90,19 @@ number of commits, take top 50 in each language. An experienced author is one fo
 authoring their first and their most recent commit.
 
 ```sh
-cargo run --release --bin experienced_authors_ratio -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="experienced_authors_ratio.csv"
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" experienced_authors_ratio
 ```
 
 Group by language, sort by stars take top 50 in each language.
 
 ```sh
-cargo run --release --bin stars -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="stars.csv"
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" stars
+```
+
+Run all example queries.
+
+```sh
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" 
 ```
 
 # Hacking together queries

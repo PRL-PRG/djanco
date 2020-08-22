@@ -1,3 +1,5 @@
+pub mod canned_queries;
+
 use std::path::{PathBuf, Path};
 use structopt::StructOpt;
 
@@ -85,7 +87,10 @@ pub struct Configuration {
     pub skip_cache: bool,
 
     #[structopt(long = "experiment-group", short = "g", name = "EXPERIMENT_NAME", default_value = "")]
-    pub group: String
+    pub group: String,
+
+    #[structopt(name = "QUERIES")]
+    pub queries: Vec<String>,
 }
 
 impl Configuration {
@@ -99,6 +104,20 @@ impl Configuration {
 
     pub fn output_path_as_path(&self) -> &Path {
         self.output_path.as_path()
+    }
+
+    pub fn output_path_for(&self, query: String) -> PathBuf {
+        let mut path = self.output_path.clone();
+        path.push(query);
+        path.set_extension("csv");
+        path
+    }
+
+    pub fn output_path_for_as_string(&self, query: String) -> String {
+        let mut path = self.output_path.clone();
+        path.push(query);
+        path.set_extension("csv");
+        path.as_os_str().to_str().unwrap().to_string()
     }
 
     pub fn timing_log_as_string(&self) -> String {
@@ -120,7 +139,7 @@ pub mod io {
     use crate::Configuration;
     use std::error::Error;
     use dcd::Project;
-    use std::fs::{File, OpenOptions};
+    use std::fs::{File, OpenOptions, create_dir_all};
     use std::io::Write;
     use select::meta::ProjectMeta;
 
@@ -129,10 +148,12 @@ pub mod io {
     }
 
     fn write_anything_to_output<Formatter>(configuration: &Configuration,
+                                           query: String,
                                            projects: &Vec<Project>,
                                            printer: Formatter)
         where Formatter: Fn(&Project) -> String {
-        match File::create(configuration.output_path_as_path()) {
+        create_dir_all(&configuration.output_path);
+        match File::create(&configuration.output_path_for(query)) {
             Ok(mut file) => {
                 for project in projects.iter() {
                     let line = printer(project);
@@ -145,25 +166,25 @@ pub mod io {
         }
     }
 
-    pub fn write_to_output_with_details(configuration: &Configuration, projects: &Vec<Project>) {
-        write_anything_to_output(configuration, projects, |project| {
+    pub fn write_to_output_with_details(configuration: &Configuration, query: String, projects: &Vec<Project>) {
+        write_anything_to_output(configuration, query, projects, |project| {
             let language = to_string_or_empty!(project.get_language());
             let stars = to_string_or_empty!(project.get_stars());
             format!("{}, {}, {}, {}", project.id, project.url, language, stars).to_string()
         })
     }
 
-    pub fn write_to_output_without_details(configuration: &Configuration, projects: &Vec<Project>) {
-        write_anything_to_output(configuration, projects, |project| {
+    pub fn write_to_output_without_details(configuration: &Configuration, query: String, projects: &Vec<Project>) {
+        write_anything_to_output(configuration, query, projects, |project| {
             project.id.to_string()
         })
     }
 
-    pub fn write_to_output(configuration: &Configuration, projects: &Vec<Project>) {
+    pub fn write_to_output(configuration: &Configuration, query: String, projects: &Vec<Project>) {
         if configuration.show_details {
-            write_to_output_with_details(configuration, projects)
+            write_to_output_with_details(configuration, query, projects)
         } else {
-            write_to_output_without_details(configuration, projects)
+            write_to_output_without_details(configuration, query, projects)
         }
     }
 

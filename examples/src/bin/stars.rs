@@ -30,13 +30,7 @@ fn main() {
     let database = CachedDatabase::from(&dcd, configuration.skip_cache);
 
     eprintln!("Executing query");
-    let (projects, query_execution_time) = with_elapsed_seconds!({
-
-        let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_stars_or_zero());
-        let how_sample = top!(50);
-
-        sort_and_sample(&database, how_sort, how_sample)
-    });
+    let (projects, query_execution_time) = with_elapsed_seconds!(stars);
 
     eprintln!("Writing results to `{}`", configuration.output_path_as_string());
     let (_, writing_to_output_time) = with_elapsed_seconds!(

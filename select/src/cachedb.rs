@@ -7,7 +7,7 @@ use std::io::Error;
 use itertools::Itertools;
 use byteorder::{WriteBytesExt, BigEndian, ReadBytesExt};
 
-use dcd::{Database, FilePath, Project, User, Commit, ProjectId, CommitId, UserId, PathId, ProjectAllCommitIdsIter, ProjectCommitIter};
+use dcd::{Database, FilePath, Project, User, Commit, ProjectId, CommitId, UserId, PathId};
 
 pub struct CachedDatabase<'a> {
     database: &'a dyn Database,

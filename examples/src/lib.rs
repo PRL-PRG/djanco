@@ -75,6 +75,9 @@ pub struct Configuration {
     #[structopt(parse(from_os_str), short = "d", long = "dataset", name = "DATASET_PATH")]
     pub dataset_path: PathBuf,
 
+    #[structopt(parse(from_os_str), short = "l", long = "timing-log", name = "TIMING_LOG_PATH", default_value = "timing.log")]
+    pub timing_log: PathBuf,
+
     #[structopt(long = "show-details")]
     pub show_details: bool,
 
@@ -110,7 +113,7 @@ pub mod io {
     use crate::Configuration;
     use std::error::Error;
     use dcd::Project;
-    use std::fs::File;
+    use std::fs::{File, OpenOptions};
     use std::io::Write;
     use select::meta::ProjectMeta;
 
@@ -155,5 +158,24 @@ pub mod io {
         } else {
             write_to_output_without_details(configuration, projects)
         }
+    }
+
+    pub fn log_timing(configuration: &Configuration, task: &str, loading_time: u64, query_time: u64, output_time: u64) {
+        let mut file = if !configuration.timing_log.is_file() {
+            let mut file = File::create(configuration.timing_log.clone()).unwrap();
+            writeln!(file, "{:16} {:36} {:12} {:10} {:11}",
+                     "task", "dataset", "loading_time", "query_time", "output_time").unwrap();
+            file
+        } else {
+            OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open(configuration.timing_log.clone())
+                .unwrap()
+        };
+
+        writeln!(file, "{:16} {:36} {:12} {:10} {:11}",
+                 task, configuration.dataset_path_as_string(),
+                 loading_time, query_time, output_time).unwrap()
     }
 }

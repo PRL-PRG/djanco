@@ -20,8 +20,11 @@ fn main() {
 
     let database = CachedDatabase::from(&dcd, configuration.skip_cache);
 
-    eprintln!("Starting to execute {} queries", configuration.queries.len());
-    for query in configuration.queries.iter() {
+    let queries =
+        if configuration.queries.len() != 0 { configuration.queries.clone() } else { Queries::all() };
+
+    eprintln!("Starting to execute {} queries", queries.len());
+    for query in queries.iter() {
         let parameters = Queries::default_parameters(query);
         eprintln!("Executing query {} with parameters: {:?}", query, parameters);
         let (projects, query_execution_time) = with_elapsed_seconds!(
@@ -44,5 +47,5 @@ fn main() {
         eprintln!("Logging elapsed time to `{}`", configuration.timing_log_as_string());
         log_timing(&configuration, "stars", loading_time, query_execution_time, writing_to_output_time);
     }
-    eprintln!("Done executing {} queries", configuration.queries.len());
+    eprintln!("Done executing {} queries", queries.len());
 }

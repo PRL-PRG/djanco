@@ -216,6 +216,12 @@ impl Queries {
         filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
+    pub fn all() -> Vec<String> {
+        vec!["stars","issues","buggy_issues","changes_in_commits","commit_message_sizes","commits",
+             "experienced_authors","experienced_authors_ratio"]
+            .iter().map(|s| s.to_string()).collect()
+    }
+
     pub fn run(database: &impl Database, key: &str, parameters: Vec<(String,QueryParameter)>) -> Option<Vec<Project>> {
         let parameters: HashMap<String, QueryParameter> = parameters.into_iter().collect();
         match key {
@@ -243,7 +249,7 @@ impl Queries {
             "experienced_authors"       => vec![("n".to_string(), QueryParameter::Int(50)),
                                                 ("experience".to_string(),
                                                  QueryParameter::Int(2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/)),
-                                                ("min_number".to_string(),
+                                                ("min_commits".to_string(),
                                                  QueryParameter::Int(1))],
             "experienced_authors_ratio" => vec![("n".to_string(), QueryParameter::Int(50)),
                                                 ("experience".to_string(),

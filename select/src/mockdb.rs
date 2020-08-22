@@ -51,6 +51,18 @@ impl Database for MockDatabase {
         self.paths.get(id as usize).map(|path| path.clone())
     }
 
+    // fn commits_from(&self, project: &Project)  -> ProjectCommitIter {
+    //     ProjectCommitIter::from(self, project)
+    // }
+    //
+    // fn bare_commits_from(&self, project: &Project) -> ProjectBareCommitIter {
+    //     ProjectBareCommitIter::from(self, project)
+    // }
+    //
+    // fn user_ids_from(&self, project: &Project) -> ProjectUserIdIter {
+    //     ProjectUserIdIter::from(self, project)
+    // }
+
     // fn get_snapshot(&self, id: BlobId) -> Option<Snapshot> {
     //     self.snapshots.get(&id).map(|snapshot| snapshot.clone())
     // }

@@ -14,6 +14,8 @@ pub trait ProjectMeta {
     fn get_buggy_issue_count_or_zero(&self)                    -> u64;
     fn get_head_count(&self)                                   -> usize;
 
+    fn get_commits_in(&self, database: &impl Database, load_messages_and_changes: bool) -> Vec::<Commit>;
+
     fn get_commit_count_in(&self,    database: &impl Database) -> usize;
     fn get_user_count_in(&self,      database: &impl Database) -> usize;
     fn get_path_count_in(&self,      database: &impl Database) -> usize;
@@ -67,6 +69,14 @@ impl ProjectMeta for Project {
 
     fn get_head_count(&self) -> usize {
         self.heads.len()
+    }
+
+    fn get_commits_in(&self, database: &impl Database, load_messages_and_changes: bool) -> Vec<Commit> {
+        if load_messages_and_changes{
+            database.commits_from(self).collect()
+        } else {
+            database.bare_commits_from(self).collect()
+        }
     }
 
     fn get_commit_count_in(&self, database: &impl Database) -> usize {

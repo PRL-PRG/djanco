@@ -1,51 +1,13 @@
-use std::cell::RefCell;
-use select::query::project::GroupKey;
-use dcd::{Project, Database, DCD};
-use select::mockdb::MockDatabase;
-
-struct State {
-    value: u32,
-}
-
-fn make_closure() -> Box<dyn FnMut() -> u32> {
-    let mut s = 0u32; //State{ value: 0u32 };
-    Box::new(move || {
-        s/*.value*/ += 1;
-        s/*.value*/
-    })
-}
-
-trait Doom {
-    fn iterator<'a>(d: &'a impl Database) -> IteratorHolder<'a> {
-        let vec: Vec<(GroupKey,Vec<Project>)> = vec![];
-        IteratorHolder { iter: Box::new(vec.into_iter()), d}
-    }
-}
-
-struct IteratorHolder<'a> {
-    iter: Box<dyn Iterator<Item=(GroupKey,Vec<Project>)>>,
-    d: &'a dyn Database,
-}
-
-impl<'a> Iterator for IteratorHolder<'a> {
-    type Item = (GroupKey,Vec<Project>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
-    }
-}
-
+use dcd::{CommitId, ProjectId};
+use select::cachedb::PersistentProjectCommitIndex;
+use std::path::Path;
 
 
 fn main() {
-    let mut closure = make_closure();
-    let vec: Vec<(GroupKey,Vec<Project>)> = vec![];
+    let stuff:Vec<(ProjectId, Vec<CommitId>)> = vec![(0, vec![1,2,3,4]), (1, vec![5,6,7,8,9])];
 
-    //IteratorHolder { iter: Box::new(vec.into_iter()), d: &() };
+    PersistentProjectCommitIndex::write_to(Path::new("hello.bin"), &mut stuff.into_iter()).unwrap();
+    let pci = PersistentProjectCommitIndex::read_from(Path::new("hello.bin")).unwrap();
 
-    // println!("{}", closure());
-    // println!("{}", closure());
-    // println!("{}", closure());
-    // println!("{}", (*closure)());
-    // println!("{}", (*closure)());
+    println!("{:?}", pci);
 }

@@ -257,7 +257,7 @@ pub fn sort_and_sample<Sorter, Sampler>(database: &impl Database,
                                         -> Vec<Project>
 
     where Sorter:           Fn(&Project, &Project) -> Ordering,
-          Sampler:          Fn(Vec<Project>) -> Vec<Project> {git s
+          Sampler:          Fn(Vec<Project>) -> Vec<Project> {
 
     database.projects()
         .map(|p| (p.get_language(), p))

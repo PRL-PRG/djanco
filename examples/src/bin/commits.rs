@@ -18,7 +18,6 @@ use examples::Configuration;
 use examples::Direction;
 use examples::io::*;
 
-
 fn main() {
     let configuration = Configuration::from_args();
 
@@ -60,4 +59,8 @@ fn main() {
     eprintln!("    {}s loading",           loading_time);
     eprintln!("    {}s query execution",   query_execution_time);
     eprintln!("    {}s writing to output", writing_to_output_time);
+
+    eprintln!("Logging elapsed time to `{}`", configuration.timing_log_as_string());
+    log_timing(&configuration, "commits",
+               loading_time, query_execution_time, writing_to_output_time);
 }

@@ -35,7 +35,7 @@ fn main() {
 
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| {
             let changes_per_commit: Vec<usize> =
-                database.bare_commits_from(p).map(|c: Commit| {
+                database.commits_from(p).map(|c: Commit| {
                     c.changes.map_or(0, |m| m.len())
                 }).collect();
 
@@ -62,4 +62,8 @@ fn main() {
     eprintln!("    {}s loading",           loading_time);
     eprintln!("    {}s query execution",   query_execution_time);
     eprintln!("    {}s writing to output", writing_to_output_time);
+
+    eprintln!("Logging elapsed time to `{}`", configuration.timing_log_as_string());
+    log_timing(&configuration, "changes_in_commits",
+               loading_time, query_execution_time, writing_to_output_time);
 }

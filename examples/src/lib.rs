@@ -100,6 +100,10 @@ impl Configuration {
     pub fn output_path_as_path(&self) -> &Path {
         self.output_path.as_path()
     }
+
+    pub fn timing_log_as_string(&self) -> String {
+        self.timing_log.as_os_str().to_str().unwrap().to_string()
+    }
 }
 
 macro_rules! to_string_or_empty {

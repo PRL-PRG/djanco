@@ -189,13 +189,13 @@ impl PersistentProjectCommitIndex {
 
 pub struct IndexedDatabase<'a> {
     database: &'a dyn Database,
-    bypass:   bool,
+//    bypass:   bool,
 
     project_commit_index: PersistentProjectCommitIndex,
 }
 
 impl<'a> IndexedDatabase<'a> {
-    pub fn from(database: &'a impl Database, path: &Path, bypass: bool) -> Result<Self, Error> {
+    pub fn from(database: &'a impl Database, path: &Path, _bypass: bool) -> Result<Self, Error> {
         let project_commit_index = if path.is_file() {
             PersistentProjectCommitIndex::read_from(path)?
         } else {
@@ -205,7 +205,7 @@ impl<'a> IndexedDatabase<'a> {
 
         Ok(IndexedDatabase {
             database,
-            bypass,
+            //bypass,
             project_commit_index,
         })
     }

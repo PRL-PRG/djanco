@@ -46,4 +46,8 @@ fn main() {
     eprintln!("    {}s loading",           loading_time);
     eprintln!("    {}s query execution",   query_execution_time);
     eprintln!("    {}s writing to output", writing_to_output_time);
+
+    eprintln!("Logging elapsed time to `{}`", configuration.timing_log_as_string());
+    log_timing(&configuration, "buggy_issues",
+               loading_time, query_execution_time, writing_to_output_time);
 }

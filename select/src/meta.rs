@@ -56,11 +56,11 @@ impl ProjectMeta for Project {
     }
 
     fn get_issue_count_or_zero(&self) -> u64 {
-        self.metadata.get("ght_issue_bug").map_or(0u64, |e| e.parse::<u64>().unwrap())
+        self.metadata.get("ght_issue").map_or(0u64, |e| e.parse::<u64>().unwrap())
     }
 
     fn get_buggy_issue_count(&self) -> Option<u64> {
-        self.metadata.get("ght_issue").map(|e| e.parse::<u64>().unwrap())
+        self.metadata.get("ght_issue_bug").map(|e| e.parse::<u64>().unwrap())
     }
 
     fn get_buggy_issue_count_or_zero(&self) -> u64 {

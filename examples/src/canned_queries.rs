@@ -4,12 +4,11 @@ use std::collections::{HashMap};
 use itertools::{Itertools, MinMaxResult};
 
 use select::selectors::{sort_and_sample, filter_sort_and_sample, CompareProjectsByRatioOfIdenticalCommits};
-use select::meta::ProjectMeta;
+use select::meta::{ProjectMeta, MetaDatabase};
 
 use dcd::UserId;
 use dcd::Project;
 use dcd::Commit;
-use dcd::Database;
 
 use crate::sort_by_numbers;
 //use crate::top;
@@ -51,7 +50,7 @@ impl QueryParameter {
 
 pub struct Queries;
 impl Queries {
-    fn stars(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    fn stars(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort =
@@ -63,7 +62,7 @@ impl Queries {
         sort_and_sample(database, how_sort, how_sample)
     }
 
-    fn issues(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    fn issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers ! (Direction::Descending, | p: & Project | p.get_issue_count_or_zero());
@@ -73,7 +72,7 @@ impl Queries {
         sort_and_sample(database, how_sort, how_sample)
     }
 
-    fn buggy_issues(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    fn buggy_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_buggy_issue_count_or_zero());
@@ -83,7 +82,7 @@ impl Queries {
         sort_and_sample(database, how_sort, how_sample)
     }
 
-    fn changes_in_commits(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    fn changes_in_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| {
@@ -108,7 +107,7 @@ impl Queries {
         sort_and_sample(database, how_sort, how_sample)
     }
 
-    fn commit_message_sizes(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    fn commit_message_sizes(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| {
@@ -132,7 +131,7 @@ impl Queries {
         sort_and_sample(database, how_sort, how_sample)
     }
 
-    fn commits(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    fn commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_commit_count_in(database));
@@ -142,38 +141,19 @@ impl Queries {
         sort_and_sample(database, how_sort, how_sample)
     }
 
-    fn experienced_authors(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    fn experienced_authors(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let required_experience = parameters["experience"].as_u64();
         let required_number_of_commits_by_experienced_authors: u64 = parameters["min_commits"].as_u64();
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
 
-        let author_experience: HashMap<UserId, u64> =
-            database.bare_commits()
-                .map(|c| (c.author_id, c.author_time))
-                .into_group_map()
-                .into_iter()
-                .map(|(author_id, author_times)| {(
-                    author_id,
-                    match author_times.iter().minmax() {
-                        MinMaxResult::NoElements       => 0u64,
-                        MinMaxResult::OneElement(_)    => 0u64,
-                        MinMaxResult::MinMax(min, max) => (max - min) as u64,
-                    }
-                )})
-                .collect();
-
-        println!("Experienced authors: {} out of {}",
-                 author_experience.iter().filter(|(_,t)| **t > required_experience).count(),
-                 author_experience.len());
-
         let how_filter = |p: &Project| {
             let commits_with_experienced_authors: u64 =
                 database
                     .bare_commits_from(p)
-                    .map(|c| { author_experience.get(&c.author_id).map_or(0u64, |e| *e) })
-                    .filter(|experience_in_seconds| *experience_in_seconds > required_experience)
-                    .count() as u64;
+                    .map(|c| { database.author_experience_time(c.author_id).map_or(0u64, |e| e.as_secs()) })
+                    .map(|experience_in_seconds| experience_in_seconds > required_experience)
+                    .collect();
 
             commits_with_experienced_authors > required_number_of_commits_by_experienced_authors
         };
@@ -187,7 +167,7 @@ impl Queries {
         filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
-    fn experienced_authors_ratio(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    fn experienced_authors_ratio(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let required_experience = parameters["experience"].as_u64();
         //2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/
         //let required_number_of_commits_by_experienced_authors: u64 = 1;
@@ -195,30 +175,11 @@ impl Queries {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
 
-        let author_experience: HashMap<UserId, u64> =
-            database.bare_commits()
-                .map(|c| (c.author_id, c.author_time))
-                .into_group_map()
-                .into_iter()
-                .map(|(author_id, author_times)| {(
-                    author_id,
-                    match author_times.iter().minmax() {
-                        MinMaxResult::NoElements       => 0u64,
-                        MinMaxResult::OneElement(_)    => 0u64,
-                        MinMaxResult::MinMax(min, max) => (max - min) as u64,
-                    }
-                )})
-                .collect();
-
-        println!("Experienced authors: {} out of {}",
-                 author_experience.iter().filter(|(_,t)| **t > required_experience).count(),
-                 author_experience.len());
-
         let how_filter = |p: &Project| {
             let commit_has_experienced_author: Vec<bool> =
                 database
                     .bare_commits_from(p)
-                    .map(|c| { author_experience.get(&c.author_id).map_or(0u64, |e| *e) })
+                    .map(|c| { database.author_experience_time(c.author_id).map_or(0u64, |e| e.as_secs()) })
                     .map(|experience_in_seconds| experience_in_seconds > required_experience)
                     .collect();
 
@@ -245,7 +206,7 @@ impl Queries {
             .iter().map(|s| s.to_string()).collect()
     }
 
-    pub fn run(database: &impl Database, key: &str, parameters: Vec<(String,QueryParameter)>) -> Option<Vec<Project>> {
+    pub fn run(database: &impl MetaDatabase, key: &str, parameters: Vec<(String,QueryParameter)>) -> Option<Vec<Project>> {
         let parameters: HashMap<String, QueryParameter> = parameters.into_iter().collect();
         match key {
             "stars"                     => Some(Self::stars(database, parameters)),

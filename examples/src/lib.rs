@@ -216,12 +216,12 @@ pub mod io {
         }
     }
 
-    pub fn log_timing(configuration: &Configuration, task: &str, loading_time: u64, query_time: u64, output_time: u64) {
+    pub fn log_timing(configuration: &Configuration, task: &str, loading_time: u64, precomputation_time: u64, query_time: u64, output_time: u64) {
         let mut file = if !configuration.timing_log.is_file() {
             let mut file = File::create(configuration.timing_log.clone()).unwrap();
-            writeln!(file, "{:16} {:32} {:36} {:12} {:10} {:11}",
+            writeln!(file, "{:16} {:32} {:36} {:12} {:10} {:11} {:19}",
                      "experiment", "task", "dataset",
-                     "loading_time", "query_time", "output_time").unwrap();
+                     "loading_time", "query_time", "output_time", "precomputation_time").unwrap();
             file
         } else {
             OpenOptions::new()
@@ -231,8 +231,8 @@ pub mod io {
                 .unwrap()
         };
 
-        writeln!(file, "{:16} {:32} {:36} {:12} {:10} {:11}",
+        writeln!(file, "{:16} {:32} {:36} {:12} {:10} {:11} {:19}",
                  configuration.group, task, configuration.dataset_path_as_string(),
-                 loading_time, query_time, output_time).unwrap()
+                 loading_time, query_time, output_time, precomputation_time).unwrap()
     }
 }

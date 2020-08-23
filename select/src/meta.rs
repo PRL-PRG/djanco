@@ -1,5 +1,6 @@
-use dcd::{Project, Database, Commit};
+use dcd::{Project, Database, Commit, User, UserId, DCD};
 use std::time::Duration;
+use itertools::{MinMaxResult, Itertools};
 
 pub type Language = String;
 
@@ -153,5 +154,49 @@ impl ProjectMeta for Project {
                 }
             }
         })
+    }
+}
+
+pub trait UserMeta {
+    fn get_author_experience_time_in(&self, database: &impl MetaDatabase) -> Option<Duration>;
+    fn get_author_experience_time_or_zero_in(&self, database: &impl MetaDatabase) -> Duration;
+}
+
+impl UserMeta for User {
+    fn get_author_experience_time_in(&self, database: &impl MetaDatabase) -> Option<Duration> {
+        database.author_experience_time(self.id)
+    }
+    fn get_author_experience_time_or_zero_in(&self, database: &impl MetaDatabase) -> Duration {
+        match database.author_experience_time(self.id) {
+            Some(duration) => duration,
+            None => Duration::from_secs(0),
+        }
+    }
+}
+
+pub trait MetaDatabase: Database {
+    fn author_experience_time(&self, id: UserId) -> Option<Duration>;
+}
+
+impl MetaDatabase for DCD {
+    fn author_experience_time(&self, id: u64) -> Option<Duration> {
+        // eprintln!("Hi. If you're seeing this, you're computing author experience times in the \
+        //            slowest possible way and you should consider using one of the caching database \
+        //            implementations instead, which won't traverse all commits in the dataset \
+        //            repeatedly each single user. --k");
+
+        let result =
+            self.bare_commits()
+            .filter(|c| c.author_id == id)
+            .map(|c| c.author_time)
+            .minmax();
+
+        match result {
+            MinMaxResult::NoElements       => None,
+            MinMaxResult::OneElement(_)    => None,
+            MinMaxResult::MinMax(min, max) => {
+                Some(Duration::from_secs((max - min) as u64))
+            }
+        }
     }
 }

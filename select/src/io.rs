@@ -56,3 +56,25 @@ pub(crate) fn write_vec_vec_u64(path: &PathBuf, vector: &Vec<Vec<u64>>) -> Resul
     }
     Ok(())
 }
+
+pub(crate) fn read_vec_u64(path: &Path) -> Result<Vec<u64>, Error> {
+    let mut file = File::open(path)?;
+    let num_rows = file.read_u64::<BigEndian>()?;
+    let mut vector: Vec<u64> = Vec::with_capacity(num_rows as usize);
+    for _ in 0..num_rows {
+        vector.push(file.read_u64::<BigEndian>()?);
+    }
+    Ok(vector)
+}
+
+pub(crate) fn write_vec_u64(path: &PathBuf, vector: &Vec<u64>) -> Result<(), Error> {
+    let mut dir = path.clone();
+    dir.pop();
+    create_dir_all(&dir)?;
+    let mut file = File::create(path)?;
+    file.write_u64::<BigEndian>(vector.len() as u64)?;
+    for element in vector.iter() {
+        file.write_u64::<BigEndian>(*element)?;
+    }
+    Ok(())
+}

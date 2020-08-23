@@ -19,13 +19,13 @@ fn main() {
     );
 
     let cd = CachedDatabase::from(&dcd, configuration.skip_cache);
-
-    match configuration.persistent_cache_path_as_string() {
-        Some(path) => eprintln!("Pre-loading selected dataset items to/from `{}`", path),
-        None       => eprintln!("Skipping pre-loading selected dataset items"),
-    }
-    let database =
-        PersistentIndex::from(&cd, configuration.persistent_cache_path.clone()).unwrap();
+    let (database, precomputation_time) = with_elapsed_seconds!({
+        match configuration.persistent_cache_path_as_string() {
+            Some(path) => eprintln!("Pre-loading selected dataset items to/from `{}`", path),
+            None       => eprintln!("Skipping pre-loading selected dataset items"),
+        }
+        PersistentIndex::from(&cd, configuration.persistent_cache_path.clone()).unwrap()
+    });
 
     let queries =
         if configuration.queries.len() != 0 { configuration.queries.clone() } else { Queries::all() };
@@ -48,11 +48,12 @@ fn main() {
 
         eprintln!("Elapsed time...");
         eprintln!("    {}s loading",           loading_time);
+        eprintln!("    {}s precomputaion",     precomputation_time);
         eprintln!("    {}s query execution",   query_execution_time);
         eprintln!("    {}s writing to output", writing_to_output_time);
 
         eprintln!("Logging elapsed time to `{}`", configuration.timing_log_as_string());
-        log_timing(&configuration, query, loading_time, query_execution_time, writing_to_output_time);
+        log_timing(&configuration, query, loading_time, precomputation_time, query_execution_time, writing_to_output_time);
     }
     eprintln!("Done executing {} queries", queries.len());
 }

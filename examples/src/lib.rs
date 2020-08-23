@@ -21,6 +21,19 @@ macro_rules! top {
     }}
 }
 
+#[macro_export]
+macro_rules! top_distinct {
+    ($dedup:expr, $n:expr) => {{
+        move |projects: Vec<Project>| {
+            projects
+                .into_iter()
+                .unique_by($dedup)
+            .take($n)
+            .collect::<Vec<Project>>()
+        }
+    }}
+}
+
 #[derive(Copy,Debug,Clone)]
 pub enum Direction {
     Descending,

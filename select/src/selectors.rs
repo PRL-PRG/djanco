@@ -1,4 +1,4 @@
-use dcd::{ProjectId, Database, Project};
+use dcd::{ProjectId, Database, Project, CommitId};
 use std::cmp::Ordering;
 use itertools::Itertools;
 //use rand::SeedableRng;
@@ -7,6 +7,8 @@ use crate::meta::ProjectMeta;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
+use std::collections::BTreeSet;
+use std::hash::{Hasher, Hash};
 
 #[derive(Clone)]
 pub struct Query {
@@ -249,6 +251,31 @@ pub fn filter_sort_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
             sampled_projects
         })
         .collect()
+}
+
+pub struct CompareProjectsByRatioOfIdenticalCommits {
+    commit_ids: BTreeSet<CommitId>,
+    min_ratio_to_consider_duplicate: f64,
+}
+impl CompareProjectsByRatioOfIdenticalCommits {
+    pub fn new (database: &impl Database, p: &Project, min_ratio_to_consider_duplicate: f64) -> Self {
+        let commit_ids = database.bare_commits_from(p).map(|c| c.id).collect();
+        CompareProjectsByRatioOfIdenticalCommits { min_ratio_to_consider_duplicate, commit_ids }
+    }
+}
+impl Hash for CompareProjectsByRatioOfIdenticalCommits {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(42)
+    }
+}
+impl Eq for CompareProjectsByRatioOfIdenticalCommits {}
+impl PartialEq for CompareProjectsByRatioOfIdenticalCommits {
+    fn eq(&self, other: &Self) -> bool {
+        let my_commits: f64 = self.commit_ids.len() as f64;
+        let same_commits: f64 = self.commit_ids.intersection(&other.commit_ids).count() as f64;
+        same_commits / my_commits > self.min_ratio_to_consider_duplicate
+    }
+    fn ne(&self, other: &Self) -> bool { !self.eq(other) }
 }
 
 #[allow(dead_code)]

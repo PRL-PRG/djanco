@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap};
 
 use itertools::{Itertools, MinMaxResult};
 
-use select::selectors::{sort_and_sample, filter_sort_and_sample};
+use select::selectors::{sort_and_sample, filter_sort_and_sample, CompareProjectsByRatioOfIdenticalCommits};
 use select::meta::ProjectMeta;
 
 use dcd::UserId;
@@ -12,7 +12,8 @@ use dcd::Commit;
 use dcd::Database;
 
 use crate::sort_by_numbers;
-use crate::top;
+//use crate::top;
+use crate::top_distinct;
 use crate::Direction;
 
 #[derive(Debug)]
@@ -49,33 +50,42 @@ impl QueryParameter {
 }
 
 pub struct Queries;
-
 impl Queries {
     fn stars(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
+        let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort =
             sort_by_numbers!(Direction::Descending, |p: &Project| p.get_stars_or_zero());
-        let how_sample = top!(n as usize);
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
+
         sort_and_sample(database, how_sort, how_sample)
     }
 
     fn issues(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
+        let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers ! (Direction::Descending, | p: & Project | p.get_issue_count_or_zero());
-        let how_sample = top ! (n as usize);
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
         sort_and_sample(database, how_sort, how_sample)
     }
 
     fn buggy_issues(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
+        let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_buggy_issue_count_or_zero());
-        let how_sample = top!(n as usize);
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
         sort_and_sample(database, how_sort, how_sample)
     }
 
     fn changes_in_commits(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
-
+        let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| {
             let changes_per_commit: Vec<usize> =
                 database.commits_from(p).map(|c: Commit| {
@@ -91,14 +101,16 @@ impl Queries {
 
             average_changes_per_commit
         });
-        let how_sample = top!(n as usize);
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
 
         sort_and_sample(database, how_sort, how_sample)
     }
 
     fn commit_message_sizes(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
-
+        let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| {
             let message_sizes: Vec<usize> = database
                 .commits_from(p)
@@ -113,15 +125,20 @@ impl Queries {
 
             avg_message_size
         });
-        let how_sample = top!(n as usize);
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
 
         sort_and_sample(database, how_sort, how_sample)
     }
 
     fn commits(database: &impl Database, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
+        let similarity = parameters["similarity"].as_f64(); // 0.9
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_commit_count_in(database));
-        let how_sample = top!(n as usize);
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
         sort_and_sample(database, how_sort, how_sample)
     }
 
@@ -129,6 +146,7 @@ impl Queries {
         let required_experience = parameters["experience"].as_u64();
         let required_number_of_commits_by_experienced_authors: u64 = parameters["min_commits"].as_u64();
         let n = parameters["n"].as_u64(); // 50
+        let similarity = parameters["similarity"].as_f64(); // 0.9
 
         let author_experience: HashMap<UserId, u64> =
             database.bare_commits()
@@ -162,7 +180,9 @@ impl Queries {
 
         let how_sort = sort_by_numbers!(Direction::Descending,
                                                   |p: &Project| p.get_commit_count_in(database));
-        let how_sample = top!(n as usize);
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
 
         filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
@@ -173,6 +193,7 @@ impl Queries {
         //let required_number_of_commits_by_experienced_authors: u64 = 1;
         let required_ratio_of_commits_by_experienced_authors = parameters["min_ratio"].as_f64(); //0.5
         let n = parameters["n"].as_u64(); // 50
+        let similarity = parameters["similarity"].as_f64(); // 0.9
 
         let author_experience: HashMap<UserId, u64> =
             database.bare_commits()
@@ -211,7 +232,9 @@ impl Queries {
 
         let how_sort = sort_by_numbers!(Direction::Descending,
                                                  |p: &Project| p.get_commit_count_in(database));
-        let how_sample = top!(n as usize);
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
 
         filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
@@ -240,18 +263,26 @@ impl Queries {
 
     pub fn default_parameters(key: &str) -> Vec<(String, QueryParameter)> {
         match key {
-            "stars"                     => vec![("n".to_string(), QueryParameter::Int(50))],
-            "issues"                    => vec![("n".to_string(), QueryParameter::Int(50))],
-            "buggy_issues"              => vec![("n".to_string(), QueryParameter::Int(50))],
-            "changes_in_commits"        => vec![("n".to_string(), QueryParameter::Int(50))],
-            "commit_message_sizes"      => vec![("n".to_string(), QueryParameter::Int(50))],
-            "commits"                   => vec![("n".to_string(), QueryParameter::Int(50))],
+            "stars"                     => vec![("n".to_string(), QueryParameter::Int(50)),
+                                                ("similarity".to_string(), QueryParameter::Float(0.9))],
+            "issues"                    => vec![("n".to_string(), QueryParameter::Int(50)),
+                                                ("similarity".to_string(), QueryParameter::Float(0.9))],
+            "buggy_issues"              => vec![("n".to_string(), QueryParameter::Int(50)),
+                                                ("similarity".to_string(), QueryParameter::Float(0.9))],
+            "changes_in_commits"        => vec![("n".to_string(), QueryParameter::Int(50)),
+                                                ("similarity".to_string(), QueryParameter::Float(0.9))],
+            "commit_message_sizes"      => vec![("n".to_string(), QueryParameter::Int(50)),
+                                                ("similarity".to_string(), QueryParameter::Float(0.9))],
+            "commits"                   => vec![("n".to_string(), QueryParameter::Int(50)),
+                                                ("similarity".to_string(), QueryParameter::Float(0.9))],
             "experienced_authors"       => vec![("n".to_string(), QueryParameter::Int(50)),
+                                                ("similarity".to_string(), QueryParameter::Float(0.9)),
                                                 ("experience".to_string(),
                                                  QueryParameter::Int(2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/)),
                                                 ("min_commits".to_string(),
                                                  QueryParameter::Int(1))],
             "experienced_authors_ratio" => vec![("n".to_string(), QueryParameter::Int(50)),
+                                                ("similarity".to_string(), QueryParameter::Float(0.9)),
                                                 ("experience".to_string(),
                                                  QueryParameter::Int(2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/)),
                                                 ("min_ratio".to_string(),

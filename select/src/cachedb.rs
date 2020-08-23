@@ -21,7 +21,8 @@ pub struct CachedDatabase<'a> {
     commits:    RefCell<HashMap<CommitId,  Commit>>,
     paths:      RefCell<HashMap<PathId,    FilePath>>,
 
-    author_experience:   RefCell<HashMap<UserId, Seconds>>,
+    author_experience:    RefCell<HashMap<UserId, Seconds>>,
+    committer_experience: RefCell<HashMap<UserId, Seconds>>,
 }
 
 impl<'a> CachedDatabase<'a> {
@@ -35,6 +36,7 @@ impl<'a> CachedDatabase<'a> {
             paths:    RefCell::new(HashMap::new()),
 
             author_experience: RefCell::new(HashMap::new()),
+            committer_experience: RefCell::new(HashMap::new()),
         }
     }
 }
@@ -139,31 +141,88 @@ impl<'a> Database for CachedDatabase<'a> {
     // }
 }
 
+impl CachedDatabase<'_> {
+    fn compute_user_experience<M>(&self, f: M) -> impl Iterator<Item=(UserId, Seconds)> where M: Fn(Commit) -> (UserId, i64) {
+        self.bare_commits()
+            .map(f)
+            .into_group_map()
+            .into_iter()
+            .map(|(author_id, author_times)| {(
+                author_id,
+                match author_times.iter().minmax() {
+                    MinMaxResult::NoElements       => 0u64,
+                    MinMaxResult::OneElement(_)    => 0u64,
+                    MinMaxResult::MinMax(min, max) => (max - min) as u64,
+                }
+            )})
+    }
+}
+
 impl MetaDatabase for CachedDatabase<'_> {
-    fn author_experience_time(&self, id: UserId) -> Option<Duration> {
+    fn commit_ids_authored_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId>> {
         if self.bypass {
-            return self.database.author_experience_time(id)
+            return self.database.commit_ids_committed_by(user)
+        }
+
+        unimplemented!()
+    }
+
+    fn commit_ids_committed_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId>> {
+        if self.bypass {
+            return self.database.commit_ids_committed_by(user)
+        }
+
+        unimplemented!()
+    }
+
+
+
+    fn get_experience_time_as_author(&self, id: UserId) -> Option<Duration> {
+        if self.bypass {
+            return self.database.get_experience_time_as_author(id)
         }
 
         let mut author_experiences = self.author_experience.borrow_mut();
 
         if author_experiences.is_empty() {
-            let iterator = self.bare_commits()
-                .map(|c| (c.author_id, c.author_time))
-                .into_group_map()
-                .into_iter()
-                .map(|(author_id, author_times)| {(
-                    author_id,
-                    match author_times.iter().minmax() {
-                        MinMaxResult::NoElements       => 0u64,
-                        MinMaxResult::OneElement(_)    => 0u64,
-                        MinMaxResult::MinMax(min, max) => (max - min) as u64,
-                    }
-                )});
-            author_experiences.extend(iterator);
+            author_experiences.extend(self.compute_user_experience(|c: Commit| {
+                (c.author_id, c.author_time)
+            }));
         }
 
         author_experiences.get(&id).map(|seconds| Duration::from_secs(*seconds))
+    }
+
+    fn get_experience_time_as_committer(&self, id: UserId) -> Option<Duration> {
+        if self.bypass {
+            return self.database.get_experience_time_as_committer(id)
+        }
+
+        let mut committer_experiences = self.committer_experience.borrow_mut();
+
+        if committer_experiences.is_empty() {
+            committer_experiences.extend(self.compute_user_experience(|c: Commit| {
+                (c.committer_id, c.committer_time)
+            }));
+        }
+
+        committer_experiences.get(&id).map(|seconds| Duration::from_secs(*seconds))
+    }
+
+    fn get_commit_count_authored_by(&self, id: UserId) -> Option<u64> {
+        if self.bypass {
+            return self.database.get_commit_count_authored_by(id)
+        }
+
+        unimplemented!()
+    }
+
+    fn get_commit_count_committed_by(&self, id: UserId) -> Option<u64> {
+        if self.bypass {
+            return self.database.get_commit_count_committed_by(id)
+        }
+
+        unimplemented!()
     }
 }
 
@@ -172,8 +231,11 @@ pub struct PersistentIndex<'a, D: Database + MetaDatabase + Sized> {
     bypass: bool,
     //path: PathBuf,
 
-    project_commit_mapping: Vec<Vec<CommitId>>,
-    author_experiences:     Vec<Seconds>,
+    project_commit_mapping:   Vec<Vec<CommitId>>, // TODO make lazy
+    author_commit_mapping:    Vec<Vec<CommitId>>, // TODO make lazy
+    committer_commit_mapping: Vec<Vec<CommitId>>, // TODO make lazy
+    author_experiences:       Vec<Seconds>,       // TODO make lazy
+    committer_experiences:    Vec<Seconds>,       // TODO make lazy
 }
 
 impl<'a, D> PersistentIndex<'a, D> where D: Database + MetaDatabase + Sized {
@@ -182,19 +244,31 @@ impl<'a, D> PersistentIndex<'a, D> where D: Database + MetaDatabase + Sized {
             None => PersistentIndex {
                 database,
                 bypass: true,
-                project_commit_mapping: vec![],
-                author_experiences: vec![],
+                project_commit_mapping:   vec![],
+                author_commit_mapping:    vec![],
+                committer_commit_mapping: vec![],
+                author_experiences:       vec![],
+                committer_experiences:    vec![],
             },
             Some(path) => {
                 let project_commit_mapping =
                     Self::load_project_commit_mapping(database, &path)?;
+                let author_commit_mapping =
+                    Self::load_author_commit_mapping(database, &path)?;
+                let committer_commit_mapping =
+                    Self::load_committer_commit_mapping(database, &path)?;
                 let author_experiences =
                     Self::load_author_experience_times(database, &path)?;
+                let committer_experiences =
+                    Self::load_committer_experience_times(database, &path)?;
                 PersistentIndex {
                     database,
                     bypass: false,
                     project_commit_mapping,
+                    author_commit_mapping,
+                    committer_commit_mapping,
                     author_experiences,
+                    committer_experiences,
                 }
             }
         })
@@ -244,7 +318,7 @@ impl<'a, D> Database for PersistentIndex<'a, D> where D: Database + MetaDatabase
     }
 
     fn commits_from(&self, project: &Project) -> Box<dyn Iterator<Item=Commit> + '_> where Self: Sized {
-        if self.bypass {
+        if self.bypass || self.project_commit_mapping.is_empty() {
             return self.database.commits_from(project)
         }
         let commit_ids =
@@ -254,7 +328,7 @@ impl<'a, D> Database for PersistentIndex<'a, D> where D: Database + MetaDatabase
     }
 
     fn bare_commits_from(&self, project: &Project) -> Box<dyn Iterator<Item=Commit> + '_> where Self: Sized {
-        if self.bypass {
+        if self.bypass || self.project_commit_mapping.is_empty() {
             return self.database.bare_commits_from(project)
         }
 
@@ -269,7 +343,7 @@ impl<'a, D> Database for PersistentIndex<'a, D> where D: Database + MetaDatabase
     }
 
     fn project_ids_and_their_commit_ids(&self) -> Box<dyn Iterator<Item=(ProjectId,Vec<CommitId>)> + '_> where Self: Sized {
-        if self.bypass {
+        if self.bypass || self.project_commit_mapping.is_empty() {
             return self.database.project_ids_and_their_commit_ids()
         }
 
@@ -287,9 +361,25 @@ impl<'a, D> Database for PersistentIndex<'a, D> where D: Database + MetaDatabase
 }
 
 impl<'a, D> MetaDatabase for PersistentIndex<'a, D> where D: Database + MetaDatabase + Sized {
-    fn author_experience_time(&self, id: u64) -> Option<Duration> {
-        if self.bypass {
-            return self.database.author_experience_time(id)
+    fn commit_ids_authored_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId>> {
+        if self.bypass || self.author_commit_mapping.is_empty() {
+            return self.database.commit_ids_authored_by(user)
+        }
+
+        unimplemented!()
+    }
+
+    fn commit_ids_committed_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId>> {
+        if self.bypass || self.committer_commit_mapping.is_empty() {
+            return self.database.commit_ids_committed_by(user)
+        }
+
+        unimplemented!()
+    }
+
+    fn get_experience_time_as_author(&self, id: UserId) -> Option<Duration> {
+        if self.bypass || self.author_experiences.is_empty() {
+            return self.database.get_experience_time_as_author(id)
         }
         if (id as usize) >= self.author_experiences.len() {
             return None
@@ -298,14 +388,61 @@ impl<'a, D> MetaDatabase for PersistentIndex<'a, D> where D: Database + MetaData
             Duration::from_secs(*experience)
         })
     }
+
+    fn get_experience_time_as_committer(&self, id: UserId) -> Option<Duration> {
+        if self.bypass || self.committer_experiences.is_empty() {
+            return self.database.get_experience_time_as_committer(id)
+        }
+        if (id as usize) >= self.committer_experiences.len() {
+            return None
+        }
+        self.committer_experiences.get(id as usize).map(|experience: &Seconds| {
+            Duration::from_secs(*experience)
+        })
+    }
+
+    fn get_commit_count_authored_by(&self, id: UserId) -> Option<u64> {
+        if self.bypass || self.author_experiences.is_empty() {
+            return self.database.get_commit_count_authored_by(id)
+        }
+
+        unimplemented!()
+    }
+
+    fn get_commit_count_committed_by(&self, id: UserId) -> Option<u64> {
+        if self.bypass || self.committer_experiences.is_empty() {
+            return self.database.get_commit_count_committed_by(id)
+        }
+
+        unimplemented!()
+    }
 }
 
-impl<'a, D> PersistentIndex<'a, D> where D: MetaDatabase + Sized {
+impl<'a, D> PersistentIndex<'a, D> where D: 'a + MetaDatabase + Sized {
     fn load_author_experience_times(database: &'a impl MetaDatabase, path: &Path) -> Result<Vec<Seconds>, Error> {
         let mut full_path = PathBuf::new();
         full_path.push(path.clone());
         full_path.push("author_experiences");
         full_path.set_extension("bin");
+
+        Self::load_experience_times(database, &full_path, |database, user_id| {
+            database.get_experience_time_as_author(user_id)
+        })
+    }
+
+    fn load_committer_experience_times(database: &'a impl MetaDatabase, path: &Path) -> Result<Vec<Seconds>, Error> {
+        let mut full_path = PathBuf::new();
+        full_path.push(path.clone());
+        full_path.push("committer_experiences");
+        full_path.set_extension("bin");
+
+        Self::load_experience_times(database, &full_path, |database, user_id| {
+            database.get_experience_time_as_committer(user_id)
+        })
+    }
+
+    fn load_experience_times<F>(database: &'a impl MetaDatabase, full_path: &PathBuf, access_data: F) -> Result<Vec<Seconds>, Error>
+        where F: Fn(&'a dyn MetaDatabase, UserId) -> Option<Duration> {
 
         if full_path.exists() {
             return read_vec_u64(&full_path)
@@ -313,10 +450,10 @@ impl<'a, D> PersistentIndex<'a, D> where D: MetaDatabase + Sized {
 
         let mut vector: Vec<Seconds> = vec![];
         for user_id in 0..database.num_users() as UserId {
-            vector.push(database.author_experience_time(user_id).map_or(0, |d| d.as_secs()))
+            vector.push(access_data(database, user_id).map_or(0, |d| d.as_secs()))
         }
 
-        write_vec_u64(&full_path, &vector)?;
+        write_vec_u64(full_path, &vector)?;
         return Ok(vector);
     }
 
@@ -334,6 +471,50 @@ impl<'a, D> PersistentIndex<'a, D> where D: MetaDatabase + Sized {
             .project_ids_and_their_commit_ids()
             //.sorted_by_key(|(row_id, _row)| { println!("* {}", row_id); *row_id})
             .map(|(_row_id, row)| row)
+            .collect();
+
+        write_vec_vec_u64(&full_path, &vector)?;
+        return Ok(vector);
+    }
+
+    fn load_author_commit_mapping(database: &'a impl MetaDatabase, path: &Path) -> Result<Vec<Vec<CommitId>>, Error> {
+        let mut full_path = PathBuf::new();
+        full_path.push(path.clone());
+        full_path.push("author_commit_mapping");
+        full_path.set_extension("bin");
+
+        Self::load_user_commit_mapping(database, &full_path, |commit| commit.author_id)
+    }
+
+    fn load_committer_commit_mapping(database: &'a impl MetaDatabase, path: &Path) -> Result<Vec<Vec<CommitId>>, Error> {
+        let mut full_path = PathBuf::new();
+        full_path.push(path.clone());
+        full_path.push("committer_commit_mapping");
+        full_path.set_extension("bin");
+
+        Self::load_user_commit_mapping(database, &full_path, |commit| commit.committer_id)
+    }
+
+    // f = |commit| commit.author_id
+    fn load_user_commit_mapping<M>(database: &'a impl MetaDatabase, full_path: &PathBuf, f: M) -> Result<Vec<Vec<CommitId>>, Error>
+        where M: Fn(&Commit) -> UserId {
+        if full_path.exists() {
+            return read_vec_vec_u64(&full_path)
+        }
+
+        let mapping: HashMap<UserId, Vec<CommitId>> = (0..database.num_commits())
+            .flat_map(|commit_id| {
+                match database.get_commit(commit_id) {
+                    Some(commit) => vec![(f(&commit), commit.id)],
+                    None => vec![]
+                }
+            })
+            .into_group_map();
+
+        let vector: Vec<Vec<CommitId>> = (0..database.num_users())
+            .map(|user_id| {
+                mapping.get(&user_id).map_or(vec![], |vector| vector.clone()) // ouch
+            })
             .collect();
 
         write_vec_vec_u64(&full_path, &vector)?;

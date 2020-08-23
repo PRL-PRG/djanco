@@ -1,4 +1,4 @@
-use dcd::{Project, Database, Commit, User, UserId, DCD};
+use dcd::{Project, Database, Commit, User, UserId, DCD, CommitId};
 use std::time::Duration;
 use itertools::{MinMaxResult, Itertools};
 
@@ -158,28 +158,82 @@ impl ProjectMeta for Project {
 }
 
 pub trait UserMeta {
+    fn get_authored_commit_ids_in(&self, database: &impl MetaDatabase) -> Vec<CommitId>;
+    fn get_committed_commit_ids_in(&self, database: &impl MetaDatabase) -> Vec<CommitId>;
+
     fn get_author_experience_time_in(&self, database: &impl MetaDatabase) -> Option<Duration>;
     fn get_author_experience_time_or_zero_in(&self, database: &impl MetaDatabase) -> Duration;
+    fn get_committer_experience_time_in(&self, database: &impl MetaDatabase) -> Option<Duration>;
+    fn get_committer_experience_time_or_zero_in(&self, database: &impl MetaDatabase) -> Duration;
+
+    fn get_authored_commit_count_in(&self, database: &impl MetaDatabase) -> Option<u64>;
+    fn get_authored_commit_count_or_zero_in(&self, database: &impl MetaDatabase) -> u64;
+    fn get_committed_commit_count_in(&self, database: &impl MetaDatabase) -> Option<u64>;
+    fn get_committed_commit_count_or_zero_in(&self, database: &impl MetaDatabase) -> u64;
 }
 
 impl UserMeta for User {
+    fn get_authored_commit_ids_in(&self, database: &impl MetaDatabase) -> Vec<CommitId> {
+        database.commit_ids_authored_by(self.id).collect()
+    }
+
+    fn get_committed_commit_ids_in(&self, database: &impl MetaDatabase) -> Vec<CommitId> {
+        database.commit_ids_committed_by(self.id).collect()
+    }
+
     fn get_author_experience_time_in(&self, database: &impl MetaDatabase) -> Option<Duration> {
-        database.author_experience_time(self.id)
+        database.get_experience_time_as_author(self.id)
     }
     fn get_author_experience_time_or_zero_in(&self, database: &impl MetaDatabase) -> Duration {
-        match database.author_experience_time(self.id) {
-            Some(duration) => duration,
-            None => Duration::from_secs(0),
-        }
+        database.get_experience_time_as_author(self.id).unwrap_or(Duration::from_secs(0))
+    }
+
+    fn get_committer_experience_time_in(&self, database: &impl MetaDatabase) -> Option<Duration> {
+        database.get_experience_time_as_committer(self.id)
+    }
+
+    fn get_committer_experience_time_or_zero_in(&self, database: &impl MetaDatabase) -> Duration {
+        database.get_experience_time_as_committer(self.id).unwrap_or(Duration::from_secs(0))
+    }
+
+    fn get_authored_commit_count_in(&self, database: &impl MetaDatabase) -> Option<u64> {
+        database.get_commit_count_authored_by(self.id)
+    }
+
+    fn get_authored_commit_count_or_zero_in(&self, database: &impl MetaDatabase) -> u64 {
+        database.get_commit_count_authored_by(self.id).unwrap_or(0u64)
+    }
+
+    fn get_committed_commit_count_in(&self, database: &impl MetaDatabase) -> Option<u64> {
+        database.get_commit_count_committed_by(self.id)
+    }
+
+    fn get_committed_commit_count_or_zero_in(&self, database: &impl MetaDatabase) -> u64 {
+        database.get_commit_count_committed_by(self.id).unwrap_or(0u64)
     }
 }
 
 pub trait MetaDatabase: Database {
-    fn author_experience_time(&self, id: UserId) -> Option<Duration>;
+    fn commit_ids_authored_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId>>;
+    fn commit_ids_committed_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId>>;
+
+    fn get_experience_time_as_author(&self, id: UserId) -> Option<Duration>;
+    fn get_experience_time_as_committer(&self, id: UserId) -> Option<Duration>;
+
+    fn get_commit_count_authored_by(&self, id: UserId) -> Option<u64>;
+    fn get_commit_count_committed_by(&self, id: UserId) -> Option<u64>;
 }
 
 impl MetaDatabase for DCD {
-    fn author_experience_time(&self, id: u64) -> Option<Duration> {
+    fn commit_ids_authored_by(&self, _user: u64) -> Box<dyn Iterator<Item=u64>> {
+        unimplemented!()
+    }
+
+    fn commit_ids_committed_by(&self, _user: u64) -> Box<dyn Iterator<Item=u64>> {
+        unimplemented!()
+    }
+
+    fn get_experience_time_as_author(&self, id: u64) -> Option<Duration> {
         // eprintln!("Hi. If you're seeing this, you're computing author experience times in the \
         //            slowest possible way and you should consider using one of the caching database \
         //            implementations instead, which won't traverse all commits in the dataset \
@@ -198,5 +252,34 @@ impl MetaDatabase for DCD {
                 Some(Duration::from_secs((max - min) as u64))
             }
         }
+    }
+
+    fn get_experience_time_as_committer(&self, id: u64) -> Option<Duration> {
+        // eprintln!("Hi. If you're seeing this, you're computing committer experience times in the \
+        //            slowest possible way and you should consider using one of the caching database \
+        //            implementations instead, which won't traverse all commits in the dataset \
+        //            repeatedly each single user. --k");
+
+        let result =
+            self.bare_commits()
+                .filter(|c| c.committer_id == id)
+                .map(|c| c.committer_time)
+                .minmax();
+
+        match result {
+            MinMaxResult::NoElements       => None,
+            MinMaxResult::OneElement(_)    => None,
+            MinMaxResult::MinMax(min, max) => {
+                Some(Duration::from_secs((max - min) as u64))
+            }
+        }
+    }
+
+    fn get_commit_count_authored_by(&self, id: u64) -> Option<u64> {
+        Some(self.commit_ids_authored_by(id).count() as u64)
+    }
+
+    fn get_commit_count_committed_by(&self, id: u64) -> Option<u64> {
+        Some(self.commit_ids_committed_by(id).count() as u64)
     }
 }

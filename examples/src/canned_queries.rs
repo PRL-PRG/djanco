@@ -1,12 +1,11 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap};
 
-use itertools::{Itertools, MinMaxResult};
+use itertools::Itertools;
 
 use select::selectors::{sort_and_sample, filter_sort_and_sample, CompareProjectsByRatioOfIdenticalCommits};
 use select::meta::{ProjectMeta, MetaDatabase};
 
-use dcd::UserId;
 use dcd::Project;
 use dcd::Commit;
 
@@ -148,14 +147,14 @@ impl Queries {
         let similarity = parameters["similarity"].as_f64(); // 0.9
 
         let how_filter = |p: &Project| {
-            let commits_with_experienced_authors: u64 =
+            let commits_with_experienced_authors: usize =
                 database
                     .bare_commits_from(p)
-                    .map(|c| { database.author_experience_time(c.author_id).map_or(0u64, |e| e.as_secs()) })
-                    .map(|experience_in_seconds| experience_in_seconds > required_experience)
-                    .collect();
+                    .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
+                    .filter(|experience_in_seconds| *experience_in_seconds > required_experience)
+                    .count();
 
-            commits_with_experienced_authors > required_number_of_commits_by_experienced_authors
+            commits_with_experienced_authors as u64 > required_number_of_commits_by_experienced_authors
         };
 
         let how_sort = sort_by_numbers!(Direction::Descending,
@@ -179,7 +178,7 @@ impl Queries {
             let commit_has_experienced_author: Vec<bool> =
                 database
                     .bare_commits_from(p)
-                    .map(|c| { database.author_experience_time(c.author_id).map_or(0u64, |e| e.as_secs()) })
+                    .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
                     .map(|experience_in_seconds| experience_in_seconds > required_experience)
                     .collect();
 

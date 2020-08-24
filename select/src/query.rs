@@ -70,11 +70,11 @@ pub trait DatabaseIterator<'a, T, D>: Iterator<Item=T> where D: Database {
 }
 
 pub trait ProjectQuery<'a, I: DatabaseIterator<'a, Project, D>, D> where D: 'a + Database {
-    fn group_by(self, group: &project::Group) -> ProjectGroups<'a>;
+    fn group_by(self, group: &project::Group) -> ProjectGroups<'a, D>;
 }
 
 impl<'a, I, D> ProjectQuery<'a, I, D> for I where I: DatabaseIterator<'a, Project, D>, D: 'a + Database {
-    fn group_by(self, group: &project::Group) -> ProjectGroups<'a> { // FIXME remove database from parameters... somehow
+    fn group_by(self, group: &project::Group) -> ProjectGroups<'a, D> { // FIXME remove database from parameters... somehow
         let database = self.get_database();
 
         macro_rules! group_by {
@@ -113,22 +113,28 @@ impl<'a, I, D> ProjectQuery<'a, I, D> for I where I: DatabaseIterator<'a, Projec
     }
 }
 
-pub struct ProjectGroups<'a> {
+pub struct ProjectGroups<'a, D: Database> {
     data: Box<dyn Iterator<Item=(GroupKey,Vec<Project>)>>,
-    database: &'a dyn Database,
+    database: &'a D,
 }
 
-impl<'a> ProjectGroups<'a> {
+impl<'a, D> ProjectGroups<'a, D> where D: Database  {
      //fn new(data: impl Iter, database: &'a impl Database) -> ProjectGroups<'a> {
     //    ProjectGroups{ data, database }
    // }
 }
 
-impl<'a> Iterator for ProjectGroups<'a> {
+impl<'a, D> Iterator for ProjectGroups<'a, D> where D: Database {
     type Item = (GroupKey, Vec<Project>);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.data.next()
+    }
+}
+
+impl<'a, D> DatabaseIterator<'a, (GroupKey, Vec<Project>), D> for ProjectGroups<'a, D> where D: Database {
+    fn get_database(&self) -> &'a D {
+        self.database
     }
 }
 

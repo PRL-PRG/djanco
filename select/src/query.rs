@@ -101,12 +101,8 @@ impl<'a, I, D> ProjectQuery<'a, I, D> for I where I: DatabaseIterator<'a, Projec
             Group::Count(Property::Users)      => group_by!(|(p, db)| (p.get_user_count_in(db), p),      |k| GroupKey::Users(k)),
 
             Group::Duration(resolution) => {
-                //let as_secs = |v:Duration| v.as_secs();
-                //let copied_resolution = *resolution;
-                //let resolution_as_secs = resolution.as_secs();
-                group_by!(move |(p,db)| (p.get_age(db).map_or(0u64,  |v:Duration| v.as_secs()) / resolution.as_secs(), p),
+                group_by!(move |(p,db)| (p.get_age(db).map_or(0u64,  |d: Duration| d.as_secs()) / resolution.as_secs(), p),
                           move |k| GroupKey::Duration { time: k, resolution: resolution })
-                    //.collect::<Vec<(GroupKey,Vec<Project>)>>().into_iter())
             },
 
             Group::Conjunction(_) => unimplemented!(),

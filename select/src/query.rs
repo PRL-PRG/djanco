@@ -65,51 +65,56 @@ pub mod project {
     }
 }
 
-pub trait ProjectQuery<'a>  {
-    fn group_by(self, group: &project::Group, database: &'a impl Database) -> ProjectGroups<'a>;
+pub trait DatabaseIterator<'a, T, D>: Iterator<Item=T> where D: Database {
+    fn get_database(&self) -> &'a D;
 }
 
-impl<'a> ProjectQuery<'a> for ProjectIter<'a>  {
-    fn group_by(self, group: &project::Group, database: &'a impl Database) -> ProjectGroups<'a> { // FIXME remove database from parameters... somehow
+pub trait ProjectQuery<'a, I: DatabaseIterator<'a, Project, D>, D> where D: 'a + Database {
+    fn group_by(self, group: &project::Group) -> ProjectGroups<'a>;
+}
+
+impl<'a, I, D> ProjectQuery<'a, I, D> for I where I: DatabaseIterator<'a, Project, D>, D: 'a + Database {
+    fn group_by(self, group: &project::Group) -> ProjectGroups<'a> { // FIXME remove database from parameters... somehow
+        let database = self.get_database();
+
         macro_rules! group_by {
            ($f:expr, $key_mapper:expr) => {{
                 self
+                  .map(|e| (e, database))
                   .map($f).into_group_map().into_iter()
                   .map(|(k, g)| ($key_mapper(k), g))
                   .collect() // TODO try Box?
            }}
         }
 
-        let _vector: Vec<(GroupKey,Vec<Project>)> =
+        let vector: Vec<(GroupKey,Vec<Project>)> =
             match &group {
-            Group::TimeOfLastUpdate            => group_by!(|p| (p.last_update, p),             |k| GroupKey::TimeOfLastUpdate(k)),
-            Group::Language                    => group_by!(|p| (p.get_language_or_empty(), p), |k| GroupKey::Language(k)),
-            Group::Stars                       => group_by!(|p| (p.get_stars_or_zero(), p),     |k| GroupKey::Stars(k)),
+            Group::TimeOfLastUpdate            => group_by!(|(p, _)| (p.last_update, p),             |k| GroupKey::TimeOfLastUpdate(k)),
+            Group::Language                    => group_by!(|(p, _)| (p.get_language_or_empty(), p), |k| GroupKey::Language(k)),
+            Group::Stars                       => group_by!(|(p, _)| (p.get_stars_or_zero(), p),     |k| GroupKey::Stars(k)),
 
-            Group::Count(Property::Heads)      => group_by!(|p| (p.get_head_count(), p),                 |k| GroupKey::Heads(k)),
-            Group::Count(Property::Commits)    => group_by!(|p| (p.get_commit_count_in(database), p),    |k| GroupKey::Commits(k)),
-            Group::Count(Property::Paths)      => group_by!(|p| (p.get_path_count_in(database), p),      |k| GroupKey::Paths(k)),
-            Group::Count(Property::Committers) => group_by!(|p| (p.get_committer_count_in(database), p), |k| GroupKey::Committers(k)),
-            Group::Count(Property::Authors)    => group_by!(|p| (p.get_author_count_in(database), p),    |k| GroupKey::Authors(k)),
-            Group::Count(Property::Users)      => group_by!(|p| (p.get_user_count_in(database), p),      |k| GroupKey::Users(k)),
+            Group::Count(Property::Heads)      => group_by!(|(p, _)| (p.get_head_count(), p),                 |k| GroupKey::Heads(k)),
+            Group::Count(Property::Commits)    => group_by!(|(p, db)| (p.get_commit_count_in(db), p),    |k| GroupKey::Commits(k)),
+            Group::Count(Property::Paths)      => group_by!(|(p, db)| (p.get_path_count_in(db), p),      |k| GroupKey::Paths(k)),
+            Group::Count(Property::Committers) => group_by!(|(p, db)| (p.get_committer_count_in(db), p), |k| GroupKey::Committers(k)),
+            Group::Count(Property::Authors)    => group_by!(|(p, db)| (p.get_author_count_in(db), p),    |k| GroupKey::Authors(k)),
+            Group::Count(Property::Users)      => group_by!(|(p, db)| (p.get_user_count_in(db), p),      |k| GroupKey::Users(k)),
 
             Group::Duration(resolution) => {
                 let as_secs = |v:Duration| v.as_secs();
-                group_by!(|p| (p.get_age(database).map_or(0u64, as_secs) / resolution.as_secs(), p),
+                group_by!(|(p,db)| (p.get_age(db).map_or(0u64, as_secs) / resolution.as_secs(), p),
                           |k| GroupKey::Duration { time: k, resolution: *resolution })
             },
 
             Group::Conjunction(_) => unimplemented!(),
         };
 
-        //ProjectGroups { data: Box::new(vector.into_iter()), database };
-        unimplemented!()
+        ProjectGroups { data: Box::new(vector.into_iter()), database }
     }
 }
 
-#[derive(Clone)]
 pub struct ProjectGroups<'a> {
-    //data: Box<dyn Iterator<Item=u32>>,
+    data: Box<dyn Iterator<Item=(GroupKey,Vec<Project>)>>,
     database: &'a dyn Database,
 }
 
@@ -123,7 +128,7 @@ impl<'a> Iterator for ProjectGroups<'a> {
     type Item = (GroupKey, Vec<Project>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        unimplemented!()
+        self.data.next()
     }
 }
 

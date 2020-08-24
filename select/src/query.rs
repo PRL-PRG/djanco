@@ -86,7 +86,6 @@ impl<'a, I, D> ProjectQuery<'a, I, D> for I where I: DatabaseIterator<'a, Projec
            )}
         }
 
-        //let vector: Vec<(GroupKey,Vec<Project>)> =
         let boxed_iter: Box<dyn Iterator<Item=(GroupKey,Vec<Project>)> + '_> =
             match group {
             Group::TimeOfLastUpdate            => group_by!(|(p, _)| (p.last_update, p),             |k| GroupKey::TimeOfLastUpdate(k)),
@@ -101,14 +100,13 @@ impl<'a, I, D> ProjectQuery<'a, I, D> for I where I: DatabaseIterator<'a, Projec
             Group::Count(Property::Users)      => group_by!(|(p, db)| (p.get_user_count_in(db), p),      |k| GroupKey::Users(k)),
 
             Group::Duration(resolution) => {
-                group_by!(move |(p,db)| (p.get_age(db).map_or(0u64,  |d: Duration| d.as_secs()) / resolution.as_secs(), p),
-                          move |k| GroupKey::Duration { time: k, resolution: resolution })
+                group_by!(|(p,db)| (p.get_age(db).map_or(0u64,  |d: Duration| d.as_secs()) / resolution.as_secs(), p),
+                          |k| GroupKey::Duration { time: k, resolution: resolution })
             },
 
             Group::Conjunction(_) => unimplemented!(),
         };
 
-        //ProjectGroups { data: Box::new(vector.into_iter()), database }
         ProjectGroups { data: boxed_iter, database }
     }
 }

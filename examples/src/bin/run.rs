@@ -48,7 +48,7 @@ fn main() {
 
         eprintln!("Elapsed time...");
         eprintln!("    {}s loading",           loading_time);
-        eprintln!("    {}s precomputaion",     precomputation_time);
+        eprintln!("    {}s precomputation",     precomputation_time);
         eprintln!("    {}s query execution",   query_execution_time);
         eprintln!("    {}s writing to output", writing_to_output_time);
 

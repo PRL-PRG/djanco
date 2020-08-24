@@ -56,7 +56,7 @@ cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --o
 Group by language, sort by average number of changes in project's commits, take top 50 in each language.
 
 ```sh
-cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" changes_in_commits 
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" mean_changes_in_commits 
 ```
 
 Group by language, sort by number of issues in a project, take top 50 in each language:
@@ -74,7 +74,7 @@ cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --o
 Group by language, sort by average size of commit messages, take top 50 in each language
 
 ```sh
-cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" commit_message_sizes
+cargo run --release --bin run -- --dataset="/dejavuii/dejacode/dataset-tiny" --output="out" mean_commit_message_sizes
 ```
 
 Group by language, filter out all projects who have fewer than 25 commits authored by experienced authors, sort by 

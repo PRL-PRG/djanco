@@ -67,16 +67,16 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
             if visited_projects.insert(project.id) {
                 writeln!(project_sink, r#"{},"{}",{},{},{},{},{},{},{},{},{},{},{}"#,
                          project.id, project.url, project.last_update,
-                         project.get_language_or_empty(),
-                         project.get_issue_count_or_zero(),
-                         project.get_buggy_issue_count_or_zero(),
+                         project.get_language().unwrap_or(String::new()),
+                         project.get_issue_count().map_or(String::new(), |e| e.to_string()),
+                         project.get_buggy_issue_count().map_or(String::new(), |e| e.to_string()),
                          project.get_head_count(),
                          project.get_commit_count_in(self),
                          project.get_user_count_in(self),
                          project.get_path_count_in(self),
                          project.get_author_count_in(self),
                          project.get_committer_count_in(self),
-                         project.get_age(self).map_or(0u64, |duration| duration.as_secs())
+                         project.get_age(self).map_or(String::new(), |duration| duration.as_secs().to_string())
                 )?;
             }
 
@@ -88,8 +88,8 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
                              commit.id, commit.hash,
                              commit.committer_id, commit.committer_time,
                              commit.author_id, commit.author_time,
-                             commit.additions.unwrap_or(0u64),
-                             commit.deletions.unwrap_or(0u64)
+                             commit.additions.map_or(String::new(), |e| e.to_string()),
+                             commit.deletions.map_or(String::new(), |e| e.to_string())
                     )?;
 
                     for parent_id in commit.parents.iter() {
@@ -112,10 +112,10 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
                             if visited_users.insert(user.id) {
                                 writeln!(user_sink, r#"{},"{}","{}",{},{},{},{}"#,
                                          user.id, user.name, user.email,
-                                         user.get_author_experience_time_or_zero_in(self).as_secs(),
-                                         user.get_committer_experience_time_or_zero_in(self).as_secs(),
-                                         user.get_authored_commit_count_or_zero_in(self),
-                                         user.get_committed_commit_count_or_zero_in(self),
+                                         user.get_author_experience_time_in(self).map_or(String::new(), |e| e.as_secs().to_string()),
+                                         user.get_committer_experience_time_in(self).map_or(String::new(), |e| e.as_secs().to_string()),
+                                         user.get_authored_commit_count_in(self).map_or(String::new(), |e| e.to_string()),
+                                         user.get_committed_commit_count_in(self).map_or(String::new(), |e| e.to_string()),
                                 )?;
                             }
                         }

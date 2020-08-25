@@ -62,6 +62,18 @@ impl Queries {
         sort_and_sample(database, how_sort, how_sample)
     }
 
+    fn all_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let n = parameters["n"].as_u64(); // 50
+        let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_sort = sort_by_numbers ! (Direction::Descending, | p: & Project | {
+            p.get_issue_count_or_zero() + p.get_buggy_issue_count_or_zero()
+        });
+        let how_deduplicate =
+            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
+        let how_sample = top_distinct!(how_deduplicate, n as usize);
+        sort_and_sample(database, how_sort, how_sample)
+    }
+
     fn issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
@@ -224,10 +236,10 @@ impl Queries {
     }
 
     pub fn all() -> Vec<String> {
-        vec!["stars","issues","buggy_issues",
-             "mean_changes_in_commits","mean_commit_message_sizes",
+        vec!["stars","all_issues","issues","buggy_issues",
              "median_changes_in_commits","median_commit_message_sizes","commits",
-             "experienced_authors","experienced_authors_ratio"]
+             "experienced_authors","experienced_authors_ratio",
+             "mean_changes_in_commits","mean_commit_message_sizes"]
             .iter().map(|s| s.to_string()).collect()
     }
 
@@ -235,6 +247,7 @@ impl Queries {
         let parameters: HashMap<String, QueryParameter> = parameters.into_iter().collect();
         match key {
             "stars"                       => Some(Self::stars(database, parameters)),
+            "all_issues"                  => Some(Self::all_issues(database, parameters)),
             "issues"                      => Some(Self::issues(database, parameters)),
             "buggy_issues"                => Some(Self::buggy_issues(database, parameters)),
             "mean_changes_in_commits"     => Some(Self::mean_changes_in_commits(database, parameters)),

@@ -29,12 +29,12 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
         let mut commit_sink             = create_file!("commits.csv")?;
         let mut commit_message_sink     = create_file!("commit_message.csv")?;
         let mut user_sink               = create_file!("users.csv")?;
-        let mut path_sink               = create_file!("paths.csv")?;
+        //let mut path_sink               = create_file!("paths.csv")?;
 
         let mut project_commit_map_sink = create_file!("project_commit_map.csv")?;
         let mut commit_commit_map_sink  = create_file!("commit_commit_map.csv")?;
-        let mut project_user_map_sink   = create_file!("project_user_map.csv")?;
-        let mut commit_path_map_sink    = create_file!("commit_path_map.csv")?;
+        //let mut project_user_map_sink   = create_file!("project_user_map.csv")?;
+        //let mut commit_path_map_sink    = create_file!("commit_path_map.csv")?;
         //let mut user_commit_map_sink    = create_file!("user_commit_map.csv")?;
 
         writeln!(project_sink, "id,url,last_update,language,issues,buggy_issues,head_count,\
@@ -48,13 +48,13 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
                                author_experience_time,committer_experience_time,\
                                authored_commit_count,committer_commit_count")?;
 
-        writeln!(path_sink,    "id,path")?;
+        //writeln!(path_sink,    "id,path")?;
 
         writeln!(commit_message_sink,     "commit_id,message")?;
         writeln!(commit_commit_map_sink,  "commit_id,parent_id")?;
-        writeln!(commit_path_map_sink,    "commit_id,path_id,snapshot_id")?;
+        //writeln!(commit_path_map_sink,    "commit_id,path_id,snapshot_id")?;
         writeln!(project_commit_map_sink, "project_id,commit_id")?;
-        writeln!(project_user_map_sink,   "project_id,user_id")?;
+        //writeln!(project_user_map_sink,   "project_id,user_id")?;
         //writeln!(user_commit_map_sink,    "user_id,commit_id")?;
 
         let mut visited_projects: HashSet<ProjectId> = HashSet::new();
@@ -122,8 +122,7 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
                         //writeln!(project_user_map_sink, r#"{},{}"#, project.id, user_id);
                     }
 
-                    // FIXME
-                    writeln!(commit_message_sink, r#"{},"{:?}""#, commit.id,
+                    writeln!(commit_message_sink, r#"{},{:?}"#, commit.id,
                              CString::new(commit.message.unwrap_or(vec![])).unwrap_or(CString::new("").unwrap()))?;
                 }
             }

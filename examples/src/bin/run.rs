@@ -1,6 +1,7 @@
 use structopt::StructOpt;
 
 use select::cachedb::{CachedDatabase, PersistentIndex};
+use select::dump::DumpFrom;
 
 use dcd::DCD;
 
@@ -42,13 +43,19 @@ fn main() {
         );
 
         eprintln!("Writing results to `{}`", configuration.output_path_for_as_string(query.to_string()));
-        let (_, writing_to_output_time) = with_elapsed_seconds!(
-            write_to_output(&configuration, query.to_string(), &projects)
-        );
+        let (_, writing_to_output_time) = with_elapsed_seconds!({
+            write_to_output(&configuration, query.to_string(), &projects);
+            if let Some(dir) = &configuration.dump_path {
+                eprintln!("Making info dump to `{}`", configuration.dump_path_as_string());
+                let mut dump_path = dir.clone();
+                dump_path.push(query);
+                database.dump_all_info_about(projects.iter(), &dump_path).unwrap()
+            }
+        });
 
         eprintln!("Elapsed time...");
         eprintln!("    {}s loading",           loading_time);
-        eprintln!("    {}s precomputation",     precomputation_time);
+        eprintln!("    {}s precomputation",    precomputation_time);
         eprintln!("    {}s query execution",   query_execution_time);
         eprintln!("    {}s writing to output", writing_to_output_time);
 

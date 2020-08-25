@@ -1,6 +1,7 @@
 use dcd::{Project, Database, Commit, User, UserId, DCD, CommitId};
 use std::time::Duration;
 use itertools::{MinMaxResult, Itertools};
+use std::cmp::Ordering;
 
 pub type Language = String;
 
@@ -84,20 +85,27 @@ impl ProjectMeta for Project {
         database.bare_commits_from(self).count()
     }
 
-    fn get_user_count_in(&self, _database: &impl Database) -> usize {
-        unimplemented!()
+    fn get_user_count_in(&self, database: &impl Database) -> usize {
+        database.user_ids_from(self).count()
     }
 
-    fn get_path_count_in(&self, _database: &impl Database) -> usize {
-        unimplemented!()
+    fn get_path_count_in(&self, database: &impl Database) -> usize {
+        database.commits_from(self)
+            .flat_map(|c| {
+                c.changes.map_or(vec![], |changes| changes.iter().map(|(path_id, _)|  *path_id).collect())
+            }).sorted().dedup().count()
     }
 
-    fn get_author_count_in(&self, _database: &impl Database) -> usize {
-        unimplemented!()
+    fn get_author_count_in(&self, database: &impl Database) -> usize {
+        database.commits_from(self)
+            .map(|c| c.author_id)
+            .sorted().dedup().count()
     }
 
-    fn get_committer_count_in(&self, _database: &impl Database) -> usize {
-        unimplemented!()
+    fn get_committer_count_in(&self, database: &impl Database) -> usize {
+        database.commits_from(self)
+            .map(|c| c.committer_id)
+            .sorted().dedup().count()
     }
 
     fn get_age(&self, database: &impl Database) -> Option<Duration> {
@@ -111,49 +119,19 @@ impl ProjectMeta for Project {
     }
 
     fn get_earliest_and_most_recent_commits_in_project_by_author_time(&self, database: &impl Database) -> Option<(Commit, Commit)> {
-        database.commits_from(self).fold(None, | collector, commit| {
-            match collector {
-                None => Some((commit.clone(), commit/*.clone()*/)),
-                Some((min, max)) => {
-                    if min.author_time < commit.author_time {
-                        if max.author_time > commit.author_time {
-                            Some((min, max)) // FIXME BAD
-                        } else {
-                            Some((min, commit))
-                        }
-                    } else {
-                        if max.author_time > commit.author_time {
-                            Some((commit, max))
-                        } else {
-                            unreachable!()
-                        }
-                    }
-                }
-            }
-        })
+        database.commits_from(self).minmax_by(|c1, c2| {
+            if c1.author_time < c2.author_time { return Ordering::Less }
+            if c1.author_time > c2.author_time { return Ordering::Greater }
+            return Ordering::Equal
+        }).into_option()
     }
 
     fn get_earliest_and_most_recent_commits_in_project_by_committer_time(&self, database: &impl Database) -> Option<(Commit, Commit)> {
-        database.commits_from(self).fold(None, | collector, commit| {
-            match collector {
-                None => Some((commit.clone(), commit/*.clone()*/)),
-                Some((min, max)) => {
-                    if min.committer_time < commit.committer_time {
-                        if max.committer_time > commit.committer_time {
-                            Some((min, max)) // FIXME BAD
-                        } else {
-                            Some((min, commit))
-                        }
-                    } else {
-                        if max.committer_time > commit.committer_time {
-                            Some((commit, max))
-                        } else {
-                            unreachable!()
-                        }
-                    }
-                }
-            }
-        })
+        database.commits_from(self).minmax_by(|c1, c2| {
+            if c1.committer_time < c2.committer_time { return Ordering::Less }
+            if c1.committer_time > c2.committer_time { return Ordering::Greater }
+            return Ordering::Equal
+        }).into_option()
     }
 }
 
@@ -214,8 +192,8 @@ impl UserMeta for User {
 }
 
 pub trait MetaDatabase: Database {
-    fn commit_ids_authored_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId>>;
-    fn commit_ids_committed_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId>>;
+    fn commit_ids_authored_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId> + '_>;
+    fn commit_ids_committed_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId> + '_>;
 
     fn get_experience_time_as_author(&self, id: UserId) -> Option<Duration>;
     fn get_experience_time_as_committer(&self, id: UserId) -> Option<Duration>;
@@ -225,12 +203,12 @@ pub trait MetaDatabase: Database {
 }
 
 impl MetaDatabase for DCD {
-    fn commit_ids_authored_by(&self, _user: u64) -> Box<dyn Iterator<Item=u64>> {
-        unimplemented!()
+    fn commit_ids_authored_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId> + '_> {
+        Box::new(self.commits().filter(|c| c.author_id == user).map(|c| c.id).collect::<Vec<CommitId>>().into_iter())
     }
 
-    fn commit_ids_committed_by(&self, _user: u64) -> Box<dyn Iterator<Item=u64>> {
-        unimplemented!()
+    fn commit_ids_committed_by(&self, user: UserId) -> Box<dyn Iterator<Item=CommitId> + '_> {
+        Box::new(self.commits().filter(|c| c.committer_id == user).map(|c| c.id).collect::<Vec<CommitId>>().into_iter())
     }
 
     fn get_experience_time_as_author(&self, id: u64) -> Option<Duration> {

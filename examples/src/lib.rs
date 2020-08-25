@@ -107,6 +107,9 @@ pub struct Configuration {
 
     #[structopt(parse(from_os_str), short = "p", long = "persistent-cache", name = "PERSISTENT_CACHE_PATH")]
     pub persistent_cache_path: Option<PathBuf>,
+
+    #[structopt(parse(from_os_str), long = "dump", name = "DATA_DUMP_PATH")]
+    pub dump_path: Option<PathBuf>
 }
 
 impl Configuration {
@@ -149,6 +152,12 @@ impl Configuration {
 
     pub fn use_persistent_cache(&self) -> bool {
         self.persistent_cache_path.is_some()
+    }
+
+    pub fn dump_path_as_string(&self) -> String {
+        self.dump_path.as_ref().map(move |p| {
+            p.as_os_str().to_str().unwrap().to_string()
+        }).unwrap_or(String::new())
     }
 }
 

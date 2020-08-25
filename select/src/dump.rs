@@ -1,5 +1,5 @@
 use std::io::Error;
-use std::collections::{HashSet, HashMap};
+use std::collections::HashSet;
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
 use std::io::Write;
@@ -10,12 +10,12 @@ use dcd::{Project, ProjectId, CommitId, UserId, Database};
 
 use crate::meta::{ProjectMeta,UserMeta,MetaDatabase};
 
-trait DumpFrom {
-    fn dump_all_info_about<I>(&self, projects: I, dir: &PathBuf) -> Result<(), Error> where I: Iterator<Item=Project>;
+pub trait DumpFrom {
+    fn dump_all_info_about<'a,I>(&self, projects: I, dir: &PathBuf) -> Result<(), Error> where I: Iterator<Item=&'a Project>;
 }
 
 impl<D> DumpFrom for D where D: Database + MetaDatabase {
-    fn dump_all_info_about<I>(&self, source: I, dir: &PathBuf) -> Result<(), Error> where I: Iterator<Item=Project> {
+    fn dump_all_info_about<'a,I>(&self, source: I, dir: &PathBuf) -> Result<(), Error> where I: Iterator<Item=&'a Project> {
 
         macro_rules! create_file {
             ($filename:expr) => {{
@@ -44,9 +44,11 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
         writeln!(commit_sink, "id,hash,committer_id,committer_time,author_id,author_time,\
                                additions,deletions")?;
 
-        writeln!(commit_sink, "id,name,email,\
+        writeln!(user_sink,    "id,name,email,\
                                author_experience_time,committer_experience_time,\
                                authored_commit_count,committer_commit_count")?;
+
+        writeln!(path_sink,    "id,path")?;
 
         writeln!(commit_message_sink,     "commit_id,message")?;
         writeln!(commit_commit_map_sink,  "commit_id,parent_id")?;
@@ -59,7 +61,9 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
         let mut visited_commits:  HashSet<CommitId>  = HashSet::new();
         let mut visited_users:    HashSet<UserId>   = HashSet::new();
 
+        eprintln!("");
         for project in source {
+            eprint!(":");
             if visited_projects.insert(project.id) {
                 writeln!(project_sink, r#"{},"{}",{},{},{},{},{},{},{},{},{},{},{}"#,
                          project.id, project.url, project.last_update,
@@ -76,6 +80,7 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
                 )?;
             }
 
+            eprint!(".");
             for commit in project.get_commits_in(self, true) {
                 writeln!(project_commit_map_sink, "{},{}", project.id, commit.id)?;
                 if visited_commits.insert(commit.id) {
@@ -91,15 +96,15 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
                         writeln!(commit_commit_map_sink, r#"{},{}"#, commit.id, parent_id)?;
                     }
 
-                    for (path_id, snapshot_id) in commit.changes.map_or(HashMap::new(), |m| m).iter() {
-                        writeln!(commit_path_map_sink, r#"{},{},{}"#,
-                                 commit.id, path_id, snapshot_id)?;
-
-                        let path_opt = self.get_file_path(*path_id);
-                        if let Some(path) = path_opt {
-                            writeln!(path_sink, r#"{},"{}""#, path.id, path.path)?;
-                        }
-                    }
+                    // for (path_id, snapshot_id) in commit.changes.map_or(HashMap::new(), |m| m).iter() {
+                    //     writeln!(commit_path_map_sink, r#"{},{},{}"#,
+                    //              commit.id, path_id, snapshot_id)?;
+                    //
+                    //     let path_opt = self.get_file_path(*path_id);
+                    //     if let Some(path) = path_opt {
+                    //         writeln!(path_sink, r#"{},"{}""#, path.id, path.path)?;
+                    //     }
+                    // }
 
                     for user_id in vec![commit.author_id, commit.committer_id].iter() {
                         let user_opt = self.get_user(*user_id);
@@ -119,11 +124,12 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
 
                     // FIXME
                     writeln!(commit_message_sink, r#"{},"{:?}""#, commit.id,
-                             CString::new(commit.message.unwrap_or(vec![])))?;
+                             CString::new(commit.message.unwrap_or(vec![])).unwrap_or(CString::new("").unwrap()))?;
                 }
             }
         }
 
-        unimplemented!()
+        eprintln!("");
+        Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use std::io::Error;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
 use std::io::Write;
@@ -8,7 +8,7 @@ use std::ffi::CString;
 
 use dcd::{Project, ProjectId, CommitId, UserId, Database};
 
-use crate::meta::{ProjectMeta,UserMeta,MetaDatabase};
+use crate::meta::{ProjectMeta,UserMeta,MetaDatabase,CommitMeta,PathMeta};
 
 pub trait DumpFrom {
     fn dump_all_info_about<'a,I>(&self, projects: I, dir: &PathBuf) -> Result<(), Error> where I: Iterator<Item=&'a Project>;
@@ -29,12 +29,12 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
         let mut commit_sink             = create_file!("commits.csv")?;
         let mut commit_message_sink     = create_file!("commit_message.csv")?;
         let mut user_sink               = create_file!("users.csv")?;
-        //let mut path_sink               = create_file!("paths.csv")?;
+        //let mut path_sink                    = create_file!("paths.csv")?;
 
         let mut project_commit_map_sink = create_file!("project_commit_map.csv")?;
-        let mut commit_commit_map_sink  = create_file!("commit_commit_map.csv")?;
+        let mut commit_commit_map_sink  = create_file!("commit_parents.csv")?;
         //let mut project_user_map_sink   = create_file!("project_user_map.csv")?;
-        //let mut commit_path_map_sink    = create_file!("commit_path_map.csv")?;
+        let mut commit_path_map_sink    = create_file!("commit_path_map.csv")?;
         //let mut user_commit_map_sink    = create_file!("user_commit_map.csv")?;
 
         writeln!(project_sink, "id,url,last_update,language,issues,buggy_issues,head_count,\
@@ -42,7 +42,7 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
                                 age")?;
 
         writeln!(commit_sink, "id,hash,committer_id,committer_time,author_id,author_time,\
-                               additions,deletions")?;
+                               additions,deletions,fse_bugfix")?;
 
         writeln!(user_sink,    "id,name,email,\
                                author_experience_time,committer_experience_time,\
@@ -52,7 +52,7 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
 
         writeln!(commit_message_sink,     "commit_id,message")?;
         writeln!(commit_commit_map_sink,  "commit_id,parent_id")?;
-        //writeln!(commit_path_map_sink,    "commit_id,path_id,snapshot_id")?;
+        writeln!(commit_path_map_sink,    "commit_id,path_id,snapshot_id,path,language")?;
         writeln!(project_commit_map_sink, "project_id,commit_id")?;
         //writeln!(project_user_map_sink,   "project_id,user_id")?;
         //writeln!(user_commit_map_sink,    "user_id,commit_id")?;
@@ -84,27 +84,27 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
             for commit in project.get_commits_in(self, true) {
                 writeln!(project_commit_map_sink, "{},{}", project.id, commit.id)?;
                 if visited_commits.insert(commit.id) {
-                    writeln!(commit_sink, r#"{},"{}",{},{},{},{},{},{}"#,
+                    writeln!(commit_sink, r#"{},"{}",{},{},{},{},{},{},{}"#,
                              commit.id, commit.hash,
                              commit.committer_id, commit.committer_time,
                              commit.author_id, commit.author_time,
                              commit.additions.map_or(String::new(), |e| e.to_string()),
-                             commit.deletions.map_or(String::new(), |e| e.to_string())
+                             commit.deletions.map_or(String::new(), |e| e.to_string()),
+                             commit.is_fse_bugfix().map_or(String::new(), |e| e.to_string()),
                     )?;
 
                     for parent_id in commit.parents.iter() {
                         writeln!(commit_commit_map_sink, r#"{},{}"#, commit.id, parent_id)?;
                     }
 
-                    // for (path_id, snapshot_id) in commit.changes.map_or(HashMap::new(), |m| m).iter() {
-                    //     writeln!(commit_path_map_sink, r#"{},{},{}"#,
-                    //              commit.id, path_id, snapshot_id)?;
-                    //
-                    //     let path_opt = self.get_file_path(*path_id);
-                    //     if let Some(path) = path_opt {
-                    //         writeln!(path_sink, r#"{},"{}""#, path.id, path.path)?;
-                    //     }
-                    // }
+                    for (path_id, snapshot_id) in commit.changes.map_or(HashMap::new(), |m| m).iter() {
+                        let path = self.get_file_path(*path_id);
+                        writeln!(commit_path_map_sink, r#"{},{},{},"{}",{}"#,
+                                 commit.id, path_id, snapshot_id,
+                                 path.clone().map_or(String::new(), |p| p.path), // bleh
+                                 path.map_or(String::new(), |p| p.get_language().unwrap_or(String::new())),
+                        )?;
+                    }
 
                     for user_id in vec![commit.author_id, commit.committer_id].iter() {
                         let user_opt = self.get_user(*user_id);

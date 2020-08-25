@@ -1,7 +1,8 @@
-use dcd::{Project, Database, Commit, User, UserId, DCD, CommitId};
+use dcd::{Project, Database, Commit, User, UserId, DCD, CommitId, FilePath};
 use std::time::Duration;
 use itertools::{MinMaxResult, Itertools};
 use std::cmp::Ordering;
+use std::path::Path;
 
 pub type Language = String;
 
@@ -135,6 +136,38 @@ impl ProjectMeta for Project {
     }
 }
 
+pub trait PathMeta {
+    fn get_language(&self) -> Option<String>;
+}
+
+impl PathMeta for FilePath {
+    fn get_language(&self) -> Option<String> {
+        Path::new(&self.path).extension().map(|extension| {
+           match extension.to_str().unwrap() {
+                "c"                                                     => Some("C"),
+                "C" | ".cc" | "cpp" | "cxx" | "c++"                     => Some("C++"),
+                "m" | "mm" | "M"                                        => Some("Objective-C"),
+                "go"                                                    => Some("Go"),
+                "java"                                                  => Some("Java"),
+                "coffee" | "litcoffee"                                  => Some("Coffeescript"),
+                "js" | "mjs"                                            => Some("Javascript"),
+                "ts" | "tsx"                                            => Some("Typescript"),
+                "rb"                                                    => Some("Ruby"),
+                "php" | "phtml" | "php3" | "php4" | "php5" | "php7" | "phps" | "php-s" | "pht" | "phar"
+                                                                        => Some("Php"),
+                "py" | "pyi" | "pyc" | "pyd" | "pyo" | "pyw" | "pyz"    => Some("Python"),
+                "plx" | "pl" | "pm" | "xs" | "t" | "pod"                => Some("Perl"),
+                "clj" | "cljs" | "cljc" | "edn"                         => Some("Clojure"),
+                "erl" | "hrl"                                           => Some("Erlang"),
+                "hs" | "lhs"                                            => Some("Haskell"),
+                "scala" | "sc"                                          => Some("Scala"),
+                _                                                       => None,
+            }.map(|s: &str| s.to_owned())
+        }).flatten()
+    }
+}
+
+
 pub trait UserMeta {
     fn get_authored_commit_ids_in(&self, database: &impl MetaDatabase) -> Vec<CommitId>;
     fn get_committed_commit_ids_in(&self, database: &impl MetaDatabase) -> Vec<CommitId>;
@@ -188,6 +221,24 @@ impl UserMeta for User {
 
     fn get_committed_commit_count_or_zero_in(&self, database: &impl MetaDatabase) -> u64 {
         database.get_commit_count_committed_by(self.id).unwrap_or(0u64)
+    }
+}
+pub trait CommitMeta {
+    fn is_fse_bugfix(&self) -> Option<bool>;
+}
+
+impl CommitMeta for Commit {
+    fn is_fse_bugfix(&self) -> Option<bool> {
+        match &self.message {
+            Some(message_as_bytes) => {
+                let message_as_string = String::from_utf8_lossy(message_as_bytes.as_slice()).to_lowercase();
+                for substr in &["error", "bug", "fix", "issue", "mistake", "incorrect", "fault", "defect", "flaw"] {
+                    if message_as_string.find(substr).is_some() { return Some(true); }
+                }
+                Some(false)
+            },
+            None => None,
+        }
     }
 }
 

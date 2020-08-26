@@ -12,3 +12,5 @@ dcd    = { path = "../../dejacode-downloader/" }                  # https://gith
 select = { path = "../select" }
 itertools = "0.9.0"
 structopt = "0.3.16"
+rand      = "0.7.3"
+rand_pcg  = "0.2.1"

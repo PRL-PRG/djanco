@@ -217,15 +217,48 @@ impl Filter {
 }
 
 #[allow(dead_code)]
+pub fn filter_and_sample<Filter,Sampler>(database: &impl Database,
+                                         filter:   Filter,
+                                         sampler:  &mut Sampler)
+                                         -> Vec<Project>
+
+    where Filter:           Fn(&Project) -> bool,
+          Sampler:          FnMut(Vec<Project>) -> Vec<Project> {
+
+    database.projects()
+        .map(|p| (p.get_language(), p))
+        .into_group_map()
+        .into_iter()
+        .map(|(language, projects)| {
+            println!("Filtering projects for language {}...",
+                     language.as_deref().unwrap_or("?"));
+            println!("    {} projects at the outset", projects.len());
+            let filtered_projects =
+                projects.into_iter().filter(&filter).collect::<Vec<Project>>();
+            println!("    {} projects after filtering", filtered_projects.len());
+            (language, filtered_projects)
+        })
+        .flat_map(|(language, projects)| {
+            println!("Sorting and sampling projects for language {}...",
+                     language.as_deref().unwrap_or("?"));
+            println!("    {} projects to sample from", projects.len());
+            let sampled_projects = sampler(projects);
+            println!("    {} projects after sampling", sampled_projects.len());
+            sampled_projects
+        })
+        .collect()
+}
+
+#[allow(dead_code)]
 pub fn filter_sort_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
                                                        filter:   Filter,
                                                        sorter:   Sorter,
-                                                       sampler:  Sampler)
+                                                       sampler:  &mut Sampler)
                                                        -> Vec<Project>
 
     where Filter:           Fn(&Project) -> bool,
           Sorter:           Fn(&Project, &Project) -> Ordering,
-          Sampler:          Fn(Vec<Project>) -> Vec<Project> {
+          Sampler:          FnMut(Vec<Project>) -> Vec<Project> {
 
     database.projects()
         .map(|p| (p.get_language(), p))
@@ -241,7 +274,7 @@ pub fn filter_sort_and_sample<Filter, Sorter, Sampler>(database: &impl Database,
             (language, filtered_projects)
         })
         .flat_map(|(language, mut projects)| {
-            println!("Sorting adn sampling projects for language {}...",
+            println!("Sorting and sampling projects for language {}...",
                      language.as_deref().unwrap_or("?"));
             println!("    {} projects to sort", projects.len());
             projects.sort_by(&sorter);
@@ -281,11 +314,11 @@ impl PartialEq for CompareProjectsByRatioOfIdenticalCommits {
 #[allow(dead_code)]
 pub fn sort_and_sample<Sorter, Sampler>(database: &impl Database,
                                         sorter:   Sorter,
-                                        sampler:  Sampler)
+                                        sampler:  &mut Sampler)
                                         -> Vec<Project>
 
     where Sorter:           Fn(&Project, &Project) -> Ordering,
-          Sampler:          Fn(Vec<Project>) -> Vec<Project> {
+          Sampler:          FnMut(Vec<Project>) -> Vec<Project> {
 
     database.projects()
         .map(|p| (p.get_language(), p))

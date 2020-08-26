@@ -28,8 +28,31 @@ macro_rules! top_distinct {
             projects
                 .into_iter()
                 .unique_by($dedup)
-            .take($n)
+            .take($n as usize)
             .collect::<Vec<Project>>()
+        }
+    }}
+}
+
+#[macro_export]
+macro_rules! random {
+    ($dedup:expr, $rng:expr, $n:expr) => {{
+        move |projects: Vec<Project>| {
+            projects
+                .into_iter()
+                .choose_multiple(&mut $rng, $n as usize)
+        }
+    }}
+}
+
+#[macro_export]
+macro_rules! random_distinct {
+    ($dedup:expr, $rng:expr, $n:expr) => {{
+        move |projects: Vec<Project>| {
+            projects
+                .into_iter()
+                .unique_by($dedup)
+                .choose_multiple(&mut $rng, $n as usize)
         }
     }}
 }
@@ -79,6 +102,20 @@ macro_rules! sort_by_numbers {
                 Direction::Descending => ascending_ordering.reverse(),
             }
         }
+    }}
+}
+
+#[macro_export]
+macro_rules! sort_by_numbers_desc {
+    ($accessor:expr) => {{
+        sort_by_numbers!(Direction::Descending, $accessor)
+    }}
+}
+
+#[macro_export]
+macro_rules! sort_by_numbers_opt_desc {
+    ($accessor:expr) => {{
+        sort_by_numbers_opt!(Direction::Descending, $accessor)
     }}
 }
 

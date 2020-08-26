@@ -3,17 +3,26 @@ use std::collections::{HashMap};
 
 use itertools::Itertools;
 
-use select::selectors::{sort_and_sample, filter_sort_and_sample, CompareProjectsByRatioOfIdenticalCommits};
-use select::meta::{ProjectMeta, MetaDatabase};
+use select::selectors::{filter_and_sample, sort_and_sample, filter_sort_and_sample, CompareProjectsByRatioOfIdenticalCommits};
+use select::meta::{ProjectMeta, MetaDatabase, UserMeta};
+use rand_pcg::Pcg64Mcg;
 
 use dcd::Project;
 use dcd::Commit;
+use dcd::User;
+use dcd::UserId;
 
 use crate::sort_by_numbers;
 use crate::sort_by_numbers_opt;
+use crate::sort_by_numbers_desc;
+use crate::sort_by_numbers_opt_desc;
 //use crate::top;
 use crate::top_distinct;
+//use crate::random;
+use crate::random_distinct;
 use crate::Direction;
+use rand::SeedableRng;
+use rand::seq::IteratorRandom;
 
 #[derive(Debug)]
 pub enum QueryParameter {
@@ -48,240 +57,417 @@ impl QueryParameter {
     }
 }
 
+#[allow(unused_macros)]
+macro_rules! maybe_filter_then_sort_and_sample {
+    ($database:expr,$min_commits:expr,$how_sort:expr,$how_sample:expr) => {{
+        if $min_commits == 0 {
+            sort_and_sample($database, $how_sort, $how_sample)
+        } else {
+            let how_filter = |p: &Project| {
+                p.get_commit_count_in($database) >= $min_commits as usize
+            };
+            filter_sort_and_sample($database, how_filter, $how_sort, $how_sample)
+        }
+    }}
+}
+
+
+macro_rules! maybe_filter_then_sort_and_sample {
+    ($database:expr,$min_commits:expr,$how_sort:expr,$how_sample:expr) => {{
+        if $min_commits == 0 {
+            sort_and_sample($database, $how_sort, $how_sample)
+        } else {
+            let how_filter = |p: &Project| {
+                p.get_commit_count_in($database) >= $min_commits as usize
+            };
+            filter_sort_and_sample($database, how_filter, $how_sort, $how_sample)
+        }
+    }}
+}
+
+
+macro_rules! maybe_extra_filter_then_sort_and_sample {
+    ($database:expr,$min_commits:expr,$how_filter:expr, $how_sort:expr,$how_sample:expr) => {{
+        if $min_commits == 0 {
+            filter_sort_and_sample($database, $how_filter, $how_sort, $how_sample)
+        } else {
+            let how_filter = |p: &Project| {
+                if p.get_commit_count_in($database) >= $min_commits as usize {
+                    false
+                } else {
+                    $how_filter(p)
+                }
+            };
+            filter_sort_and_sample($database, how_filter, $how_sort, $how_sample)
+        }
+    }}
+}
+
+macro_rules! maybe_extra_filter_then_sample {
+    ($database:expr,$min_commits:expr,$how_filter:expr, $how_sample:expr) => {{
+        if $min_commits == 0 {
+            filter_and_sample($database, $how_filter, $how_sample)
+        } else {
+            let how_filter = |p: &Project| {
+                if p.get_commit_count_in($database) >= $min_commits as usize {
+                    false
+                } else {
+                    $how_filter(p)
+                }
+            };
+            filter_and_sample($database, how_filter, $how_sample)
+        }
+    }}
+}
+
+macro_rules! random_distinct_by_commits {
+    ($database:expr,$similarity:expr,$rng:expr, $n:expr) => {{
+        let how_deduplicate = |p: &Project| {
+            CompareProjectsByRatioOfIdenticalCommits::new($database, p, $similarity)
+        };
+        random_distinct!(how_deduplicate, $rng, $n)
+    }}
+}
+
+macro_rules! top_distinct_by_commits {
+    ($database:expr,$similarity:expr,$n:expr) => {{
+        let how_deduplicate = |p: &Project| {
+            CompareProjectsByRatioOfIdenticalCommits::new($database, p, $similarity)
+        };
+        top_distinct!(how_deduplicate, $n)
+    }}
+}
+
+macro_rules! bog_standard_sort {
+    ($database:expr, $parameters:expr, $how_sort:expr) => {{
+        let n = $parameters["n"].as_u64();
+        let similarity = $parameters["similarity"].as_f64();
+        let min_commits = $parameters["min_commits"].as_u64();
+
+        let mut how_sample = top_distinct_by_commits!($database, similarity, n);
+
+        maybe_filter_then_sort_and_sample!($database, min_commits, $how_sort, &mut how_sample)
+    }}
+}
+
+macro_rules! commits_with_experienced_authors_in_project {
+    ($database:expr,$p:expr,$required_experience:expr) => {
+        $database
+            .bare_commits_from($p)
+            .map(|c| { $database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
+            .filter(|experience_in_seconds| *experience_in_seconds > $required_experience)
+            .count() as u64
+        }
+}
+
 pub struct Queries;
 impl Queries {
-    fn stars(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort =
-            sort_by_numbers!(Direction::Descending, |p: &Project| p.get_stars_or_zero());
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+    fn sort_by_stars(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort   = sort_by_numbers_desc!(|p: &Project| p.get_stars_or_zero());
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn all_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort = sort_by_numbers ! (Direction::Descending, | p: & Project | {
+    fn sort_by_all_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort = sort_by_numbers_desc! (|p: & Project| {
             p.get_issue_count_or_zero() + p.get_buggy_issue_count_or_zero()
         });
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-        sort_and_sample(database, how_sort, how_sample)
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort = sort_by_numbers ! (Direction::Descending, | p: & Project | p.get_issue_count_or_zero());
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-        sort_and_sample(database, how_sort, how_sample)
+    fn sort_by_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort = sort_by_numbers_desc!(|p: & Project| p.get_issue_count_or_zero());
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn buggy_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_buggy_issue_count_or_zero());
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-        sort_and_sample(database, how_sort, how_sample)
+    fn sort_by_buggy_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort = sort_by_numbers_desc!(|p: &Project| p.get_buggy_issue_count_or_zero());
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn mean_changes_in_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort = sort_by_numbers_opt!(Direction::Descending, |p: &Project| {
+    fn sort_by_mean_changes_in_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort = sort_by_numbers_opt_desc!(|p: &Project| {
             let changes_per_commit: Vec<usize> =
                 database.commits_from(p).map(|c: Commit| {
                     c.changes.map_or(0, |m| m.len())
                 }).collect();
-
             Self::mean(&changes_per_commit)
         });
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn median_changes_in_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort = sort_by_numbers_opt!(Direction::Descending, |p: &Project| {
-            let mut changes_per_commit: Vec<usize> =
+    fn sort_by_median_changes_in_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort = sort_by_numbers_opt_desc!(|p: &Project| {
+            let mut changes_per_commit: Vec<u64> =
                 database.commits_from(p).map(|c: Commit| {
-                    c.changes.map_or(0, |m| m.len())
+                    c.changes.map_or(0, |m| m.len()) as u64
                 }).collect();
-
             Self::median(&mut changes_per_commit)
         });
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn mean_commit_message_sizes(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort = sort_by_numbers_opt!(Direction::Descending, |p: &Project| {
+    fn sort_by_mean_commit_message_sizes(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort = sort_by_numbers_opt_desc!(|p: &Project| {
             let message_sizes: Vec<usize> = database
                 .commits_from(p)
                 .map(|c: Commit| c.message.map_or(0usize, |s| s.len()))
                 .collect();
-
             Self::mean(&message_sizes)
         });
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn median_commit_message_sizes(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort = sort_by_numbers_opt!(Direction::Descending, |p: &Project| {
-            let mut message_sizes: Vec<usize> = database
+    fn sort_by_median_commit_message_sizes(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort = sort_by_numbers_opt_desc!(|p: &Project| {
+            let mut message_sizes: Vec<u64> = database
                 .commits_from(p)
-                .map(|c: Commit| c.message.map_or(0usize, |s| s.len()))
+                .map(|c: Commit| c.message.map_or(0usize, |s| s.len()) as u64)
                 .collect();
-
             Self::median(&mut message_sizes)
         });
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
-        let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_commit_count_in(database));
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-        sort_and_sample(database, how_sort, how_sample)
+    fn sort_by_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let how_sort = sort_by_numbers_desc!(|p: &Project| p.get_commit_count_in(database));
+        bog_standard_sort!(database, parameters, how_sort)
     }
 
-    fn experienced_authors(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    #[allow(dead_code)]
+    fn filter_by_commits_by_experienced_authors_sort_by_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let required_experience = parameters["experience"].as_u64();
-        let required_number_of_commits_by_experienced_authors: u64 = parameters["min_commits"].as_u64();
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
+        let required_number_of_commits_by_experienced_authors = parameters["min_exp_commits"].as_u64();
+        let n = parameters["n"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+        let min_commits = parameters["min_commits"].as_u64();
 
         let how_filter = |p: &Project| {
-            let commits_with_experienced_authors: usize =
-                database
-                    .bare_commits_from(p)
-                    .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
-                    .filter(|experience_in_seconds| *experience_in_seconds > required_experience)
-                    .count();
-
-            commits_with_experienced_authors as u64 > required_number_of_commits_by_experienced_authors
+            let commits_with_experienced_authors =
+                commits_with_experienced_authors_in_project!(database,p,required_experience);
+            commits_with_experienced_authors > required_number_of_commits_by_experienced_authors
         };
+        let how_sort = sort_by_numbers_desc!(|p: &Project| p.get_commit_count_in(database));
+        let mut how_sample = top_distinct_by_commits!(database, similarity, n);
 
-        let how_sort = sort_by_numbers!(Direction::Descending,
-                                                  |p: &Project| p.get_commit_count_in(database));
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
+        maybe_extra_filter_then_sort_and_sample!(database, min_commits, how_filter, how_sort, &mut how_sample)
     }
 
-    fn experienced_authors_ratio(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+    #[allow(dead_code)]
+    fn filter_by_commits_by_experienced_authors_random_sample(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let required_experience = parameters["experience"].as_u64();
-        //2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/
-        //let required_number_of_commits_by_experienced_authors: u64 = 1;
-        let required_ratio_of_commits_by_experienced_authors = parameters["min_ratio"].as_f64(); //0.5
-        let n = parameters["n"].as_u64(); // 50
-        let similarity = parameters["similarity"].as_f64(); // 0.9
+        let required_number_of_commits_by_experienced_authors = parameters["min_exp_commits"].as_u64();
+        let n = parameters["n"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let seed = parameters["seed"].as_u64();
 
         let how_filter = |p: &Project| {
-            let commit_has_experienced_author: Vec<bool> =
-                database
-                    .bare_commits_from(p)
-                    .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
-                    .map(|experience_in_seconds| experience_in_seconds > required_experience)
-                    .collect();
-
-            let ratio_of_commits_by_experienced_authors: f64 =
-                (commit_has_experienced_author.iter().filter(|b| **b).count() as f64)
-                    / (commit_has_experienced_author.iter().count() as f64);
-
-            ratio_of_commits_by_experienced_authors >
-                required_ratio_of_commits_by_experienced_authors
+            let commits_with_experienced_authors =
+                commits_with_experienced_authors_in_project!(database,p,required_experience);
+            commits_with_experienced_authors > required_number_of_commits_by_experienced_authors
         };
+        let mut rng = Pcg64Mcg::seed_from_u64(seed);
+        let mut how_sample = random_distinct_by_commits!(database, similarity, rng, n);
 
-        let how_sort = sort_by_numbers!(Direction::Descending,
-                                                 |p: &Project| p.get_commit_count_in(database));
-        let how_deduplicate =
-            |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
-        let how_sample = top_distinct!(how_deduplicate, n as usize);
+        maybe_extra_filter_then_sample!(database, min_commits, how_filter, &mut how_sample)
+    }
 
-        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
+    fn calculate_ratio_of_commits_by_experienced_authors(database: &impl MetaDatabase, project: &Project, required_experience: u64) -> f64 {
+        let commit_has_experienced_author: Vec<bool> =
+            database
+                .bare_commits_from(project)
+                .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
+                .map(|experience_in_seconds| experience_in_seconds > required_experience)
+                .collect();
+
+        let ratio_of_commits_by_experienced_authors: f64 =
+            (commit_has_experienced_author.iter().filter(|b| **b).count() as f64)
+                / (commit_has_experienced_author.iter().count() as f64);
+
+        ratio_of_commits_by_experienced_authors
+    }
+
+    #[allow(dead_code)]
+    fn filter_by_commits_by_experienced_authors_ratio_sort_by_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let required_experience = parameters["experience"].as_u64();
+        let required_ratio_of_commits_by_experienced_authors = parameters["min_ratio"].as_f64();
+        let n = parameters["n"].as_u64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+
+        let how_filter = |p: &Project| {
+            required_ratio_of_commits_by_experienced_authors <=
+                Self::calculate_ratio_of_commits_by_experienced_authors(database, p, required_experience)
+        };
+        let how_sort = sort_by_numbers_desc!(|p: &Project| p.get_commit_count_in(database));
+        let mut how_sample = top_distinct_by_commits!(database, similarity, n);
+
+        maybe_extra_filter_then_sort_and_sample!(database, min_commits, how_filter, how_sort, &mut how_sample)
+    }
+
+    #[allow(dead_code)]
+    fn filter_by_commits_by_experienced_authors_ratio_random_sample(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let required_experience = parameters["experience"].as_u64();
+        let required_ratio_of_commits_by_experienced_authors = parameters["min_ratio"].as_f64();
+        let n = parameters["n"].as_u64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+        let seed = parameters["seed"].as_u64();
+
+        let how_filter = |p: &Project| {
+            required_ratio_of_commits_by_experienced_authors <=
+                Self::calculate_ratio_of_commits_by_experienced_authors(database, p, required_experience)
+        };
+        let mut rng = Pcg64Mcg::seed_from_u64(seed);
+        let mut how_sample = random_distinct_by_commits!(database, similarity, rng, n);
+
+        maybe_extra_filter_then_sample!(database, min_commits, how_filter, &mut how_sample)
+    }
+
+    fn sort_by_ratio_of_commits_by_experienced_authors(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let required_experience = parameters["min_experience"].as_u64();
+        let n = parameters["n"].as_u64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+
+        let how_sort = sort_by_numbers_desc!(|p: &Project| Self::calculate_ratio_of_commits_by_experienced_authors(database, p, required_experience));
+        let mut how_sample = top_distinct_by_commits!(database, similarity, n);
+
+        maybe_filter_then_sort_and_sample!(database, min_commits, how_sort, &mut how_sample)
+    }
+
+    fn calculate_experience_of_all_users(database: &impl MetaDatabase, project: &Project) -> Vec<u64> {
+        database.user_ids_from(project).map(|user_id: UserId| {
+            database.get_user(user_id).map(|user: &User| {
+                user.get_author_experience_time_or_zero_in(database).as_secs()
+            }).unwrap_or(0u64)
+        }).collect()
+    }
+
+    fn sort_by_sum_of_user_experience(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let n = parameters["n"].as_u64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+
+        let how_sort = sort_by_numbers_desc!(|project: &Project| {
+            let experience: Vec<u64> = Self::calculate_experience_of_all_users(database, project);
+            experience.iter().sum::<u64>()
+        });
+        let mut how_sample = top_distinct_by_commits!(database, similarity, n);
+
+        maybe_filter_then_sort_and_sample!(database, min_commits, how_sort, &mut how_sample)
+    }
+
+    fn sort_by_median_user_experience(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let n = parameters["n"].as_u64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+
+        let how_sort = sort_by_numbers_desc!(|project: &Project| {
+            let mut experience: Vec<u64> = Self::calculate_experience_of_all_users(database, project);
+            Self::median(&mut experience)
+        });
+        let mut how_sample = top_distinct_by_commits!(database, similarity, n);
+
+        maybe_filter_then_sort_and_sample!(database, min_commits, how_sort, &mut how_sample)
+    }
+
+    fn filter_by_at_least_one_experienced_user_random_sample(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let n = parameters["n"].as_u64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+        let seed = parameters["seed"].as_u64();
+        let min_experience = parameters["min_experience"].as_u64();
+
+        let how_filter = |project: &Project| {
+            Self::calculate_experience_of_all_users(database, project)
+                .iter().any(|experience| *experience >= min_experience )
+        };
+        let mut rng = Pcg64Mcg::seed_from_u64(seed);
+        let mut how_sample = random_distinct_by_commits!(database, similarity, rng, n);
+
+        maybe_extra_filter_then_sample!(database, min_commits, how_filter, &mut how_sample)
+    }
+
+    fn filter_by_at_least_two_users_sort_by_ratio_of_experienced_users(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let n = parameters["n"].as_u64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+        let min_experience = parameters["min_experience"].as_u64();
+
+        let how_filter = |project: &Project| project.get_user_count_in(database) > 1;
+        let how_sort = sort_by_numbers_desc!(|project: &Project| {
+            let all_users = project.get_user_count_in(database);
+            let experience = Self::calculate_experience_of_all_users(database, project);
+            let experienced_users = experience.iter().filter(|experience| **experience >= min_experience).count();
+            experienced_users as f64 / all_users as f64
+        });
+        let mut how_sample = top_distinct_by_commits!(database, similarity, n);
+
+        maybe_extra_filter_then_sort_and_sample!(database, min_commits, how_filter, how_sort, &mut how_sample)
     }
 
     pub fn all() -> Vec<String> {
-        vec!["stars","all_issues","issues","buggy_issues",
-             "median_changes_in_commits","median_commit_message_sizes","commits",
-             "experienced_authors","experienced_authors_ratio",
-             "mean_changes_in_commits","mean_commit_message_sizes"]
-            .iter().map(|s| s.to_string()).collect()
+        vec!["sort_by_stars",
+             "sort_by_issues", "sort_by_buggy_issues", "sort_by_all_issues",
+             "sort_by_commits",
+             "sort_by_mean_changes_in_commits",
+             "sort_by_mean_commit_message_sizes",
+             "sort_by_median_changes_in_commits",
+             "sort_by_median_commit_message_sizes",
+             "filter_by_commits_by_experienced_authors_sort_by_commits",
+             "filter_by_commits_by_experienced_authors_random_sample",
+             "filter_by_commits_by_experienced_authors_ratio_sort_by_commits",
+             "filter_by_commits_by_experienced_authors_ratio_random_sample",
+             "sort_by_ratio_of_commits_by_experienced_authors",
+             "sort_by_sum_of_user_experience",
+             "sort_by_median_user_experience",
+             "filter_by_at_least_one_experienced_user_random_sample",
+             "filter_by_at_least_two_users_sort_by_ratio_of_experienced_users"
+        ].iter().rev().map(|s| s.to_string()).collect()
     }
+
 
     pub fn run(database: &impl MetaDatabase, key: &str, parameters: Vec<(String,QueryParameter)>) -> Option<Vec<Project>> {
         let parameters: HashMap<String, QueryParameter> = parameters.into_iter().collect();
         match key {
-            "stars"                       => Some(Self::stars(database, parameters)),
-            "all_issues"                  => Some(Self::all_issues(database, parameters)),
-            "issues"                      => Some(Self::issues(database, parameters)),
-            "buggy_issues"                => Some(Self::buggy_issues(database, parameters)),
-            "mean_changes_in_commits"     => Some(Self::mean_changes_in_commits(database, parameters)),
-            "mean_commit_message_sizes"   => Some(Self::mean_commit_message_sizes(database, parameters)),
-            "median_changes_in_commits"   => Some(Self::median_changes_in_commits(database, parameters)),
-            "median_commit_message_sizes" => Some(Self::median_commit_message_sizes(database, parameters)),
-            "commits"                     => Some(Self::commits(database, parameters)),
-            "experienced_authors"         => Some(Self::experienced_authors(database, parameters)),
-            "experienced_authors_ratio"   => Some(Self::experienced_authors_ratio(database, parameters)),
+            //"filter_by_commits_by_experienced_authors_sort_by_commits"       => Some(Self::filter_by_commits_by_experienced_authors_sort_by_commits(database, parameters)),            //old experienced_authors
+            //"filter_by_commits_by_experienced_authors_random_sample"         => Some(Self::filter_by_commits_by_experienced_authors_random_sample(database, parameters)),
+            //"filter_by_commits_by_experienced_authors_ratio_sort_by_commits" => Some(Self::filter_by_commits_by_experienced_authors_ratio_sort_by_commits(database, parameters)),      //old experienced_authors_ratio
+            //"filter_by_commits_by_experienced_authors_ratio_random_sample"   => Some(Self::filter_by_commits_by_experienced_authors_ratio_random_sample(database, parameters)),
+
+            "sort_by_stars"                       => Some(Self::sort_by_stars(database, parameters)),
+            "sort_by_all_issues"                  => Some(Self::sort_by_all_issues(database, parameters)),
+            "sort_by_issues"                      => Some(Self::sort_by_issues(database, parameters)),
+            "sort_by_buggy_issues"                => Some(Self::sort_by_buggy_issues(database, parameters)),
+            "sort_by_commits"                     => Some(Self::sort_by_commits(database, parameters)),
+
+            "sort_by_mean_changes_in_commits"     => Some(Self::sort_by_mean_changes_in_commits(database, parameters)),
+            "sort_by_mean_commit_message_sizes"   => Some(Self::sort_by_mean_commit_message_sizes(database, parameters)),
+            "sort_by_median_changes_in_commits"   => Some(Self::sort_by_median_changes_in_commits(database, parameters)),
+            "sort_by_median_commit_message_sizes" => Some(Self::sort_by_median_commit_message_sizes(database, parameters)),
+
+            "filter_by_at_least_one_experienced_user_random_sample"           => Some(Self::filter_by_at_least_one_experienced_user_random_sample(database, parameters)),
+            "filter_by_at_least_two_users_sort_by_ratio_of_experienced_users" => Some(Self::filter_by_at_least_two_users_sort_by_ratio_of_experienced_users(database, parameters)),
+
+            "sort_by_ratio_of_commits_by_experienced_authors" => Some(Self::sort_by_ratio_of_commits_by_experienced_authors(database, parameters)),
+            "sort_by_sum_of_user_experience"                  => Some(Self::sort_by_sum_of_user_experience(database, parameters)),
+            "sort_by_median_user_experience"                  => Some(Self::sort_by_median_user_experience(database, parameters)),
 
             _ => None
         }
     }
 
-    pub fn default_parameters(key: &str) -> Vec<(String, QueryParameter)> {
-        match key {
-            "experienced_authors"       => vec![("n".to_string(), QueryParameter::Int(50)),
-                                                ("similarity".to_string(), QueryParameter::Float(0.9)),
-                                                ("experience".to_string(),
-                                                 QueryParameter::Int(2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/)),
-                                                ("min_commits".to_string(),
-                                                 QueryParameter::Int(1))],
-            "experienced_authors_ratio" => vec![("n".to_string(), QueryParameter::Int(50)),
-                                                ("similarity".to_string(), QueryParameter::Float(0.9)),
-                                                ("experience".to_string(),
-                                                 QueryParameter::Int(2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/)),
-                                                ("min_ratio".to_string(),
-                                                 QueryParameter::Float(0.5))],
-            _                           => vec![("n".to_string(), QueryParameter::Int(50)),
-                                                ("similarity".to_string(), QueryParameter::Float(0.9))],
-        }
+    pub fn default_parameters(_key: &str) -> Vec<(String, QueryParameter)> {
+       vec![("min_commits".to_string(), QueryParameter::Int(0)),
+            ("seed".to_string(), QueryParameter::Int(42)),
+            ("min_experience".to_string(),
+             QueryParameter::Int(2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/)),
+            ("n".to_string(), QueryParameter::Int(50)),
+            ("similarity".to_string(), QueryParameter::Float(0.9))]
     }
 
-    fn median(vector: &mut Vec<usize>) -> Option<f64> {
+    fn median(vector: &mut Vec<u64>) -> Option<f64> {
         vector.sort();
         match vector.len() {
             0usize => None,

@@ -407,6 +407,31 @@ impl Queries {
         maybe_extra_filter_then_sort_and_sample!(database, min_commits, how_filter, how_sort, &mut how_sample)
     }
 
+    fn filter_by_at_least_two_users_and_at_least_50perc_experienced_users_random_sample(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
+        let n = parameters["n"].as_u64();
+        let min_commits = parameters["min_commits"].as_u64();
+        let similarity = parameters["similarity"].as_f64();
+        let min_experience = parameters["min_experience"].as_u64();
+        let min_experience_ratio = 0.5; //parameters["min_experience_ratio"].as_f64();
+        let seed = parameters["seed"].as_u64();
+
+
+        let how_filter = |project: &Project| {
+            if project.get_user_count_in(database) > 1 {
+                let all_users = project.get_user_count_in(database);
+                let experience = Self::calculate_experience_of_all_users(database, project);
+                let experienced_users = experience.iter().filter(|experience| **experience >= min_experience).count();
+                (experienced_users as f64 / all_users as f64) >= min_experience_ratio
+            } else {
+                false
+            }
+        };
+        let mut rng = Pcg64Mcg::seed_from_u64(seed);
+        let mut how_sample = random_distinct_by_commits!(database, similarity, rng, n);
+
+        maybe_extra_filter_then_sample!(database, min_commits, how_filter, &mut how_sample)
+    }
+
     pub fn all() -> Vec<String> {
         vec!["sort_by_stars",
              "sort_by_issues", "sort_by_buggy_issues", "sort_by_all_issues",
@@ -423,7 +448,8 @@ impl Queries {
              "sort_by_sum_of_user_experience",
              "sort_by_median_user_experience",
              "filter_by_at_least_one_experienced_user_random_sample",
-             "filter_by_at_least_two_users_sort_by_ratio_of_experienced_users"
+             "filter_by_at_least_two_users_sort_by_ratio_of_experienced_users",
+             "filter_by_at_least_two_users_and_at_least_50perc_experienced_users_random_sample"
         ].iter().rev().map(|s| s.to_string()).collect()
     }
 
@@ -449,6 +475,7 @@ impl Queries {
 
             "filter_by_at_least_one_experienced_user_random_sample"           => Some(Self::filter_by_at_least_one_experienced_user_random_sample(database, parameters)),
             "filter_by_at_least_two_users_sort_by_ratio_of_experienced_users" => Some(Self::filter_by_at_least_two_users_sort_by_ratio_of_experienced_users(database, parameters)),
+            "filter_by_at_least_two_users_and_at_least_50perc_experienced_users_random_sample" => Some(Self::filter_by_at_least_two_users_and_at_least_50perc_experienced_users_random_sample(database, parameters)),
 
             "sort_by_ratio_of_commits_by_experienced_authors" => Some(Self::sort_by_ratio_of_commits_by_experienced_authors(database, parameters)),
             "sort_by_sum_of_user_experience"                  => Some(Self::sort_by_sum_of_user_experience(database, parameters)),

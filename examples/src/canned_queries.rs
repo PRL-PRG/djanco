@@ -53,50 +53,54 @@ impl Queries {
     fn stars(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_filter = |p: &Project| p.get_commit_count_in(database) >= 28;
         let how_sort =
             sort_by_numbers!(Direction::Descending, |p: &Project| p.get_stars_or_zero());
         let how_deduplicate =
             |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
         let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
     fn all_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_filter = |p: &Project| p.get_commit_count_in(database) >= 28;
         let how_sort = sort_by_numbers ! (Direction::Descending, | p: & Project | {
             p.get_issue_count_or_zero() + p.get_buggy_issue_count_or_zero()
         });
         let how_deduplicate =
             |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
         let how_sample = top_distinct!(how_deduplicate, n as usize);
-        sort_and_sample(database, how_sort, how_sample)
+        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
     fn issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_filter = |p: &Project| p.get_commit_count_in(database) >= 28;
         let how_sort = sort_by_numbers ! (Direction::Descending, | p: & Project | p.get_issue_count_or_zero());
         let how_deduplicate =
             |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
         let how_sample = top_distinct!(how_deduplicate, n as usize);
-        sort_and_sample(database, how_sort, how_sample)
+        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
     fn buggy_issues(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_filter = |p: &Project| p.get_commit_count_in(database) >= 28;
         let how_sort = sort_by_numbers!(Direction::Descending, |p: &Project| p.get_buggy_issue_count_or_zero());
         let how_deduplicate =
             |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
         let how_sample = top_distinct!(how_deduplicate, n as usize);
-        sort_and_sample(database, how_sort, how_sample)
+        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
     fn mean_changes_in_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_filter = |p: &Project| p.get_commit_count_in(database) >= 28;
         let how_sort = sort_by_numbers_opt!(Direction::Descending, |p: &Project| {
             let changes_per_commit: Vec<usize> =
                 database.commits_from(p).map(|c: Commit| {
@@ -108,13 +112,13 @@ impl Queries {
         let how_deduplicate =
             |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
         let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
     fn median_changes_in_commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_filter = |p: &Project| p.get_commit_count_in(database) >= 28;
         let how_sort = sort_by_numbers_opt!(Direction::Descending, |p: &Project| {
             let mut changes_per_commit: Vec<usize> =
                 database.commits_from(p).map(|c: Commit| {
@@ -126,13 +130,13 @@ impl Queries {
         let how_deduplicate =
             |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
         let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
     fn mean_commit_message_sizes(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_filter = |p: &Project| p.get_commit_count_in(database) >= 28;
         let how_sort = sort_by_numbers_opt!(Direction::Descending, |p: &Project| {
             let message_sizes: Vec<usize> = database
                 .commits_from(p)
@@ -144,13 +148,13 @@ impl Queries {
         let how_deduplicate =
             |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
         let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
     fn median_commit_message_sizes(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
         let n = parameters["n"].as_u64(); // 50
         let similarity = parameters["similarity"].as_f64(); // 0.9
+        let how_filter = |p: &Project| p.get_commit_count_in(database) >= 28;
         let how_sort = sort_by_numbers_opt!(Direction::Descending, |p: &Project| {
             let mut message_sizes: Vec<usize> = database
                 .commits_from(p)
@@ -162,8 +166,7 @@ impl Queries {
         let how_deduplicate =
             |p: &Project| { CompareProjectsByRatioOfIdenticalCommits::new(database, p, similarity) };
         let how_sample = top_distinct!(how_deduplicate, n as usize);
-
-        sort_and_sample(database, how_sort, how_sample)
+        filter_sort_and_sample(database, how_filter, how_sort, how_sample)
     }
 
     fn commits(database: &impl MetaDatabase, parameters: HashMap<String,QueryParameter>) -> Vec<Project> {
@@ -183,14 +186,17 @@ impl Queries {
         let similarity = parameters["similarity"].as_f64(); // 0.9
 
         let how_filter = |p: &Project| {
-            let commits_with_experienced_authors: usize =
-                database
-                    .bare_commits_from(p)
-                    .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
-                    .filter(|experience_in_seconds| *experience_in_seconds > required_experience)
-                    .count();
+            if p.get_commit_count_in(database) < 28 { false }
+            else {
+                let commits_with_experienced_authors: usize =
+                    database
+                        .bare_commits_from(p)
+                        .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
+                        .filter(|experience_in_seconds| *experience_in_seconds > required_experience)
+                        .count();
 
-            commits_with_experienced_authors as u64 > required_number_of_commits_by_experienced_authors
+                commits_with_experienced_authors as u64 > required_number_of_commits_by_experienced_authors
+            }
         };
 
         let how_sort = sort_by_numbers!(Direction::Descending,
@@ -211,19 +217,22 @@ impl Queries {
         let similarity = parameters["similarity"].as_f64(); // 0.9
 
         let how_filter = |p: &Project| {
-            let commit_has_experienced_author: Vec<bool> =
-                database
-                    .bare_commits_from(p)
-                    .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
-                    .map(|experience_in_seconds| experience_in_seconds > required_experience)
-                    .collect();
+            if p.get_commit_count_in(database) < 28 { false }
+            else {
+                let commit_has_experienced_author: Vec<bool> =
+                    database
+                        .bare_commits_from(p)
+                        .map(|c| { database.get_experience_time_as_author(c.author_id).map_or(0u64, |e| e.as_secs()) })
+                        .map(|experience_in_seconds| experience_in_seconds > required_experience)
+                        .collect();
 
-            let ratio_of_commits_by_experienced_authors: f64 =
-                (commit_has_experienced_author.iter().filter(|b| **b).count() as f64)
-                    / (commit_has_experienced_author.iter().count() as f64);
+                let ratio_of_commits_by_experienced_authors: f64 =
+                    (commit_has_experienced_author.iter().filter(|b| **b).count() as f64)
+                        / (commit_has_experienced_author.iter().count() as f64);
 
-            ratio_of_commits_by_experienced_authors >
-                required_ratio_of_commits_by_experienced_authors
+                ratio_of_commits_by_experienced_authors >
+                    required_ratio_of_commits_by_experienced_authors
+            }
         };
 
         let how_sort = sort_by_numbers!(Direction::Descending,

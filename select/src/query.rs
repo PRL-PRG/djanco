@@ -1,8 +1,13 @@
 use dcd::{Database, Project};
 use crate::query::project::{Group, Property, GroupKey};
 use itertools::Itertools;
-use crate::meta::ProjectMeta;
+use crate::meta::{ProjectMeta, MetaDatabase};
 use std::time::Duration;
+use std::io::Error;
+use std::path::PathBuf;
+use std::fs::{create_dir_all, File};
+use std::io::Write;
+use crate::dump::DumpFrom;
 
 pub mod project {
     #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -115,38 +120,38 @@ impl project::Group {
     }
 }
 
-pub trait DatabaseIterator<'a, T, D>: Iterator<Item=T> where D: Database {
+pub trait DatabaseIterator<'a, T, D>: Iterator<Item=T>{
     fn get_database(&self) -> &'a D;
 }
 
-pub trait ProjectQuery<'a, I: DatabaseIterator<'a, Project, D>, D> where D: 'a + Database {
+pub trait ProjectQuery<'a, I: DatabaseIterator<'a, Project, D>, D> where D: 'a + MetaDatabase {
     fn group_by(self, group: project::Group) -> ProjectGroups<'a, D>;
 }
 
-impl<'a, I, D> ProjectQuery<'a, I, D> for I where I: DatabaseIterator<'a, Project, D>, D: 'a + Database {
+impl<'a, I, D> ProjectQuery<'a, I, D> for I where I: DatabaseIterator<'a, Project, D>, D: 'a + MetaDatabase {
     fn group_by(self, group: project::Group) -> ProjectGroups<'a, D> { // FIXME remove database from parameters... somehow
         let database =  self.get_database(); // grab ref before move
         ProjectGroups { data: group.group_this(self), database }
     }
 }
 
-pub struct ProjectGroups<'a, D: Database> {
+pub struct ProjectGroups<'a, D: MetaDatabase> {
     data: Box<dyn Iterator<Item=(GroupKey,Vec<Project>)>>,
     database: &'a D,
 }
 
-impl<'a, D> ProjectGroups<'a, D> where D: Database  {
+impl<'a, D> ProjectGroups<'a, D> where D: MetaDatabase  {
    pub fn new(data: Box<dyn Iterator<Item=(GroupKey,Vec<Project>)>>, database: &'a D) -> ProjectGroups<'a, D> {
        ProjectGroups{ data, database }
    }
 }
 
-impl<'a, D> Iterator for ProjectGroups<'a, D> where D: Database {
+impl<'a, D> Iterator for ProjectGroups<'a, D> where D: MetaDatabase {
     type Item = (GroupKey, Vec<Project>);
     fn next(&mut self) -> Option<Self::Item> { self.data.next() }
 }
 
-impl<'a, D> DatabaseIterator<'a, (GroupKey, Vec<Project>), D> for ProjectGroups<'a, D> where D: Database {
+impl<'a, D> DatabaseIterator<'a, (GroupKey, Vec<Project>), D> for ProjectGroups<'a, D> where D: MetaDatabase {
     fn get_database(&self) -> &'a D { self.database }
 }
 
@@ -219,9 +224,6 @@ mod test {
     //     furthermore if our template doesn't suffice, the user-programmer can also use standard
     //     rust facilities to get what they need
 
-    use dcd::*;
-    use crate::query::project::*;
-
     // Benchmark Q1:
     // group projects by language
     // for each language
@@ -233,10 +235,56 @@ mod test {
         //let dataset = DCD::new("/dejavuii/dejacode/dataset-tiny".to_string());
         //let projects = dataset.projects();
 
-        let vector: Vec<(GroupKey, Vec<Project>)> = vec![];
-        println!("{:?}",vector.iter());
+        //let vector: Vec<(GroupKey, Vec<Project>)> = vec![];
+        //println!("{:?}",vector.iter());
         assert!(false)
     }
+}
 
+fn write_projects_to_file<'a, I, D, F>(projects: &mut I, path: &PathBuf, formatter: F) -> Result<(), Error>
+    where I: DatabaseIterator<'a, &'a Project, D>,
+          D: 'a + MetaDatabase,
+          F: Fn(&Project) -> Result<String, Error> {
 
+    let dir_path = {
+        let mut dir_path = path.clone();
+        dir_path.pop();
+        dir_path
+    };
+    create_dir_all(&dir_path).unwrap();
+
+    let mut file = File::create(path)?;
+    for project in projects {
+        writeln!(file, "{}", formatter(&project)?)?;
+    }
+    Ok(())
+}
+
+pub trait ProjectOutputFormatter<'a, D> where D: 'a + MetaDatabase {
+    fn write_ids_to_csv(&mut self, path: &PathBuf) -> Result<(), Error>;
+    fn write_urls_to_csv(&mut self, path: &PathBuf) -> Result<(), Error>;
+    fn write_all_you_know_to_dir(&mut self, dir: &PathBuf) -> Result<(), Error>;
+    fn write_artifact_input_to_csv(&mut self, path: &PathBuf) -> Result<(), Error>;
+}
+
+impl<'a, I, D> ProjectOutputFormatter<'a, D> for I where I: DatabaseIterator<'a, &'a Project, D>, D: 'a + MetaDatabase {
+    fn write_ids_to_csv(&mut self, path: &PathBuf) -> Result<(), Error> {
+        let formatter = |project: &Project| { Ok(project.id.to_string()) };
+        write_projects_to_file(self, path, formatter)
+    }
+
+    fn write_urls_to_csv(&mut self, path: &PathBuf) -> Result<(), Error> {
+        let formatter = |project: &Project| { Ok(project.url.clone()) };
+        write_projects_to_file(self, path, formatter)
+    }
+
+    fn write_all_you_know_to_dir(&mut self, dir: &PathBuf) -> Result<(), Error> {
+        self.get_database().dump_all_info_about(self, dir) // TODO clean up
+    }
+
+    fn write_artifact_input_to_csv(&mut self, _path: &PathBuf) -> Result<(), Error> {
+        let _database = self.get_database();
+        // TODO Peta's stuff goes here
+        unimplemented!()
+    }
 }

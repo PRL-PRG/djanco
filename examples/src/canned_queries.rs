@@ -4,13 +4,14 @@ use std::collections::{HashMap};
 use itertools::Itertools;
 
 use select::selectors::{filter_and_sample, sort_and_sample, filter_sort_and_sample, CompareProjectsByRatioOfIdenticalCommits};
-use select::meta::{ProjectMeta, MetaDatabase, UserMeta};
+use select::meta::{ProjectMeta, MetaDatabase, UserMeta, PathMeta};
 use rand_pcg::Pcg64Mcg;
 
 use dcd::Project;
 use dcd::Commit;
 use dcd::User;
 use dcd::UserId;
+use dcd::FilePath;
 
 use crate::sort_by_numbers;
 use crate::sort_by_numbers_opt;
@@ -57,6 +58,25 @@ impl QueryParameter {
     }
 }
 
+macro_rules! check_num_language_commits {
+    ($database:expr, $project:expr,$min_language_commits:expr) => {{
+        let language = $project.get_language().clone();
+        if language.is_none() { false }
+        else {
+            $database.commits_from($project).filter(|commit: &Commit|
+                match &commit.changes {
+                    None => false,
+                    Some(changes) => {
+                        changes.iter()
+                            .flat_map(|(path_id, _)| $database.get_file_path(*path_id))
+                        .any(|path: FilePath| path.get_language() == language)
+                    },
+                }
+            ).count() > $min_language_commits as usize
+        }
+    }}
+}
+
 #[allow(unused_macros)]
 macro_rules! maybe_filter_then_sort_and_sample {
     ($database:expr,$min_commits:expr,$how_sort:expr,$how_sample:expr) => {{
@@ -64,7 +84,11 @@ macro_rules! maybe_filter_then_sort_and_sample {
             sort_and_sample($database, $how_sort, $how_sample)
         } else {
             let how_filter = |p: &Project| {
-                p.get_commit_count_in($database) >= $min_commits as usize
+                if p.get_commit_count_in($database) >= $min_commits as usize {
+                    check_num_language_commits!(p, 20) // TODO hardcoded
+                } else {
+                    false
+                }
             };
             filter_sort_and_sample($database, how_filter, $how_sort, $how_sample)
         }
@@ -78,7 +102,11 @@ macro_rules! maybe_filter_then_sort_and_sample {
             sort_and_sample($database, $how_sort, $how_sample)
         } else {
             let how_filter = |p: &Project| {
-                p.get_commit_count_in($database) >= $min_commits as usize
+                if p.get_commit_count_in($database) >= $min_commits as usize {
+                    check_num_language_commits!($database, p, 20) // TODO hardcoded
+                } else {
+                    false
+                }
             };
             filter_sort_and_sample($database, how_filter, $how_sort, $how_sample)
         }
@@ -93,9 +121,13 @@ macro_rules! maybe_extra_filter_then_sort_and_sample {
         } else {
             let how_filter = |p: &Project| {
                 if p.get_commit_count_in($database) >= $min_commits as usize {
-                    false
+                    if check_num_language_commits!($database, p, 20) {
+                        $how_filter(p)
+                    } else {
+                        false
+                    }
                 } else {
-                    $how_filter(p)
+                    false
                 }
             };
             filter_sort_and_sample($database, how_filter, $how_sort, $how_sample)
@@ -110,9 +142,13 @@ macro_rules! maybe_extra_filter_then_sample {
         } else {
             let how_filter = |p: &Project| {
                 if p.get_commit_count_in($database) >= $min_commits as usize {
-                    false
+                    if check_num_language_commits!($database, p, 20) {
+                        $how_filter(p)
+                    } else {
+                        false
+                    }
                 } else {
-                    $how_filter(p)
+                    false
                 }
             };
             filter_and_sample($database, how_filter, $how_sample)
@@ -486,7 +522,7 @@ impl Queries {
     }
 
     pub fn default_parameters(_key: &str) -> Vec<(String, QueryParameter)> {
-       vec![("min_commits".to_string(), QueryParameter::Int(0)),
+       vec![("min_commits".to_string(), QueryParameter::Int(28)),
             ("seed".to_string(), QueryParameter::Int(42)),
             ("min_experience".to_string(),
              QueryParameter::Int(2/*yrs*/ * 365/*days*/ * 24/*hrs*/ * 60/*mins*/ * 60/*secs*/)),

@@ -224,6 +224,8 @@ mod test {
     //     furthermore if our template doesn't suffice, the user-programmer can also use standard
     //     rust facilities to get what they need
 
+    use dcd::{DCD, Database};
+
     // Benchmark Q1:
     // group projects by language
     // for each language
@@ -232,12 +234,14 @@ mod test {
     //   *  take top N=50
     // flatten to list of IDs
     #[test] fn top_stars_per_language() {
-        //let dataset = DCD::new("/dejavuii/dejacode/dataset-tiny".to_string());
-        //let projects = dataset.projects();
+        let dataset = DCD::new("/dejavuii/dejacode/dataset-tiny".to_string());
+        let projects = dataset.projects();
 
         //let vector: Vec<(GroupKey, Vec<Project>)> = vec![];
         //println!("{:?}",vector.iter());
         assert!(false)
+
+
     }
 }
 

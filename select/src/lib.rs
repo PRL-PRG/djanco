@@ -8,7 +8,7 @@ pub mod selectors;
 
 use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
-use dcd::DCD;
+use dcd::{DCD, Project};
 use std::marker::PhantomData;
 
 pub enum Month {
@@ -247,13 +247,33 @@ impl<'a, TI, T> WithDatabase for EntityIter<'a, TI, T> where TI: From<usize> + I
 
 // Project Attributes
 pub enum Attrib {
+    Language,
+    Stars,
+    Commits,
+    Users,
+}
 
+pub trait RequireOperand {}
+impl RequireOperand for Attrib {}
+impl RequireOperand for Stats  {}
+
+pub enum Require<Operand> where Operand: RequireOperand {
+    AtLeast(Operand, usize),
+    Exactly(Operand, usize),
+    AtMost(Operand,  usize),
+}
+
+pub trait StatsOperand {}
+impl StatsOperand for Attrib {}
+
+pub enum Stats {
+    Count(),
+    Mean(),
+    Median(),
 }
 
 trait ProjectGroup {
-    fn group_by_attrib() {
-
-    }
+    fn group_by_attrib<Iter, InnerIter, Key>(attrib: Attrib) -> Iter where Iter: Iterator<Item=(Key, InnerIter)>, InnerIter: Iterator<Item=Project>;
 }
 
 #[cfg(test)]

@@ -8,11 +8,7 @@ pub mod selectors;
 
 use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
-use dcd::{DCD, Database, FilePath, Project};
-use std::ops::{Range, Deref};
-use std::thread::current;
-use std::borrow::Borrow;
-use crate::cachedb::CachedDatabase;
+use dcd::DCD;
 use std::marker::PhantomData;
 
 pub enum Month {
@@ -118,11 +114,13 @@ impl From<u64>   for CommitId  { fn from(n: u64) -> Self { CommitId(n)  } }
 impl From<u64>   for UserId    { fn from(n: u64) -> Self { UserId(n)    } }
 impl From<u64>   for PathId    { fn from(n: u64) -> Self { PathId(n)    } }
 
+
+
 pub struct Dejaco {
-    timestamp: i64,
-    seed: u64,
-    path: PathBuf,
-    data_store: Box<dyn Database>,
+    _timestamp: i64,
+    _seed: u64,
+    _path: PathBuf,
+    data_store: Box<dyn dcd::Database>,
 }
 
 impl Dejaco {
@@ -132,9 +130,9 @@ impl Dejaco {
         let data_store = DCD::new(path.clone());
         Dejaco {
             data_store: Box::new(data_store),
-            path: PathBuf::from(path),
-            timestamp: timestamp.into(),
-            seed
+            _path: PathBuf::from(path),
+            _timestamp: timestamp.into(),
+            _seed: seed,
         }
     }
 
@@ -143,10 +141,11 @@ impl Dejaco {
     pub fn user_count(&self)    -> usize { self.data_store.num_users()      as usize }
     pub fn path_count(&self)    -> usize { self.data_store.num_file_paths() as usize }
 
-    pub fn project(&self, id: ProjectId) -> Option<dcd::Project>  { self.data_store.get_project(id.into())   }
-    pub fn commit(&self, id: CommitId)   -> Option<dcd::Commit>   { self.data_store.get_commit(id.into())    }
-    pub fn user(&self, id: UserId)       -> Option<&dcd::User>    { self.data_store.get_user(id.into())      }
-    pub fn path(&self, id: PathId)       -> Option<dcd::FilePath> { self.data_store.get_file_path(id.into()) }
+    pub fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { self.data_store.get_project(id.into())     }
+    pub fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { self.data_store.get_commit(id.into())      }
+    pub fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { self.data_store.get_commit_bare(id.into()) }
+    pub fn user(&self, id: UserId)          -> Option<&dcd::User>    { self.data_store.get_user(id.into())        }
+    pub fn path(&self, id: PathId)          -> Option<dcd::FilePath> { self.data_store.get_file_path(id.into())   }
 
     pub fn project_ids(&self) -> impl Iterator<Item=ProjectId> {
         (0..self.project_count()).map(|e| ProjectId::from(e))
@@ -162,19 +161,23 @@ impl Dejaco {
     }
 
     pub fn projects(&self) -> impl Iterator<Item=dcd::Project> + '_ {
-        EntityIter::from(self.data_store.borrow(), self.project_ids())
+        EntityIter::from(self, self.project_ids())
     }
 
     pub fn commits(&self) -> impl Iterator<Item=dcd::Commit> + '_ {
-        EntityIter::from(self.data_store.borrow(), self.commit_ids())
+        EntityIter::from(self, self.commit_ids())
+    }
+
+    pub fn bare_commits(&self) -> impl Iterator<Item=dcd::Commit> + '_ {
+        EntityIter::from(self, self.commit_ids()).and_make_it_snappy()
     }
 
     pub fn users(&self) -> impl Iterator<Item=&dcd::User> + '_ {
-        EntityIter::from(self.data_store.borrow(), self.user_ids())
+        EntityIter::from(self, self.user_ids())
     }
 
     pub fn paths(&self) -> impl Iterator<Item=dcd::FilePath> + '_ {
-        EntityIter::from(self.data_store.borrow(), self.path_ids())
+        EntityIter::from(self, self.path_ids())
     }
 }
 
@@ -182,43 +185,74 @@ pub trait WithDatabase {
     fn get_database(&self) -> &Dejaco;
 }
 
+impl WithDatabase for Dejaco { fn get_database(&self) -> &Dejaco { self } }
+
 pub struct EntityIter<'a, TI: From<usize> + Into<u64>, T> {
-    database: &'a dyn Database,
+    database: &'a Dejaco,
     ids: Box<dyn Iterator<Item=TI>>,
-    entity_type: PhantomData<T>
+    entity_type: PhantomData<T>,
+    snappy: bool,
 }
 
 impl<'a, TI, T> EntityIter<'a, TI, T> where TI: From<usize> + Into<u64> {
-    pub fn from(database: &'a dyn Database, ids: impl Iterator<Item=TI> + 'static) -> EntityIter<TI, T> {
-        EntityIter { ids: Box::new(ids), database, entity_type: PhantomData }
+    pub fn from(database: &'a Dejaco, ids: impl Iterator<Item=TI> + 'static) -> EntityIter<TI, T> {
+        EntityIter { ids: Box::new(ids), database, entity_type: PhantomData, snappy: false }
+    }
+    /**
+     * In snappy mode, the iterator will load only bare bones versions of objects (currently this
+     * applies only to commits). This dramatically increases performance.
+     */
+    pub fn and_make_it_snappy(self) -> Self {
+        EntityIter { ids: self.ids, database: self.database, entity_type: PhantomData, snappy: true }
     }
 }
 
 impl<'a> Iterator for EntityIter<'a, ProjectId, dcd::Project> {
     type Item = dcd::Project;
     fn next(&mut self) -> Option<Self::Item> {
-        self.ids.next().map(|id| self.database.get_project(id.into())).flatten()
+        self.ids.next().map(|id| self.database.project(id.into())).flatten()
     }
 }
 
 impl<'a> Iterator for EntityIter<'a, CommitId, dcd::Commit> { // FIXME also bare commit
     type Item = dcd::Commit;
     fn next(&mut self) -> Option<Self::Item> {
-        self.ids.next().map(|id| self.database.get_commit(id.into())).flatten()
+        if self.snappy {
+            self.ids.next().map(|id| self.database.bare_commit(id.into())).flatten()
+        } else {
+            self.ids.next().map(|id| self.database.commit(id.into())).flatten()
+        }
     }
 }
 
 impl<'a> Iterator for EntityIter<'a, UserId, &'a dcd::User> {
     type Item = &'a dcd::User;
     fn next(&mut self) -> Option<Self::Item> {
-        self.ids.next().map(|id| self.database.get_user(id.into())).flatten()
+        self.ids.next().map(|id| self.database.user(id.into())).flatten()
     }
 }
 
 impl<'a> Iterator for EntityIter<'a, PathId, dcd::FilePath> {
     type Item = dcd::FilePath;
     fn next(&mut self) -> Option<Self::Item> {
-        self.ids.next().map(|id| self.database.get_file_path(id.into())).flatten()
+        self.ids.next().map(|id| self.database.path(id.into())).flatten()
+    }
+}
+
+impl<'a, TI, T> WithDatabase for EntityIter<'a, TI, T> where TI: From<usize> + Into<u64> {
+    fn get_database(&self) -> &Dejaco {
+        self.database
+    }
+}
+
+// Project Attributes
+pub enum Attrib {
+
+}
+
+trait ProjectGroup {
+    fn group_by_attrib() {
+
     }
 }
 
@@ -230,8 +264,8 @@ mod tests {
     fn example() {
         let db = Dejaco::from("/dejacode/dataset-tiny", 0,Month::August(2020));
 
-
-
-
+        for url in db.projects().map(|p| p.url) {
+            println!("{}", url);
+        }
     }
 }

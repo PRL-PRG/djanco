@@ -224,7 +224,7 @@ mod test {
     //     furthermore if our template doesn't suffice, the user-programmer can also use standard
     //     rust facilities to get what they need
 
-    use dcd::{DCD, Database};
+    // use dcd::{DCD, Database};
 
     // Benchmark Q1:
     // group projects by language
@@ -233,16 +233,16 @@ mod test {
     //   *  sort by stars
     //   *  take top N=50
     // flatten to list of IDs
-    #[test] fn top_stars_per_language() {
-        let dataset = DCD::new("/dejavuii/dejacode/dataset-tiny".to_string());
-        let projects = dataset.projects();
-
-        //let vector: Vec<(GroupKey, Vec<Project>)> = vec![];
-        //println!("{:?}",vector.iter());
-        assert!(false)
-
-
-    }
+    // #[test] fn top_stars_per_language() {
+    //     let dataset = DCD::new("/dejavuii/dejacode/dataset-tiny".to_string());
+    //     let projects = dataset.projects();
+    //
+    //     //let vector: Vec<(GroupKey, Vec<Project>)> = vec![];
+    //     //println!("{:?}",vector.iter());
+    //     assert!(false)
+    //
+    //
+    // }
 }
 
 fn write_projects_to_file<'a, I, D, F>(projects: &mut I, path: &PathBuf, formatter: F) -> Result<(), Error>

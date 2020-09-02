@@ -10,6 +10,9 @@ use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
 use dcd::{DCD, Project};
 use std::marker::PhantomData;
+use crate::attrib::Group;
+use itertools::{Itertools, GroupBy, Groups};
+use std::cmp::Ordering;
 
 pub enum Month {
     January(u16),
@@ -246,39 +249,129 @@ impl<'a, TI, T> WithDatabase for EntityIter<'a, TI, T> where TI: From<usize> + I
 }
 
 // Project Attributes
-pub enum Attrib {
-    Language,
-    Stars,
-    Commits,
-    Users,
-}
+// pub enum Attrib {
+//     Language,
+//     Stars,
+//     Commits,
+//     Users,
+// }
+//
+// pub trait RequireOperand {}
+// impl RequireOperand for Attrib {}
+// impl RequireOperand for Stats  {}
+//
+// pub enum Require<Operand> where Operand: RequireOperand {
+//     AtLeast(Operand, usize),
+//     Exactly(Operand, usize),
+//     AtMost(Operand,  usize),
+// }
+//
+// pub trait StatsOperand {}
+// impl StatsOperand for Attrib {}
+//
+// pub enum Stats {
+//     Count(),
+//     Mean(),
+//     Median(),
+// }
 
-pub trait RequireOperand {}
-impl RequireOperand for Attrib {}
-impl RequireOperand for Stats  {}
+pub mod attrib {
+    pub trait Attribute {}
 
-pub enum Require<Operand> where Operand: RequireOperand {
-    AtLeast(Operand, usize),
-    Exactly(Operand, usize),
-    AtMost(Operand,  usize),
-}
+    pub trait Group {
+        type Key;
+    }
 
-pub trait StatsOperand {}
-impl StatsOperand for Attrib {}
-
-pub enum Stats {
-    Count(),
-    Mean(),
-    Median(),
+    pub struct Language(String);
+    impl Attribute for Language {}
+    impl Group for Language {
+        type Key = Self;
+    }
 }
 
 trait ProjectGroup {
-    fn group_by_attrib<Iter, InnerIter, Key>(attrib: Attrib) -> Iter where Iter: Iterator<Item=(Key, InnerIter)>, InnerIter: Iterator<Item=Project>;
+    fn group_by_attrib<Iter, InnerIter, T>(attrib: impl attrib::Group<Key=T>) -> Iter
+        where Iter: Iterator<Item=(T, InnerIter)>,
+              InnerIter: Iterator<Item=Project>;
 }
+
+impl<'a> ProjectGroup for EntityIter<'a, ProjectId, dcd::Project> {
+    fn group_by_attrib<Iter, InnerIter, T>(attrib: impl Group<Key=T>) -> Iter
+        where Iter: Iterator<Item=(T, InnerIter)>,
+              InnerIter: Iterator<Item=Project> {
+
+        unimplemented!()
+    }
+}
+
+/**
+ * There's two thing that can happen in GroupIter. One is to sort the list of things and then
+ * return as you go. The other is to pre-group into a map and then yield from that.
+ */
+pub struct GroupIter<'a, T, TK: PartialEq, KeySelector: FnMut(&T) -> TK, InnerIter: Iterator<Item=T>> {
+    database: &'a Dejaco,
+    //iterator: Groups<'a, TK, std::vec::IntoIter<T>, KeySelector>,
+    iterator: GroupBy<TK, std::vec::IntoIter<T>, KeySelector>,
+
+    entity_type: PhantomData<T>,
+    key_type: PhantomData<TK>,
+    phantom_iter: PhantomData<InnerIter>,
+}
+
+impl<'a, T, TK, KeySelector, InnerIter> WithDatabase for GroupIter<'a, T, TK, KeySelector, InnerIter>
+    where TK: PartialEq, KeySelector: FnMut(&T) -> TK, InnerIter: Iterator<Item=T> {
+    fn get_database(&self) -> &Dejaco {
+        self.database
+    }
+}
+
+impl<'a, T, TK, KeySelector, InnerIter> GroupIter<'a, T, TK, KeySelector, InnerIter>
+    where TK: PartialEq, KeySelector: FnMut(&T) -> TK, InnerIter: Iterator<Item=T> {
+    pub fn from<Sorter>(database: &'a Dejaco,
+                        data: impl Iterator<Item=T> + 'static,
+                        sorter: Sorter,
+                        key_selector: KeySelector) -> GroupIter<'a, T, TK, KeySelector, InnerIter>
+        where Sorter: FnMut(&T, &T) -> Ordering {
+
+        GroupIter {
+            database,
+            iterator: data.sorted_by(sorter).group_by(key_selector),
+            phantom_iter: PhantomData,
+            entity_type: PhantomData,
+            key_type: PhantomData
+        }
+    }
+}
+
+impl<'a, TK, T, KeySelector, InnerIter> Iterator for GroupIter<'a, T, TK, KeySelector, InnerIter>
+    where TK: PartialEq, KeySelector: FnMut(&T) -> TK, InnerIter:  Iterator<Item=T>, TK: 'a, T: 'a, KeySelector: 'a {
+    //type Item = (TK, itertools::Group<'a, TK, std::vec::IntoIter<T>, KeySelector>);
+    type Item = (TK, Vec<T>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iterator.into_iter().next().map(|(key, group)| { (key, group.collect()) })
+    }
+}
+
+// impl<'a> Iterator for EntityIter<'a, ProjectId, dcd::Project> {
+//     type Item = dcd::Project;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.ids.next().map(|id| self.database.project(id.into())).flatten()
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
     use crate::{Dejaco, Month};
+    use itertools::Itertools;
+
+    #[test]
+    fn into_iter() {
+        let x = vec![1,2,2,3,3,4,5,6,7,8,9];
+        let i = x.iter().sorted().group_by(|p| **p % 2);
+        println!("{:?}",i.into_iter().next().map(|(e,f)| e));
+        println!("{:?}",i.into_iter().next().map(|(e,f)| e));
+    }
 
     #[test]
     fn example() {

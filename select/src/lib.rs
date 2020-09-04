@@ -272,35 +272,30 @@ impl Iterator for EntityIter<CommitId, dcd::Commit> { // FIXME also bare commit
     }
 }
 
-macro_rules! detangle {
-    ($self:expr) => {{
-        let db: &RefCell<Dejaco> = $self.borrow();
-        db.borrow()
-    }}
-}
+macro_rules! untangle { ($self:expr) => {{ let db: &RefCell<Dejaco> = $self.borrow(); db.borrow() }} }
 
 impl DataSource for DatabasePtr {
-    fn project_count(&self) -> usize { detangle!(self).path_count()   }
-    fn commit_count(&self)  -> usize { detangle!(self).commit_count() }
-    fn user_count(&self)    -> usize { detangle!(self).user_count()   }
-    fn path_count(&self)    -> usize { detangle!(self).path_count()   }
+    fn project_count(&self) -> usize { untangle!(self).path_count()   }
+    fn commit_count(&self)  -> usize { untangle!(self).commit_count() }
+    fn user_count(&self)    -> usize { untangle!(self).user_count()   }
+    fn path_count(&self)    -> usize { untangle!(self).path_count()   }
 
-    fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { detangle!(self).project(id)     }
-    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { detangle!(self).commit(id)      }
-    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { detangle!(self).bare_commit(id) }
-    fn user(&self, id: UserId)          -> Option<dcd::User>     { detangle!(self).user(id)        }
-    fn path(&self, id: PathId)          -> Option<dcd::FilePath> { detangle!(self).path(id)        }
+    fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { untangle!(self).project(id)     }
+    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { untangle!(self).commit(id)      }
+    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { untangle!(self).bare_commit(id) }
+    fn user(&self, id: UserId)          -> Option<dcd::User>     { untangle!(self).user(id)        }
+    fn path(&self, id: PathId)          -> Option<dcd::FilePath> { untangle!(self).path(id)        }
 
-    fn project_ids(&self) -> Map<Range<usize>, fn(usize)->ProjectId> { detangle!(self).project_ids() }
-    fn commit_ids(&self)  -> Map<Range<usize>, fn(usize)->CommitId>  { detangle!(self).commit_ids()  }
-    fn user_ids(&self)    -> Map<Range<usize>, fn(usize)->UserId>    { detangle!(self).user_ids()    }
-    fn path_ids(&self)    -> Map<Range<usize>, fn(usize)->PathId>    { detangle!(self).path_ids()    }
+    fn project_ids(&self) -> Map<Range<usize>, fn(usize)->ProjectId> { untangle!(self).project_ids() }
+    fn commit_ids(&self)  -> Map<Range<usize>, fn(usize)->CommitId>  { untangle!(self).commit_ids()  }
+    fn user_ids(&self)    -> Map<Range<usize>, fn(usize)->UserId>    { untangle!(self).user_ids()    }
+    fn path_ids(&self)    -> Map<Range<usize>, fn(usize)->PathId>    { untangle!(self).path_ids()    }
 
-    fn projects(&self)     -> EntityIter<ProjectId, Project> { detangle!(self).projects()     }
-    fn commits(&self)      -> EntityIter<CommitId, Commit>   { detangle!(self).commits()      }
-    fn bare_commits(&self) -> EntityIter<CommitId, Commit>   { detangle!(self).bare_commits() }
-    fn users(&self)        -> EntityIter<UserId, User>       { detangle!(self).users()        }
-    fn paths(&self)        -> EntityIter<PathId, FilePath>   { detangle!(self).paths()        }
+    fn projects(&self)     -> EntityIter<ProjectId, Project> { untangle!(self).projects()     }
+    fn commits(&self)      -> EntityIter<CommitId, Commit>   { untangle!(self).commits()      }
+    fn bare_commits(&self) -> EntityIter<CommitId, Commit>   { untangle!(self).bare_commits() }
+    fn users(&self)        -> EntityIter<UserId, User>       { untangle!(self).users()        }
+    fn paths(&self)        -> EntityIter<PathId, FilePath>   { untangle!(self).paths()        }
 }
 
 impl Iterator for EntityIter<UserId, dcd::User> {

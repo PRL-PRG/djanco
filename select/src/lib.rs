@@ -10,7 +10,6 @@ use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
 use dcd::{DCD, Database};
 use std::marker::PhantomData;
-use crate::attrib::{Group, FilterEach};
 use itertools::Itertools;
 //use crate::meta::*;
 use std::hash::Hash;
@@ -541,182 +540,257 @@ impl<TI, T> WithDatabase for EntityIter<TI, T> where TI: From<usize> + Into<u64>
 //     Median(),
 // }
 
-pub mod attrib {
-    use std::hash::Hash;
-    use crate::DatabasePtr;
+pub trait Attribute {}
 
-    pub trait Attribute {}
+pub trait Group {
+    type Key;
+    fn select(&self, project: &dcd::Project) -> Self::Key;
+}
 
-    pub trait Group {
-        type Key;
-        fn select(&self, project: &dcd::Project) -> Self::Key;
-    }
+pub trait FilterEach {
+    /*type Key;*/ // TODO
+    fn filter(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: &dcd::Project) -> bool;
+}
 
-    pub trait FilterEach {
-        /*type Key;*/ // TODO
-        fn filter(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: &dcd::Project) -> bool;
-    }
+pub trait NumericalAttribute {
+    type Entity;
+    fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize;
+}
 
-    pub trait NumericalAttribute {
-        type Entity;
-        fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize;
-    }
+pub trait CollectionAttribute {
+    type Entity;
+    //fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize;
+}
 
-    #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-    pub enum Require<N> where N: NumericalAttribute {
-        AtLeast(N, usize),
-        Exactly(N, usize),
-        AtMost (N, usize), // TODO more of these
-    }
+pub trait StringAttribute {
+    type Entity;
+    fn extract(&self, database: DatabasePtr, entity: &Self::Entity) -> String;
+}
 
-    impl<N> FilterEach for Require<N> where N: NumericalAttribute<Entity=dcd::Project> {
-        //type Key = K;
+mod require {
+    use crate::{DatabasePtr, FilterEach, NumericalAttribute, StringAttribute};
+    use regex::Regex;
+
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtLeast<N>(pub N, pub usize);
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Exactly<N>(pub N, pub usize);
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtMost<N> (pub N, pub usize);
+
+    impl<N> FilterEach for AtLeast<N> where N: NumericalAttribute<Entity=dcd::Project> {
         fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
-            match self {
-                Require::AtLeast(attrib, n) => attrib.calculate(database, project) >= *n,
-                Require::Exactly(attrib, n) => attrib.calculate(database, project) == *n,
-                Require::AtMost(attrib, n)  => attrib.calculate(database, project) <= *n,
-            }
+            self.0.calculate(database, project) >= self.1
         }
     }
 
-    pub mod project {
-        use crate::attrib::{Attribute, Group, NumericalAttribute};
-        use crate::{ProjectId, DatabasePtr, DataSource};
-        use crate::meta::ProjectMeta;
-
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
-
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Language;
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Stars;
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Issues;
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct BuggyIssues;
-
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Heads;
-        #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Metadata(String);
-
-        #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Commits;
-        #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Users;
-        #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Paths;
-
-        impl Attribute for Id  {}
-        impl Attribute for URL {}
-
-        impl Attribute for Language    {}
-        impl Attribute for Stars       {}
-        impl Attribute for Issues      {}
-        impl Attribute for BuggyIssues {}
-
-        impl Attribute for Heads    {}
-        impl Attribute for Metadata {}
-
-        impl Attribute for Commits {}
-        impl Attribute for Users   {}
-        impl Attribute for Paths   {}
-
-        impl NumericalAttribute for Id {
-            type Entity = dcd::Project;
-            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-                entity.id as usize
-            }
+    impl<N> FilterEach for Exactly<N> where N: NumericalAttribute<Entity=dcd::Project> {
+        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+            self.0.calculate(database, project) == self.1
         }
+    }
 
-        impl NumericalAttribute for Stars {
-            type Entity = dcd::Project;
-            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-                entity.get_stars_or_zero() as usize
-            }
+    impl<N> FilterEach for AtMost<N> where N: NumericalAttribute<Entity=dcd::Project> {
+        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+            self.0.calculate(database, project) <= self.1
         }
+    }
 
-        impl NumericalAttribute for Issues {
-            type Entity = dcd::Project;
-            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-                entity.get_issue_count_or_zero() as usize
-            }
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Same<'a, S>(pub S, pub &'a str);
+    #[derive(Clone,                          )] pub struct Matches<S>(pub S, pub Regex);
+
+    #[macro_export] macro_rules! regex { ($str:expr) => { regex::Regex::new($str).unwrap() }}
+
+    impl<'a,S> FilterEach for Same<'a, S> where S: StringAttribute<Entity=dcd::Project> {
+        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+            self.0.extract(database, project) == self.1.to_string()
         }
+    }
 
-        impl NumericalAttribute for BuggyIssues {
-            type Entity = dcd::Project;
-            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-                entity.get_buggy_issue_count_or_zero() as usize
-            }
+    impl<'a,S> FilterEach for Matches<S> where S: StringAttribute<Entity=dcd::Project> {
+        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+            self.1.is_match(&self.0.extract(database, project))
         }
+    }
 
-        impl NumericalAttribute for Heads {
-            type Entity = dcd::Project;
-            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-                entity.get_head_count() as usize
-            }
+
+}
+
+pub mod project {
+    use crate::{Attribute, Group, NumericalAttribute, StringAttribute};
+    use crate::{ProjectId, DatabasePtr, DataSource};
+    use crate::meta::ProjectMeta;
+
+    #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
+    #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
+
+    #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Language;
+    #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Stars;
+    #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Issues;
+    #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct BuggyIssues;
+
+    #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Heads;
+    #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Metadata(String);
+
+    #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Commits;
+    #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Users;
+    #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Paths;
+
+    impl Attribute for Id  {}
+    impl Attribute for URL {}
+
+    impl Attribute for Language    {}
+    impl Attribute for Stars       {}
+    impl Attribute for Issues      {}
+    impl Attribute for BuggyIssues {}
+
+    impl Attribute for Heads    {}
+    impl Attribute for Metadata {}
+
+    impl Attribute for Commits {}
+    impl Attribute for Users   {}
+    impl Attribute for Paths   {}
+
+    impl StringAttribute for Id {
+        type Entity = dcd::Project;
+        fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
+            entity.id.to_string()
         }
+    }
 
-        impl NumericalAttribute for Metadata {
-            type Entity = dcd::Project;
-            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-                entity.metadata.len()
-            }
+    impl StringAttribute for URL {
+        type Entity = dcd::Project;
+        fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
+            entity.url.clone()
         }
+    }
 
-        impl NumericalAttribute for Commits {
-            type Entity = dcd::Project;
-            fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
-                database.commit_count_from(entity)
-            }
+    impl StringAttribute for Language {
+        type Entity = dcd::Project;
+        fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
+            entity.get_language_or_empty()
         }
+    }
 
-        impl NumericalAttribute for Users {
-            type Entity = dcd::Project;
-            fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
-                database.user_count_from(entity)
-            }
+    impl StringAttribute for Stars {
+        type Entity = dcd::Project;
+        fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
+            entity.get_stars().map_or(String::new(), |e| e.to_string())
         }
+    }
 
-        impl NumericalAttribute for Paths {
-            type Entity = dcd::Project;
-            fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
-                database.path_count_from(entity)
-            }
+    impl StringAttribute for Issues {
+        type Entity = dcd::Project;
+        fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
+            entity.get_issue_count().map_or(String::new(), |e| e.to_string())
         }
+    }
 
-        impl Group for Id {
-            type Key = ProjectId;
-            fn select(&self, project: &dcd::Project) -> Self::Key {
-                ProjectId(project.id)
-            }
+    impl StringAttribute for BuggyIssues {
+        type Entity = dcd::Project;
+        fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
+            entity.get_buggy_issue_count().map_or(String::new(), |e| e.to_string())
         }
+    }
 
-        impl Group for Language {
-            type Key = String;
-            fn select(&self, project: &dcd::Project) -> Self::Key {
-                project.get_language_or_empty()
-            }
+    impl NumericalAttribute for Id {
+        type Entity = dcd::Project;
+        fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+            entity.id as usize
         }
+    }
 
-        impl Group for Stars {
-            type Key = u64;
-            fn select(&self, project: &dcd::Project) -> Self::Key {
-                project.get_stars_or_zero()
-            }
+    impl NumericalAttribute for Stars {
+        type Entity = dcd::Project;
+        fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+            entity.get_stars_or_zero() as usize
         }
+    }
 
-        impl Group for Issues {
-            type Key = u64;
-            fn select(&self, project: &dcd::Project) -> Self::Key {
-                project.get_issue_count_or_zero()
-            }
+    impl NumericalAttribute for Issues {
+        type Entity = dcd::Project;
+        fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+            entity.get_issue_count_or_zero() as usize
         }
+    }
 
-        impl Group for BuggyIssues {
-            type Key = u64;
-            fn select(&self, project: &dcd::Project) -> Self::Key {
-                project.get_buggy_issue_count_or_zero()
-            }
+    impl NumericalAttribute for BuggyIssues {
+        type Entity = dcd::Project;
+        fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+            entity.get_buggy_issue_count_or_zero() as usize
+        }
+    }
+
+    impl NumericalAttribute for Heads {
+        type Entity = dcd::Project;
+        fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+            entity.get_head_count() as usize
+        }
+    }
+
+    impl NumericalAttribute for Metadata {
+        type Entity = dcd::Project;
+        fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+            entity.metadata.len()
+        }
+    }
+
+    impl NumericalAttribute for Commits {
+        type Entity = dcd::Project;
+        fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
+            database.commit_count_from(entity)
+        }
+    }
+
+    impl NumericalAttribute for Users {
+        type Entity = dcd::Project;
+        fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
+            database.user_count_from(entity)
+        }
+    }
+
+    impl NumericalAttribute for Paths {
+        type Entity = dcd::Project;
+        fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
+            database.path_count_from(entity)
+        }
+    }
+
+    impl Group for Id {
+        type Key = ProjectId;
+        fn select(&self, project: &dcd::Project) -> Self::Key {
+            ProjectId(project.id)
+        }
+    }
+
+    impl Group for Language {
+        type Key = String;
+        fn select(&self, project: &dcd::Project) -> Self::Key {
+            project.get_language_or_empty()
+        }
+    }
+
+    impl Group for Stars {
+        type Key = u64;
+        fn select(&self, project: &dcd::Project) -> Self::Key {
+            project.get_stars_or_zero()
+        }
+    }
+
+    impl Group for Issues {
+        type Key = u64;
+        fn select(&self, project: &dcd::Project) -> Self::Key {
+            project.get_issue_count_or_zero()
+        }
+    }
+
+    impl Group for BuggyIssues {
+        type Key = u64;
+        fn select(&self, project: &dcd::Project) -> Self::Key {
+            project.get_buggy_issue_count_or_zero()
         }
     }
 }
 
 trait ProjectGroup<'a> {
-    fn group_by_attrib<TK>(self, attrib: impl attrib::Group<Key=TK>) -> GroupIter<dcd::Project, TK> // FIXME can I make this &self?
+    fn group_by_attrib<TK>(self, attrib: impl Group<Key=TK>) -> GroupIter<dcd::Project, TK> // FIXME can I make this &self?
         where TK: PartialEq + Eq + Hash;
 }
 
@@ -801,8 +875,8 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
 
 #[cfg(test)]
 mod tests {
-    use crate::{Djanco, Month, DataSource, ProjectGroup, attrib, GroupOps};
-    use crate::attrib::Require;
+    use crate::{Djanco, Month, DataSource, ProjectGroup, GroupOps, project, require};
+    use crate::regex;
 
     #[test]
     fn example() {
@@ -810,9 +884,11 @@ mod tests {
                                                Month::August(2020));
         database
             .projects()
-            .group_by_attrib(attrib::project::Language)
-            .filter_each_by_attrib(Require::AtLeast(attrib::project::Stars, 1))
-            .filter_each_by_attrib(Require::AtLeast(attrib::project::Commits, 25))
-            .filter_each_by_attrib(Require::AtLeast(attrib::project::Users, 2));
+            .group_by_attrib(project::Language)
+            .filter_each_by_attrib(require::AtLeast(project::Stars, 1))
+            .filter_each_by_attrib(require::AtLeast(project::Commits, 25))
+            .filter_each_by_attrib(require::AtLeast(project::Users, 2))
+            .filter_each_by_attrib(require::Same(project::Language, "Rust"))
+            .filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")));
     }
 }

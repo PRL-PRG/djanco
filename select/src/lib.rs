@@ -228,11 +228,8 @@ impl DataSource for Djanco {
     }
 }
 
-pub trait WithDatabase {
-    fn get_database_ptr(&self) -> DatabasePtr;
-}
-
-//impl WithDatabase for Dejaco { fn get_database(&self) -> Rc<Dejaco> { Rc::new(self) } }
+pub trait WithDatabase { fn get_database_ptr(&self) -> DatabasePtr; }
+impl WithDatabase for Djanco { fn get_database_ptr(&self) -> DatabasePtr { self.me() } }
 
 pub struct EntityIter<TI: From<usize> + Into<u64>, T> {
     database: DatabasePtr,
@@ -319,9 +316,7 @@ impl Iterator for EntityIter<PathId, dcd::FilePath> {
 }
 
 impl<TI, T> WithDatabase for EntityIter<TI, T> where TI: From<usize> + Into<u64> {
-    fn get_database_ptr(&self) -> DatabasePtr {
-        self.database.clone()
-    }
+    fn get_database_ptr(&self) -> DatabasePtr { self.database.clone() }
 }
 
 // Project Attributes
@@ -371,11 +366,14 @@ pub mod attrib {
 }
 
 trait ProjectGroup<'a> {
-    fn group_by_attrib<Iter, TK>(self, attrib: impl attrib::Group<Key=TK>) -> GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash;
+    fn group_by_attrib<TK>(self, attrib: impl attrib::Group<Key=TK>) -> GroupIter<dcd::Project, TK>
+        where TK: PartialEq + Eq + Hash;
 }
 
 impl<'a> ProjectGroup<'a> for EntityIter<ProjectId, dcd::Project> {
-    fn group_by_attrib<Iter, TK>(self, attrib: impl Group<Key=TK>) -> GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash {
+    fn group_by_attrib<TK>(self, attrib: impl Group<Key=TK>) -> GroupIter<dcd::Project, TK>
+        where TK: PartialEq + Eq + Hash {
+
         GroupIter::from(self.get_database_ptr(),
                         self.map(|p: dcd::Project| { (attrib.select(&p), p) })
                             .into_group_map().into_iter().collect::<Vec<(TK, Vec<dcd::Project>)>>())
@@ -394,36 +392,25 @@ pub struct GroupIter<T, TK: PartialEq + Eq + Hash> {
     key_type: PhantomData<TK>,
 }
 
-impl<T, TK> WithDatabase for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
-    fn get_database_ptr(&self) -> DatabasePtr { self.database.clone() }
-}
-
 impl<T, TK> GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
     pub fn from(database: DatabasePtr, data: impl Into<Vec<(TK, Vec<T>)>>) -> GroupIter<T, TK> {
         GroupIter {
             database,
             map: data.into(),
-
             entity_type: PhantomData,
             key_type: PhantomData,
         }
     }
 }
 
-impl<TK, T> Iterator for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
-    type Item = (TK, Vec<T>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.map.pop()
-    }
+impl<T, TK> WithDatabase for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
+    fn get_database_ptr(&self) -> DatabasePtr { self.database.clone() }
 }
 
-// impl<'a> Iterator for EntityIter<'a, ProjectId, dcd::Project> {
-//     type Item = dcd::Project;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.ids.next().map(|id| self.database.project(id.into())).flatten()
-//     }
-// }
+impl<TK, T> Iterator for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
+    type Item = (TK, Vec<T>);
+    fn next(&mut self) -> Option<Self::Item> { self.map.pop() }
+}
 
 #[cfg(test)]
 mod tests {

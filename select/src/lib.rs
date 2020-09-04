@@ -8,9 +8,9 @@ pub mod selectors;
 
 use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
-use dcd::{DCD, Database, User, FilePath, Project, Commit};
+use dcd::{DCD, Database, Commit, Project};
 use std::marker::PhantomData;
-use crate::attrib::Group;
+use crate::attrib::{Group, FilterEach};
 use itertools::Itertools;
 //use crate::meta::*;
 use std::hash::Hash;
@@ -19,6 +19,7 @@ use std::cell::RefCell;
 use std::ops::Range;
 use std::borrow::Borrow;
 use std::iter::Map;
+use std::collections::{HashSet, VecDeque};
 
 pub enum Month {
     January(u16),
@@ -84,10 +85,10 @@ impl Into<Date<Utc>>     for Month { fn into(self) -> Date<Utc>     { self.into_
 impl Into<DateTime<Utc>> for Month { fn into(self) -> DateTime<Utc> { self.into_datetime()   } }
 impl Into<i64>           for Month { fn into(self) -> i64 { self.into_datetime().timestamp() } }
 
-pub struct ProjectId(u64);
-pub struct CommitId(u64);
-pub struct UserId(u64);
-pub struct PathId(u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq)] pub struct ProjectId(u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq)] pub struct CommitId(u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq)] pub struct UserId(u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq)] pub struct PathId(u64);
 
 impl Into<usize> for ProjectId { fn into(self) -> usize { self.0 as usize } }
 impl Into<usize> for CommitId  { fn into(self) -> usize { self.0 as usize } }
@@ -131,6 +132,10 @@ trait DataSource {
     fn bare_commits(&self) -> EntityIter<CommitId,  dcd::Commit>;
     fn users(&self)        -> EntityIter<UserId,    dcd::User>;
     fn paths(&self)        -> EntityIter<PathId,    dcd::FilePath>;
+
+    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<CommitId, dcd::Commit>; // TODO all others
+
+    fn commit_count_from(&self, project: &dcd::Project) -> usize; // TODO all others
 }
 
 type DatabasePtr = Rc<RefCell<Djanco>>;
@@ -142,21 +147,9 @@ pub struct Djanco {
     _timestamp: i64,
     _seed: u64,
     _path: PathBuf,
-
-    //database: DatabasePtr
 }
 
 impl Djanco {
-    // pub fn from<S: Into<String>, T: Into<i64>>(path: S, seed: u64, timestamp: T) -> Self {
-    //     assert!(std::u64::MAX as usize == std::usize::MAX);
-    //     Dejaco {
-    //         database: Database::from(path.clone()),
-    //         _path: PathBuf::from(path),
-    //         _timestamp: timestamp.into(),
-    //         _seed: seed,
-    //     }
-    // }
-
     pub fn from<S: Into<String>, T: Into<i64>>(path: S, seed: u64, timestamp: T) -> DatabasePtr {
         assert!(std::u64::MAX as usize == std::usize::MAX);
 
@@ -165,7 +158,6 @@ impl Djanco {
         let database = Djanco {
             warehouse,
             me: None,
-
             _path: PathBuf::from(string_path),
             _timestamp: timestamp.into(),
             _seed: seed,
@@ -226,10 +218,71 @@ impl DataSource for Djanco {
     fn paths(&self) -> EntityIter<PathId, dcd::FilePath> {
         EntityIter::from(self.me(), self.path_ids())
     }
+
+    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<CommitId, dcd::Commit> {
+        ProjectEntityIter::from(self.me(), &project)
+    }
+
+    fn commit_count_from(&self, project: &Project) -> usize {
+        ProjectEntityIter::from(self.me(), &project).count()
+    }
 }
 
 pub trait WithDatabase { fn get_database_ptr(&self) -> DatabasePtr; }
 impl WithDatabase for Djanco { fn get_database_ptr(&self) -> DatabasePtr { self.me() } }
+
+pub struct ProjectEntityIter<TI: From<u64>, T> {
+    database: DatabasePtr,
+    visited:  HashSet<TI>,
+    to_visit: VecDeque<TI>,
+    snappy:   bool,
+    _entity:  PhantomData<T>,
+}
+
+impl<TI, T> ProjectEntityIter<TI, T> where TI: From<u64> {
+    pub fn from(database: DatabasePtr, project: &dcd::Project) -> ProjectEntityIter<TI, T> {
+        let visited: HashSet<TI> = HashSet::new();
+        let to_visit: VecDeque<TI> =
+            project.heads.iter().map(|(_, id)| TI::from(*id)).collect();
+        ProjectEntityIter { visited, to_visit, database, snappy: false, _entity: PhantomData }
+    }
+    /**
+     * In snappy mode, the iterator will load only bare bones versions of objects (currently this
+     * applies only to commits). This dramatically increases performance.
+     */
+    pub fn and_make_it_snappy(self) -> Self {
+        ProjectEntityIter {
+            visited: self.visited,
+            to_visit: self.to_visit,
+            database: self.database,
+            _entity: PhantomData,
+            snappy: true
+        }
+    }
+}
+
+impl Iterator for ProjectEntityIter<CommitId, dcd::Commit> {
+    type Item = dcd::Commit;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.to_visit.is_empty() {
+                return None;
+            }
+            let commit_id = self.to_visit.pop_back().unwrap();
+            if ! self.visited.insert(commit_id) {
+                continue;
+            }
+            let commit = if self.snappy {
+                self.database.bare_commit(commit_id).unwrap()
+            } else {
+                self.database.commit(commit_id).unwrap()
+            };
+            self.to_visit.extend(commit.parents.iter().map(|c| CommitId::from(*c)));
+            return Some(commit);
+        }
+    }
+}
 
 pub struct EntityIter<TI: From<usize> + Into<u64>, T> {
     database: DatabasePtr,
@@ -288,11 +341,17 @@ impl DataSource for DatabasePtr {
     fn user_ids(&self)    -> Map<Range<usize>, fn(usize)->UserId>    { untangle!(self).user_ids()    }
     fn path_ids(&self)    -> Map<Range<usize>, fn(usize)->PathId>    { untangle!(self).path_ids()    }
 
-    fn projects(&self)     -> EntityIter<ProjectId, Project> { untangle!(self).projects()     }
-    fn commits(&self)      -> EntityIter<CommitId, Commit>   { untangle!(self).commits()      }
-    fn bare_commits(&self) -> EntityIter<CommitId, Commit>   { untangle!(self).bare_commits() }
-    fn users(&self)        -> EntityIter<UserId, User>       { untangle!(self).users()        }
-    fn paths(&self)        -> EntityIter<PathId, FilePath>   { untangle!(self).paths()        }
+    fn projects(&self)     -> EntityIter<ProjectId, dcd::Project> { untangle!(self).projects()     }
+    fn commits(&self)      -> EntityIter<CommitId, dcd::Commit>   { untangle!(self).commits()      }
+    fn bare_commits(&self) -> EntityIter<CommitId, dcd::Commit>   { untangle!(self).bare_commits() }
+    fn users(&self)        -> EntityIter<UserId, dcd::User>       { untangle!(self).users()        }
+    fn paths(&self)        -> EntityIter<PathId, dcd::FilePath>   { untangle!(self).paths()        }
+
+    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<CommitId, Commit> {
+        untangle!(self).commits_from(project)
+    }
+
+    fn commit_count_from(&self, project: &Project) -> usize { untangle!(self).commit_count_from(project) }
 }
 
 impl Iterator for EntityIter<UserId, dcd::User> {
@@ -331,12 +390,6 @@ impl<TI, T> WithDatabase for EntityIter<TI, T> where TI: From<usize> + Into<u64>
 // impl RequireOperand for Attrib {}
 // impl RequireOperand for Stats  {}
 //
-// pub enum Require<Operand> where Operand: RequireOperand {
-//     AtLeast(Operand, usize),
-//     Exactly(Operand, usize),
-//     AtMost(Operand,  usize),
-// }
-//
 // pub trait StatsOperand {}
 // impl StatsOperand for Attrib {}
 //
@@ -347,7 +400,8 @@ impl<TI, T> WithDatabase for EntityIter<TI, T> where TI: From<usize> + Into<u64>
 // }
 
 pub mod attrib {
-    use crate::meta::ProjectMeta;
+    use std::hash::Hash;
+    use crate::DatabasePtr;
 
     pub trait Attribute {}
 
@@ -356,17 +410,155 @@ pub mod attrib {
         fn select(&self, project: &dcd::Project) -> Self::Key;
     }
 
-    pub struct Language(String);
-    impl Attribute for Language {}
-    impl Group for Language {
-        type Key = String;
+    pub trait FilterEach {
+        /*type Key;*/ // TODO
+        fn filter(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: &dcd::Project) -> bool;
+    }
 
-        fn select(&self, project: &dcd::Project) -> Self::Key { project.get_language_or_empty() }
+    pub trait NumericalAttribute {
+        type Entity;
+        fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize;
+    }
+
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)]
+    pub enum Require<N> where N: NumericalAttribute {
+        AtLeast(N, usize),
+        Exactly(N, usize),
+        AtMost (N, usize), // TODO more of these
+    }
+
+    impl<N> FilterEach for Require<N> where N: NumericalAttribute<Entity=dcd::Project> {
+        //type Key = K;
+        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+            match self {
+                Require::AtLeast(attrib, n) => attrib.calculate(database, project) >= *n,
+                Require::Exactly(attrib, n) => attrib.calculate(database, project) == *n,
+                Require::AtMost(attrib, n)  => attrib.calculate(database, project) <= *n,
+            }
+        }
+    }
+
+    pub mod project {
+        use crate::attrib::{Attribute, Group, NumericalAttribute};
+        use crate::{ProjectId, DatabasePtr, DataSource};
+        use crate::meta::ProjectMeta;
+
+        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
+        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
+
+        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Language;
+        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Stars;
+        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Issues;
+        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct BuggyIssues;
+
+        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Heads;
+        #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Metadata(String);
+
+        #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Commits;
+        #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Users;
+
+        impl Attribute for Id  {}
+        impl Attribute for URL {}
+
+        impl Attribute for Language    {}
+        impl Attribute for Stars       {}
+        impl Attribute for Issues      {}
+        impl Attribute for BuggyIssues {}
+
+        impl Attribute for Heads    {}
+        impl Attribute for Metadata {}
+
+        impl Attribute for Commits {}
+        impl Attribute for Users   {}
+
+        impl NumericalAttribute for Id {
+            type Entity = dcd::Project;
+            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+                entity.id as usize
+            }
+        }
+
+        impl NumericalAttribute for Stars {
+            type Entity = dcd::Project;
+            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+                entity.get_stars_or_zero() as usize
+            }
+        }
+
+        impl NumericalAttribute for Issues {
+            type Entity = dcd::Project;
+            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+                entity.get_issue_count_or_zero() as usize
+            }
+        }
+
+        impl NumericalAttribute for BuggyIssues {
+            type Entity = dcd::Project;
+            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+                entity.get_buggy_issue_count_or_zero() as usize
+            }
+        }
+
+        impl NumericalAttribute for Heads {
+            type Entity = dcd::Project;
+            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+                entity.get_head_count() as usize
+            }
+        }
+
+        impl NumericalAttribute for Metadata {
+            type Entity = dcd::Project;
+            fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
+                entity.metadata.len()
+            }
+        }
+
+        impl NumericalAttribute for Commits {
+            type Entity = dcd::Project;
+            fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
+                database.commit_count_from(entity)
+            }
+        }
+
+        impl Group for Id {
+            type Key = ProjectId;
+            fn select(&self, project: &dcd::Project) -> Self::Key {
+                ProjectId(project.id)
+            }
+        }
+
+        impl Group for Language {
+            type Key = String;
+            fn select(&self, project: &dcd::Project) -> Self::Key {
+                project.get_language_or_empty()
+            }
+        }
+
+        impl Group for Stars {
+            type Key = u64;
+            fn select(&self, project: &dcd::Project) -> Self::Key {
+                project.get_stars_or_zero()
+            }
+        }
+
+        impl Group for Issues {
+            type Key = u64;
+            fn select(&self, project: &dcd::Project) -> Self::Key {
+                project.get_issue_count_or_zero()
+            }
+        }
+
+        impl Group for BuggyIssues {
+            type Key = u64;
+            fn select(&self, project: &dcd::Project) -> Self::Key {
+                project.get_buggy_issue_count_or_zero()
+            }
+        }
     }
 }
 
 trait ProjectGroup<'a> {
-    fn group_by_attrib<TK>(self, attrib: impl attrib::Group<Key=TK>) -> GroupIter<dcd::Project, TK>
+    fn group_by_attrib<TK>(self, attrib: impl attrib::Group<Key=TK>) -> GroupIter<dcd::Project, TK> // FIXME can I make this &self?
         where TK: PartialEq + Eq + Hash;
 }
 
@@ -382,7 +574,8 @@ impl<'a> ProjectGroup<'a> for EntityIter<ProjectId, dcd::Project> {
 
 /**
  * There's two thing that can happen in GroupIter. One is to sort the list of things and then
- * return as you go. The other is to pre-group into a map and then yield from that.
+ * return as you go. The other is to pre-group into a map and then yield from that. The second thing
+ * happens because there's only so much time I can spend wrangling lifetimes.
  */
 pub struct GroupIter<T, TK: PartialEq + Eq + Hash> {
     database: DatabasePtr,
@@ -412,16 +605,53 @@ impl<TK, T> Iterator for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
     fn next(&mut self) -> Option<Self::Item> { self.map.pop() }
 }
 
+// pub struct EachIter<TK: PartialEq + Eq + Hash> {
+//     database: DatabasePtr,
+//     iterator: dyn Iterator<Item=(TK, Vec<dcd::Project>)>,
+// }
+
+// impl<TK> EachIter<TK> where TK: PartialEq + Eq + Hash + Clone {
+//     // pub fn from(database: DatabasePtr, iterator: impl Iterator<Item=(TK, Vec<dcd::Project>)>) -> EachIter<TK> {
+//     //      EachIter { database, iterator }
+//     // }
+//}
+
+// impl<TK> WithDatabase for EachIter<TK> where TK: PartialEq + Eq + Hash + Clone {
+//     fn get_database_ptr(&self) -> DatabasePtr { self.database.clone() }
+// }
+
+trait GroupOps<TK> where TK: PartialEq + Eq + Hash {
+    fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<dcd::Project, TK>;
+}
+
+impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash + Clone {
+    fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<dcd::Project, TK> {
+        let database = self.get_database_ptr();
+        let inherited_database = self.get_database_ptr();
+        let iterator= self.into_iter()
+            .map(|(key, projects)| {
+                let database = database.clone();
+                (key.clone(), projects.into_iter().filter(|p| {
+                    let database = database.clone();
+                    // FIXME giving up on laziness for now
+                    attrib.filter(database, /*&key,*/ p)
+                }).collect::<Vec<dcd::Project>>())
+            });
+        GroupIter::from(inherited_database, iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{Djanco, Month, DataSource};
+    use crate::{Djanco, Month, DataSource, ProjectGroup, attrib, GroupOps};
+    use crate::attrib::Require;
 
     #[test]
     fn example() {
-        let db = Djanco::from("/dejacode/dataset-tiny", 0, Month::August(2020));
-
-        for url in db.borrow().projects().map(|p| p.url) {
-            println!("{}", url);
-        }
+        let database = Djanco::from("/dejacode/dataset-tiny", 0, Month::August(2020));
+        database
+            .projects()
+            .group_by_attrib(attrib::project::Language)
+            .filter_each_by_attrib(Require::AtLeast(attrib::project::Stars, 10));
     }
 }

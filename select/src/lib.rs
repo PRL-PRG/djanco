@@ -8,16 +8,17 @@ pub mod selectors;
 
 use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
-use dcd::{DCD, Database, User};
+use dcd::{DCD, Database, User, FilePath, Project, Commit};
 use std::marker::PhantomData;
 use crate::attrib::Group;
 use itertools::Itertools;
 //use crate::meta::*;
 use std::hash::Hash;
 use std::rc::{Rc, Weak};
-use std::cell::{RefCell, Ref};
-use std::ops::Deref;
+use std::cell::RefCell;
+use std::ops::Range;
 use std::borrow::Borrow;
+use std::iter::Map;
 
 pub enum Month {
     January(u16),
@@ -79,23 +80,9 @@ impl Month {
     }
 }
 
-impl Into<Date<Utc>> for Month {
-    fn into(self) -> Date<Utc> {
-        self.into_date()
-    }
-}
-
-impl Into<DateTime<Utc>> for Month {
-    fn into(self) -> DateTime<Utc> {
-        self.into_datetime()
-    }
-}
-
-impl Into<i64> for Month {
-    fn into(self) -> i64 {
-        self.into_datetime().timestamp()
-    }
-}
+impl Into<Date<Utc>>     for Month { fn into(self) -> Date<Utc>     { self.into_date()       } }
+impl Into<DateTime<Utc>> for Month { fn into(self) -> DateTime<Utc> { self.into_datetime()   } }
+impl Into<i64>           for Month { fn into(self) -> i64 { self.into_datetime().timestamp() } }
 
 pub struct ProjectId(u64);
 pub struct CommitId(u64);
@@ -122,107 +109,29 @@ impl From<u64>   for CommitId  { fn from(n: u64) -> Self { CommitId(n)  } }
 impl From<u64>   for UserId    { fn from(n: u64) -> Self { UserId(n)    } }
 impl From<u64>   for PathId    { fn from(n: u64) -> Self { PathId(n)    } }
 
-// pub struct Database {
-//     warehouse: DCD, //Box<dyn dcd::Database>,
-//     me: Option<Weak<RefCell<Database>>>, // Thanks for the help, Colette.
-// }
-//
-// impl Database {
-//     pub fn from(path: PathBuf) -> DatabasePtr {
-//         let warehouse = DCD::new(path.into());
-//         let mut database = Database { warehouse, me: None };
-//         let me = Rc::new(RefCell::new(database));
-//
-//         // Things we do to avoid unsafe.
-//         database.borrow_mut().me = Some( Rc::downgrade(&me) );
-//         me
-//     }
-//
-//     pub fn me(&self) -> DatabasePtr {
-//         self.me.unwrap().upgrade().unwrap()
-//     }
-//
-//     pub fn project_count(&self) -> usize { self.data_store.num_projects()   as usize }
-//     pub fn commit_count(&self)  -> usize { self.data_store.num_commits()    as usize }
-//     pub fn user_count(&self)    -> usize { self.data_store.num_users()      as usize }
-//     pub fn path_count(&self)    -> usize { self.data_store.num_file_paths() as usize }
-//
-//     pub fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { self.data_store.get_project(id.into())     }
-//     pub fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { self.data_store.get_commit(id.into())      }
-//     pub fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { self.data_store.get_commit_bare(id.into()) }
-//     pub fn user(&self, id: UserId)          -> Option<&dcd::User>    { self.data_store.get_user(id.into())        }
-//     pub fn path(&self, id: PathId)          -> Option<dcd::FilePath> { self.data_store.get_file_path(id.into())   }
-//
-//     pub fn project_ids(&self) -> impl Iterator<Item=ProjectId> {
-//         (0..self.project_count()).map(|e| ProjectId::from(e))
-//     }
-//     pub fn commit_ids(&self) -> impl Iterator<Item=CommitId> {
-//         (0..self.commit_count()).map(|e| CommitId::from(e))
-//     }
-//     pub fn user_ids(&self) -> impl Iterator<Item=UserId> {
-//         (0..self.user_count()).map(|e| UserId::from(e))
-//     }
-//     pub fn path_ids(&self) -> impl Iterator<Item=PathId> {
-//         (0..self.path_count()).map(|e| PathId::from(e))
-//     }
-//
-//     pub fn projects(&self) -> impl Iterator<Item=dcd::Project> + '_ {
-//         EntityIter::from(self.me(), self.project_ids())
-//     }
-//
-//     pub fn commits(&self) -> impl Iterator<Item=dcd::Commit> + '_ {
-//         EntityIter::from(self.me(), self.commit_ids())
-//     }
-//
-//     pub fn bare_commits(&self) -> impl Iterator<Item=dcd::Commit> + '_ {
-//         EntityIter::from(self.me(), self.commit_ids()).and_make_it_snappy()
-//     }
-//
-//     pub fn users(&self) -> impl Iterator<Item=&dcd::User> + '_ {
-//         EntityIter::from(self.me(), self.user_ids())
-//     }
-//
-//     pub fn paths(&self) -> impl Iterator<Item=dcd::FilePath> + '_ {
-//         EntityIter::from(self.me(), self.path_ids())
-//     }
-// }
-//
-// impl dcd::Database for Database {
-//     fn num_projects(&self) -> u64 {
-//     }
-//
-//     fn num_commits(&self) -> u64 {
-//         unimplemented!()
-//     }
-//
-//     fn num_users(&self) -> u64 {
-//         unimplemented!()
-//     }
-//
-//     fn num_file_paths(&self) -> u64 {
-//         unimplemented!()
-//     }
-//
-//     fn get_project(&self, id: u64) -> Option<Project> {
-//         unimplemented!()
-//     }
-//
-//     fn get_commit(&self, id: u64) -> Option<Commit> {
-//         unimplemented!()
-//     }
-//
-//     fn get_commit_bare(&self, id: u64) -> Option<Commit> {
-//         unimplemented!()
-//     }
-//
-//     fn get_user(&self, id: u64) -> Option<&User> {
-//         unimplemented!()
-//     }
-//
-//     fn get_file_path(&self, id: u64) -> Option<FilePath> {
-//         unimplemented!()
-//     }
-// }
+trait DataSource {
+    fn project_count(&self) -> usize;
+    fn commit_count(&self)  -> usize;
+    fn user_count(&self)    -> usize;
+    fn path_count(&self)    -> usize;
+
+    fn project(&self, id: ProjectId)    -> Option<dcd::Project>;
+    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>;
+    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>;
+    fn user(&self, id: UserId)          -> Option<dcd::User>;
+    fn path(&self, id: PathId)          -> Option<dcd::FilePath>;
+
+    fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId>;
+    fn commit_ids(&self)  -> Map<Range<usize>, fn(usize) -> CommitId>;
+    fn user_ids(&self)    -> Map<Range<usize>, fn(usize) -> UserId>;
+    fn path_ids(&self)    -> Map<Range<usize>, fn(usize) -> PathId>;
+
+    fn projects(&self)     -> EntityIter<ProjectId, dcd::Project>;
+    fn commits(&self)      -> EntityIter<CommitId,  dcd::Commit>;
+    fn bare_commits(&self) -> EntityIter<CommitId,  dcd::Commit>;
+    fn users(&self)        -> EntityIter<UserId,    dcd::User>;
+    fn paths(&self)        -> EntityIter<PathId,    dcd::FilePath>;
+}
 
 type DatabasePtr = Rc<RefCell<Dejaco>>;
 
@@ -261,58 +170,60 @@ impl Dejaco {
             _timestamp: timestamp.into(),
             _seed: seed,
         };
-        let mut pointer: DatabasePtr = Rc::new(RefCell::new(database));
+        let pointer: DatabasePtr = Rc::new(RefCell::new(database));
 
         // Things we do to avoid unsafe.
-        pointer.borrow_mut().me = Some( Rc::downgrade(&pointer) );
+        pointer.borrow_mut().me = Some(Rc::downgrade(&pointer));
         pointer
     }
 
     pub fn me(&self) -> DatabasePtr {
         self.me.as_ref().unwrap().upgrade().unwrap()
     }
+}
 
-    pub fn project_count(&self) -> usize { self.warehouse.num_projects()   as usize }
-    pub fn commit_count(&self)  -> usize { self.warehouse.num_commits()    as usize }
-    pub fn user_count(&self)    -> usize { self.warehouse.num_users()      as usize }
-    pub fn path_count(&self)    -> usize { self.warehouse.num_file_paths() as usize }
+impl DataSource for Dejaco {
+    fn project_count(&self) -> usize { self.warehouse.num_projects()   as usize }
+    fn commit_count(&self)  -> usize { self.warehouse.num_commits()    as usize }
+    fn user_count(&self)    -> usize { self.warehouse.num_users()      as usize }
+    fn path_count(&self)    -> usize { self.warehouse.num_file_paths() as usize }
 
-    pub fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { self.warehouse.get_project(id.into())     }
-    pub fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { self.warehouse.get_commit(id.into())      }
-    pub fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { self.warehouse.get_commit_bare(id.into()) }
-    pub fn user(&self, id: UserId)          -> Option<&dcd::User>    { self.warehouse.get_user(id.into())        }
-    pub fn path(&self, id: PathId)          -> Option<dcd::FilePath> { self.warehouse.get_file_path(id.into())   }
+    fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { self.warehouse.get_project(id.into())     }
+    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { self.warehouse.get_commit(id.into())      }
+    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { self.warehouse.get_commit_bare(id.into()) }
+    fn user(&self, id: UserId)          -> Option<dcd::User>     { self.warehouse.get_user(id.into()).map(|u| u.clone()) }
+    fn path(&self, id: PathId)          -> Option<dcd::FilePath> { self.warehouse.get_file_path(id.into())   }
 
-    pub fn project_ids(&self) -> impl Iterator<Item=ProjectId> {
+    fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId> {
         (0..self.project_count()).map(|e| ProjectId::from(e))
     }
-    pub fn commit_ids(&self) -> impl Iterator<Item=CommitId> {
+    fn commit_ids(&self) -> Map<Range<usize>, fn(usize) -> CommitId> {
         (0..self.commit_count()).map(|e| CommitId::from(e))
     }
-    pub fn user_ids(&self) -> impl Iterator<Item=UserId> {
+    fn user_ids(&self) -> Map<Range<usize>, fn(usize) -> UserId> {
         (0..self.user_count()).map(|e| UserId::from(e))
     }
-    pub fn path_ids(&self) -> impl Iterator<Item=PathId> {
+    fn path_ids(&self) -> Map<Range<usize>, fn(usize) -> PathId> {
         (0..self.path_count()).map(|e| PathId::from(e))
     }
 
-    pub fn projects(&self) -> impl Iterator<Item=dcd::Project> + '_ {
+    fn projects(&self) -> EntityIter<ProjectId, dcd::Project> {
         EntityIter::from(self.me(), self.project_ids())
     }
 
-    pub fn commits(&self) -> impl Iterator<Item=dcd::Commit> + '_ {
+    fn commits(&self) -> EntityIter<CommitId, dcd::Commit> {
         EntityIter::from(self.me(), self.commit_ids())
     }
 
-    pub fn bare_commits(&self) -> impl Iterator<Item=dcd::Commit> + '_ {
+    fn bare_commits(&self) -> EntityIter<CommitId, dcd::Commit> {
         EntityIter::from(self.me(), self.commit_ids()).and_make_it_snappy()
     }
 
-    pub fn users(&self) -> impl Iterator<Item=dcd::User> + '_ {
+    fn users(&self) -> EntityIter<UserId, dcd::User> {
         EntityIter::from(self.me(), self.user_ids())
     }
 
-    pub fn paths(&self) -> impl Iterator<Item=dcd::FilePath> + '_ {
+    fn paths(&self) -> EntityIter<PathId, dcd::FilePath> {
         EntityIter::from(self.me(), self.path_ids())
     }
 }
@@ -361,15 +272,27 @@ impl Iterator for EntityIter<CommitId, dcd::Commit> { // FIXME also bare commit
     }
 }
 
-trait AAA {
-    fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { self.project(id)     }
-    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { self.commit(id)      }
-    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { self.bare_commit(id) }
-    fn user(&self, id: UserId)          -> Option<dcd::User>     { self.user(id)        }
-    fn path(&self, id: PathId)          -> Option<dcd::FilePath> { self.path(id)        }
-}
+impl DataSource for DatabasePtr {
+    fn project_count(&self) -> usize {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().path_count()
+    }
 
-impl AAA for DatabasePtr {
+    fn commit_count(&self) -> usize {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().commit_count()
+    }
+
+    fn user_count(&self) -> usize {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().user_count()
+    }
+
+    fn path_count(&self) -> usize {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().path_count()
+    }
+
     fn project(&self, id: ProjectId) -> Option<dcd::Project> {
         let db: &RefCell<Dejaco> = self.borrow();
         db.borrow().project(id)
@@ -384,11 +307,56 @@ impl AAA for DatabasePtr {
     }
     fn user(&self, id: UserId) -> Option<dcd::User> {
         let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().user(id).map(|u| u.clone())
+        db.borrow().user(id)
     }
     fn path(&self, id: PathId) -> Option<dcd::FilePath> {
         let db: &RefCell<Dejaco> = self.borrow();
         db.borrow().path(id)
+    }
+
+    fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().project_ids()
+    }
+
+    fn commit_ids(&self) -> Map<Range<usize>, fn(usize) -> CommitId> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().commit_ids()
+    }
+
+    fn user_ids(&self) -> Map<Range<usize>, fn(usize) -> UserId> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().user_ids()
+    }
+
+    fn path_ids(&self) -> Map<Range<usize>, fn(usize) -> PathId> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().path_ids()
+    }
+
+    fn projects(&self) -> EntityIter<ProjectId, Project> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().projects()
+    }
+
+    fn commits(&self) -> EntityIter<CommitId, Commit> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().commits()
+    }
+
+    fn bare_commits(&self) -> EntityIter<CommitId, Commit> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().bare_commits()
+    }
+
+    fn users(&self) -> EntityIter<UserId, User> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().users()
+    }
+
+    fn paths(&self) -> EntityIter<PathId, FilePath> {
+        let db: &RefCell<Dejaco> = self.borrow();
+        db.borrow().paths()
     }
 }
 
@@ -521,16 +489,7 @@ impl<TK, T> Iterator for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Dejaco, Month};
-    use itertools::Itertools;
-
-    #[test]
-    fn into_iter() {
-        let x = vec![1,2,2,3,3,4,5,6,7,8,9];
-        let i = x.iter().sorted().group_by(|p| **p % 2);
-        println!("{:?}",i.into_iter().next().map(|(e,f)| e));
-        println!("{:?}",i.into_iter().next().map(|(e,f)| e));
-    }
+    use crate::{Dejaco, Month, DataSource};
 
     #[test]
     fn example() {

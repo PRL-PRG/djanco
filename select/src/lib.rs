@@ -598,6 +598,7 @@ pub mod attrib {
 
         #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Commits;
         #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Users;
+        #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Paths;
 
         impl Attribute for Id  {}
         impl Attribute for URL {}
@@ -612,6 +613,7 @@ pub mod attrib {
 
         impl Attribute for Commits {}
         impl Attribute for Users   {}
+        impl Attribute for Paths   {}
 
         impl NumericalAttribute for Id {
             type Entity = dcd::Project;
@@ -659,6 +661,20 @@ pub mod attrib {
             type Entity = dcd::Project;
             fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
                 database.commit_count_from(entity)
+            }
+        }
+
+        impl NumericalAttribute for Users {
+            type Entity = dcd::Project;
+            fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
+                database.user_count_from(entity)
+            }
+        }
+
+        impl NumericalAttribute for Paths {
+            type Entity = dcd::Project;
+            fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
+                database.path_count_from(entity)
             }
         }
 

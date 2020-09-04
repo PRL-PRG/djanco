@@ -811,6 +811,8 @@ mod tests {
         database
             .projects()
             .group_by_attrib(attrib::project::Language)
-            .filter_each_by_attrib(Require::AtLeast(attrib::project::Stars, 10));
+            .filter_each_by_attrib(Require::AtLeast(attrib::project::Stars, 1))
+            .filter_each_by_attrib(Require::AtLeast(attrib::project::Commits, 25))
+            .filter_each_by_attrib(Require::AtLeast(attrib::project::Users, 2));
     }
 }

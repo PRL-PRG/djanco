@@ -133,11 +133,11 @@ trait DataSource {
     fn paths(&self)        -> EntityIter<PathId,    dcd::FilePath>;
 }
 
-type DatabasePtr = Rc<RefCell<Dejaco>>;
+type DatabasePtr = Rc<RefCell<Djanco>>;
 
-pub struct Dejaco {
+pub struct Djanco {
     warehouse: DCD,
-    me: Option<Weak<RefCell<Dejaco>>>, // Thanks for the help, Colette.
+    me: Option<Weak<RefCell<Djanco>>>, // Thanks for the help, Colette.
 
     _timestamp: i64,
     _seed: u64,
@@ -146,7 +146,7 @@ pub struct Dejaco {
     //database: DatabasePtr
 }
 
-impl Dejaco {
+impl Djanco {
     // pub fn from<S: Into<String>, T: Into<i64>>(path: S, seed: u64, timestamp: T) -> Self {
     //     assert!(std::u64::MAX as usize == std::usize::MAX);
     //     Dejaco {
@@ -162,7 +162,7 @@ impl Dejaco {
 
         let string_path = path.into();
         let warehouse = DCD::new(string_path.clone());
-        let database = Dejaco {
+        let database = Djanco {
             warehouse,
             me: None,
 
@@ -182,7 +182,7 @@ impl Dejaco {
     }
 }
 
-impl DataSource for Dejaco {
+impl DataSource for Djanco {
     fn project_count(&self) -> usize { self.warehouse.num_projects()   as usize }
     fn commit_count(&self)  -> usize { self.warehouse.num_commits()    as usize }
     fn user_count(&self)    -> usize { self.warehouse.num_users()      as usize }
@@ -272,7 +272,7 @@ impl Iterator for EntityIter<CommitId, dcd::Commit> { // FIXME also bare commit
     }
 }
 
-macro_rules! untangle { ($self:expr) => {{ let db: &RefCell<Dejaco> = $self.borrow(); db.borrow() }} }
+macro_rules! untangle { ($self:expr) => {{ let db: &RefCell<Djanco> = $self.borrow(); db.borrow() }} }
 
 impl DataSource for DatabasePtr {
     fn project_count(&self) -> usize { untangle!(self).path_count()   }
@@ -427,11 +427,11 @@ impl<TK, T> Iterator for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Dejaco, Month, DataSource};
+    use crate::{Djanco, Month, DataSource};
 
     #[test]
     fn example() {
-        let db = Dejaco::from("/dejacode/dataset-tiny", 0,Month::August(2020));
+        let db = Djanco::from("/dejacode/dataset-tiny", 0, Month::August(2020));
 
         for url in db.borrow().projects().map(|p| p.url) {
             println!("{}", url);

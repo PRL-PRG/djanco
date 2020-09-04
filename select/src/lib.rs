@@ -272,92 +272,35 @@ impl Iterator for EntityIter<CommitId, dcd::Commit> { // FIXME also bare commit
     }
 }
 
+macro_rules! detangle {
+    ($self:expr) => {{
+        let db: &RefCell<Dejaco> = $self.borrow();
+        db.borrow()
+    }}
+}
+
 impl DataSource for DatabasePtr {
-    fn project_count(&self) -> usize {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().path_count()
-    }
+    fn project_count(&self) -> usize { detangle!(self).path_count()   }
+    fn commit_count(&self)  -> usize { detangle!(self).commit_count() }
+    fn user_count(&self)    -> usize { detangle!(self).user_count()   }
+    fn path_count(&self)    -> usize { detangle!(self).path_count()   }
 
-    fn commit_count(&self) -> usize {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().commit_count()
-    }
+    fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { detangle!(self).project(id)     }
+    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { detangle!(self).commit(id)      }
+    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { detangle!(self).bare_commit(id) }
+    fn user(&self, id: UserId)          -> Option<dcd::User>     { detangle!(self).user(id)        }
+    fn path(&self, id: PathId)          -> Option<dcd::FilePath> { detangle!(self).path(id)        }
 
-    fn user_count(&self) -> usize {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().user_count()
-    }
+    fn project_ids(&self) -> Map<Range<usize>, fn(usize)->ProjectId> { detangle!(self).project_ids() }
+    fn commit_ids(&self)  -> Map<Range<usize>, fn(usize)->CommitId>  { detangle!(self).commit_ids()  }
+    fn user_ids(&self)    -> Map<Range<usize>, fn(usize)->UserId>    { detangle!(self).user_ids()    }
+    fn path_ids(&self)    -> Map<Range<usize>, fn(usize)->PathId>    { detangle!(self).path_ids()    }
 
-    fn path_count(&self) -> usize {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().path_count()
-    }
-
-    fn project(&self, id: ProjectId) -> Option<dcd::Project> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().project(id)
-    }
-    fn commit(&self, id: CommitId) -> Option<dcd::Commit> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().commit(id)
-    }
-    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().bare_commit(id)
-    }
-    fn user(&self, id: UserId) -> Option<dcd::User> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().user(id)
-    }
-    fn path(&self, id: PathId) -> Option<dcd::FilePath> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().path(id)
-    }
-
-    fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().project_ids()
-    }
-
-    fn commit_ids(&self) -> Map<Range<usize>, fn(usize) -> CommitId> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().commit_ids()
-    }
-
-    fn user_ids(&self) -> Map<Range<usize>, fn(usize) -> UserId> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().user_ids()
-    }
-
-    fn path_ids(&self) -> Map<Range<usize>, fn(usize) -> PathId> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().path_ids()
-    }
-
-    fn projects(&self) -> EntityIter<ProjectId, Project> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().projects()
-    }
-
-    fn commits(&self) -> EntityIter<CommitId, Commit> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().commits()
-    }
-
-    fn bare_commits(&self) -> EntityIter<CommitId, Commit> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().bare_commits()
-    }
-
-    fn users(&self) -> EntityIter<UserId, User> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().users()
-    }
-
-    fn paths(&self) -> EntityIter<PathId, FilePath> {
-        let db: &RefCell<Dejaco> = self.borrow();
-        db.borrow().paths()
-    }
+    fn projects(&self)     -> EntityIter<ProjectId, Project> { detangle!(self).projects()     }
+    fn commits(&self)      -> EntityIter<CommitId, Commit>   { detangle!(self).commits()      }
+    fn bare_commits(&self) -> EntityIter<CommitId, Commit>   { detangle!(self).bare_commits() }
+    fn users(&self)        -> EntityIter<UserId, User>       { detangle!(self).users()        }
+    fn paths(&self)        -> EntityIter<PathId, FilePath>   { detangle!(self).paths()        }
 }
 
 impl Iterator for EntityIter<UserId, dcd::User> {

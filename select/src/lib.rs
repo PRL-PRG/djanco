@@ -8,7 +8,7 @@ pub mod selectors;
 
 use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
-use dcd::{DCD, Database, Commit, Project};
+use dcd::{DCD, Database};
 use std::marker::PhantomData;
 use crate::attrib::{Group, FilterEach};
 use itertools::Itertools;
@@ -133,9 +133,14 @@ trait DataSource {
     fn users(&self)        -> EntityIter<UserId,    dcd::User>;
     fn paths(&self)        -> EntityIter<PathId,    dcd::FilePath>;
 
-    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<CommitId, dcd::Commit>; // TODO all others
+    fn commits_from(&self, project: &dcd::Project)      -> ProjectEntityIter<dcd::Commit>;
+    fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit>;
+    fn users_from(&self, project: &dcd::Project)        -> ProjectEntityIter<dcd::User>;
+    fn paths_from(&self, project: &dcd::Project)        -> ProjectEntityIter<dcd::FilePath>;
 
-    fn commit_count_from(&self, project: &dcd::Project) -> usize; // TODO all others
+    fn commit_count_from(&self, project: &dcd::Project) -> usize;
+    fn user_count_from(&self, project: &dcd::Project)   -> usize;
+    fn path_count_from(&self, project: &dcd::Project)   -> usize;
 }
 
 type DatabasePtr = Rc<RefCell<Djanco>>;
@@ -202,84 +207,210 @@ impl DataSource for Djanco {
     fn projects(&self) -> EntityIter<ProjectId, dcd::Project> {
         EntityIter::from(self.me(), self.project_ids())
     }
-
     fn commits(&self) -> EntityIter<CommitId, dcd::Commit> {
         EntityIter::from(self.me(), self.commit_ids())
     }
-
     fn bare_commits(&self) -> EntityIter<CommitId, dcd::Commit> {
         EntityIter::from(self.me(), self.commit_ids()).and_make_it_snappy()
     }
-
     fn users(&self) -> EntityIter<UserId, dcd::User> {
         EntityIter::from(self.me(), self.user_ids())
     }
-
     fn paths(&self) -> EntityIter<PathId, dcd::FilePath> {
         EntityIter::from(self.me(), self.path_ids())
     }
 
-    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<CommitId, dcd::Commit> {
-        ProjectEntityIter::from(self.me(), &project)
+    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
+        ProjectEntityIter::<dcd::Commit>::from(self.me(), &project)
+    }
+    fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
+        ProjectEntityIter::<dcd::Commit>::from(self.me(), &project).and_make_it_snappy()
+    }
+    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+        ProjectEntityIter::<dcd::User>::from(self.me(), &project)
+    }
+    fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
+        ProjectEntityIter::<dcd::FilePath>::from(self.me(), &project)
     }
 
-    fn commit_count_from(&self, project: &Project) -> usize {
-        ProjectEntityIter::from(self.me(), &project).count()
+    fn commit_count_from(&self, project: &dcd::Project) -> usize {
+        self.bare_commits_from(project).count()
+    }
+    fn user_count_from(&self, project: &dcd::Project) -> usize {
+        self.users_from(project).count()
+    }
+    fn path_count_from(&self, project: &dcd::Project) -> usize {
+        self.paths_from(project).count()
     }
 }
 
 pub trait WithDatabase { fn get_database_ptr(&self) -> DatabasePtr; }
 impl WithDatabase for Djanco { fn get_database_ptr(&self) -> DatabasePtr { self.me() } }
 
-pub struct ProjectEntityIter<TI: From<u64>, T> {
+pub struct ProjectEntityIter<T> {
     database: DatabasePtr,
-    visited:  HashSet<TI>,
-    to_visit: VecDeque<TI>,
-    snappy:   bool,
-    _entity:  PhantomData<T>,
+    visited_commits: HashSet<u64>,
+    to_visit_commits: VecDeque<u64>,
+    snappy: bool,
+
+    seen_entities: HashSet<u64>,
+    entity_cache: VecDeque<u64>,
+
+    _entity: PhantomData<T>,
+    desired_cache_size: usize,
 }
 
-impl<TI, T> ProjectEntityIter<TI, T> where TI: From<u64> {
-    pub fn from(database: DatabasePtr, project: &dcd::Project) -> ProjectEntityIter<TI, T> {
-        let visited: HashSet<TI> = HashSet::new();
-        let to_visit: VecDeque<TI> =
-            project.heads.iter().map(|(_, id)| TI::from(*id)).collect();
-        ProjectEntityIter { visited, to_visit, database, snappy: false, _entity: PhantomData }
+impl<T> ProjectEntityIter<T> {
+    pub fn from(database: DatabasePtr, project: &dcd::Project) -> ProjectEntityIter<T> {
+        let visited_commits: HashSet<u64> = HashSet::new();
+        let to_visit_commits: VecDeque<u64> =
+            project.heads.iter().map(|(_, id)| *id).collect();
+
+        ProjectEntityIter {
+            visited_commits, to_visit_commits, database, snappy: false,
+            _entity: PhantomData, desired_cache_size: 100,
+            entity_cache: VecDeque::new(), seen_entities: HashSet::new(),
+        }
     }
+
     /**
      * In snappy mode, the iterator will load only bare bones versions of objects (currently this
      * applies only to commits). This dramatically increases performance.
      */
     pub fn and_make_it_snappy(self) -> Self {
         ProjectEntityIter {
-            visited: self.visited,
-            to_visit: self.to_visit,
+            visited_commits: self.visited_commits,
+            to_visit_commits: self.to_visit_commits,
             database: self.database,
             _entity: PhantomData,
-            snappy: true
+            snappy: true,
+            desired_cache_size: self.desired_cache_size,
+            entity_cache: self.entity_cache,
+            seen_entities: self.seen_entities,
+        }
+    }
+
+    pub fn next_commit(&mut self) -> Option<dcd::Commit> {
+        loop {
+            if self.to_visit_commits.is_empty() {
+                return None;
+            }
+            let commit_id = self.to_visit_commits.pop_back().unwrap();
+            if ! self.visited_commits.insert(commit_id) {
+                continue;
+            }
+            let commit = if self.snappy {
+                self.database.bare_commit(CommitId::from(commit_id)).unwrap()
+            } else {
+                self.database.commit(CommitId::from(commit_id)).unwrap()
+            };
+            self.to_visit_commits.extend(commit.parents.iter());
+            return Some(commit);
+        }
+    }
+
+    fn next_id_from_cache(&mut self) -> Option<u64> {
+        self.entity_cache.pop_front()
+    }
+}
+
+impl ProjectEntityIter<dcd::User> {
+    fn populate_cache(&mut self) -> bool {
+        loop {
+            return match self.next_commit() {
+                Some(commit) => {
+                    if self.seen_entities.insert(commit.author_id) {
+                        self.entity_cache.push_back(commit.author_id); // User not yet seen.
+                    }
+
+                    if self.seen_entities.insert(commit.committer_id) {
+                        self.entity_cache.push_back(commit.committer_id); // User not yet seen.
+                    }
+
+                    if self.entity_cache.len() < self.desired_cache_size {
+                        continue;
+                    }
+
+                    true
+                },
+                None => self.entity_cache.len() != 0
+            }
         }
     }
 }
 
-impl Iterator for ProjectEntityIter<CommitId, dcd::Commit> {
+impl ProjectEntityIter<dcd::FilePath> {
+    fn populate_cache(&mut self) -> bool {
+        loop {
+            return match self.next_commit() {
+                Some(commit) => {
+                    let changes: Vec<u64> =
+                        commit.changes.map_or(vec![],
+                            |map| {
+                                map.iter()
+                                    .map(|(path_id, _)| *path_id)
+                                    .filter(|path_id| {
+                                        !self.seen_entities.contains(path_id)
+                                    })
+                                    .collect()
+                            });
+
+                    self.seen_entities.extend(changes);
+
+                    if self.entity_cache.len() < self.desired_cache_size {
+                        continue;
+                    }
+
+                    true
+                },
+                None => self.entity_cache.len() != 0
+            }
+        }
+    }
+}
+
+impl Iterator for ProjectEntityIter<dcd::Commit> {
     type Item = dcd::Commit;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.next_commit()
+    }
+}
+
+impl Iterator for ProjectEntityIter<dcd::User> {
+    type Item = dcd::User;
+
+    fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if self.to_visit.is_empty() {
-                return None;
+            let id_opt =
+                self.next_id_from_cache();
+
+            if let Some(id) = id_opt {
+                return self.database.user(UserId::from(id))
             }
-            let commit_id = self.to_visit.pop_back().unwrap();
-            if ! self.visited.insert(commit_id) {
-                continue;
+
+            if !self.populate_cache() {
+                return None
             }
-            let commit = if self.snappy {
-                self.database.bare_commit(commit_id).unwrap()
-            } else {
-                self.database.commit(commit_id).unwrap()
-            };
-            self.to_visit.extend(commit.parents.iter().map(|c| CommitId::from(*c)));
-            return Some(commit);
+        }
+    }
+}
+
+impl Iterator for ProjectEntityIter<dcd::FilePath> {
+    type Item = dcd::FilePath;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let id_opt =
+                self.next_id_from_cache();
+
+            if let Some(id) = id_opt {
+                return self.database.path(PathId::from(id))
+            }
+
+            if !self.populate_cache() {
+                return None
+            }
         }
     }
 }
@@ -347,11 +478,22 @@ impl DataSource for DatabasePtr {
     fn users(&self)        -> EntityIter<UserId, dcd::User>       { untangle!(self).users()        }
     fn paths(&self)        -> EntityIter<PathId, dcd::FilePath>   { untangle!(self).paths()        }
 
-    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<CommitId, Commit> {
+    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
         untangle!(self).commits_from(project)
     }
+    fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
+        untangle!(self).bare_commits_from(project)
+    }
+    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+        untangle!(self).users_from(project)
+    }
+    fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
+        untangle!(self).paths_from(project)
+    }
 
-    fn commit_count_from(&self, project: &Project) -> usize { untangle!(self).commit_count_from(project) }
+    fn commit_count_from(&self, project: &dcd::Project) -> usize { untangle!(self).commit_count_from(project) }
+    fn user_count_from(&self, project: &dcd::Project)   -> usize { untangle!(self).user_count_from(project)   }
+    fn path_count_from(&self, project: &dcd::Project)   -> usize { untangle!(self).path_count_from(project)   }
 }
 
 impl Iterator for EntityIter<UserId, dcd::User> {
@@ -648,7 +790,8 @@ mod tests {
 
     #[test]
     fn example() {
-        let database = Djanco::from("/dejacode/dataset-tiny", 0, Month::August(2020));
+        let database = Djanco::from("/dejacode/dataset-tiny", 0,
+                                               Month::August(2020));
         database
             .projects()
             .group_by_attrib(attrib::project::Language)

@@ -8,7 +8,7 @@ pub mod selectors;
 
 use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
-use dcd::{DCD, Database};
+use dcd::{DCD, Database, Project};
 use std::marker::PhantomData;
 use itertools::Itertools;
 //use crate::meta::*;
@@ -140,6 +140,8 @@ trait DataSource {
     fn commit_count_from(&self, project: &dcd::Project) -> usize;
     fn user_count_from(&self, project: &dcd::Project)   -> usize;
     fn path_count_from(&self, project: &dcd::Project)   -> usize;
+
+    fn seed(&self) -> u128;
 }
 
 type DatabasePtr = Rc<RefCell<Djanco>>;
@@ -148,13 +150,13 @@ pub struct Djanco {
     warehouse: DCD,
     me: Option<Weak<RefCell<Djanco>>>, // Thanks for the help, Colette.
 
+    seed: u128,
     _timestamp: i64,
-    _seed: u64,
     _path: PathBuf,
 }
 
 impl Djanco {
-    pub fn from<S: Into<String>, T: Into<i64>>(path: S, seed: u64, timestamp: T) -> DatabasePtr {
+    pub fn from<S: Into<String>, T: Into<i64>>(path: S, seed: u128, timestamp: T) -> DatabasePtr {
         assert!(std::u64::MAX as usize == std::usize::MAX);
 
         let string_path = path.into();
@@ -164,7 +166,7 @@ impl Djanco {
             me: None,
             _path: PathBuf::from(string_path),
             _timestamp: timestamp.into(),
-            _seed: seed,
+            seed,
         };
         let pointer: DatabasePtr = Rc::new(RefCell::new(database));
 
@@ -240,6 +242,10 @@ impl DataSource for Djanco {
     }
     fn path_count_from(&self, project: &dcd::Project) -> usize {
         self.paths_from(project).count()
+    }
+
+    fn seed(&self) -> u128 {
+        self.seed
     }
 }
 
@@ -493,6 +499,8 @@ impl DataSource for DatabasePtr {
     fn commit_count_from(&self, project: &dcd::Project) -> usize { untangle!(self).commit_count_from(project) }
     fn user_count_from(&self, project: &dcd::Project)   -> usize { untangle!(self).user_count_from(project)   }
     fn path_count_from(&self, project: &dcd::Project)   -> usize { untangle!(self).path_count_from(project)   }
+
+    fn seed(&self) -> u128 { untangle!(self).seed() }
 }
 
 impl Iterator for EntityIter<UserId, dcd::User> {
@@ -547,9 +555,19 @@ pub trait Group {
     fn select(&self, project: &dcd::Project) -> Self::Key;
 }
 
+pub trait SortEach {
+    /*type Key;*/ // TODO
+    fn sort(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: &mut Vec<dcd::Project>);
+}
+
 pub trait FilterEach {
     /*type Key;*/ // TODO
     fn filter(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: &dcd::Project) -> bool;
+}
+
+pub trait SampleEach {
+    /*type Key;*/ // TODO
+    fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<dcd::Project>) -> Vec<dcd::Project>;
 }
 
 pub trait NumericalAttribute {
@@ -567,7 +585,31 @@ pub trait StringAttribute {
     fn extract(&self, database: DatabasePtr, entity: &Self::Entity) -> String;
 }
 
-mod require {
+pub mod sample {
+    use crate::{DatabasePtr, SampleEach, DataSource};
+    use rand::seq::IteratorRandom;
+    use rand_pcg::Pcg64Mcg;
+    use rand::SeedableRng;
+
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Unique<D>(pub usize, D);
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Random(pub usize);
+
+    impl SampleEach for Top {
+        fn sample(&self, _database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<dcd::Project>) -> Vec<dcd::Project> {
+            projects.into_iter().take(self.0).collect()
+        }
+    }
+
+    impl SampleEach for Random {
+        fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<dcd::Project>) -> Vec<dcd::Project> {
+            let mut rng = Pcg64Mcg::from_seed(database.seed().to_be_bytes());
+            projects.into_iter().choose_multiple(&mut rng, self.0)
+        }
+    }
+}
+
+pub mod require {
     use crate::{DatabasePtr, FilterEach, NumericalAttribute, StringAttribute};
     use regex::Regex;
 
@@ -609,14 +651,13 @@ mod require {
             self.1.is_match(&self.0.extract(database, project))
         }
     }
-
-
 }
 
 pub mod project {
-    use crate::{Attribute, Group, NumericalAttribute, StringAttribute};
+    use crate::{Attribute, Group, NumericalAttribute, StringAttribute, SortEach};
     use crate::{ProjectId, DatabasePtr, DataSource};
     use crate::meta::ProjectMeta;
+    use dcd::Project;
 
     #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
     #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
@@ -633,20 +674,20 @@ pub mod project {
     #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Users;
     #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Paths;
 
-    impl Attribute for Id  {}
-    impl Attribute for URL {}
+    impl Attribute for Id          {}
+    impl Attribute for URL         {}
 
     impl Attribute for Language    {}
     impl Attribute for Stars       {}
     impl Attribute for Issues      {}
     impl Attribute for BuggyIssues {}
 
-    impl Attribute for Heads    {}
-    impl Attribute for Metadata {}
+    impl Attribute for Heads       {}
+    impl Attribute for Metadata    {}
 
-    impl Attribute for Commits {}
-    impl Attribute for Users   {}
-    impl Attribute for Paths   {}
+    impl Attribute for Commits     {}
+    impl Attribute for Users       {}
+    impl Attribute for Paths       {}
 
     impl StringAttribute for Id {
         type Entity = dcd::Project;
@@ -787,6 +828,74 @@ pub mod project {
             project.get_buggy_issue_count_or_zero()
         }
     }
+
+    impl SortEach for ProjectId {
+        fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|p| p.id)
+        }
+    }
+
+    impl SortEach for URL {
+        fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by(|p1, p2| p1.url.cmp(&p2.url))
+        }
+    }
+
+    impl SortEach for Language {
+        fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|p| p.get_language())
+        }
+    }
+
+    impl SortEach for Stars {
+        fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|p| p.get_stars())
+        }
+    }
+
+    impl SortEach for Issues {
+        fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|f| f.get_issue_count())
+        }
+    }
+
+    impl SortEach for BuggyIssues {
+        fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|p| p.get_buggy_issue_count())
+        }
+    }
+
+    impl SortEach for Heads {
+        fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|p| p.get_head_count())
+        }
+    }
+
+    impl SortEach for Metadata {
+        fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by(|p1, p2| {
+                p1.metadata.get(&self.0).cmp(&p2.metadata.get(&self.0))
+            });
+        }
+    }
+
+    impl SortEach for Commits {
+        fn sort(&self, database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|p| database.commit_count_from(p))
+        }
+    }
+
+    impl SortEach for Users {
+        fn sort(&self, database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|p| database.user_count_from(p))
+        }
+    }
+
+    impl SortEach for Paths {
+        fn sort(&self, database: DatabasePtr, projects: &mut Vec<Project>) {
+            projects.sort_by_key(|p| database.path_count_from(p))
+        }
+    }
 }
 
 trait ProjectGroup<'a> {
@@ -854,6 +963,8 @@ impl<TK, T> Iterator for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
 
 trait GroupOps<TK> where TK: PartialEq + Eq + Hash {
     fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<dcd::Project, TK>;
+    fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<dcd::Project, TK>;
+    fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<dcd::Project, TK>;
 }
 
 impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash + Clone {
@@ -869,13 +980,36 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
                     attrib.filter(database, /*&key,*/ p)
                 }).collect::<Vec<dcd::Project>>())
             });
-        GroupIter::from(inherited_database, iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
+    }
+
+    fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<Project, TK> {
+        let database = self.get_database_ptr();
+        let inherited_database = self.get_database_ptr();
+        let iterator = self.into_iter()
+            .map(|(key, mut projects)| {
+                let database = database.clone();
+                attrib.sort(database, &mut projects);
+                (key, projects)
+            });
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
+    }
+
+    fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<Project, TK> {
+        let database = self.get_database_ptr();
+        let inherited_database = self.get_database_ptr();
+        let iterator = self.into_iter()
+            .map(|(key, projects)| {
+                let database = database.clone();
+                (key, attrib.sample(database, projects))
+            });
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Djanco, Month, DataSource, ProjectGroup, GroupOps, project, require};
+    use crate::{Djanco, Month, DataSource, ProjectGroup, GroupOps, project, require, sample};
     use crate::regex;
 
     #[test]
@@ -889,6 +1023,8 @@ mod tests {
             .filter_each_by_attrib(require::AtLeast(project::Commits, 25))
             .filter_each_by_attrib(require::AtLeast(project::Users, 2))
             .filter_each_by_attrib(require::Same(project::Language, "Rust"))
-            .filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")));
+            .filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
+            .sort_each_by_attrib(project::Stars)
+            .sample_each(sample::Top(10));
     }
 }

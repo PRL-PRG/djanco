@@ -1049,7 +1049,7 @@ trait GroupOps<TK> where TK: PartialEq + Eq + Hash {
     fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<dcd::Project, TK>;
     fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<dcd::Project, TK>;
     fn select_each<T>(self, attrib: impl SelectEach<Entity=T> + Clone) -> GroupIter<T, TK>;
-    fn flatten(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>>;
+    fn drop_key(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>>;
 }
 
 impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash + Clone {
@@ -1102,7 +1102,7 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
         GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<IntoT>)>>())
     }
 
-    fn flatten(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>> {
+    fn drop_key(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>> {
         self.into_iter().map(|tupple| tupple.1)
     }
 }
@@ -1127,7 +1127,8 @@ mod tests {
             .sort_each_by_attrib(project::Stars)
             .sample_each(sample::Top(10))
             .select_each(project::Id)
-            //.flatten()
+            //.drop_key() TODO
+            //.flatten()  TODO
             .collect();
     }
 }

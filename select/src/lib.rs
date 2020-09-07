@@ -19,6 +19,7 @@ use std::ops::Range;
 use std::borrow::Borrow;
 use std::iter::Map;
 use std::collections::{HashSet, VecDeque};
+//use std::slice::Iter;
 
 pub enum Month {
     January(u16),
@@ -570,6 +571,11 @@ pub trait SampleEach {
     fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<dcd::Project>) -> Vec<dcd::Project>;
 }
 
+pub trait SelectEach {
+    type Entity;
+    fn select(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: dcd::Project) -> Self::Entity;
+}
+
 pub trait NumericalAttribute {
     type Entity;
     fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize;
@@ -654,7 +660,7 @@ pub mod require {
 }
 
 pub mod project {
-    use crate::{Attribute, Group, NumericalAttribute, StringAttribute, SortEach};
+    use crate::{Attribute, Group, NumericalAttribute, StringAttribute, SortEach, SelectEach};
     use crate::{ProjectId, DatabasePtr, DataSource};
     use crate::meta::ProjectMeta;
     use dcd::Project;
@@ -829,7 +835,7 @@ pub mod project {
         }
     }
 
-    impl SortEach for ProjectId {
+    impl SortEach for Id {
         fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
             projects.sort_by_key(|p| p.id)
         }
@@ -894,6 +900,83 @@ pub mod project {
     impl SortEach for Paths {
         fn sort(&self, database: DatabasePtr, projects: &mut Vec<Project>) {
             projects.sort_by_key(|p| database.path_count_from(p))
+        }
+    }
+
+    impl SelectEach for Id {
+        type Entity = ProjectId;
+        fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            ProjectId::from(project.id)
+        }
+    }
+
+    impl SelectEach for URL {
+        type Entity = String;
+        fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            project.url
+        }
+    }
+
+    impl SelectEach for Language {
+        type Entity = Option<String>;
+        fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            project.get_language()
+        }
+    }
+
+    impl SelectEach for Stars {
+        type Entity = Option<u64>;
+        fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            project.get_stars()
+        }
+    }
+
+    impl SelectEach for Issues {
+        type Entity = Option<u64>;
+        fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            project.get_issue_count()
+        }
+    }
+
+    impl SelectEach for BuggyIssues {
+        type Entity = Option<u64>;
+        fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            project.get_buggy_issue_count()
+        }
+    }
+
+    impl SelectEach for Heads {
+        type Entity = usize;
+        fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            project.get_head_count()
+        }
+    }
+
+    impl SelectEach for Metadata {
+        type Entity = Option<String>;
+        fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            project.metadata.get(&self.0).map(|s| s.clone())
+        }
+    }
+
+    impl SelectEach for Commits {
+        type Entity = usize;
+        fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
+            database.commit_count_from(&project)
+        }
+    }
+
+    impl SelectEach for Users {
+        type Entity = usize;
+        fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
+            database.user_count_from(&project)
+        }
+    }
+
+    impl SelectEach for Paths {
+        type Entity = usize;
+        fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
+            database.path_count_from(&project)
         }
     }
 }
@@ -965,6 +1048,8 @@ trait GroupOps<TK> where TK: PartialEq + Eq + Hash {
     fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<dcd::Project, TK>;
     fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<dcd::Project, TK>;
     fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<dcd::Project, TK>;
+    fn select_each<T>(self, attrib: impl SelectEach<Entity=T> + Clone) -> GroupIter<T, TK>;
+    fn flatten(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>>;
 }
 
 impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash + Clone {
@@ -995,7 +1080,7 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
         GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
     }
 
-    fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<Project, TK> {
+    fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<dcd::Project, TK> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
         let iterator = self.into_iter()
@@ -1005,18 +1090,33 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
             });
         GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
     }
+
+    fn select_each<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> GroupIter<IntoT, TK> {
+        let database = self.get_database_ptr();
+        let inherited_database = self.get_database_ptr();
+        let iterator = self.into_iter()
+            .map(|(key, projects)| {
+                let database = database.clone();
+                (key, projects.into_iter().map(|p| attrib.select(database.clone(), p)).collect())
+            });
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<IntoT>)>>())
+    }
+
+    fn flatten(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>> {
+        self.into_iter().map(|tupple| tupple.1)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Djanco, Month, DataSource, ProjectGroup, GroupOps, project, require, sample};
+    use crate::{Djanco, Month, DataSource, ProjectGroup, GroupOps, project, require, sample, ProjectId};
     use crate::regex;
 
     #[test]
     fn example() {
         let database = Djanco::from("/dejacode/dataset-tiny", 0,
                                                Month::August(2020));
-        database
+        let _projects: Vec<(String, Vec<ProjectId>)> = database
             .projects()
             .group_by_attrib(project::Language)
             .filter_each_by_attrib(require::AtLeast(project::Stars, 1))
@@ -1025,6 +1125,9 @@ mod tests {
             .filter_each_by_attrib(require::Same(project::Language, "Rust"))
             .filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
             .sort_each_by_attrib(project::Stars)
-            .sample_each(sample::Top(10));
+            .sample_each(sample::Top(10))
+            .select_each(project::Id)
+            //.flatten()
+            .collect();
     }
 }

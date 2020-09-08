@@ -1,3 +1,4 @@
+mod csv;
 pub mod dump;
 mod io;
 pub mod query;
@@ -25,6 +26,7 @@ use std::time::Duration;
 use std::cmp::Ordering;
 use std::fmt::Display;
 use crate::meta::ProjectMeta;
+use crate::csv::{WithNames, WithStaticNames};
 //use std::slice::Iter;
 
 pub enum Month {
@@ -115,11 +117,6 @@ impl From<u64>   for ProjectId { fn from(n: u64) -> Self { ProjectId(n) } }
 impl From<u64>   for CommitId  { fn from(n: u64) -> Self { CommitId(n)  } }
 impl From<u64>   for UserId    { fn from(n: u64) -> Self { UserId(n)    } }
 impl From<u64>   for PathId    { fn from(n: u64) -> Self { PathId(n)    } }
-
-impl CSVField    for ProjectId { fn to_csv_field(&self) -> String { self.0.to_csv_field() } }
-impl CSVField    for CommitId  { fn to_csv_field(&self) -> String { self.0.to_csv_field() } }
-impl CSVField    for UserId    { fn to_csv_field(&self) -> String { self.0.to_csv_field() } }
-impl CSVField    for PathId    { fn to_csv_field(&self) -> String { self.0.to_csv_field() } }
 
 trait DataSource {
     fn project_count(&self) -> usize;
@@ -245,11 +242,11 @@ impl DataSource for Djanco {
     fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
         ProjectEntityIter::<dcd::Commit>::from(self.me(), &project).and_make_it_snappy()
     }
-    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
-        ProjectEntityIter::<dcd::User>::from(self.me(), &project)
-    }
     fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
         ProjectEntityIter::<dcd::FilePath>::from(self.me(), &project)
+    }
+    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+        ProjectEntityIter::<dcd::User>::from(self.me(), &project)
     }
     fn authors_from(&self, project: &Project) -> ProjectEntityIter<User> {
         ProjectEntityIter::<dcd::User>::from(self.me(), &project).and_skip_committers()
@@ -262,11 +259,11 @@ impl DataSource for Djanco {
     fn commit_count_from(&self, project: &dcd::Project) -> usize {
         self.bare_commits_from(project).count()
     }
-    fn user_count_from(&self, project: &dcd::Project) -> usize {
-        self.users_from(project).count()
-    }
     fn path_count_from(&self, project: &dcd::Project) -> usize {
         self.paths_from(project).count()
+    }
+    fn user_count_from(&self, project: &dcd::Project) -> usize {
+        self.users_from(project).count()
     }
     fn author_count_from(&self, project: &Project) -> usize {
         self.authors_from(project).count()
@@ -580,11 +577,11 @@ impl DataSource for DatabasePtr {
     fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
         untangle!(self).bare_commits_from(project)
     }
-    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
-        untangle!(self).users_from(project)
-    }
     fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
         untangle!(self).paths_from(project)
+    }
+    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+        untangle!(self).users_from(project)
     }
     fn authors_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
         untangle!(self).authors_from(project)
@@ -594,8 +591,8 @@ impl DataSource for DatabasePtr {
     }
 
     fn commit_count_from(&self, project: &dcd::Project)    -> usize { untangle!(self).commit_count_from(project)    }
-    fn user_count_from(&self, project: &dcd::Project)      -> usize { untangle!(self).user_count_from(project)      }
     fn path_count_from(&self, project: &dcd::Project)      -> usize { untangle!(self).path_count_from(project)      }
+    fn user_count_from(&self, project: &dcd::Project)      -> usize { untangle!(self).user_count_from(project)      }
     fn author_count_from(&self, project: &dcd::Project)    -> usize { untangle!(self).author_count_from(project)    }
     fn committer_count_from(&self, project: &dcd::Project) -> usize { untangle!(self).committer_count_from(project) }
 
@@ -651,8 +648,15 @@ impl<TI, T> WithDatabase for EntityIter<TI, T> where TI: From<usize> + Into<u64>
 
 pub trait Attribute {}
 
-pub trait NamedAttribute {
-    fn name() -> String { "id".to_owned() }
+pub struct AttributeValue<A: Attribute, T> {
+    value: T,
+    attribute_type: PhantomData<A>,
+}
+
+impl<A, T> AttributeValue<A, T> where A: Attribute {
+    pub fn new(_attribute: &A, value: T) -> AttributeValue<A, T> {
+        AttributeValue { value, attribute_type: PhantomData }
+    }
 }
 
 pub trait Group {
@@ -675,7 +679,9 @@ pub trait SampleEach {
     fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<dcd::Project>) -> Vec<dcd::Project>;
 }
 
-pub trait SelectEach {
+
+
+pub trait SelectEach: WithNames {
     type Entity;
     fn select(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: dcd::Project) -> Self::Entity;
 }
@@ -764,7 +770,7 @@ pub mod require {
 }
 
 pub mod project {
-    use crate::{Attribute, Group, NumericalAttribute, StringAttribute, SortEach, SelectEach, NamedAttribute, AttributeValue};
+    use crate::{Attribute, Group, NumericalAttribute, StringAttribute, SortEach, SelectEach, AttributeValue, WithNames};
     use crate::{ProjectId, DatabasePtr, DataSource};
     use crate::meta::ProjectMeta;
     use dcd::Project;
@@ -778,7 +784,7 @@ pub mod project {
     #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct BuggyIssues;
 
     #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Heads;
-    #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Metadata(String);
+    #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Metadata(pub String);
 
     #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Commits;
     #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Users;
@@ -799,19 +805,6 @@ pub mod project {
     impl Attribute for Users       {}
     impl Attribute for Paths       {}
 
-    impl NamedAttribute for Id          { fn name() -> String { "id".to_owned()  } }
-    impl NamedAttribute for URL         { fn name() -> String { "url".to_owned() } }
-
-    impl NamedAttribute for Language    { fn name() -> String { "language".to_owned()     } }
-    impl NamedAttribute for Stars       { fn name() -> String { "stars".to_owned()        } }
-    impl NamedAttribute for Issues      { fn name() -> String { "issues".to_owned()       } }
-    impl NamedAttribute for BuggyIssues { fn name() -> String { "buggy_issues".to_owned() } }
-
-    impl NamedAttribute for Heads       { fn name() -> String { "heads".to_owned()   } }
-
-    impl NamedAttribute for Commits     { fn name() -> String { "commits".to_owned() } }
-    impl NamedAttribute for Users       { fn name() -> String { "users".to_owned()   } }
-    impl NamedAttribute for Paths       { fn name() -> String { "paths".to_owned()   } }
 
     impl StringAttribute for Id {
         type Entity = dcd::Project;
@@ -1110,9 +1103,12 @@ impl<'a> ProjectGroup<'a> for EntityIter<ProjectId, dcd::Project> {
     fn group_by_attrib<TK>(self, attrib: impl Group<Key=TK>) -> GroupIter<dcd::Project, TK>
         where TK: PartialEq + Eq + Hash {
 
+        let names: Vec<String> =
+            <dcd::Project as csv::WithStaticNames>::names().into_iter().map(|e| e.to_owned()).collect();
+
         GroupIter::from(self.get_database_ptr(),
                         self.map(|p: dcd::Project| { (attrib.select(&p), p) })
-                            .into_group_map().into_iter().collect::<Vec<(TK, Vec<dcd::Project>)>>())
+                            .into_group_map().into_iter().collect::<Vec<(TK, Vec<dcd::Project>)>>(), names) // FIXME
     }
 }
 
@@ -1125,20 +1121,26 @@ pub struct NormilIter<T> {
     database: DatabasePtr,
     data: Vec<T>, // TODO There's gotta be a better way to do this.
     entity_type: PhantomData<T>,
+    names: Vec<String>,
 }
 
 impl<T> NormilIter<T> {
-    pub fn from(database: DatabasePtr, data: impl Into<Vec<T>>) -> NormilIter<T> {
+    pub fn from(database: DatabasePtr, data: impl Into<Vec<T>>, names: Vec<String>) -> NormilIter<T> {
         NormilIter {
             database,
             data: data.into(),
             entity_type: PhantomData,
+            names,
         }
     }
 }
 
 impl<T> WithDatabase for NormilIter<T> {
     fn get_database_ptr(&self) -> DatabasePtr { self.database.clone() }
+}
+
+impl<T> WithNames for NormilIter<T> {
+    fn names(&self) -> Vec<String> { self.names.clone() }
 }
 
 impl<T> Iterator for NormilIter<T> {
@@ -1156,15 +1158,17 @@ pub struct GroupIter<T, TK: PartialEq + Eq + Hash> {
     map: Vec<(TK, Vec<T>)>,
     entity_type: PhantomData<T>,
     key_type: PhantomData<TK>,
+    names: Vec::<String>,
 }
 
 impl<T, TK> GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
-    pub fn from(database: DatabasePtr, data: impl Into<Vec<(TK, Vec<T>)>>) -> GroupIter<T, TK> {
+    pub fn from(database: DatabasePtr, data: impl Into<Vec<(TK, Vec<T>)>>, names: Vec::<String>) -> GroupIter<T, TK> {
         GroupIter {
             database,
             map: data.into(),
             entity_type: PhantomData,
             key_type: PhantomData,
+            names,
         }
     }
 }
@@ -1178,6 +1182,10 @@ impl<TK, T> Iterator for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
     fn next(&mut self) -> Option<Self::Item> { self.map.pop() }
 }
 
+impl<T, TK> WithNames for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
+    fn names(&self) -> Vec<String> { self.names.clone() }
+}
+
 trait Ops {
     fn filter_by_attrib(self, attrib: impl FilterEach + Clone) -> NormilIter<dcd::Project>; // tombstones?
     fn sort_by_attrib(self, attrib: impl SortEach + Clone) -> NormilIter<dcd::Project>;
@@ -1189,26 +1197,29 @@ impl Ops for NormilIter<dcd::Project> {
     fn filter_by_attrib(self, attrib: impl FilterEach + Clone) -> NormilIter<dcd::Project> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
+        let names = self.names();
         let iterator= self.into_iter().filter(|p| {
             let database = database.clone();
             // FIXME giving up on laziness for now
             attrib.filter(database, /*&key,*/ p)
         });
-        NormilIter::from(inherited_database, iterator.collect::<Vec<dcd::Project>>())
+        NormilIter::from(inherited_database, iterator.collect::<Vec<dcd::Project>>(), names)
     }
 
     fn sort_by_attrib(mut self, attrib: impl SortEach + Clone) -> NormilIter<dcd::Project> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
+        let names = self.names();
         attrib.sort(database, &mut self.data);
-        NormilIter::from(inherited_database, self.data)
+        NormilIter::from(inherited_database, self.data, names)
     }
 
     fn sample_by(self, attrib: impl SampleEach + Clone) -> NormilIter<dcd::Project> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
+        let names = self.names();
         let sample = attrib.sample(database, self.data);
-        NormilIter::from(inherited_database,sample)
+        NormilIter::from(inherited_database,sample, names)
     }
 
     fn select<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> NormilIter<IntoT> {
@@ -1216,8 +1227,7 @@ impl Ops for NormilIter<dcd::Project> {
         let inherited_database = self.get_database_ptr();
         let iterator =
             self.data.into_iter().map(|p| attrib.select(database.clone(), p));
-        NormilIter::from(inherited_database,
-                         iterator.collect::<Vec<IntoT>>())
+        NormilIter::from(inherited_database, iterator.collect::<Vec<IntoT>>(), attrib.names())
     }
 }
 
@@ -1234,6 +1244,7 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
     fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<dcd::Project, TK> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
+        let names = self.names();
         let iterator= self.into_iter()
             .map(|(key, projects)| {
                 let database = database.clone();
@@ -1243,30 +1254,32 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
                     attrib.filter(database, /*&key,*/ p)
                 }).collect::<Vec<dcd::Project>>())
             });
-        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
+        GroupIter::from(inherited_database, iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>(), names)
     }
 
     fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<Project, TK> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
+        let names = self.names();
         let iterator = self.into_iter()
             .map(|(key, mut projects)| {
                 let database = database.clone();
                 attrib.sort(database, &mut projects);
                 (key, projects)
             });
-        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>(), names)
     }
 
     fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<dcd::Project, TK> {
         let database = self.get_database_ptr();
+        let names = self.names();
         let inherited_database = self.get_database_ptr();
         let iterator = self.into_iter()
             .map(|(key, projects)| {
                 let database = database.clone();
                 (key, attrib.sample(database, projects))
             });
-        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>())
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>(), names)
     }
 
     fn select_each<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> GroupIter<IntoT, TK> {
@@ -1277,7 +1290,7 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
                 let database = database.clone();
                 (key, projects.into_iter().map(|p| attrib.select(database.clone(), p)).collect())
             });
-        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<IntoT>)>>())
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<IntoT>)>>(), attrib.names())
     }
 
     fn drop_key(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>> {
@@ -1286,133 +1299,57 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
 
     fn squash(self) -> NormilIter<dcd::Project> {
         let inherited_database = self.get_database_ptr();
+        let names = self.names();
         let iterator = self.into_iter().map(|tupple| tupple.1).flatten();
-        NormilIter::from(inherited_database, iterator.collect::<Vec<dcd::Project>>())
+        NormilIter::from(inherited_database, iterator.collect::<Vec<dcd::Project>>(), names)
     }
 }
 
-#[allow(non_snake_case)]
-pub trait CSVItem {
-    fn header_line() -> String;
-    fn to_csv_line(&self, db: DatabasePtr) -> String;
-}
+// pub trait WithCSVFormat {
+//     fn header_line(&self) -> String;
+// }
 
-impl CSVItem for ProjectId {
-    fn header_line() -> String { "project_id".to_owned() }
-    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.0.to_string() }
-}
+// impl<I> WithCSVFormat for I where I: Iterator<Item=Project> {
+//     fn header_line(&self) -> String {
+//         "id,url,last_update,language,\
+//          stars,issues,buggy_issues,\
+//          head_count,commit_count,user_count,path_count,author_count,committer_count,\
+//          age".to_owned()
+//     }
+// }
 
-impl CSVItem for CommitId {
-    fn header_line() -> String { "commit_id".to_owned() }
-    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.0.to_string() }
-}
+// impl<A,T> WithCSVFormat for NormilIter<AttributeValue<A,T>> where A: NamedAttribute, T: CSVItem {
+//     fn header_line(&self) -> String { A::name() }
+// }
 
-impl CSVItem for PathId {
-    fn header_line() -> String { "path_id".to_owned() }
-    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.0.to_string() }
-}
+// impl<TK> WithCSVFormat for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash + CSVItem { // FIXME TK?
+//     fn header_line(&self) -> String {
+//         "key,\
+//          id,url,last_update,language,\
+//          stars,issues,buggy_issues,\
+//          head_count,commit_count,user_count,path_count,author_count,committer_count,\
+//          age".to_owned()
+//     }
+// }
 
-impl CSVItem for UserId {
-    fn header_line() -> String { "user_id".to_owned() }
-    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.0.to_string() }
-}
 
-impl CSVItem for Project {
-    fn header_line() -> String {
-        "id,url,last_update,language,\
-         stars,issues,buggy_issues,\
-         head_count,commit_count,user_count,path_count,author_count,committer_count,\
-         age".to_owned()
-    }
 
-    fn to_csv_line(&self, db: DatabasePtr) -> String {
-         format!(r#"{},"{}",{},{},{},{},{},{},{},{},{},{},{},{}"#,
-             self.id, self.url, self.last_update,
-             self.get_language().unwrap_or(String::new()),
-             self.get_stars().map_or(String::new(), |e| e.to_string()),
-             self.get_issue_count().map_or(String::new(), |e| e.to_string()),
-             self.get_buggy_issue_count().map_or(String::new(), |e| e.to_string()),
-             self.get_head_count(),
-             db.commit_count_from(&self),
-             db.user_count_from(&self),
-             db.path_count_from(&self),
-             db.author_count_from(&self),
-             db.committer_count_from(&self),
-             db.age_of(&self).map_or(String::new(), |e| e.as_secs().to_string()),
-        )
-    }
-}
 
-pub trait CSVField {
-    fn to_csv_field(&self) -> String;
-}
 
-impl CSVField for String {
-    fn to_csv_field(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl CSVField for u64 {
-    fn to_csv_field(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl CSVField for usize {
-    fn to_csv_field(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl<T> CSVField for Option<T> where T: Display {
-    fn to_csv_field(&self) -> String {
-        match self {
-            Some(value) => value.to_string(),
-            None => "".to_owned(),
-        }
-    }
-}
-
-pub struct AttributeValue<A: NamedAttribute, T: CSVField> {
-    value: T,
-    attribute_type: PhantomData<A>,
-}
-
-impl<T, A> AttributeValue<A, T> where T: CSVField, A: NamedAttribute {
-    pub fn new(_attribute: &A, value: T) -> AttributeValue<A, T> { AttributeValue { value, attribute_type: PhantomData } }
-}
-
-impl<T, A> CSVItem for AttributeValue<A, T> where T: CSVField, A: NamedAttribute {
-    fn header_line() -> String { A::name() }
-    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.value.to_csv_field() }
-}
-
-#[allow(non_snake_case)]
-pub trait CSV {
-    fn to_csv(self, location: impl Into<String>) -> Result<(), std::io::Error>;
-}
-
-impl<I,T> CSV for I where I: Iterator<Item=T> + WithDatabase, T: CSVItem {
-    fn to_csv(self, location: impl Into<String>) -> Result<(), Error> {
-        let path = PathBuf::from(location.into());
-        let dir_path = { let mut dir_path = path.clone(); dir_path.pop(); dir_path };
-        create_dir_all(&dir_path).unwrap();
-
-        let mut file = File::create(path)?;
-        let database = self.get_database_ptr();
-        writeln!(file, "{}", T::header_line())?;
-        for element in self {
-            writeln!(file, "{}", element.to_csv_line(database.clone()))?;
-        }
-
-        Ok(())
-    }
-}
+// impl<T, A> CSVItem for AttributeValue<A, T> where T: CSVItem, A: NamedAttribute {
+//     //fn header_line() -> String { A::name() }
+//     fn to_csv_line(&self, db: DatabasePtr) -> String { self.value.to_csv_line(db) }
+// }
+//
+// impl<T1, T2> CSVItem for (T1, T2) where T1: CSVItem, T2: CSVItem {
+//     fn to_csv_line(&self, db: DatabasePtr) -> String {
+//         format!("{},{}", self.0.to_csv_line(db.clone()), self.1.to_csv_line(db))
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Djanco, Month, DataSource, ProjectGroup, Ops, GroupOps, regex, project, require, sample, CSV};
+    use crate::{Djanco, Month, DataSource, ProjectGroup, Ops, GroupOps, regex, project, require, sample, csv::*};
 
     #[test]
     fn example() {
@@ -1420,16 +1357,16 @@ mod tests {
                                                Month::August(2020));
         database
             .projects()
-            .group_by_attrib(project::Language)
+            .group_by_attrib(project::Stars)
             .filter_each_by_attrib(require::AtLeast(project::Stars, 1))
-            //.filter_each_by_attrib(require::AtLeast(project::Commits, 25))
-            //.filter_each_by_attrib(require::AtLeast(project::Users, 2))
-            //.filter_each_by_attrib(require::Same(project::Language, "Rust"))
-            //.filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
+            .filter_each_by_attrib(require::AtLeast(project::Commits, 25))
+            .filter_each_by_attrib(require::AtLeast(project::Users, 2))
+            .filter_each_by_attrib(require::Same(project::Language, "Rust"))
+            .filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
             .sort_each_by_attrib(project::Stars)
             .sample_each(sample::Top(2))
             .squash()
-            //.select(project::Id)
+            .select(project::Id)
             .to_csv("projects.csv").unwrap()
     }
 }

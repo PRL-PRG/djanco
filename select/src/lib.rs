@@ -8,9 +8,9 @@ pub mod selectors;
 
 use chrono::{Date, DateTime, Utc, TimeZone};
 use std::path::PathBuf;
-use dcd::{DCD, Database, Project};
+use dcd::{DCD, Database, Project, User};
 use std::marker::PhantomData;
-use itertools::Itertools;
+use itertools::{Itertools, MinMaxResult};
 //use crate::meta::*;
 use std::hash::Hash;
 use std::rc::{Rc, Weak};
@@ -19,6 +19,12 @@ use std::ops::Range;
 use std::borrow::Borrow;
 use std::iter::Map;
 use std::collections::{HashSet, VecDeque};
+use std::io::{Error, Write};
+use std::fs::{create_dir_all, File};
+use std::time::Duration;
+use std::cmp::Ordering;
+use std::fmt::Display;
+use crate::meta::ProjectMeta;
 //use std::slice::Iter;
 
 pub enum Month {
@@ -110,6 +116,11 @@ impl From<u64>   for CommitId  { fn from(n: u64) -> Self { CommitId(n)  } }
 impl From<u64>   for UserId    { fn from(n: u64) -> Self { UserId(n)    } }
 impl From<u64>   for PathId    { fn from(n: u64) -> Self { PathId(n)    } }
 
+impl CSVField    for ProjectId { fn to_csv_field(&self) -> String { self.0.to_csv_field() } }
+impl CSVField    for CommitId  { fn to_csv_field(&self) -> String { self.0.to_csv_field() } }
+impl CSVField    for UserId    { fn to_csv_field(&self) -> String { self.0.to_csv_field() } }
+impl CSVField    for PathId    { fn to_csv_field(&self) -> String { self.0.to_csv_field() } }
+
 trait DataSource {
     fn project_count(&self) -> usize;
     fn commit_count(&self)  -> usize;
@@ -135,12 +146,18 @@ trait DataSource {
 
     fn commits_from(&self, project: &dcd::Project)      -> ProjectEntityIter<dcd::Commit>;
     fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit>;
-    fn users_from(&self, project: &dcd::Project)        -> ProjectEntityIter<dcd::User>;
     fn paths_from(&self, project: &dcd::Project)        -> ProjectEntityIter<dcd::FilePath>;
+    fn users_from(&self, project: &dcd::Project)        -> ProjectEntityIter<dcd::User>;
+    fn authors_from(&self, project: &dcd::Project)      -> ProjectEntityIter<dcd::User>;
+    fn committers_from(&self, project: &dcd::Project)   -> ProjectEntityIter<dcd::User>;
 
-    fn commit_count_from(&self, project: &dcd::Project) -> usize;
-    fn user_count_from(&self, project: &dcd::Project)   -> usize;
-    fn path_count_from(&self, project: &dcd::Project)   -> usize;
+    fn commit_count_from(&self, project: &dcd::Project)    -> usize;
+    fn path_count_from(&self, project: &dcd::Project)      -> usize;
+    fn user_count_from(&self, project: &dcd::Project)      -> usize;
+    fn author_count_from(&self, project: &dcd::Project)    -> usize;
+    fn committer_count_from(&self, project: &dcd::Project) -> usize;
+
+    fn age_of(&self, project: &dcd::Project) -> Option<Duration>;
 
     fn seed(&self) -> u128;
 }
@@ -158,7 +175,7 @@ pub struct Djanco {
 
 impl Djanco {
     pub fn from<S: Into<String>, T: Into<i64>>(path: S, seed: u128, timestamp: T) -> DatabasePtr {
-        assert!(std::u64::MAX as usize == std::usize::MAX);
+        assert_eq!(std::u64::MAX as usize, std::usize::MAX);
 
         let string_path = path.into();
         let warehouse = DCD::new(string_path.clone());
@@ -184,8 +201,8 @@ impl Djanco {
 impl DataSource for Djanco {
     fn project_count(&self) -> usize { self.warehouse.num_projects()   as usize }
     fn commit_count(&self)  -> usize { self.warehouse.num_commits()    as usize }
-    fn user_count(&self)    -> usize { self.warehouse.num_users()      as usize }
     fn path_count(&self)    -> usize { self.warehouse.num_file_paths() as usize }
+    fn user_count(&self)    -> usize { self.warehouse.num_users()      as usize }
 
     fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { self.warehouse.get_project(id.into())     }
     fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { self.warehouse.get_commit(id.into())      }
@@ -234,6 +251,13 @@ impl DataSource for Djanco {
     fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
         ProjectEntityIter::<dcd::FilePath>::from(self.me(), &project)
     }
+    fn authors_from(&self, project: &Project) -> ProjectEntityIter<User> {
+        ProjectEntityIter::<dcd::User>::from(self.me(), &project).and_skip_committers()
+    }
+    fn committers_from(&self, project: &Project) -> ProjectEntityIter<User> {
+        ProjectEntityIter::<dcd::User>::from(self.me(), &project).and_skip_authors()
+    }
+
 
     fn commit_count_from(&self, project: &dcd::Project) -> usize {
         self.bare_commits_from(project).count()
@@ -243,6 +267,31 @@ impl DataSource for Djanco {
     }
     fn path_count_from(&self, project: &dcd::Project) -> usize {
         self.paths_from(project).count()
+    }
+    fn author_count_from(&self, project: &Project) -> usize {
+        self.authors_from(project).count()
+    }
+    fn committer_count_from(&self, project: &Project) -> usize {
+        self.committers_from(project).count()
+    }
+
+    fn age_of(&self, project: &Project) -> Option<Duration> {
+        let minmax = self.commits_from(project)
+            .minmax_by(|c1, c2| {
+                if c1.author_time < c2.author_time { return Ordering::Less }
+                if c1.author_time > c2.author_time { return Ordering::Greater }
+                return Ordering::Equal
+            });
+        match minmax {
+            MinMaxResult::NoElements => None,
+            MinMaxResult::OneElement(_commit) => None,
+            MinMaxResult::MinMax(first_commit, last_commit) => {
+                assert!(last_commit.author_time > first_commit.author_time);
+                let elapsed_seconds: u64 =
+                    (last_commit.author_time - first_commit.author_time) as u64;
+                Some(Duration::from_secs(elapsed_seconds))
+            }
+        }
     }
 
     fn seed(&self) -> u128 {
@@ -257,7 +306,10 @@ pub struct ProjectEntityIter<T> {
     database: DatabasePtr,
     visited_commits: HashSet<u64>,
     to_visit_commits: VecDeque<u64>,
-    snappy: bool,
+
+    snappy: bool,  // TODO encode this in types?
+    authors: bool,
+    committers: bool,
 
     seen_entities: HashSet<u64>,
     entity_cache: VecDeque<u64>,
@@ -273,7 +325,8 @@ impl<T> ProjectEntityIter<T> {
             project.heads.iter().map(|(_, id)| *id).collect();
 
         ProjectEntityIter {
-            visited_commits, to_visit_commits, database, snappy: false,
+            visited_commits, to_visit_commits, database,
+            snappy: false, committers: true, authors: true,
             _entity: PhantomData, desired_cache_size: 100,
             entity_cache: VecDeque::new(), seen_entities: HashSet::new(),
         }
@@ -290,6 +343,38 @@ impl<T> ProjectEntityIter<T> {
             database: self.database,
             _entity: PhantomData,
             snappy: true,
+            committers: self.committers,
+            authors: self.authors,
+            desired_cache_size: self.desired_cache_size,
+            entity_cache: self.entity_cache,
+            seen_entities: self.seen_entities,
+        }
+    }
+
+    pub fn and_skip_committers(self) -> Self {
+        ProjectEntityIter {
+            visited_commits: self.visited_commits,
+            to_visit_commits: self.to_visit_commits,
+            database: self.database,
+            _entity: PhantomData,
+            snappy: self.snappy,
+            committers: false,
+            authors: self.authors,
+            desired_cache_size: self.desired_cache_size,
+            entity_cache: self.entity_cache,
+            seen_entities: self.seen_entities,
+        }
+    }
+
+    pub fn and_skip_authors(self) -> Self {
+        ProjectEntityIter {
+            visited_commits: self.visited_commits,
+            to_visit_commits: self.to_visit_commits,
+            database: self.database,
+            _entity: PhantomData,
+            snappy: self.snappy,
+            committers: self.committers,
+            authors: false,
             desired_cache_size: self.desired_cache_size,
             entity_cache: self.entity_cache,
             seen_entities: self.seen_entities,
@@ -322,15 +407,20 @@ impl<T> ProjectEntityIter<T> {
 
 impl ProjectEntityIter<dcd::User> {
     fn populate_cache(&mut self) -> bool {
+        assert!(self.authors || self.committers);
         loop {
             return match self.next_commit() {
                 Some(commit) => {
-                    if self.seen_entities.insert(commit.author_id) {
-                        self.entity_cache.push_back(commit.author_id); // User not yet seen.
+                    if self.authors {
+                        if self.seen_entities.insert(commit.author_id) {
+                            self.entity_cache.push_back(commit.author_id); // User not yet seen.
+                        }
                     }
 
-                    if self.seen_entities.insert(commit.committer_id) {
-                        self.entity_cache.push_back(commit.committer_id); // User not yet seen.
+                    if self.committers {
+                        if self.seen_entities.insert(commit.committer_id) {
+                            self.entity_cache.push_back(commit.committer_id); // User not yet seen.
+                        }
                     }
 
                     if self.entity_cache.len() < self.desired_cache_size {
@@ -496,10 +586,20 @@ impl DataSource for DatabasePtr {
     fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
         untangle!(self).paths_from(project)
     }
+    fn authors_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+        untangle!(self).authors_from(project)
+    }
+    fn committers_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+        untangle!(self).committers_from(project)
+    }
 
-    fn commit_count_from(&self, project: &dcd::Project) -> usize { untangle!(self).commit_count_from(project) }
-    fn user_count_from(&self, project: &dcd::Project)   -> usize { untangle!(self).user_count_from(project)   }
-    fn path_count_from(&self, project: &dcd::Project)   -> usize { untangle!(self).path_count_from(project)   }
+    fn commit_count_from(&self, project: &dcd::Project)    -> usize { untangle!(self).commit_count_from(project)    }
+    fn user_count_from(&self, project: &dcd::Project)      -> usize { untangle!(self).user_count_from(project)      }
+    fn path_count_from(&self, project: &dcd::Project)      -> usize { untangle!(self).path_count_from(project)      }
+    fn author_count_from(&self, project: &dcd::Project)    -> usize { untangle!(self).author_count_from(project)    }
+    fn committer_count_from(&self, project: &dcd::Project) -> usize { untangle!(self).committer_count_from(project) }
+
+    fn age_of(&self, project: &dcd::Project) -> Option<Duration> { untangle!(self).age_of(project) }
 
     fn seed(&self) -> u128 { untangle!(self).seed() }
 }
@@ -550,6 +650,10 @@ impl<TI, T> WithDatabase for EntityIter<TI, T> where TI: From<usize> + Into<u64>
 // }
 
 pub trait Attribute {}
+
+pub trait NamedAttribute {
+    fn name() -> String { "id".to_owned() }
+}
 
 pub trait Group {
     type Key;
@@ -660,7 +764,7 @@ pub mod require {
 }
 
 pub mod project {
-    use crate::{Attribute, Group, NumericalAttribute, StringAttribute, SortEach, SelectEach};
+    use crate::{Attribute, Group, NumericalAttribute, StringAttribute, SortEach, SelectEach, NamedAttribute, AttributeValue};
     use crate::{ProjectId, DatabasePtr, DataSource};
     use crate::meta::ProjectMeta;
     use dcd::Project;
@@ -694,6 +798,20 @@ pub mod project {
     impl Attribute for Commits     {}
     impl Attribute for Users       {}
     impl Attribute for Paths       {}
+
+    impl NamedAttribute for Id          { fn name() -> String { "id".to_owned()  } }
+    impl NamedAttribute for URL         { fn name() -> String { "url".to_owned() } }
+
+    impl NamedAttribute for Language    { fn name() -> String { "language".to_owned()     } }
+    impl NamedAttribute for Stars       { fn name() -> String { "stars".to_owned()        } }
+    impl NamedAttribute for Issues      { fn name() -> String { "issues".to_owned()       } }
+    impl NamedAttribute for BuggyIssues { fn name() -> String { "buggy_issues".to_owned() } }
+
+    impl NamedAttribute for Heads       { fn name() -> String { "heads".to_owned()   } }
+
+    impl NamedAttribute for Commits     { fn name() -> String { "commits".to_owned() } }
+    impl NamedAttribute for Users       { fn name() -> String { "users".to_owned()   } }
+    impl NamedAttribute for Paths       { fn name() -> String { "paths".to_owned()   } }
 
     impl StringAttribute for Id {
         type Entity = dcd::Project;
@@ -904,79 +1022,81 @@ pub mod project {
     }
 
     impl SelectEach for Id {
-        type Entity = ProjectId;
+        type Entity = AttributeValue<Id, ProjectId>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            ProjectId::from(project.id)
+            AttributeValue::new(self, ProjectId::from(project.id))
         }
     }
 
     impl SelectEach for URL {
-        type Entity = String;
+        type Entity = AttributeValue<URL, String>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            project.url
+            AttributeValue::new(self, project.url)
         }
     }
 
     impl SelectEach for Language {
-        type Entity = Option<String>;
+        type Entity = AttributeValue<Language, Option<String>>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            project.get_language()
+            AttributeValue::new(self, project.get_language())
         }
     }
 
     impl SelectEach for Stars {
-        type Entity = Option<u64>;
+        type Entity = AttributeValue<Stars, Option<u64>>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            project.get_stars()
+            AttributeValue::new(self, project.get_stars())
         }
     }
 
     impl SelectEach for Issues {
-        type Entity = Option<u64>;
+        type Entity = AttributeValue<Issues, Option<u64>>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            project.get_issue_count()
+            AttributeValue::new(self, project.get_issue_count())
         }
     }
 
     impl SelectEach for BuggyIssues {
-        type Entity = Option<u64>;
+        type Entity = AttributeValue<BuggyIssues, Option<u64>>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            project.get_buggy_issue_count()
+            AttributeValue::new(self, project.get_buggy_issue_count())
         }
     }
 
     impl SelectEach for Heads {
-        type Entity = usize;
+        type Entity = AttributeValue<Heads, usize>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            project.get_head_count()
+            AttributeValue::new(self, project.get_head_count())
         }
     }
 
     impl SelectEach for Metadata {
+        //type Entity = AttributeValue<Metadata, Option<String>>;
         type Entity = Option<String>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
+            //AttributeValue::new(self, project.metadata.get(&self.0).map(|s| s.clone()))
             project.metadata.get(&self.0).map(|s| s.clone())
         }
     }
 
     impl SelectEach for Commits {
-        type Entity = usize;
+        type Entity = AttributeValue<Commits, usize>;
         fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
-            database.commit_count_from(&project)
+            AttributeValue::new(self, database.commit_count_from(&project))
         }
     }
 
     impl SelectEach for Users {
-        type Entity = usize;
+        type Entity = AttributeValue<Users, usize>;
         fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
-            database.user_count_from(&project)
+            AttributeValue::new(self, database.user_count_from(&project))
         }
     }
 
     impl SelectEach for Paths {
-        type Entity = usize;
+        type Entity = AttributeValue<Paths, usize>;
         fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
-            database.path_count_from(&project)
+            AttributeValue::new(self, database.path_count_from(&project))
         }
     }
 }
@@ -1171,27 +1291,145 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
     }
 }
 
+#[allow(non_snake_case)]
+pub trait CSVItem {
+    fn header_line() -> String;
+    fn to_csv_line(&self, db: DatabasePtr) -> String;
+}
+
+impl CSVItem for ProjectId {
+    fn header_line() -> String { "project_id".to_owned() }
+    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.0.to_string() }
+}
+
+impl CSVItem for CommitId {
+    fn header_line() -> String { "commit_id".to_owned() }
+    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.0.to_string() }
+}
+
+impl CSVItem for PathId {
+    fn header_line() -> String { "path_id".to_owned() }
+    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.0.to_string() }
+}
+
+impl CSVItem for UserId {
+    fn header_line() -> String { "user_id".to_owned() }
+    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.0.to_string() }
+}
+
+impl CSVItem for Project {
+    fn header_line() -> String {
+        "id,url,last_update,language,\
+         stars,issues,buggy_issues,\
+         head_count,commit_count,user_count,path_count,author_count,committer_count,\
+         age".to_owned()
+    }
+
+    fn to_csv_line(&self, db: DatabasePtr) -> String {
+         format!(r#"{},"{}",{},{},{},{},{},{},{},{},{},{},{},{}"#,
+             self.id, self.url, self.last_update,
+             self.get_language().unwrap_or(String::new()),
+             self.get_stars().map_or(String::new(), |e| e.to_string()),
+             self.get_issue_count().map_or(String::new(), |e| e.to_string()),
+             self.get_buggy_issue_count().map_or(String::new(), |e| e.to_string()),
+             self.get_head_count(),
+             db.commit_count_from(&self),
+             db.user_count_from(&self),
+             db.path_count_from(&self),
+             db.author_count_from(&self),
+             db.committer_count_from(&self),
+             db.age_of(&self).map_or(String::new(), |e| e.as_secs().to_string()),
+        )
+    }
+}
+
+pub trait CSVField {
+    fn to_csv_field(&self) -> String;
+}
+
+impl CSVField for String {
+    fn to_csv_field(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl CSVField for u64 {
+    fn to_csv_field(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl CSVField for usize {
+    fn to_csv_field(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl<T> CSVField for Option<T> where T: Display {
+    fn to_csv_field(&self) -> String {
+        match self {
+            Some(value) => value.to_string(),
+            None => "".to_owned(),
+        }
+    }
+}
+
+pub struct AttributeValue<A: NamedAttribute, T: CSVField> {
+    value: T,
+    attribute_type: PhantomData<A>,
+}
+
+impl<T, A> AttributeValue<A, T> where T: CSVField, A: NamedAttribute {
+    pub fn new(_attribute: &A, value: T) -> AttributeValue<A, T> { AttributeValue { value, attribute_type: PhantomData } }
+}
+
+impl<T, A> CSVItem for AttributeValue<A, T> where T: CSVField, A: NamedAttribute {
+    fn header_line() -> String { A::name() }
+    fn to_csv_line(&self, _db: DatabasePtr) -> String { self.value.to_csv_field() }
+}
+
+#[allow(non_snake_case)]
+pub trait CSV {
+    fn to_csv(self, location: impl Into<String>) -> Result<(), std::io::Error>;
+}
+
+impl<I,T> CSV for I where I: Iterator<Item=T> + WithDatabase, T: CSVItem {
+    fn to_csv(self, location: impl Into<String>) -> Result<(), Error> {
+        let path = PathBuf::from(location.into());
+        let dir_path = { let mut dir_path = path.clone(); dir_path.pop(); dir_path };
+        create_dir_all(&dir_path).unwrap();
+
+        let mut file = File::create(path)?;
+        let database = self.get_database_ptr();
+        writeln!(file, "{}", T::header_line())?;
+        for element in self {
+            writeln!(file, "{}", element.to_csv_line(database.clone()))?;
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{Djanco, Month, DataSource, ProjectGroup, Ops, GroupOps, project, require, sample, ProjectId};
-    use crate::regex;
+    use crate::{Djanco, Month, DataSource, ProjectGroup, Ops, GroupOps, regex, project, require, sample, CSV};
 
     #[test]
     fn example() {
-        let database = Djanco::from("/dejacode/dataset-tiny", 0,
+        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0,
                                                Month::August(2020));
-        let _projects: Vec<ProjectId> = database
+        database
             .projects()
             .group_by_attrib(project::Language)
             .filter_each_by_attrib(require::AtLeast(project::Stars, 1))
-            .filter_each_by_attrib(require::AtLeast(project::Commits, 25))
-            .filter_each_by_attrib(require::AtLeast(project::Users, 2))
-            .filter_each_by_attrib(require::Same(project::Language, "Rust"))
-            .filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
+            //.filter_each_by_attrib(require::AtLeast(project::Commits, 25))
+            //.filter_each_by_attrib(require::AtLeast(project::Users, 2))
+            //.filter_each_by_attrib(require::Same(project::Language, "Rust"))
+            //.filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
             .sort_each_by_attrib(project::Stars)
-            .sample_each(sample::Top(10))
+            .sample_each(sample::Top(2))
             .squash()
-            .select(project::Id)
-            .collect();
+            //.select(project::Id)
+            .to_csv("projects.csv").unwrap()
     }
 }

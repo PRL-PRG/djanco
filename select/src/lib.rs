@@ -997,14 +997,43 @@ impl<'a> ProjectGroup<'a> for EntityIter<ProjectId, dcd::Project> {
 }
 
 /**
- * There's two thing that can happen in GroupIter. One is to sort the list of things and then
+ * There's two thing that can happen in NormilIter. One is to sort the list of things and then
  * return as you go. The other is to pre-group into a map and then yield from that. The second thing
  * happens because there's only so much time I can spend wrangling lifetimes.
+ */
+pub struct NormilIter<T> {
+    database: DatabasePtr,
+    data: Vec<T>, // TODO There's gotta be a better way to do this.
+    entity_type: PhantomData<T>,
+}
+
+impl<T> NormilIter<T> {
+    pub fn from(database: DatabasePtr, data: impl Into<Vec<T>>) -> NormilIter<T> {
+        NormilIter {
+            database,
+            data: data.into(),
+            entity_type: PhantomData,
+        }
+    }
+}
+
+impl<T> WithDatabase for NormilIter<T> {
+    fn get_database_ptr(&self) -> DatabasePtr { self.database.clone() }
+}
+
+impl<T> Iterator for NormilIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> { self.data.pop() }
+}
+
+/**
+ * There's two thing that can happen in GroupIter. One is to sort the list of things and then
+ * return as you go. The other is to pre-group into a map and then yield from that. The second thing
+ * happens because there's only so much time I can spend wrangling lifetimes (for now).
  */
 pub struct GroupIter<T, TK: PartialEq + Eq + Hash> {
     database: DatabasePtr,
     map: Vec<(TK, Vec<T>)>,
-
     entity_type: PhantomData<T>,
     key_type: PhantomData<TK>,
 }
@@ -1029,27 +1058,56 @@ impl<TK, T> Iterator for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
     fn next(&mut self) -> Option<Self::Item> { self.map.pop() }
 }
 
-// pub struct EachIter<TK: PartialEq + Eq + Hash> {
-//     database: DatabasePtr,
-//     iterator: dyn Iterator<Item=(TK, Vec<dcd::Project>)>,
-// }
+trait Ops {
+    fn filter_by_attrib(self, attrib: impl FilterEach + Clone) -> NormilIter<dcd::Project>; // tombstones?
+    fn sort_by_attrib(self, attrib: impl SortEach + Clone) -> NormilIter<dcd::Project>;
+    fn sample_by(self, attrib: impl SampleEach + Clone) -> NormilIter<dcd::Project>;
+    fn select<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> NormilIter<IntoT>;
+}
 
-// impl<TK> EachIter<TK> where TK: PartialEq + Eq + Hash + Clone {
-//     // pub fn from(database: DatabasePtr, iterator: impl Iterator<Item=(TK, Vec<dcd::Project>)>) -> EachIter<TK> {
-//     //      EachIter { database, iterator }
-//     // }
-//}
+impl Ops for NormilIter<dcd::Project> {
+    fn filter_by_attrib(self, attrib: impl FilterEach + Clone) -> NormilIter<dcd::Project> {
+        let database = self.get_database_ptr();
+        let inherited_database = self.get_database_ptr();
+        let iterator= self.into_iter().filter(|p| {
+            let database = database.clone();
+            // FIXME giving up on laziness for now
+            attrib.filter(database, /*&key,*/ p)
+        });
+        NormilIter::from(inherited_database, iterator.collect::<Vec<dcd::Project>>())
+    }
 
-// impl<TK> WithDatabase for EachIter<TK> where TK: PartialEq + Eq + Hash + Clone {
-//     fn get_database_ptr(&self) -> DatabasePtr { self.database.clone() }
-// }
+    fn sort_by_attrib(mut self, attrib: impl SortEach + Clone) -> NormilIter<dcd::Project> {
+        let database = self.get_database_ptr();
+        let inherited_database = self.get_database_ptr();
+        attrib.sort(database, &mut self.data);
+        NormilIter::from(inherited_database, self.data)
+    }
+
+    fn sample_by(self, attrib: impl SampleEach + Clone) -> NormilIter<dcd::Project> {
+        let database = self.get_database_ptr();
+        let inherited_database = self.get_database_ptr();
+        let sample = attrib.sample(database, self.data);
+        NormilIter::from(inherited_database,sample)
+    }
+
+    fn select<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> NormilIter<IntoT> {
+        let database = self.get_database_ptr();
+        let inherited_database = self.get_database_ptr();
+        let iterator =
+            self.data.into_iter().map(|p| attrib.select(database.clone(), p));
+        NormilIter::from(inherited_database,
+                         iterator.collect::<Vec<IntoT>>())
+    }
+}
 
 trait GroupOps<TK> where TK: PartialEq + Eq + Hash {
     fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<dcd::Project, TK>;
     fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<dcd::Project, TK>;
     fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<dcd::Project, TK>;
-    fn select_each<T>(self, attrib: impl SelectEach<Entity=T> + Clone) -> GroupIter<T, TK>;
+    fn select_each<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> GroupIter<IntoT, TK>;
     fn drop_key(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>>;
+    fn squash(self) -> NormilIter<dcd::Project>;
 }
 
 impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash + Clone {
@@ -1105,18 +1163,24 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
     fn drop_key(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>> {
         self.into_iter().map(|tupple| tupple.1)
     }
+
+    fn squash(self) -> NormilIter<dcd::Project> {
+        let inherited_database = self.get_database_ptr();
+        let iterator = self.into_iter().map(|tupple| tupple.1).flatten();
+        NormilIter::from(inherited_database, iterator.collect::<Vec<dcd::Project>>())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Djanco, Month, DataSource, ProjectGroup, GroupOps, project, require, sample, ProjectId};
+    use crate::{Djanco, Month, DataSource, ProjectGroup, Ops, GroupOps, project, require, sample, ProjectId};
     use crate::regex;
 
     #[test]
     fn example() {
         let database = Djanco::from("/dejacode/dataset-tiny", 0,
                                                Month::August(2020));
-        let _projects: Vec<(String, Vec<ProjectId>)> = database
+        let _projects: Vec<ProjectId> = database
             .projects()
             .group_by_attrib(project::Language)
             .filter_each_by_attrib(require::AtLeast(project::Stars, 1))
@@ -1126,9 +1190,8 @@ mod tests {
             .filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
             .sort_each_by_attrib(project::Stars)
             .sample_each(sample::Top(10))
-            .select_each(project::Id)
-            //.drop_key() TODO
-            //.flatten()  TODO
+            .squash()
+            .select(project::Id)
             .collect();
     }
 }

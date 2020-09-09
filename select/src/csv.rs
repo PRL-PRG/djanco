@@ -17,7 +17,7 @@ pub trait CSV {
     fn to_csv(self, location: impl Into<String>) -> Result<(), std::io::Error>;
 }
 
-impl<'a, I, T> CSV for I where I: Iterator<Item=T> + WithDatabase<'a> + CSVHeader, T: CSVItem {
+impl<I, T> CSV for I where I: Iterator<Item=T> + WithDatabase + CSVHeader, T: CSVItem {
     fn to_csv(self, location: impl Into<String>) -> Result<(), std::io::Error> {
         let mut file = create_file!(location)?;
         let database = self.get_database_ptr();

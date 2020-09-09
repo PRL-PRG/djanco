@@ -175,7 +175,7 @@ pub mod data {
     type Commit  = dcd::Commit;
     type User    = dcd::User;
     type Path    = dcd::FilePath;
-    type Message = String; // or whatever
+    type Message = std::vec::Vec<u8>; // or whatever
 
     pub struct Data {
         //cache_path: PathBuf, //TODO
@@ -189,7 +189,7 @@ pub mod data {
         //paths_from_project:   RefCell<BTreeMap<ProjectId, Vec<PathId>>>,
 
         pub(crate) paths_from_commit:   BTreeMap<CommitId, Vec<PathId>>,
-        pub(crate) message_from_commit: BTreeMap<CommitId, Vec<Message>>,
+        pub(crate) message_from_commit: BTreeMap<CommitId, Message>,                                // To be able to laod them separately.
     }
 
     impl Data {
@@ -199,43 +199,51 @@ pub mod data {
                 commits: warehouse.commits().into_iter().map(|commit| (CommitId::from(commit.id), commit)).collect(),
                 users: warehouse.users().into_iter().map(|user| (UserId::from(user.id), user.clone())).collect(),
                 paths: (0..warehouse.num_file_paths()).flat_map(|path_id| warehouse.get_file_path(path_id)).map(|path| (PathId::from(path.id), path)).collect(),
+
                 commits_from_project: BTreeMap::new(),
                 users_from_project: BTreeMap::new(),
                 paths_from_commit: BTreeMap::new(),
+
                 message_from_commit: BTreeMap::new(),
             };
 
-            // let project_commits: BTreeMap<ProjectId, Vec<&Commit>> =
-            //     warehouse.project_ids_and_their_commit_ids().into_iter()
-            //         .map(|(id, commit_ids)| {
-            //             let commits: Vec<&Commit> =
-            //                 commit_ids.into_iter()
-            //                     .map(|commit_id| data.commits.get(&CommitId::from(commit_id)).unwrap())
-            //                     .collect();
-            //
-            //             (ProjectId::from(id), commits)
-            //         }).collect();
-            //
-            // data.commits_from_project = project_commits;
+            let project_commits =
+                warehouse.project_ids_and_their_commit_ids().into_iter()
+                    .map(|(id, commit_ids)|
+                        (ProjectId::from(id),
+                         commit_ids.into_iter()
+                             .map(|commit_id| CommitId::from(commit_id))
+                             .collect())
+                    );
+            data.commits_from_project = project_commits.collect();
 
-            // let project_users =
-            //     warehouse.project_ids_and_their_commit_ids().into_iter()
-            //         .map(|(id, commit_ids)| {
-            //             let commits: Vec<&Commit> =
-            //                 commit_ids.into_iter()
-            //                     .map(|commit_id| data.commits.get(&CommitId::from(commit_id)).unwrap())
-            //                     .collect();
-            //
-            //             let users: Vec<&User> =
-            //                 commits.iter()
-            //                     .flat_map(|commit| vec![commit.author_id, commit.committer_id])
-            //                     .unique()
-            //                     .map(|user_id| data.users.get(&UserId::from(user_id)).unwrap())
-            //                     .collect();
-            //
-            //             (ProjectId::from(id), users)
-            //         });
-            // data.users_from_project.extend(project_users);
+            let project_users =
+                warehouse.project_ids_and_their_commit_ids().into_iter()
+                    .map(|(id, commit_ids)|
+                        (ProjectId::from(id),
+                         commit_ids.into_iter()
+                            .map(|commit_id| data.commits.get(&CommitId::from(commit_id)).unwrap())
+                             .flat_map(|commit| vec![commit.author_id, commit.committer_id])
+                             .unique()
+                             .map(|user_id| UserId::from(user_id))
+                             .collect()));
+            data.users_from_project = project_users.collect();
+
+            let commit_paths = data.commits.iter()
+                .map(|(commit_id, commit)|
+                    (*commit_id,
+                     commit.changes.as_ref().map_or(vec![], |changes| {
+                         changes.into_iter()
+                             .map(|(path_id, _)| PathId::from(*path_id))
+                             .collect()
+                     })));
+            data.paths_from_commit = commit_paths.collect();
+
+            let commit_messages = data.commits.iter()
+                .flat_map(|(commit_id, commit)| {
+                    commit.message.as_ref().map(|message| (*commit_id, message.clone()))
+                });
+            data.message_from_commit = commit_messages.collect();
 
             data
         }
@@ -335,11 +343,9 @@ impl Djanco {
 
         // let mut data = data::Data::new();
         //
-        // let warehouse = DCD::new(self.path_as_string());
+
         //
-        // if self.project_filters.is_empty() {
-        //
-        // }
+
         //
         // for project in warehouse.projects() {
         //     let commits = warehouse.commits_from(&project);
@@ -347,7 +353,12 @@ impl Djanco {
         //
         // }
 
-        unimplemented!();
+        let warehouse = DCD::new(self.path_as_string());
+        if self.project_filters.is_empty() {
+            self.data.replace(Some(Data::from(warehouse)));
+        } else {
+            unimplemented!()
+        }
 
         Ok(())
     }

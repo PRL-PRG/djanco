@@ -198,8 +198,8 @@ impl Djanco {
 impl DataSource for Djanco {
     fn project_count(&self) -> usize { self.warehouse.num_projects()   as usize }
     fn commit_count(&self)  -> usize { self.warehouse.num_commits()    as usize }
-    fn path_count(&self)    -> usize { self.warehouse.num_file_paths() as usize }
     fn user_count(&self)    -> usize { self.warehouse.num_users()      as usize }
+    fn path_count(&self)    -> usize { self.warehouse.num_file_paths() as usize }
 
     fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { self.warehouse.get_project(id.into())     }
     fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { self.warehouse.get_commit(id.into())      }

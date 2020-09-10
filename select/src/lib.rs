@@ -28,7 +28,6 @@ use std::fmt::Display;
 use crate::meta::ProjectMeta;
 use crate::csv::{WithNames, WithStaticNames};
 use crate::data::Data;
-//use std::slice::Iter;
 
 pub enum Month {
     January(u16),
@@ -104,10 +103,20 @@ impl Into<usize> for CommitId  { fn into(self) -> usize { self.0 as usize } }
 impl Into<usize> for UserId    { fn into(self) -> usize { self.0 as usize } }
 impl Into<usize> for PathId    { fn into(self) -> usize { self.0 as usize } }
 
+impl Into<usize> for &ProjectId { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for &CommitId  { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for &UserId    { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for &PathId    { fn into(self) -> usize { self.0 as usize } }
+
 impl Into<u64>   for ProjectId { fn into(self) -> u64 { self.0 } }
 impl Into<u64>   for CommitId  { fn into(self) -> u64 { self.0 } }
 impl Into<u64>   for UserId    { fn into(self) -> u64 { self.0 } }
 impl Into<u64>   for PathId    { fn into(self) -> u64 { self.0 } }
+
+impl Into<u64>   for &ProjectId { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for &CommitId  { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for &UserId    { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for &PathId    { fn into(self) -> u64 { self.0 } }
 
 impl From<usize> for ProjectId { fn from(n: usize) -> Self { ProjectId(n as u64) } }
 impl From<usize> for CommitId  { fn from(n: usize) -> Self { CommitId(n as u64)  } }
@@ -165,11 +174,12 @@ pub enum LogLevel { Quiet, Verbose }
 
 pub mod data {
     use std::collections::BTreeMap;
-    use crate::{ProjectId, CommitId, UserId, PathId};
+    use crate::{ProjectId, CommitId, UserId, PathId, FilterEach, LoadFilter};
     use std::collections::btree_map::Keys;
     use std::cell::RefCell;
     use dcd::{DCD, Database};
     use itertools::Itertools;
+    use std::borrow::Borrow;
 
     type Project = dcd::Project;
     type Commit  = dcd::Commit;
@@ -186,6 +196,8 @@ pub mod data {
 
         pub(crate) commits_from_project: BTreeMap<ProjectId, Vec<CommitId>>,
         pub(crate) users_from_project:   BTreeMap<ProjectId, Vec<UserId>>,
+        //pub(crate) authors_from_project:   BTreeMap<ProjectId, Vec<UserId>>,
+        //pub(crate) committers_from_project:   BTreeMap<ProjectId, Vec<UserId>>,
         //paths_from_project:   RefCell<BTreeMap<ProjectId, Vec<PathId>>>,
 
         pub(crate) paths_from_commit:   BTreeMap<CommitId, Vec<PathId>>,
@@ -246,6 +258,124 @@ pub mod data {
             data.message_from_commit = commit_messages.collect();
 
             data
+        }
+
+        pub fn from_filtered(warehouse: DCD, project_filters: Vec<Box<dyn LoadFilter>>) -> Self {
+            let commits_from_project: BTreeMap<ProjectId, Vec<CommitId>> =
+                warehouse.project_ids_and_their_commit_ids()
+                    .filter(|(project_id, commit_ids)| {
+                        project_filters.iter().all(|filter| {
+                            filter.filter(&warehouse, project_id, commit_ids)
+                            // TODO We could probably speed up by creating dcd::Project early and reausing it.
+                        })
+                    })
+                    .map(|(project_id, commit_ids)| {
+                        (ProjectId::from(project_id),
+                         commit_ids.iter().map(|commit_id|
+                             CommitId::from(*commit_id)).collect())
+                    })
+                    .collect();
+
+            let projects: BTreeMap<ProjectId, Project> =
+                commits_from_project.iter()
+                    .flat_map(|(project_id, _)| warehouse.get_project(project_id.into()))
+                    .map(|project| (ProjectId::from(project.id), project) )
+                    .collect();
+
+            let commits: BTreeMap<CommitId, Commit> =
+                commits_from_project.iter()
+                    .flat_map(|(_, commit_ids)| commit_ids)
+                    .unique()
+                    .flat_map(|commit_id| warehouse.get_commit(commit_id.into()))
+                    .map(|commit| (CommitId::from(commit.id), commit))
+                    .collect();
+
+            let users_from_project: BTreeMap<ProjectId, Vec<UserId>> =
+                commits_from_project.iter()
+                    .map(|(project_id, commit_ids)| {
+                        (*project_id,
+                         commit_ids.iter().flat_map(|commit_id| {
+                             commits
+                                 .get(commit_id)
+                                 .map_or(Default::default(), |commit| {
+                                     if commit.author_id == commit.committer_id {
+                                         vec![commit.author_id]
+                                     } else {
+                                         vec![commit.author_id,
+                                              commit.committer_id]
+                                     }
+                                 })
+                         })
+                         .unique()
+                         .map(|user_id| UserId::from(user_id))
+                         .collect::<Vec<UserId>>())
+                    })
+                    .collect();
+
+            let users: BTreeMap<UserId, User> =
+                commits.iter()
+                    .flat_map(|(_, commit)| vec![commit.author_id, commit.committer_id])
+                    .unique()
+                    .flat_map(|user_id| warehouse.get_user(user_id.into()))
+                    .map(|user| (UserId::from(user.id), user.clone()))
+                    .collect();
+
+            // let paths: BTreeMap<PathId, Path> =
+            //     commits.iter()
+            //         .flat_map(|(_, commit)| {
+            //             commit.changes.as_ref()
+            //                 .map_or(vec![], |changes| {
+            //                     changes.iter()
+            //                         .map(|(path_id, _snapshot_id)| *path_id)
+            //                         .unique()
+            //                         .collect::<Vec<dcd::PathId>>()
+            //                 })
+            //          })
+            //         .unique()
+            //         .flat_map(|path_id| warehouse.get_file_path(path_id.into()))
+            //         .map(|path| (PathId::from(path.id), path))
+            //         .collect();
+
+            let paths_from_commit: BTreeMap<CommitId, Vec<PathId>> =
+                commits.iter()
+                    .map(|(commit_id, commit)| {
+                        (*commit_id,
+                         commit.changes.as_ref()
+                             .map_or(Default::default(), |changes| {
+                                 changes.iter()
+                                     .map(|(path_id, _snapshot_id)| *path_id)
+                                     .unique()
+                                     .map(|path_id| PathId::from(path_id))
+                                     .collect::<Vec<PathId>>()
+                             }))
+                    })
+                    .collect();
+
+            let paths: BTreeMap<PathId, Path> =
+                paths_from_commit.iter()
+                    .flat_map(|(_, path_ids)| path_ids)
+                    .unique()
+                    .flat_map(|path_id| warehouse.get_file_path(path_id.into()))
+                    .map(|path| (PathId::from(path.id), path) )
+                    .collect();
+
+            let message_from_commit: BTreeMap<CommitId, Message> =
+                commits.iter()
+                    .flat_map(|(commit_id, commit)| {
+                        commit.message.as_ref().map(|message| (*commit_id, message.clone()))
+                    })
+                    .collect();
+
+            Data {
+                projects,
+                commits,
+                users,
+                paths,
+                commits_from_project,
+                users_from_project,
+                paths_from_commit,
+                message_from_commit,
+            }
         }
 
         pub fn project_count(&self) -> usize { self.projects.len() }
@@ -338,26 +468,11 @@ impl Djanco {
     }
 
     fn load_from_warehouse(&mut self) -> Result<(), std::io::Error/*make custom error type*/> {
-        //let mut_me = self.me.as_ref().unwrap().upgrade().unwrap().borrow_mut();
-        //mut_me.warehouse = None;
-
-        // let mut data = data::Data::new();
-        //
-
-        //
-
-        //
-        // for project in warehouse.projects() {
-        //     let commits = warehouse.commits_from(&project);
-        //     let commits = warehouse.users_from(&project);
-        //
-        // }
-
         let warehouse = DCD::new(self.path_as_string());
         if self.project_filters.is_empty() {
             self.data.replace(Some(Data::from(warehouse)));
         } else {
-            unimplemented!()
+
         }
 
         Ok(())
@@ -376,8 +491,6 @@ impl Djanco {
         self
     }
 }
-
-
 
 impl DataSource for Djanco {
     fn project_count(&self) -> usize {
@@ -967,6 +1080,10 @@ impl<A, T> AttributeValue<A, T> where A: Attribute {
     pub fn new(_attribute: &A, value: T) -> AttributeValue<A, T> {
         AttributeValue { value, attribute_type: PhantomData }
     }
+}
+
+pub trait LoadFilter {
+    fn filter(&self, database: &DCD, /*key: &Self::Key,*/ project_id: &dcd::ProjectId, commit_ids: &Vec<dcd::CommitId>) -> bool;
 }
 
 pub trait Group {

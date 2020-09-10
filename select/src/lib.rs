@@ -986,7 +986,7 @@ impl Djanco {
         Ok(())
     }
 
-    fn path_as_string(&self) -> String {
+    pub fn path_as_string(&self) -> String {
         self.path.as_os_str().to_str().unwrap().to_string()
     }
 
@@ -1216,7 +1216,6 @@ pub struct ProjectEntityIter<T> {
     visited_commits: HashSet<u64>,
     to_visit_commits: VecDeque<u64>,
 
-    snappy: bool,  // TODO encode this in types?
     authors: bool,
     committers: bool,
 
@@ -1235,28 +1234,9 @@ impl<T> ProjectEntityIter<T> {
 
         ProjectEntityIter {
             visited_commits, to_visit_commits, database,
-            snappy: false, committers: true, authors: true,
+            committers: true, authors: true,
             _entity: PhantomData, desired_cache_size: 100,
             entity_cache: VecDeque::new(), seen_entities: HashSet::new(),
-        }
-    }
-
-    /**
-     * In snappy mode, the iterator will load only bare bones versions of objects (currently this
-     * applies only to commits). This dramatically increases performance.
-     */
-    pub fn and_make_it_snappy(self) -> Self {
-        ProjectEntityIter {
-            visited_commits: self.visited_commits,
-            to_visit_commits: self.to_visit_commits,
-            database: self.database,
-            _entity: PhantomData,
-            snappy: true,
-            committers: self.committers,
-            authors: self.authors,
-            desired_cache_size: self.desired_cache_size,
-            entity_cache: self.entity_cache,
-            seen_entities: self.seen_entities,
         }
     }
 
@@ -1266,7 +1246,6 @@ impl<T> ProjectEntityIter<T> {
             to_visit_commits: self.to_visit_commits,
             database: self.database,
             _entity: PhantomData,
-            snappy: self.snappy,
             committers: false,
             authors: self.authors,
             desired_cache_size: self.desired_cache_size,
@@ -1281,7 +1260,6 @@ impl<T> ProjectEntityIter<T> {
             to_visit_commits: self.to_visit_commits,
             database: self.database,
             _entity: PhantomData,
-            snappy: self.snappy,
             committers: self.committers,
             authors: false,
             desired_cache_size: self.desired_cache_size,
@@ -1421,20 +1399,12 @@ impl Iterator for ProjectEntityIter<Path> {
 pub struct EntityIter<TI: From<usize> + Into<u64>, T> {
     database: DatabasePtr,
     ids: Box<dyn Iterator<Item=TI>>,
-    snappy: bool,
     _entity: PhantomData<T>,
 }
 
 impl<TI, T> EntityIter<TI, T> where TI: From<usize> + Into<u64> {
     pub fn from(database: DatabasePtr, ids: impl Iterator<Item=TI> + 'static) -> EntityIter<TI, T> {
-        EntityIter { ids: Box::new(ids), database, _entity: PhantomData, snappy: false }
-    }
-    /**
-     * In snappy mode, the iterator will load only bare bones versions of objects (currently this
-     * applies only to commits). This dramatically increases performance.
-     */
-    pub fn and_make_it_snappy(self) -> Self {
-        EntityIter { ids: self.ids, database: self.database, _entity: PhantomData, snappy: true }
+        EntityIter { ids: Box::new(ids), database, _entity: PhantomData }
     }
 }
 

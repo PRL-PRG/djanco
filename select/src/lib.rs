@@ -15,7 +15,7 @@ use itertools::{Itertools, MinMaxResult};
 //use crate::meta::*;
 use std::hash::Hash;
 use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref};
 use std::ops::Range;
 use std::borrow::Borrow;
 use std::iter::Map;
@@ -167,10 +167,10 @@ trait DataSource {
     fn user_count(&self)    -> usize;
     fn path_count(&self)    -> usize;
 
-    fn project(&self, id: ProjectId)    -> Option<Project>;
-    fn commit(&self, id: CommitId)      -> Option<Commit>;
-    fn user(&self, id: UserId)          -> Option<User>;
-    fn path(&self, id: PathId)          -> Option<Path>;
+    fn project(&self, id: &ProjectId)    -> Option<&Project>;
+    fn commit(&self, id: &CommitId)      -> Option<&Commit>;
+    fn user(&self, id: &UserId)          -> Option<&User>;
+    fn path(&self, id: &PathId)          -> Option<&Path>;
 
     fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId>;
     fn commit_ids(&self)  -> Map<Range<usize>, fn(usize) -> CommitId>;
@@ -945,8 +945,7 @@ pub struct Djanco {
     path: PathBuf,
 
     filters: Vec<Box<dyn LoadFilter>>,
-
-    data: RefCell<Option<Data>>,
+    data: Option<Data>,
 }
 
 impl Djanco {
@@ -963,8 +962,35 @@ impl Djanco {
             timestamp: timestamp.into(),
             seed,
             filters: vec![],
-            data: RefCell::new(None),
+            data: None,
         };
+        let pointer: DatabasePtr = Rc::new(RefCell::new(database));
+
+        // Things we do to avoid unsafe.
+        pointer.borrow_mut().me = Some(Rc::downgrade(&pointer));
+        pointer
+    }
+
+    pub fn instantiate(self) -> DatabasePtr {
+        let warehouse = DCD::new(self.path_as_string());
+
+        let data = if self.filters.is_empty() {
+            Data::from(&warehouse, &self.verbosity)
+        } else {
+            Data::from_filtered(&warehouse, &self.filters, &self.verbosity)
+        };
+
+        let database = Djanco {
+            //warehouse: Some(warehouse),
+            verbosity: self.verbosity,
+            me: None,
+            path: self.path,
+            timestamp: self.timestamp,
+            seed: self.seed,
+            filters: self.filters,
+            data: Some(data),
+        };
+
         let pointer: DatabasePtr = Rc::new(RefCell::new(database));
 
         // Things we do to avoid unsafe.
@@ -976,15 +1002,14 @@ impl Djanco {
         self.me.as_ref().unwrap().upgrade().unwrap()
     }
 
-    fn load_from_warehouse(&mut self) -> Result<(), std::io::Error/*make custom error type*/> {
-        let warehouse = DCD::new(self.path_as_string());
-        if self.filters.is_empty() {
-            self.data.replace(Some(Data::from(&warehouse, &self.verbosity)));
-        } else {
-            self.data.replace(Some(Data::from_filtered(&warehouse, &self.filters, &self.verbosity)));
-        }
-        Ok(())
-    }
+    // fn load_from_warehouse(&self) -> Data {
+    //     let warehouse = DCD::new(self.path_as_string());
+    //     if self.filters.is_empty() {
+    //         Data::from(&warehouse, &self.verbosity)))
+    //     } else {
+    //         Data::from_filtered(&warehouse, &self.filters, &self.verbosity))
+    //     }
+    // }
 
     pub fn path_as_string(&self) -> String {
         self.path.as_os_str().to_str().unwrap().to_string()
@@ -1003,6 +1028,9 @@ impl Djanco {
 impl DataSource for Djanco {
     fn project_count(&self) -> usize {
         unimplemented!()
+        //let db = self.clone().instantiate();
+        //let db2: &RefCell<Djanco> = db.borrow();
+        //db.project_count()
     }
 
     fn commit_count(&self) -> usize {
@@ -1017,19 +1045,19 @@ impl DataSource for Djanco {
         unimplemented!()
     }
 
-    fn project(&self, id: ProjectId) -> Option<Project> {
+    fn project(&self, id: &ProjectId) -> Option<&Project> {
         unimplemented!()
     }
 
-    fn commit(&self, id: CommitId) -> Option<Commit> {
+    fn commit(&self, id: &CommitId) -> Option<&Commit> {
         unimplemented!()
     }
 
-    fn user(&self, id: UserId) -> Option<User> {
+    fn user(&self, id: &UserId) -> Option<&User> {
         unimplemented!()
     }
 
-    fn path(&self, id: PathId) -> Option<Path> {
+    fn path(&self, id: &PathId) -> Option<&Path> {
         unimplemented!()
     }
 
@@ -1367,7 +1395,7 @@ impl Iterator for ProjectEntityIter<User> {
                 self.next_id_from_cache();
 
             if let Some(id) = id_opt {
-                return self.database.user(UserId::from(id))
+                return self.database.user(&UserId::from(id)).map(|e| e.clone())
             }
 
             if !self.populate_cache() {
@@ -1386,7 +1414,7 @@ impl Iterator for ProjectEntityIter<Path> {
                 self.next_id_from_cache();
 
             if let Some(id) = id_opt {
-                return self.database.path(PathId::from(id))
+                return self.database.path(&PathId::from(id)).map(|e| e.clone())
             }
 
             if !self.populate_cache() {
@@ -1411,14 +1439,14 @@ impl<TI, T> EntityIter<TI, T> where TI: From<usize> + Into<u64> {
 impl Iterator for EntityIter<ProjectId, Project> {
     type Item = Project;
     fn next(&mut self) -> Option<Self::Item> {
-        self.ids.next().map(|id| self.database.project(id.into())).flatten()
+        self.ids.next().map(|id| self.database.project(&id.into()).map(|e| e.clone())).flatten()
     }
 }
 
 impl Iterator for EntityIter<CommitId, Commit> { // FIXME also bare commit
     type Item = Commit;
     fn next(&mut self) -> Option<Self::Item> {
-        self.ids.next().map(|id| self.database.commit(id.into())).flatten()
+        self.ids.next().map(|id| self.database.commit(&id.into()).map(|e| e.clone())).flatten()
     }
 }
 
@@ -1430,52 +1458,148 @@ impl DataSource for DatabasePtr {
     fn user_count(&self)    -> usize { untangle!(self).user_count()   }
     fn path_count(&self)    -> usize { untangle!(self).path_count()   }
 
-    fn project(&self, id: ProjectId)    -> Option<Project> { untangle!(self).project(id) }
-    fn commit(&self, id: CommitId)      -> Option<Commit>  { untangle!(self).commit(id)  }
-    fn user(&self, id: UserId)          -> Option<User>    { untangle!(self).user(id)    }
-    fn path(&self, id: PathId)          -> Option<Path>    { untangle!(self).path(id)    }
+    fn project(&self, id: &ProjectId) -> Option<&Project> {
+        unimplemented!()
+    }
 
-    fn project_ids(&self) -> Map<Range<usize>, fn(usize)->ProjectId> { untangle!(self).project_ids() }
-    fn commit_ids(&self)  -> Map<Range<usize>, fn(usize)->CommitId>  { untangle!(self).commit_ids()  }
-    fn user_ids(&self)    -> Map<Range<usize>, fn(usize)->UserId>    { untangle!(self).user_ids()    }
-    fn path_ids(&self)    -> Map<Range<usize>, fn(usize)->PathId>    { untangle!(self).path_ids()    }
+    fn commit(&self, id: &CommitId) -> Option<&Commit> {
+        unimplemented!()
+    }
 
-    fn projects(&self)     -> EntityIter<ProjectId, Project> { untangle!(self).projects()     }
-    fn commits(&self)      -> EntityIter<CommitId, Commit>   { untangle!(self).commits()      }
-    fn users(&self)        -> EntityIter<UserId, User>       { untangle!(self).users()        }
-    fn paths(&self)        -> EntityIter<PathId, Path>   { untangle!(self).paths()        }
+    fn user(&self, id: &UserId) -> Option<&User> {
+        unimplemented!()
+    }
+
+    fn path(&self, id: &PathId) -> Option<&Path> {
+        unimplemented!()
+    }
+
+    fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId> {
+        unimplemented!()
+    }
+
+    fn commit_ids(&self) -> Map<Range<usize>, fn(usize) -> CommitId> {
+        unimplemented!()
+    }
+
+    fn user_ids(&self) -> Map<Range<usize>, fn(usize) -> UserId> {
+        unimplemented!()
+    }
+
+    fn path_ids(&self) -> Map<Range<usize>, fn(usize) -> PathId> {
+        unimplemented!()
+    }
+
+    fn projects(&self) -> EntityIter<ProjectId, Project> {
+        unimplemented!()
+    }
+
+    fn commits(&self) -> EntityIter<CommitId, Commit> {
+        unimplemented!()
+    }
+
+    fn users(&self) -> EntityIter<UserId, User> {
+        unimplemented!()
+    }
+
+    fn paths(&self) -> EntityIter<PathId, Path> {
+        unimplemented!()
+    }
 
     fn commits_from(&self, project: &ProjectId) -> ProjectEntityIter<Commit> {
-        untangle!(self).commits_from(project)
+        unimplemented!()
     }
+
     fn paths_from(&self, project: &ProjectId) -> ProjectEntityIter<Path> {
-        untangle!(self).paths_from(project)
+        unimplemented!()
     }
+
     fn users_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
-        untangle!(self).users_from(project)
+        unimplemented!()
     }
+
     fn authors_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
-        untangle!(self).authors_from(project)
+        unimplemented!()
     }
+
     fn committers_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
-        untangle!(self).committers_from(project)
+        unimplemented!()
     }
 
-    fn commit_count_from(&self, project: &ProjectId)    -> usize { untangle!(self).commit_count_from(project)    }
-    fn path_count_from(&self, project: &ProjectId)      -> usize { untangle!(self).path_count_from(project)      }
-    fn user_count_from(&self, project: &ProjectId)      -> usize { untangle!(self).user_count_from(project)      }
-    fn author_count_from(&self, project: &ProjectId)    -> usize { untangle!(self).author_count_from(project)    }
-    fn committer_count_from(&self, project: &ProjectId) -> usize { untangle!(self).committer_count_from(project) }
+    fn commit_count_from(&self, project: &ProjectId) -> usize {
+        unimplemented!()
+    }
 
-    fn age_of(&self, project: &ProjectId) -> Option<Duration> { untangle!(self).age_of(project) }
+    fn path_count_from(&self, project: &ProjectId) -> usize {
+        unimplemented!()
+    }
 
-    fn seed(&self) -> u128 { untangle!(self).seed() }
+    fn user_count_from(&self, project: &ProjectId) -> usize {
+        unimplemented!()
+    }
+
+    fn author_count_from(&self, project: &ProjectId) -> usize {
+        unimplemented!()
+    }
+
+    fn committer_count_from(&self, project: &ProjectId) -> usize {
+        unimplemented!()
+    }
+
+    fn age_of(&self, project: &ProjectId) -> Option<Duration> {
+        unimplemented!()
+    }
+
+    fn seed(&self) -> u128 {
+        unimplemented!()
+    }
+
+    // fn project(&self, id: &ProjectId)    -> Option<&Project> { untangle!(self).project(id) }
+    // fn commit(&self, id: &CommitId)      -> Option<&Commit>  { untangle!(self).commit(id)  }
+    // fn user(&self, id: &UserId)          -> Option<&User>    { untangle!(self).user(id)    }
+    // fn path(&self, id: &PathId)          -> Option<&Path>    { untangle!(self).path(id)    }
+    //
+    // fn project_ids(&self) -> Map<Range<usize>, fn(usize)->ProjectId> { untangle!(self).project_ids() }
+    // fn commit_ids(&self)  -> Map<Range<usize>, fn(usize)->CommitId>  { untangle!(self).commit_ids()  }
+    // fn user_ids(&self)    -> Map<Range<usize>, fn(usize)->UserId>    { untangle!(self).user_ids()    }
+    // fn path_ids(&self)    -> Map<Range<usize>, fn(usize)->PathId>    { untangle!(self).path_ids()    }
+    //
+    // fn projects(&self)     -> EntityIter<ProjectId, Project> { untangle!(self).projects()     }
+    // fn commits(&self)      -> EntityIter<CommitId, Commit>   { untangle!(self).commits()      }
+    // fn users(&self)        -> EntityIter<UserId, User>       { untangle!(self).users()        }
+    // fn paths(&self)        -> EntityIter<PathId, Path>   { untangle!(self).paths()        }
+    //
+    // fn commits_from(&self, project: &ProjectId) -> ProjectEntityIter<Commit> {
+    //     untangle!(self).commits_from(project)
+    // }
+    // fn paths_from(&self, project: &ProjectId) -> ProjectEntityIter<Path> {
+    //     untangle!(self).paths_from(project)
+    // }
+    // fn users_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
+    //     untangle!(self).users_from(project)
+    // }
+    // fn authors_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
+    //     untangle!(self).authors_from(project)
+    // }
+    // fn committers_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
+    //     untangle!(self).committers_from(project)
+    // }
+    //
+    // fn commit_count_from(&self, project: &ProjectId)    -> usize { untangle!(self).commit_count_from(project)    }
+    // fn path_count_from(&self, project: &ProjectId)      -> usize { untangle!(self).path_count_from(project)      }
+    // fn user_count_from(&self, project: &ProjectId)      -> usize { untangle!(self).user_count_from(project)      }
+    // fn author_count_from(&self, project: &ProjectId)    -> usize { untangle!(self).author_count_from(project)    }
+    // fn committer_count_from(&self, project: &ProjectId) -> usize { untangle!(self).committer_count_from(project) }
+    //
+    // fn age_of(&self, project: &ProjectId) -> Option<Duration> { untangle!(self).age_of(project) }
+    //
+    // fn seed(&self) -> u128 { untangle!(self).seed() }
 }
 
 impl Iterator for EntityIter<UserId, User> {
     type Item = User;
     fn next(&mut self) -> Option<Self::Item> {
-        self.ids.next().map(move |id| self.database.clone().user(id.into())).flatten()
+        self.ids.next().map(move |id| self.database.clone().user(&id).map(|e| e.clone())).flatten()
     }
 }
 
@@ -1488,7 +1612,7 @@ impl Iterator for EntityIter<PathId, Path> {
         //     let x = (*(self.database.clone())).borrow();
         //     x.path(id.into())
         // }).flatten()
-        self.ids.next().map(move |id| self.database.clone().path(id.into())).flatten()
+        self.ids.next().map(move |id| self.database.clone().path(&id).map(|e| e.clone())).flatten()
     }
 }
 

@@ -2,6 +2,7 @@ use crate::{WithDatabase, DatabasePtr, DataSource, ProjectId, CommitId, UserId, 
 use crate::meta::ProjectMeta;
 use std::io::Write;
 use crate::project::{Id, URL, Stars, Issues, BuggyIssues, Heads, Commits, Users, Paths, Language, Metadata};
+use crate::data::{Project, User, Path, Commit};
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -66,7 +67,7 @@ impl WithStaticNames for Commits     { fn names() -> Vec<&'static str> { vec!["c
 impl WithStaticNames for Users       { fn names() -> Vec<&'static str> { vec!["users"]   } }
 impl WithStaticNames for Paths       { fn names() -> Vec<&'static str> { vec!["paths"]   } }
 
-impl WithStaticNames for dcd::Project {
+impl WithStaticNames for Project {
     fn names() -> Vec<&'static str> {
         vec!["key", "id", "url", "last_update", "language",
              "stars", "issues", "buggy_issues",
@@ -76,15 +77,15 @@ impl WithStaticNames for dcd::Project {
     }
 }
 
-impl WithStaticNames for dcd::Commit {
+impl WithStaticNames for Commit {
     fn names() -> Vec<&'static str> { unimplemented!() }
 }
 
-impl WithStaticNames for dcd::User {
+impl WithStaticNames for User {
     fn names() -> Vec<&'static str> { unimplemented!() }
 }
 
-impl WithStaticNames for dcd::FilePath {
+impl WithStaticNames for Path {
     fn names() -> Vec<&'static str> { unimplemented!() }
 }
 
@@ -111,10 +112,10 @@ impl WithNames for Commits       { fn names(&self) -> Vec<String> { to_owned_vec
 impl WithNames for Users         { fn names(&self) -> Vec<String> { to_owned_vec![<Self as WithStaticNames>::names()] } }
 impl WithNames for Paths         { fn names(&self) -> Vec<String> { to_owned_vec![<Self as WithStaticNames>::names()] } }
 
-impl WithNames for dcd::Project  { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
-impl WithNames for dcd::User     { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
-impl WithNames for dcd::FilePath { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
-impl WithNames for dcd::Commit   { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
+impl WithNames for Project       { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
+impl WithNames for User          { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
+impl WithNames for Path          { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
+impl WithNames for Commit        { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
 
 #[allow(non_snake_case)]
 pub trait CSVHeader { fn header(&self) -> String; }
@@ -148,21 +149,21 @@ impl CSVItem for CommitId  { fn to_csv(&self, db: DatabasePtr) -> String { self.
 impl CSVItem for UserId    { fn to_csv(&self, db: DatabasePtr) -> String { self.0.to_csv(db) } }
 impl CSVItem for PathId    { fn to_csv(&self, db: DatabasePtr) -> String { self.0.to_csv(db) } }
 
-impl CSVItem for dcd::Project {
+impl CSVItem for Project {
     fn to_csv(&self, db: DatabasePtr) -> String {
         format!(r#"{},{},{},{},{},{},{},{},{},{},{},{},{},{}"#,
                 self.id, self.url, self.last_update,
-                self.get_language().unwrap_or(String::new()),
-                self.get_stars().map_or(String::new(), |e| e.to_string()),
-                self.get_issue_count().map_or(String::new(), |e| e.to_string()),
-                self.get_buggy_issue_count().map_or(String::new(), |e| e.to_string()),
-                self.get_head_count(),
-                db.commit_count_from(&self),
-                db.user_count_from(&self),
-                db.path_count_from(&self),
-                db.author_count_from(&self),
-                db.committer_count_from(&self),
-                db.age_of(&self).map_or(String::new(), |e| e.as_secs().to_string()),
+                self.language_or_empty(),
+                self.stars.map_or(String::new(), |e| e.to_string()),
+                self.issues.map_or(String::new(), |e| e.to_string()),
+                self.buggy_issues.map_or(String::new(), |e| e.to_string()),
+                self.heads.len(),
+                db.commit_count_from(&self.id),
+                db.user_count_from(&self.id),
+                db.path_count_from(&self.id),
+                db.author_count_from(&self.id),
+                db.committer_count_from(&self.id),
+                db.age_of(&self.id).map_or(String::new(), |e| e.as_secs().to_string()),
         )
     }
 }

@@ -24,10 +24,10 @@ use std::io::{Error, Write};
 use std::fs::{create_dir_all, File};
 use std::time::Duration;
 use std::cmp::Ordering;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use crate::meta::ProjectMeta;
 use crate::csv::{WithNames, WithStaticNames};
-use crate::data::Data;
+use crate::data::{Data, Project, Commit, User, Path};
 
 pub enum Month {
     January(u16),
@@ -98,6 +98,16 @@ impl Into<i64>           for Month { fn into(self) -> i64 { self.into_datetime()
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct UserId(u64);
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct PathId(u64);
 
+impl ProjectId { fn to_string(&self) -> String { self.0.to_string() } }
+impl CommitId  { fn to_string(&self) -> String { self.0.to_string() } }
+impl UserId    { fn to_string(&self) -> String { self.0.to_string() } }
+impl PathId    { fn to_string(&self) -> String { self.0.to_string() } }
+
+impl Into<String> for ProjectId { fn into(self) -> String { self.0.to_string() } }
+impl Into<String> for CommitId  { fn into(self) -> String { self.0.to_string() } }
+impl Into<String> for UserId    { fn into(self) -> String { self.0.to_string() } }
+impl Into<String> for PathId    { fn into(self) -> String { self.0.to_string() } }
+
 impl Into<usize> for ProjectId { fn into(self) -> usize { self.0 as usize } }
 impl Into<usize> for CommitId  { fn into(self) -> usize { self.0 as usize } }
 impl Into<usize> for UserId    { fn into(self) -> usize { self.0 as usize } }
@@ -138,43 +148,53 @@ impl From<&u64>   for CommitId  { fn from(n: &u64) -> Self { CommitId(*n)  } }
 impl From<&u64>   for UserId    { fn from(n: &u64) -> Self { UserId(*n)    } }
 impl From<&u64>   for PathId    { fn from(n: &u64) -> Self { PathId(*n)    } }
 
+impl Display for ProjectId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+}
+impl Display for CommitId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+}
+impl Display for UserId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+}
+impl Display for PathId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+}
+
 trait DataSource {
     fn project_count(&self) -> usize;
     fn commit_count(&self)  -> usize;
     fn user_count(&self)    -> usize;
     fn path_count(&self)    -> usize;
 
-    fn project(&self, id: ProjectId)    -> Option<dcd::Project>;
-    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>;
-    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>;
-    fn user(&self, id: UserId)          -> Option<dcd::User>;
-    fn path(&self, id: PathId)          -> Option<dcd::FilePath>;
+    fn project(&self, id: ProjectId)    -> Option<Project>;
+    fn commit(&self, id: CommitId)      -> Option<Commit>;
+    fn user(&self, id: UserId)          -> Option<User>;
+    fn path(&self, id: PathId)          -> Option<Path>;
 
     fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId>;
     fn commit_ids(&self)  -> Map<Range<usize>, fn(usize) -> CommitId>;
     fn user_ids(&self)    -> Map<Range<usize>, fn(usize) -> UserId>;
     fn path_ids(&self)    -> Map<Range<usize>, fn(usize) -> PathId>;
 
-    fn projects(&self)     -> EntityIter<ProjectId, dcd::Project>;
-    fn commits(&self)      -> EntityIter<CommitId,  dcd::Commit>;
-    fn bare_commits(&self) -> EntityIter<CommitId,  dcd::Commit>;
-    fn users(&self)        -> EntityIter<UserId,    dcd::User>;
-    fn paths(&self)        -> EntityIter<PathId,    dcd::FilePath>;
+    fn projects(&self)     -> EntityIter<ProjectId, Project>;
+    fn commits(&self)      -> EntityIter<CommitId,  Commit>;
+    fn users(&self)        -> EntityIter<UserId,    User>;
+    fn paths(&self)        -> EntityIter<PathId,    Path>;
 
-    fn commits_from(&self, project: &dcd::Project)      -> ProjectEntityIter<dcd::Commit>;
-    fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit>;
-    fn paths_from(&self, project: &dcd::Project)        -> ProjectEntityIter<dcd::FilePath>;
-    fn users_from(&self, project: &dcd::Project)        -> ProjectEntityIter<dcd::User>;
-    fn authors_from(&self, project: &dcd::Project)      -> ProjectEntityIter<dcd::User>;
-    fn committers_from(&self, project: &dcd::Project)   -> ProjectEntityIter<dcd::User>;
+    fn commits_from(&self, project: &ProjectId)      -> ProjectEntityIter<Commit>;
+    fn paths_from(&self, project: &ProjectId)        -> ProjectEntityIter<Path>;
+    fn users_from(&self, project: &ProjectId)        -> ProjectEntityIter<User>;
+    fn authors_from(&self, project: &ProjectId)      -> ProjectEntityIter<User>;
+    fn committers_from(&self, project: &ProjectId)   -> ProjectEntityIter<User>;
 
-    fn commit_count_from(&self, project: &dcd::Project)    -> usize;
-    fn path_count_from(&self, project: &dcd::Project)      -> usize;
-    fn user_count_from(&self, project: &dcd::Project)      -> usize;
-    fn author_count_from(&self, project: &dcd::Project)    -> usize;
-    fn committer_count_from(&self, project: &dcd::Project) -> usize;
+    fn commit_count_from(&self, project: &ProjectId)    -> usize;
+    fn path_count_from(&self, project: &ProjectId)      -> usize;
+    fn user_count_from(&self, project: &ProjectId)      -> usize;
+    fn author_count_from(&self, project: &ProjectId)    -> usize;
+    fn committer_count_from(&self, project: &ProjectId) -> usize;
 
-    fn age_of(&self, project: &dcd::Project) -> Option<Duration>;
+    fn age_of(&self, project: &ProjectId) -> Option<Duration>;
 
     fn seed(&self) -> u128;
 }
@@ -220,34 +240,40 @@ macro_rules! log_addendum {
 
 pub mod data {
     use std::collections::{BTreeMap, HashMap};
-    use crate::{ProjectId, CommitId, UserId, PathId, FilterEach, LoadFilter, LogLevel};
+    use crate::{ProjectId, CommitId, UserId, PathId, FilterEach, LoadFilter, LogLevel, DataSource, ProjectEntityIter, EntityIter};
     use std::collections::btree_map::Keys;
     use std::cell::RefCell;
     use dcd::{DCD, Database};
     use itertools::Itertools;
     use std::borrow::Borrow;
     use crate::meta::ProjectMeta;
+    use std::time::Duration;
+    use std::ops::Range;
+    use itertools::__std_iter::Map;
+    use std::hash::{Hash, Hasher};
+    use std::cmp::Ordering;
 
-    #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)] // TODO implement by hand
+    #[derive(Clone)] // TODO implement by hand
     pub struct Project {
         pub id: ProjectId,
         pub url: String,
         pub last_update: i64,
         pub language: Option<String>,
-        pub stars: Option<u64>,
-        pub issues: Option<u64>,
-        pub buggy_issues: Option<u64>,
+        pub stars: Option<usize>,
+        pub issues: Option<usize>,
+        pub buggy_issues: Option<usize>,
         pub heads: Vec<(String, CommitId)>,
+        pub metadata: HashMap<String, String>,
     }
 
-    #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
+    #[derive(Clone)]
     pub struct User {
         pub id: UserId,
         pub email: String,
         pub name: String,
     }
 
-    #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)] // TODO implement by hand
+    #[derive(Clone)] // TODO implement by hand
     pub struct Commit {
         pub id: CommitId,
         pub hash: git2::Oid,
@@ -259,7 +285,7 @@ pub mod data {
         pub deletions: Option<u64>,
     }
 
-    #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)] // TODO implement by hand
+    #[derive(Clone)] // TODO implement by hand
     pub struct Path {
         pub id: PathId,
         pub path: String,
@@ -270,15 +296,120 @@ pub mod data {
         contents: Vec<u8>,
     }
 
+    impl Project {
+        pub fn language_or_empty(&self) -> String {
+            self.language.as_ref().map_or("", |s| s.as_str()).to_string()
+        }
+
+        pub fn stars_or_zero(&self) -> usize { self.stars.map_or(0usize, |n| n as usize) }
+        pub fn issues_or_zero(&self) -> usize { self.issues.map_or(0usize, |n| n as usize) }
+        pub fn buggy_issues_or_zero(&self) -> usize { self.buggy_issues.map_or(0usize, |n| n as usize) }
+
+        fn filter_metadata(project: &dcd::Project) -> impl Iterator<Item=(String, String)> + '_ {
+            project.metadata.iter()
+                .filter(|(key, value)| {
+                    key.as_str() != "ght_language" &&
+                    key.as_str() != "star" &&
+                    key.as_str() != "issues" &&
+                    key.as_str() != "buggy_issues"
+                })
+                .map(|(key, value)| (key.clone(), value.clone()))
+        }
+    }
+
+    impl Hash for Project { fn hash<H: Hasher>(&self, h: &mut H) { self.id.hash(h); } }
+    impl Hash for User    { fn hash<H: Hasher>(&self, h: &mut H) { self.id.hash(h); } }
+    impl Hash for Commit  { fn hash<H: Hasher>(&self, h: &mut H) { self.id.hash(h); } }
+    impl Hash for Path    { fn hash<H: Hasher>(&self, h: &mut H) { self.id.hash(h); } }
+
+    impl PartialEq for Project {
+        fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
+        fn ne(&self, other: &Self) -> bool { self.id.ne(&other.id) }
+    }
+    impl PartialEq for Commit {
+        fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
+        fn ne(&self, other: &Self) -> bool { self.id.ne(&other.id) }
+    }
+    impl PartialEq for User {
+        fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
+        fn ne(&self, other: &Self) -> bool { self.id.ne(&other.id) }
+    }
+    impl PartialEq for Path {
+        fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
+        fn ne(&self, other: &Self) -> bool { self.id.ne(&other.id) }
+    }
+
+    impl Eq for Project {}
+    impl Eq for User    {}
+    impl Eq for Commit  {}
+    impl Eq for Path    {}
+
+    impl PartialOrd for Project {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> { self.id.partial_cmp(&other.id) }
+        fn lt(&self, other: &Self) -> bool { self.id.lt(&other.id) }
+        fn le(&self, other: &Self) -> bool { self.id.le(&other.id) }
+        fn gt(&self, other: &Self) -> bool { self.id.gt(&other.id) }
+        fn ge(&self, other: &Self) -> bool { self.id.ge(&other.id) }
+    }
+
+    impl PartialOrd for Commit {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> { self.id.partial_cmp(&other.id) }
+        fn lt(&self, other: &Self) -> bool { self.id.lt(&other.id) }
+        fn le(&self, other: &Self) -> bool { self.id.le(&other.id) }
+        fn gt(&self, other: &Self) -> bool { self.id.gt(&other.id) }
+        fn ge(&self, other: &Self) -> bool { self.id.ge(&other.id) }
+    }
+
+    impl PartialOrd for User {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> { self.id.partial_cmp(&other.id) }
+        fn lt(&self, other: &Self) -> bool { self.id.lt(&other.id) }
+        fn le(&self, other: &Self) -> bool { self.id.le(&other.id) }
+        fn gt(&self, other: &Self) -> bool { self.id.gt(&other.id) }
+        fn ge(&self, other: &Self) -> bool { self.id.ge(&other.id) }
+    }
+
+    impl PartialOrd for Path {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> { self.id.partial_cmp(&other.id) }
+        fn lt(&self, other: &Self) -> bool { self.id.lt(&other.id) }
+        fn le(&self, other: &Self) -> bool { self.id.le(&other.id) }
+        fn gt(&self, other: &Self) -> bool { self.id.gt(&other.id) }
+        fn ge(&self, other: &Self) -> bool { self.id.ge(&other.id) }
+    }
+
+    impl Ord for Project {
+        fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
+        fn max(self, other: Self) -> Self where Self: Sized { if self.id < other.id {other} else {self} }
+        fn min(self, other: Self) -> Self where Self: Sized { if self.id < other.id {self} else {other}  }
+    }
+
+    impl Ord for Commit {
+        fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
+        fn max(self, other: Self) -> Self where Self: Sized { if self.id < other.id {other} else {self} }
+        fn min(self, other: Self) -> Self where Self: Sized { if self.id < other.id {self} else {other}  }
+    }
+
+    impl Ord for User {
+        fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
+        fn max(self, other: Self) -> Self where Self: Sized { if self.id < other.id {other} else {self} }
+        fn min(self, other: Self) -> Self where Self: Sized { if self.id < other.id {self} else {other}  }
+    }
+
+    impl Ord for Path {
+        fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
+        fn max(self, other: Self) -> Self where Self: Sized { if self.id < other.id {other} else {self} }
+        fn min(self, other: Self) -> Self where Self: Sized { if self.id < other.id {self} else {other}  }
+    }
+
     impl From<dcd::Project> for Project {
         fn from(project: dcd::Project) -> Self {
             Project {
                 id: ProjectId::from(project.id),
                 last_update: project.last_update,
                 language: project.get_language(),
-                stars: project.get_stars(),
-                issues: project.get_issue_count(),
-                buggy_issues: project.get_buggy_issue_count(),
+                stars: project.get_stars().map(|n| n as usize),
+                issues: project.get_issue_count().map(|n| n as usize),
+                buggy_issues: project.get_buggy_issue_count().map(|n| n as usize),
+                metadata: Self::filter_metadata(&project).collect(),
                 heads: project.heads.into_iter()
                     .map(|(name, commit_id)| (name, CommitId::from(commit_id)))
                     .collect(),
@@ -293,13 +424,19 @@ pub mod data {
                 id: ProjectId::from(project.id),
                 last_update: project.last_update,
                 language: project.get_language(),
-                stars: project.get_stars(),
-                issues: project.get_issue_count(),
-                buggy_issues: project.get_buggy_issue_count(),
+                stars: project.get_stars().map(|n| n as usize),
+                issues: project.get_issue_count().map(|n| n as usize),
+                buggy_issues: project.get_buggy_issue_count().map(|n| n as usize),
                 heads: project.heads.iter()
                     .map(|(name, commit_id)| {
                         (name.clone(), CommitId::from(commit_id))
                     })
+                    .collect(),
+                metadata: project.metadata.iter()
+                    .filter(|(key, value)|
+                        key.as_str() != "ght_language" && key.as_str() != "star" &&
+                            key.as_str() != "issues" && key.as_str() != "buggy_issues")
+                    .map(|(key, value)| (key.clone(), value.clone()))
                     .collect(),
                 url: project.url.clone(),
             }
@@ -375,20 +512,13 @@ pub mod data {
     }
 
     impl From<Vec<u8>> for Message {
-        fn from(bytes: Vec<u8>) -> Self {
-            Message { contents: bytes }
-        }
+        fn from(bytes: Vec<u8>) -> Self { Message { contents: bytes } }
     }
-
     impl From<&Vec<u8>> for Message {
-        fn from(bytes: &Vec<u8>) -> Self {
-            Message { contents: bytes.clone() }
-        }
+        fn from(bytes: &Vec<u8>) -> Self { Message { contents: bytes.clone() } }
     }
 
-    pub trait Roster {
-        fn users(&self) -> Vec<UserId>;
-    }
+    pub trait Roster { fn users(&self) -> Vec<UserId>; }
 
     impl Roster for Commit {
         fn users(&self) -> Vec<UserId> {
@@ -469,7 +599,7 @@ pub mod data {
     }
 
     impl Data {
-        pub fn from(warehouse: DCD, verbosity: LogLevel) -> Self {
+        pub fn from(warehouse: &DCD, verbosity: &LogLevel) -> Self {
             log_header!(verbosity, "Checking out data from warehouse"); // TODO path
 
             log_item!(verbosity, "loading project data");
@@ -555,18 +685,12 @@ pub mod data {
             log_item!(verbosity, format!("loaded {} messages", message_from_commit.len()));
 
             Data {
-                projects,
-                commits,
-                users,
-                paths,
-                commits_from_project,
-                users_from_project,
-                paths_from_commit,
-                message_from_commit,
+                projects, commits, users, paths,
+                commits_from_project, users_from_project, paths_from_commit, message_from_commit,
             }
         }
 
-        pub fn from_filtered(warehouse: DCD, project_filters: Vec<Box<dyn LoadFilter>>, verbosity: LogLevel) -> Self {
+        pub fn from_filtered(warehouse: &DCD, project_filters: &Vec<Box<dyn LoadFilter>>, verbosity: &LogLevel) -> Self {
             log_header!(verbosity, "Checking out data from warehouse"); // TODO path
 
             log_item!(verbosity, format!("loading project-commit mapping with {} filter{}",
@@ -577,7 +701,6 @@ pub mod data {
                      .filter(|(project_id, commit_ids)| {
                          project_filters.iter().all(|filter| {
                              filter.filter(&warehouse, project_id, commit_ids)
-                             // TODO We could probably speed up by creating dcd::Project early and reausing it.
                          })
                      })
                     .map(|(project_id, commit_ids)| {
@@ -687,49 +810,126 @@ pub mod data {
             }
         }
 
+        // pub fn project_count(&self) -> usize { self.projects.len() }
+        // pub fn commit_count(&self)  -> usize { self.commits.len()  }
+        // pub fn user_count(&self)    -> usize { self.users.len()    }
+        // pub fn path_count(&self)    -> usize { self.paths.len()    }
+        //
+        // pub fn project(&self, id: &ProjectId) -> Option<&Project>  { self.projects.get(id) }
+        // pub fn commit(&self, id: &CommitId)   -> Option<&Commit>   { self.commits.get(id)  }
+        // pub fn user(&self, id: &UserId)       -> Option<&User>     { self.users.get(id)    }
+        // pub fn path(&self, id: &PathId)       -> Option<&Path> { self.paths.get(id)    }
+        //
+        // pub fn project_ids(&self) -> impl Iterator<Item=&ProjectId> { self.projects.keys().into_iter() }
+        // pub fn commit_ids(&self)  -> impl Iterator<Item=&CommitId>  { self.commits.keys().into_iter()  }
+        // pub fn user_ids(&self)    -> impl Iterator<Item=&UserId>    { self.users.keys().into_iter()    }
+        // pub fn path_ids(&self)    -> impl Iterator<Item=&PathId>    { self.paths.keys().into_iter()    }
+        //
+        // pub fn projects(&self) -> impl Iterator<Item=&Project> { self.projects.values().into_iter() }
+        // pub fn commits(&self)  -> impl Iterator<Item=&Commit>  { self.commits.values().into_iter()  }
+        // pub fn users(&self)    -> impl Iterator<Item=&User>    { self.users.values().into_iter()    }
+        // pub fn paths(&self)    -> impl Iterator<Item=&Path>    { self.paths.values().into_iter()    }
+        //
+        // fn commit_ids_from(&self, project_id: &ProjectId) -> Option<impl Iterator<Item=&CommitId>> {
+        //     self.commits_from_project.get(project_id).map(|vector| vector.iter())
+        // }
+        // fn user_ids_from(&self, project_id: &ProjectId)   -> Option<impl Iterator<Item=&UserId>> {
+        //     self.users_from_project.get(project_id).map(|vector| vector.iter())
+        // }
+        //
+        // pub fn commits_from(&self, project_id: &ProjectId) -> Option<impl Iterator<Item=&Commit> + '_> {
+        //     self.commits_from_project.get(project_id)
+        //         .map(move |vector| {
+        //             vector.clone().into_iter().map(move |id| {
+        //                 self.commits.get(&id).unwrap()                                              // TODO flatmap?
+        //             })
+        //         })
+        // }
+        //
+        // pub fn users_from(&self, project_id: &ProjectId) -> Option<impl Iterator<Item=&User> + '_> {
+        //     self.users_from_project.get(project_id)
+        //         .map(move |vector| {
+        //             vector.clone().into_iter().map(move |id| {
+        //                 self.users.get(&id).unwrap()                                                // TODO flatmap?
+        //             })
+        //         })
+        // }
+    }
+
+    impl Data {
         pub fn project_count(&self) -> usize { self.projects.len() }
         pub fn commit_count(&self)  -> usize { self.commits.len()  }
         pub fn user_count(&self)    -> usize { self.users.len()    }
         pub fn path_count(&self)    -> usize { self.paths.len()    }
 
-        pub fn project(&self, id: &ProjectId) -> Option<&Project>  { self.projects.get(id) }
-        pub fn commit(&self, id: &CommitId)   -> Option<&Commit>   { self.commits.get(id)  }
-        pub fn user(&self, id: &UserId)       -> Option<&User>     { self.users.get(id)    }
-        pub fn path(&self, id: &PathId)       -> Option<&Path> { self.paths.get(id)    }
+        pub fn project(&self, id: &ProjectId) -> Option<&Project> { self.projects.get(id) }
+        pub fn commit(&self, id: &CommitId)   -> Option<&Commit>  { self.commits.get(id)  }
+        pub fn user(&self, id: &UserId)       -> Option<&User>    { self.users.get(id)    }
+        pub fn path(&self, id: &PathId)       -> Option<&Path>    { self.paths.get(id)    }
 
-        pub fn project_ids(&self) -> impl Iterator<Item=&ProjectId> { self.projects.keys().into_iter() }
-        pub fn commit_ids(&self)  -> impl Iterator<Item=&CommitId>  { self.commits.keys().into_iter()  }
-        pub fn user_ids(&self)    -> impl Iterator<Item=&UserId>    { self.users.keys().into_iter()    }
-        pub fn path_ids(&self)    -> impl Iterator<Item=&PathId>    { self.paths.keys().into_iter()    }
+        pub fn project_ids(&self) -> impl Iterator<Item=&ProjectId> { self.projects.keys() }
+        pub fn commit_ids(&self)  -> impl Iterator<Item=&CommitId>  { self.commits.keys()  }
+        pub fn user_ids(&self)    -> impl Iterator<Item=&UserId>    { self.users.keys()    }
+        pub fn path_ids(&self)    -> impl Iterator<Item=&PathId>    { self.paths.keys()    }
 
-        pub fn projects(&self) -> impl Iterator<Item=&Project> { self.projects.values().into_iter() }
-        pub fn commits(&self)  -> impl Iterator<Item=&Commit>  { self.commits.values().into_iter()  }
-        pub fn users(&self)    -> impl Iterator<Item=&User>    { self.users.values().into_iter()    }
-        pub fn paths(&self)    -> impl Iterator<Item=&Path>    { self.paths.values().into_iter()    }
-
-        fn commit_ids_from(&self, project_id: &ProjectId) -> Option<impl Iterator<Item=&CommitId>> {
-            self.commits_from_project.get(project_id).map(|vector| vector.iter())
-        }
-        fn user_ids_from(&self, project_id: &ProjectId)   -> Option<impl Iterator<Item=&UserId>> {
-            self.users_from_project.get(project_id).map(|vector| vector.iter())
+        pub fn projects(&self) -> EntityIter<ProjectId, Project> {
+            unimplemented!()
         }
 
-        pub fn commits_from(&self, project_id: &ProjectId) -> Option<impl Iterator<Item=&Commit> + '_> {
-            self.commits_from_project.get(project_id)
-                .map(move |vector| {
-                    vector.clone().into_iter().map(move |id| {
-                        self.commits.get(&id).unwrap()                                              // TODO flatmap?
-                    })
-                })
+        pub fn commits(&self) -> EntityIter<CommitId, Commit> {
+            unimplemented!()
         }
 
-        pub fn users_from(&self, project_id: &ProjectId) -> Option<impl Iterator<Item=&User> + '_> {
-            self.users_from_project.get(project_id)
-                .map(move |vector| {
-                    vector.clone().into_iter().map(move |id| {
-                        self.users.get(&id).unwrap()                                                // TODO flatmap?
-                    })
-                })
+        pub fn users(&self) -> EntityIter<UserId, User> {
+            unimplemented!()
+        }
+
+        pub fn paths(&self) -> EntityIter<PathId, Path> {
+            unimplemented!()
+        }
+
+        pub fn commits_from(&self, project: &ProjectId) -> ProjectEntityIter<Commit> {
+            unimplemented!()
+        }
+
+        pub fn paths_from(&self, project: &ProjectId) -> ProjectEntityIter<Path> {
+            unimplemented!()
+        }
+
+        pub fn users_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
+            unimplemented!()
+        }
+
+        pub fn authors_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
+            unimplemented!()
+        }
+
+        pub fn committers_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
+            unimplemented!()
+        }
+
+        pub fn commit_count_from(&self, project: &ProjectId) -> usize {
+            unimplemented!()
+        }
+
+        pub fn path_count_from(&self, project: &ProjectId) -> usize {
+            unimplemented!()
+        }
+
+        pub fn user_count_from(&self, project: &ProjectId) -> usize {
+            unimplemented!()
+        }
+
+        pub fn author_count_from(&self, project: &ProjectId) -> usize {
+            unimplemented!()
+        }
+
+        pub fn committer_count_from(&self, project: &ProjectId) -> usize {
+            unimplemented!()
+        }
+
+        pub fn age_of(&self, project: &ProjectId) -> Option<Duration> {
+            unimplemented!()
         }
     }
 }
@@ -744,7 +944,7 @@ pub struct Djanco {
     verbosity: LogLevel,
     path: PathBuf,
 
-    project_filters: Vec<Box<dyn FilterEach>>,
+    filters: Vec<Box<dyn LoadFilter>>,
 
     data: RefCell<Option<Data>>,
 }
@@ -762,7 +962,7 @@ impl Djanco {
             path: PathBuf::from(string_path),
             timestamp: timestamp.into(),
             seed,
-            project_filters: vec![],
+            filters: vec![],
             data: RefCell::new(None),
         };
         let pointer: DatabasePtr = Rc::new(RefCell::new(database));
@@ -778,13 +978,11 @@ impl Djanco {
 
     fn load_from_warehouse(&mut self) -> Result<(), std::io::Error/*make custom error type*/> {
         let warehouse = DCD::new(self.path_as_string());
-        if self.project_filters.is_empty() {
-            //self.data.replace(Some(Data::from(warehouse)));
-            unimplemented!()
+        if self.filters.is_empty() {
+            self.data.replace(Some(Data::from(&warehouse, &self.verbosity)));
         } else {
-            unimplemented!()
+            self.data.replace(Some(Data::from_filtered(&warehouse, &self.filters, &self.verbosity)));
         }
-
         Ok(())
     }
 
@@ -796,8 +994,8 @@ impl Djanco {
         self.verbosity = level;
         self
     }
-    pub fn with_project_filter<F>(mut self, filter: F) -> Self where F: FilterEach + 'static {
-        self.project_filters.push(Box::new(filter));
+    pub fn with_project_filter<F>(mut self, filter: F) -> Self where F: LoadFilter + 'static {
+        self.filters.push(Box::new(filter));
         self
     }
 }
@@ -819,23 +1017,19 @@ impl DataSource for Djanco {
         unimplemented!()
     }
 
-    fn project(&self, id: ProjectId) -> Option<dcd::Project> {
+    fn project(&self, id: ProjectId) -> Option<Project> {
         unimplemented!()
     }
 
-    fn commit(&self, id: CommitId) -> Option<dcd::Commit> {
+    fn commit(&self, id: CommitId) -> Option<Commit> {
         unimplemented!()
     }
 
-    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit> {
+    fn user(&self, id: UserId) -> Option<User> {
         unimplemented!()
     }
 
-    fn user(&self, id: UserId) -> Option<dcd::User> {
-        unimplemented!()
-    }
-
-    fn path(&self, id: PathId) -> Option<dcd::FilePath> {
+    fn path(&self, id: PathId) -> Option<Path> {
         unimplemented!()
     }
 
@@ -855,71 +1049,63 @@ impl DataSource for Djanco {
         unimplemented!()
     }
 
-    fn projects(&self) -> EntityIter<ProjectId, dcd::Project> {
+    fn projects(&self) -> EntityIter<ProjectId, Project> {
         unimplemented!()
     }
 
-    fn commits(&self) -> EntityIter<CommitId, dcd::Commit> {
+    fn commits(&self) -> EntityIter<CommitId, Commit> {
         unimplemented!()
     }
 
-    fn bare_commits(&self) -> EntityIter<CommitId, dcd::Commit> {
+    fn users(&self) -> EntityIter<UserId, User> {
         unimplemented!()
     }
 
-    fn users(&self) -> EntityIter<UserId, dcd::User> {
+    fn paths(&self) -> EntityIter<PathId, Path> {
         unimplemented!()
     }
 
-    fn paths(&self) -> EntityIter<PathId, dcd::FilePath> {
+    fn commits_from(&self, project: &ProjectId) -> ProjectEntityIter<Commit> {
         unimplemented!()
     }
 
-    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
+    fn paths_from(&self, project: &ProjectId) -> ProjectEntityIter<Path> {
         unimplemented!()
     }
 
-    fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
+    fn users_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
         unimplemented!()
     }
 
-    fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
+    fn authors_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
         unimplemented!()
     }
 
-    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+    fn committers_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
         unimplemented!()
     }
 
-    fn authors_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+    fn commit_count_from(&self, project: &ProjectId) -> usize {
         unimplemented!()
     }
 
-    fn committers_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+    fn path_count_from(&self, project: &ProjectId) -> usize {
         unimplemented!()
     }
 
-    fn commit_count_from(&self, project: &dcd::Project) -> usize {
+    fn user_count_from(&self, project: &ProjectId) -> usize {
         unimplemented!()
     }
 
-    fn path_count_from(&self, project: &dcd::Project) -> usize {
+    fn author_count_from(&self, project: &ProjectId) -> usize {
         unimplemented!()
     }
 
-    fn user_count_from(&self, project: &dcd::Project) -> usize {
+    fn committer_count_from(&self, project: &ProjectId) -> usize {
         unimplemented!()
     }
 
-    fn author_count_from(&self, project: &dcd::Project) -> usize {
-        unimplemented!()
-    }
-
-    fn committer_count_from(&self, project: &dcd::Project) -> usize {
-        unimplemented!()
-    }
-
-    fn age_of(&self, project: &dcd::Project) -> Option<Duration> {
+    fn age_of(&self, project: &ProjectId) -> Option<Duration> {
         unimplemented!()
     }
 
@@ -928,106 +1114,99 @@ impl DataSource for Djanco {
     }
 }
 
-/*impl DataSource for Djanco {
-    fn project_count(&self) -> usize { self.warehouse.num_projects()   as usize }
-    fn commit_count(&self)  -> usize { self.warehouse.num_commits()    as usize }
-    fn user_count(&self)    -> usize { self.warehouse.num_users()      as usize }
-    fn path_count(&self)    -> usize { self.warehouse.num_file_paths() as usize }
-
-    fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { self.warehouse.get_project(id.into())     }
-    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { self.warehouse.get_commit(id.into())      }
-    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { self.warehouse.get_commit_bare(id.into()) }
-    fn user(&self, id: UserId)          -> Option<dcd::User>     { self.warehouse.get_user(id.into()).map(|u| u.clone()) }
-    fn path(&self, id: PathId)          -> Option<dcd::FilePath> { self.warehouse.get_file_path(id.into())   }
-
-    fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId> {
-        (0..self.project_count()).map(|e| ProjectId::from(e))
-    }
-    fn commit_ids(&self) -> Map<Range<usize>, fn(usize) -> CommitId> {
-        (0..self.commit_count()).map(|e| CommitId::from(e))
-    }
-    fn user_ids(&self) -> Map<Range<usize>, fn(usize) -> UserId> {
-        (0..self.user_count()).map(|e| UserId::from(e))
-    }
-    fn path_ids(&self) -> Map<Range<usize>, fn(usize) -> PathId> {
-        (0..self.path_count()).map(|e| PathId::from(e))
-    }
-
-    fn projects(&self) -> EntityIter<ProjectId, dcd::Project> {
-        EntityIter::from(self.me(), self.project_ids())
-    }
-    fn commits(&self) -> EntityIter<CommitId, dcd::Commit> {
-        EntityIter::from(self.me(), self.commit_ids())
-    }
-    fn bare_commits(&self) -> EntityIter<CommitId, dcd::Commit> {
-        EntityIter::from(self.me(), self.commit_ids()).and_make_it_snappy()
-    }
-    fn users(&self) -> EntityIter<UserId, dcd::User> {
-        EntityIter::from(self.me(), self.user_ids())
-    }
-    fn paths(&self) -> EntityIter<PathId, dcd::FilePath> {
-        EntityIter::from(self.me(), self.path_ids())
-    }
-
-    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
-        ProjectEntityIter::<dcd::Commit>::from(self.me(), &project)
-    }
-    fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
-        ProjectEntityIter::<dcd::Commit>::from(self.me(), &project).and_make_it_snappy()
-    }
-    fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
-        ProjectEntityIter::<dcd::FilePath>::from(self.me(), &project)
-    }
-    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
-        ProjectEntityIter::<dcd::User>::from(self.me(), &project)
-    }
-    fn authors_from(&self, project: &Project) -> ProjectEntityIter<User> {
-        ProjectEntityIter::<dcd::User>::from(self.me(), &project).and_skip_committers()
-    }
-    fn committers_from(&self, project: &Project) -> ProjectEntityIter<User> {
-        ProjectEntityIter::<dcd::User>::from(self.me(), &project).and_skip_authors()
-    }
-
-
-    fn commit_count_from(&self, project: &dcd::Project) -> usize {
-        self.bare_commits_from(project).count()
-    }
-    fn path_count_from(&self, project: &dcd::Project) -> usize {
-        self.paths_from(project).count()
-    }
-    fn user_count_from(&self, project: &dcd::Project) -> usize {
-        self.users_from(project).count()
-    }
-    fn author_count_from(&self, project: &Project) -> usize {
-        self.authors_from(project).count()
-    }
-    fn committer_count_from(&self, project: &Project) -> usize {
-        self.committers_from(project).count()
-    }
-
-    fn age_of(&self, project: &Project) -> Option<Duration> {
-        let minmax = self.commits_from(project)
-            .minmax_by(|c1, c2| {
-                if c1.author_time < c2.author_time { return Ordering::Less }
-                if c1.author_time > c2.author_time { return Ordering::Greater }
-                return Ordering::Equal
-            });
-        match minmax {
-            MinMaxResult::NoElements => None,
-            MinMaxResult::OneElement(_commit) => None,
-            MinMaxResult::MinMax(first_commit, last_commit) => {
-                assert!(last_commit.author_time > first_commit.author_time);
-                let elapsed_seconds: u64 =
-                    (last_commit.author_time - first_commit.author_time) as u64;
-                Some(Duration::from_secs(elapsed_seconds))
-            }
-        }
-    }
-
-    fn seed(&self) -> u128 {
-        self.seed
-    }
-}*/
+// impl DataSource for Djanco {
+//     fn project_count(&self) -> usize { unimplemented!() }
+//     fn commit_count(&self)  -> usize { self.warehouse.num_commits()    as usize }
+//     fn user_count(&self)    -> usize { self.warehouse.num_users()      as usize }
+//     fn path_count(&self)    -> usize { self.warehouse.num_file_paths() as usize }
+//
+//     fn project(&self, id: ProjectId)    -> Option<Project>  { self.warehouse.get_project(id.into())     }
+//     fn commit(&self, id: CommitId)      -> Option<Commit>   { self.warehouse.get_commit(id.into())      }
+//     fn user(&self, id: UserId)          -> Option<User>     { self.warehouse.get_user(id.into()).map(|u| u.clone()) }
+//     fn path(&self, id: PathId)          -> Option<Path>     { self.warehouse.get_file_path(id.into())   }
+//
+//     fn project_ids(&self) -> Map<Range<usize>, fn(usize) -> ProjectId> {
+//         (0..self.project_count()).map(|e| ProjectId::from(e))
+//     }
+//     fn commit_ids(&self) -> Map<Range<usize>, fn(usize) -> CommitId> {
+//         (0..self.commit_count()).map(|e| CommitId::from(e))
+//     }
+//     fn user_ids(&self) -> Map<Range<usize>, fn(usize) -> UserId> {
+//         (0..self.user_count()).map(|e| UserId::from(e))
+//     }
+//     fn path_ids(&self) -> Map<Range<usize>, fn(usize) -> PathId> {
+//         (0..self.path_count()).map(|e| PathId::from(e))
+//     }
+//
+//     fn projects(&self) -> EntityIter<ProjectId, Project> {
+//         EntityIter::from(self.me(), self.project_ids())
+//     }
+//     fn commits(&self) -> EntityIter<CommitId, Commit> {
+//         EntityIter::from(self.me(), self.commit_ids())
+//     }
+//     fn users(&self) -> EntityIter<UserId, User> {
+//         EntityIter::from(self.me(), self.user_ids())
+//     }
+//     fn paths(&self) -> EntityIter<PathId, Path> {
+//         EntityIter::from(self.me(), self.path_ids())
+//     }
+//
+//     fn commits_from(&self, project: &Project) -> ProjectEntityIter<Commit> {
+//         ProjectEntityIter::<Commit>::from(self.me(), &project)
+//     }
+//     fn paths_from(&self, project: &Project) -> ProjectEntityIter<Path> {
+//         ProjectEntityIter::<Path>::from(self.me(), &project)
+//     }
+//     fn users_from(&self, project: &Project) -> ProjectEntityIter<User> {
+//         ProjectEntityIter::<User>::from(self.me(), &project)
+//     }
+//     fn authors_from(&self, project: &Project) -> ProjectEntityIter<User> {
+//         ProjectEntityIter::<User>::from(self.me(), &project).and_skip_committers()
+//     }
+//     fn committers_from(&self, project: &Project) -> ProjectEntityIter<User> {
+//         ProjectEntityIter::<User>::from(self.me(), &project).and_skip_authors()
+//     }
+//
+//
+//     fn commit_count_from(&self, project: &Project) -> usize {
+//         self.bare_commits_from(project).count()
+//     }
+//     fn path_count_from(&self, project: &Project) -> usize {
+//         self.paths_from(project).count()
+//     }
+//     fn user_count_from(&self, project: &Project) -> usize {
+//         self.users_from(project).count()
+//     }
+//     fn author_count_from(&self, project: &Project) -> usize {
+//         self.authors_from(project).count()
+//     }
+//     fn committer_count_from(&self, project: &Project) -> usize {
+//         self.committers_from(project).count()
+//     }
+//
+//     fn age_of(&self, project: &Project) -> Option<Duration> {
+//         let minmax = self.commits_from(project)
+//             .minmax_by(|c1, c2| {
+//                 if c1.author_time < c2.author_time { return Ordering::Less }
+//                 if c1.author_time > c2.author_time { return Ordering::Greater }
+//                 return Ordering::Equal
+//             });
+//         match minmax {
+//             MinMaxResult::NoElements => None,
+//             MinMaxResult::OneElement(_commit) => None,
+//             MinMaxResult::MinMax(first_commit, last_commit) => {
+//                 assert!(last_commit.author_time > first_commit.author_time);
+//                 let elapsed_seconds: u64 =
+//                     (last_commit.author_time - first_commit.author_time) as u64;
+//                 Some(Duration::from_secs(elapsed_seconds))
+//             }
+//         }
+//     }
+//
+//     fn seed(&self) -> u128 {
+//         self.seed
+//     }
+// }
 
 pub trait WithDatabase { fn get_database_ptr(&self) -> DatabasePtr; }
 impl WithDatabase for Djanco { fn get_database_ptr(&self) -> DatabasePtr { self.me() } }
@@ -1049,10 +1228,10 @@ pub struct ProjectEntityIter<T> {
 }
 
 impl<T> ProjectEntityIter<T> {
-    pub fn from(database: DatabasePtr, project: &dcd::Project) -> ProjectEntityIter<T> {
+    pub fn from(database: DatabasePtr, project: &Project) -> ProjectEntityIter<T> {
         let visited_commits: HashSet<u64> = HashSet::new();
         let to_visit_commits: VecDeque<u64> =
-            project.heads.iter().map(|(_, id)| *id).collect();
+            project.heads.iter().map(|(_, id)| id.into()).collect();
 
         ProjectEntityIter {
             visited_commits, to_visit_commits, database,
@@ -1111,23 +1290,20 @@ impl<T> ProjectEntityIter<T> {
         }
     }
 
-    pub fn next_commit(&mut self) -> Option<dcd::Commit> {
-        loop {
-            if self.to_visit_commits.is_empty() {
-                return None;
-            }
-            let commit_id = self.to_visit_commits.pop_back().unwrap();
-            if ! self.visited_commits.insert(commit_id) {
-                continue;
-            }
-            let commit = if self.snappy {
-                self.database.bare_commit(CommitId::from(commit_id)).unwrap()
-            } else {
-                self.database.commit(CommitId::from(commit_id)).unwrap()
-            };
-            self.to_visit_commits.extend(commit.parents.iter());
-            return Some(commit);
-        }
+    pub fn next_commit(&mut self) -> Option<Commit> {
+        unimplemented!()
+        // loop {
+        //     if self.to_visit_commits.is_empty() {
+        //         return None;
+        //     }
+        //     let commit_id = self.to_visit_commits.pop_back().unwrap();
+        //     if ! self.visited_commits.insert(commit_id) {
+        //         continue;
+        //     }
+        //     let commit = self.database.commit(CommitId::from(commit_id)).unwrap();
+        //     self.to_visit_commits.extend(commit.parents.iter());
+        //     return Some(commit);
+        // }
     }
 
     fn next_id_from_cache(&mut self) -> Option<u64> {
@@ -1135,21 +1311,21 @@ impl<T> ProjectEntityIter<T> {
     }
 }
 
-impl ProjectEntityIter<dcd::User> {
+impl ProjectEntityIter<User> {
     fn populate_cache(&mut self) -> bool {
         assert!(self.authors || self.committers);
         loop {
             return match self.next_commit() {
                 Some(commit) => {
                     if self.authors {
-                        if self.seen_entities.insert(commit.author_id) {
-                            self.entity_cache.push_back(commit.author_id); // User not yet seen.
+                        if self.seen_entities.insert(commit.author.into()) {
+                            self.entity_cache.push_back(commit.author.into()); // User not yet seen.
                         }
                     }
 
                     if self.committers {
-                        if self.seen_entities.insert(commit.committer_id) {
-                            self.entity_cache.push_back(commit.committer_id); // User not yet seen.
+                        if self.seen_entities.insert(commit.committer.into()) {
+                            self.entity_cache.push_back(commit.committer.into()); // User not yet seen.
                         }
                     }
 
@@ -1165,46 +1341,47 @@ impl ProjectEntityIter<dcd::User> {
     }
 }
 
-impl ProjectEntityIter<dcd::FilePath> {
+impl ProjectEntityIter<Path> {
     fn populate_cache(&mut self) -> bool {
         loop {
-            return match self.next_commit() {
-                Some(commit) => {
-                    let changes: Vec<u64> =
-                        commit.changes.map_or(vec![],
-                            |map| {
-                                map.iter()
-                                    .map(|(path_id, _)| *path_id)
-                                    .filter(|path_id| {
-                                        !self.seen_entities.contains(path_id)
-                                    })
-                                    .collect()
-                            });
-
-                    self.seen_entities.extend(changes);
-
-                    if self.entity_cache.len() < self.desired_cache_size {
-                        continue;
-                    }
-
-                    true
-                },
-                None => self.entity_cache.len() != 0
-            }
+            //return match self.next_commit() {
+                unimplemented!()
+                // Some(commit) => {
+                //     let changes: Vec<u64> =
+                //         commit.changes.map_or(vec![],
+                //             |map| {
+                //                 map.iter()
+                //                     .map(|(path_id, _)| *path_id)
+                //                     .filter(|path_id| {
+                //                         !self.seen_entities.contains(path_id)
+                //                     })
+                //                     .collect()
+                //             });
+                //
+                //     self.seen_entities.extend(changes);
+                //
+                //     if self.entity_cache.len() < self.desired_cache_size {
+                //         continue;
+                //     }
+                //
+                //     true
+                // },
+                // None => self.entity_cache.len() != 0
+            //}
         }
     }
 }
 
-impl Iterator for ProjectEntityIter<dcd::Commit> {
-    type Item = dcd::Commit;
+impl Iterator for ProjectEntityIter<Commit> {
+    type Item = Commit;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next_commit()
     }
 }
 
-impl Iterator for ProjectEntityIter<dcd::User> {
-    type Item = dcd::User;
+impl Iterator for ProjectEntityIter<User> {
+    type Item = User;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -1222,8 +1399,8 @@ impl Iterator for ProjectEntityIter<dcd::User> {
     }
 }
 
-impl Iterator for ProjectEntityIter<dcd::FilePath> {
-    type Item = dcd::FilePath;
+impl Iterator for ProjectEntityIter<Path> {
+    type Item = Path;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -1261,21 +1438,17 @@ impl<TI, T> EntityIter<TI, T> where TI: From<usize> + Into<u64> {
     }
 }
 
-impl Iterator for EntityIter<ProjectId, dcd::Project> {
-    type Item = dcd::Project;
+impl Iterator for EntityIter<ProjectId, Project> {
+    type Item = Project;
     fn next(&mut self) -> Option<Self::Item> {
         self.ids.next().map(|id| self.database.project(id.into())).flatten()
     }
 }
 
-impl Iterator for EntityIter<CommitId, dcd::Commit> { // FIXME also bare commit
-    type Item = dcd::Commit;
+impl Iterator for EntityIter<CommitId, Commit> { // FIXME also bare commit
+    type Item = Commit;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.snappy {
-            self.ids.next().map(|id| self.database.bare_commit(id.into())).flatten()
-        } else {
-            self.ids.next().map(|id| self.database.commit(id.into())).flatten()
-        }
+        self.ids.next().map(|id| self.database.commit(id.into())).flatten()
     }
 }
 
@@ -1287,62 +1460,57 @@ impl DataSource for DatabasePtr {
     fn user_count(&self)    -> usize { untangle!(self).user_count()   }
     fn path_count(&self)    -> usize { untangle!(self).path_count()   }
 
-    fn project(&self, id: ProjectId)    -> Option<dcd::Project>  { untangle!(self).project(id)     }
-    fn commit(&self, id: CommitId)      -> Option<dcd::Commit>   { untangle!(self).commit(id)      }
-    fn bare_commit(&self, id: CommitId) -> Option<dcd::Commit>   { untangle!(self).bare_commit(id) }
-    fn user(&self, id: UserId)          -> Option<dcd::User>     { untangle!(self).user(id)        }
-    fn path(&self, id: PathId)          -> Option<dcd::FilePath> { untangle!(self).path(id)        }
+    fn project(&self, id: ProjectId)    -> Option<Project> { untangle!(self).project(id) }
+    fn commit(&self, id: CommitId)      -> Option<Commit>  { untangle!(self).commit(id)  }
+    fn user(&self, id: UserId)          -> Option<User>    { untangle!(self).user(id)    }
+    fn path(&self, id: PathId)          -> Option<Path>    { untangle!(self).path(id)    }
 
     fn project_ids(&self) -> Map<Range<usize>, fn(usize)->ProjectId> { untangle!(self).project_ids() }
     fn commit_ids(&self)  -> Map<Range<usize>, fn(usize)->CommitId>  { untangle!(self).commit_ids()  }
     fn user_ids(&self)    -> Map<Range<usize>, fn(usize)->UserId>    { untangle!(self).user_ids()    }
     fn path_ids(&self)    -> Map<Range<usize>, fn(usize)->PathId>    { untangle!(self).path_ids()    }
 
-    fn projects(&self)     -> EntityIter<ProjectId, dcd::Project> { untangle!(self).projects()     }
-    fn commits(&self)      -> EntityIter<CommitId, dcd::Commit>   { untangle!(self).commits()      }
-    fn bare_commits(&self) -> EntityIter<CommitId, dcd::Commit>   { untangle!(self).bare_commits() }
-    fn users(&self)        -> EntityIter<UserId, dcd::User>       { untangle!(self).users()        }
-    fn paths(&self)        -> EntityIter<PathId, dcd::FilePath>   { untangle!(self).paths()        }
+    fn projects(&self)     -> EntityIter<ProjectId, Project> { untangle!(self).projects()     }
+    fn commits(&self)      -> EntityIter<CommitId, Commit>   { untangle!(self).commits()      }
+    fn users(&self)        -> EntityIter<UserId, User>       { untangle!(self).users()        }
+    fn paths(&self)        -> EntityIter<PathId, Path>   { untangle!(self).paths()        }
 
-    fn commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
+    fn commits_from(&self, project: &ProjectId) -> ProjectEntityIter<Commit> {
         untangle!(self).commits_from(project)
     }
-    fn bare_commits_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::Commit> {
-        untangle!(self).bare_commits_from(project)
-    }
-    fn paths_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::FilePath> {
+    fn paths_from(&self, project: &ProjectId) -> ProjectEntityIter<Path> {
         untangle!(self).paths_from(project)
     }
-    fn users_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+    fn users_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
         untangle!(self).users_from(project)
     }
-    fn authors_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+    fn authors_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
         untangle!(self).authors_from(project)
     }
-    fn committers_from(&self, project: &dcd::Project) -> ProjectEntityIter<dcd::User> {
+    fn committers_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
         untangle!(self).committers_from(project)
     }
 
-    fn commit_count_from(&self, project: &dcd::Project)    -> usize { untangle!(self).commit_count_from(project)    }
-    fn path_count_from(&self, project: &dcd::Project)      -> usize { untangle!(self).path_count_from(project)      }
-    fn user_count_from(&self, project: &dcd::Project)      -> usize { untangle!(self).user_count_from(project)      }
-    fn author_count_from(&self, project: &dcd::Project)    -> usize { untangle!(self).author_count_from(project)    }
-    fn committer_count_from(&self, project: &dcd::Project) -> usize { untangle!(self).committer_count_from(project) }
+    fn commit_count_from(&self, project: &ProjectId)    -> usize { untangle!(self).commit_count_from(project)    }
+    fn path_count_from(&self, project: &ProjectId)      -> usize { untangle!(self).path_count_from(project)      }
+    fn user_count_from(&self, project: &ProjectId)      -> usize { untangle!(self).user_count_from(project)      }
+    fn author_count_from(&self, project: &ProjectId)    -> usize { untangle!(self).author_count_from(project)    }
+    fn committer_count_from(&self, project: &ProjectId) -> usize { untangle!(self).committer_count_from(project) }
 
-    fn age_of(&self, project: &dcd::Project) -> Option<Duration> { untangle!(self).age_of(project) }
+    fn age_of(&self, project: &ProjectId) -> Option<Duration> { untangle!(self).age_of(project) }
 
     fn seed(&self) -> u128 { untangle!(self).seed() }
 }
 
-impl Iterator for EntityIter<UserId, dcd::User> {
-    type Item = dcd::User;
+impl Iterator for EntityIter<UserId, User> {
+    type Item = User;
     fn next(&mut self) -> Option<Self::Item> {
         self.ids.next().map(move |id| self.database.clone().user(id.into())).flatten()
     }
 }
 
-impl Iterator for EntityIter<PathId, dcd::FilePath> {
-    type Item = dcd::FilePath;
+impl Iterator for EntityIter<PathId, Path> {
+    type Item = Path;
     fn next(&mut self) -> Option<Self::Item> {
         // XXX helpfulstuff
         // let db: Rc<RefCell<Dejaco>> = self.database.clone();
@@ -1398,29 +1566,29 @@ pub trait LoadFilter {
 
 pub trait Group {
     type Key;
-    fn select(&self, project: &dcd::Project) -> Self::Key;
+    fn select(&self, project: &Project) -> Self::Key;
 }
 
 pub trait SortEach {
     /*type Key;*/ // TODO
-    fn sort(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: &mut Vec<dcd::Project>);
+    fn sort(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: &mut Vec<Project>);
 }
 
 pub trait FilterEach {
     /*type Key;*/ // TODO
-    fn filter(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: &dcd::Project) -> bool;
+    fn filter(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: &Project) -> bool;
 }
 
 pub trait SampleEach {
     /*type Key;*/ // TODO
-    fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<dcd::Project>) -> Vec<dcd::Project>;
+    fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<Project>) -> Vec<Project>;
 }
 
 
 
 pub trait SelectEach: WithNames {
     type Entity;
-    fn select(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: dcd::Project) -> Self::Entity;
+    fn select(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: Project) -> Self::Entity;
 }
 
 pub trait NumericalAttribute {
@@ -1443,19 +1611,20 @@ pub mod sample {
     use rand::seq::IteratorRandom;
     use rand_pcg::Pcg64Mcg;
     use rand::SeedableRng;
+    use crate::data::Project;
 
     #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
     #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Unique<D>(pub usize, D);
     #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Random(pub usize);
 
     impl SampleEach for Top {
-        fn sample(&self, _database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<dcd::Project>) -> Vec<dcd::Project> {
+        fn sample(&self, _database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<Project>) -> Vec<Project> {
             projects.into_iter().take(self.0).collect()
         }
     }
 
     impl SampleEach for Random {
-        fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<dcd::Project>) -> Vec<dcd::Project> {
+        fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<Project>) -> Vec<Project> {
             let mut rng = Pcg64Mcg::from_seed(database.seed().to_be_bytes());
             projects.into_iter().choose_multiple(&mut rng, self.0)
         }
@@ -1465,25 +1634,26 @@ pub mod sample {
 pub mod require {
     use crate::{DatabasePtr, FilterEach, NumericalAttribute, StringAttribute};
     use regex::Regex;
+    use crate::data::Project;
 
     #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtLeast<N>(pub N, pub usize);
     #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Exactly<N>(pub N, pub usize);
     #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtMost<N> (pub N, pub usize);
 
-    impl<N> FilterEach for AtLeast<N> where N: NumericalAttribute<Entity=dcd::Project> {
-        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+    impl<N> FilterEach for AtLeast<N> where N: NumericalAttribute<Entity=Project> {
+        fn filter(&self, database: DatabasePtr, project: &Project) -> bool {
             self.0.calculate(database, project) >= self.1
         }
     }
 
-    impl<N> FilterEach for Exactly<N> where N: NumericalAttribute<Entity=dcd::Project> {
-        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+    impl<N> FilterEach for Exactly<N> where N: NumericalAttribute<Entity=Project> {
+        fn filter(&self, database: DatabasePtr, project: &Project) -> bool {
             self.0.calculate(database, project) == self.1
         }
     }
 
-    impl<N> FilterEach for AtMost<N> where N: NumericalAttribute<Entity=dcd::Project> {
-        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+    impl<N> FilterEach for AtMost<N> where N: NumericalAttribute<Entity=Project> {
+        fn filter(&self, database: DatabasePtr, project: &Project) -> bool {
             self.0.calculate(database, project) <= self.1
         }
     }
@@ -1493,14 +1663,14 @@ pub mod require {
 
     #[macro_export] macro_rules! regex { ($str:expr) => { regex::Regex::new($str).unwrap() }}
 
-    impl<'a, S> FilterEach for Same<'a, S> where S: StringAttribute<Entity=dcd::Project> {
-        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+    impl<'a, S> FilterEach for Same<'a, S> where S: StringAttribute<Entity=Project> {
+        fn filter(&self, database: DatabasePtr, project: &Project) -> bool {
             self.0.extract(database, project) == self.1.to_string()
         }
     }
 
-    impl<S> FilterEach for Matches<S> where S: StringAttribute<Entity=dcd::Project> {
-        fn filter(&self, database: DatabasePtr, project: &dcd::Project) -> bool {
+    impl<S> FilterEach for Matches<S> where S: StringAttribute<Entity=Project> {
+        fn filter(&self, database: DatabasePtr, project: &Project) -> bool {
             self.1.is_match(&self.0.extract(database, project))
         }
     }
@@ -1510,7 +1680,7 @@ pub mod project {
     use crate::{Attribute, Group, NumericalAttribute, StringAttribute, SortEach, SelectEach, AttributeValue, WithNames};
     use crate::{ProjectId, DatabasePtr, DataSource};
     use crate::meta::ProjectMeta;
-    use dcd::Project;
+    use crate::data::Project;
 
     #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
     #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
@@ -1544,142 +1714,142 @@ pub mod project {
 
 
     impl StringAttribute for Id {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
             entity.id.to_string()
         }
     }
 
     impl StringAttribute for URL {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
             entity.url.clone()
         }
     }
 
     impl StringAttribute for Language {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
-            entity.get_language_or_empty()
+            entity.language_or_empty()
         }
     }
 
     impl StringAttribute for Stars {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
-            entity.get_stars().map_or(String::new(), |e| e.to_string())
+            entity.stars.map_or(String::new(), |e| e.to_string())
         }
     }
 
     impl StringAttribute for Issues {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
-            entity.get_issue_count().map_or(String::new(), |e| e.to_string())
+            entity.issues.map_or(String::new(), |e| e.to_string())
         }
     }
 
     impl StringAttribute for BuggyIssues {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn extract(&self, _database: DatabasePtr, entity: &Self::Entity) -> String {
-            entity.get_buggy_issue_count().map_or(String::new(), |e| e.to_string())
+            entity.buggy_issues.map_or(String::new(), |e| e.to_string())
         }
     }
 
     impl NumericalAttribute for Id {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-            entity.id as usize
+            entity.id.into()
         }
     }
 
     impl NumericalAttribute for Stars {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-            entity.get_stars_or_zero() as usize
+            entity.stars.map_or(0usize, |n| n as usize)
         }
     }
 
     impl NumericalAttribute for Issues {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-            entity.get_issue_count_or_zero() as usize
+            entity.issues.map_or(0usize, |n| n as usize)
         }
     }
 
     impl NumericalAttribute for BuggyIssues {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-            entity.get_buggy_issue_count_or_zero() as usize
+            entity.buggy_issues.map_or(0usize, |n| n as usize)
         }
     }
 
     impl NumericalAttribute for Heads {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
-            entity.get_head_count() as usize
+            entity.heads.len()
         }
     }
 
     impl NumericalAttribute for Metadata {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, _database: DatabasePtr, entity: &Self::Entity) -> usize {
             entity.metadata.len()
         }
     }
 
     impl NumericalAttribute for Commits {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
-            database.commit_count_from(entity)
+            database.commit_count_from(&entity.id)
         }
     }
 
     impl NumericalAttribute for Users {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
-            database.user_count_from(entity)
+            database.user_count_from(&entity.id)
         }
     }
 
     impl NumericalAttribute for Paths {
-        type Entity = dcd::Project;
+        type Entity = Project;
         fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize {
-            database.path_count_from(entity)
+            database.path_count_from(&entity.id)
         }
     }
 
     impl Group for Id {
         type Key = ProjectId;
-        fn select(&self, project: &dcd::Project) -> Self::Key {
-            ProjectId(project.id)
+        fn select(&self, project: &Project) -> Self::Key {
+            project.id
         }
     }
 
     impl Group for Language {
         type Key = String;
-        fn select(&self, project: &dcd::Project) -> Self::Key {
-            project.get_language_or_empty()
+        fn select(&self, project: &Project) -> Self::Key {
+            project.language_or_empty()
         }
     }
 
     impl Group for Stars {
-        type Key = u64;
-        fn select(&self, project: &dcd::Project) -> Self::Key {
-            project.get_stars_or_zero()
+        type Key = usize;
+        fn select(&self, project: &Project) -> Self::Key {
+            project.stars_or_zero()
         }
     }
 
     impl Group for Issues {
-        type Key = u64;
-        fn select(&self, project: &dcd::Project) -> Self::Key {
-            project.get_issue_count_or_zero()
+        type Key = usize;
+        fn select(&self, project: &Project) -> Self::Key {
+            project.issues_or_zero()
         }
     }
 
     impl Group for BuggyIssues {
-        type Key = u64;
-        fn select(&self, project: &dcd::Project) -> Self::Key {
-            project.get_buggy_issue_count_or_zero()
+        type Key = usize;
+        fn select(&self, project: &Project) -> Self::Key {
+            project.buggy_issues_or_zero()
         }
     }
 
@@ -1697,31 +1867,31 @@ pub mod project {
 
     impl SortEach for Language {
         fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
-            projects.sort_by_key(|p| p.get_language())
+            projects.sort_by_key(|p| p.language.clone())
         }
     }
 
     impl SortEach for Stars {
         fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
-            projects.sort_by_key(|p| p.get_stars())
+            projects.sort_by_key(|p| p.stars)
         }
     }
 
     impl SortEach for Issues {
         fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
-            projects.sort_by_key(|f| f.get_issue_count())
+            projects.sort_by_key(|f| f.issues)
         }
     }
 
     impl SortEach for BuggyIssues {
         fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
-            projects.sort_by_key(|p| p.get_buggy_issue_count())
+            projects.sort_by_key(|p| p.buggy_issues)
         }
     }
 
     impl SortEach for Heads {
         fn sort(&self, _database: DatabasePtr, projects: &mut Vec<Project>) {
-            projects.sort_by_key(|p| p.get_head_count())
+            projects.sort_by_key(|p| p.heads.len())
         }
     }
 
@@ -1735,19 +1905,19 @@ pub mod project {
 
     impl SortEach for Commits {
         fn sort(&self, database: DatabasePtr, projects: &mut Vec<Project>) {
-            projects.sort_by_key(|p| database.commit_count_from(p))
+            projects.sort_by_key(|p| database.commit_count_from(&p.id))
         }
     }
 
     impl SortEach for Users {
         fn sort(&self, database: DatabasePtr, projects: &mut Vec<Project>) {
-            projects.sort_by_key(|p| database.user_count_from(p))
+            projects.sort_by_key(|p| database.user_count_from(&p.id))
         }
     }
 
     impl SortEach for Paths {
         fn sort(&self, database: DatabasePtr, projects: &mut Vec<Project>) {
-            projects.sort_by_key(|p| database.path_count_from(p))
+            projects.sort_by_key(|p| database.path_count_from(&p.id))
         }
     }
 
@@ -1768,35 +1938,35 @@ pub mod project {
     impl SelectEach for Language {
         type Entity = AttributeValue<Language, Option<String>>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            AttributeValue::new(self, project.get_language())
+            AttributeValue::new(self, project.language)
         }
     }
 
     impl SelectEach for Stars {
-        type Entity = AttributeValue<Stars, Option<u64>>;
+        type Entity = AttributeValue<Stars, Option<usize>>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            AttributeValue::new(self, project.get_stars())
+            AttributeValue::new(self, project.stars)
         }
     }
 
     impl SelectEach for Issues {
-        type Entity = AttributeValue<Issues, Option<u64>>;
+        type Entity = AttributeValue<Issues, Option<usize>>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            AttributeValue::new(self, project.get_issue_count())
+            AttributeValue::new(self, project.issues)
         }
     }
 
     impl SelectEach for BuggyIssues {
-        type Entity = AttributeValue<BuggyIssues, Option<u64>>;
+        type Entity = AttributeValue<BuggyIssues, Option<usize>>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            AttributeValue::new(self, project.get_buggy_issue_count())
+            AttributeValue::new(self, project.buggy_issues)
         }
     }
 
     impl SelectEach for Heads {
         type Entity = AttributeValue<Heads, usize>;
         fn select(&self, _database: DatabasePtr, project: Project) -> Self::Entity {
-            AttributeValue::new(self, project.get_head_count())
+            AttributeValue::new(self, project.heads.len())
         }
     }
 
@@ -1812,40 +1982,40 @@ pub mod project {
     impl SelectEach for Commits {
         type Entity = AttributeValue<Commits, usize>;
         fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
-            AttributeValue::new(self, database.commit_count_from(&project))
+            AttributeValue::new(self, database.commit_count_from(&project.id))
         }
     }
 
     impl SelectEach for Users {
         type Entity = AttributeValue<Users, usize>;
         fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
-            AttributeValue::new(self, database.user_count_from(&project))
+            AttributeValue::new(self, database.user_count_from(&project.id))
         }
     }
 
     impl SelectEach for Paths {
         type Entity = AttributeValue<Paths, usize>;
         fn select(&self, database: DatabasePtr, project: Project) -> Self::Entity {
-            AttributeValue::new(self, database.path_count_from(&project))
+            AttributeValue::new(self, database.path_count_from(&project.id))
         }
     }
 }
 
 trait ProjectGroup {
-    fn group_by_attrib<TK>(self, attrib: impl Group<Key=TK>) -> GroupIter<dcd::Project, TK> // FIXME can I make this &self?
+    fn group_by_attrib<TK>(self, attrib: impl Group<Key=TK>) -> GroupIter<Project, TK> // FIXME can I make this &self?
         where TK: PartialEq + Eq + Hash;
 }
 
-impl ProjectGroup for EntityIter<ProjectId, dcd::Project> {
-    fn group_by_attrib<TK>(self, attrib: impl Group<Key=TK>) -> GroupIter<dcd::Project, TK>
+impl ProjectGroup for EntityIter<ProjectId, Project> {
+    fn group_by_attrib<TK>(self, attrib: impl Group<Key=TK>) -> GroupIter<Project, TK>
         where TK: PartialEq + Eq + Hash {
 
         let names: Vec<String> =
-            <dcd::Project as csv::WithStaticNames>::names().into_iter().map(|e| e.to_owned()).collect();
+            <Project as csv::WithStaticNames>::names().into_iter().map(|e| e.to_owned()).collect();
 
         GroupIter::from(self.get_database_ptr(),
-                        self.map(|p: dcd::Project| { (attrib.select(&p), p) })
-                            .into_group_map().into_iter().collect::<Vec<(TK, Vec<dcd::Project>)>>(), names) // FIXME
+                        self.map(|p: Project| { (attrib.select(&p), p) })
+                            .into_group_map().into_iter().collect::<Vec<(TK, Vec<Project>)>>(), names) // FIXME
     }
 }
 
@@ -1924,14 +2094,14 @@ impl<T, TK> WithNames for GroupIter<T, TK> where TK: PartialEq + Eq + Hash {
 }
 
 trait Ops {
-    fn filter_by_attrib(self, attrib: impl FilterEach + Clone) -> NormilIter<dcd::Project>; // tombstones?
-    fn sort_by_attrib(self, attrib: impl SortEach + Clone) -> NormilIter<dcd::Project>;
-    fn sample_by(self, attrib: impl SampleEach + Clone) -> NormilIter<dcd::Project>;
+    fn filter_by_attrib(self, attrib: impl FilterEach + Clone) -> NormilIter<Project>; // tombstones?
+    fn sort_by_attrib(self, attrib: impl SortEach + Clone) -> NormilIter<Project>;
+    fn sample_by(self, attrib: impl SampleEach + Clone) -> NormilIter<Project>;
     fn select<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> NormilIter<IntoT>;
 }
 
-impl Ops for NormilIter<dcd::Project> {
-    fn filter_by_attrib(self, attrib: impl FilterEach + Clone) -> NormilIter<dcd::Project> {
+impl Ops for NormilIter<Project> {
+    fn filter_by_attrib(self, attrib: impl FilterEach + Clone) -> NormilIter<Project> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
         let names = self.names();
@@ -1940,10 +2110,10 @@ impl Ops for NormilIter<dcd::Project> {
             // FIXME giving up on laziness for now
             attrib.filter(database, /*&key,*/ p)
         });
-        NormilIter::from(inherited_database, iterator.collect::<Vec<dcd::Project>>(), names)
+        NormilIter::from(inherited_database, iterator.collect::<Vec<Project>>(), names)
     }
 
-    fn sort_by_attrib(mut self, attrib: impl SortEach + Clone) -> NormilIter<dcd::Project> {
+    fn sort_by_attrib(mut self, attrib: impl SortEach + Clone) -> NormilIter<Project> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
         let names = self.names();
@@ -1951,7 +2121,7 @@ impl Ops for NormilIter<dcd::Project> {
         NormilIter::from(inherited_database, self.data, names)
     }
 
-    fn sample_by(self, attrib: impl SampleEach + Clone) -> NormilIter<dcd::Project> {
+    fn sample_by(self, attrib: impl SampleEach + Clone) -> NormilIter<Project> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
         let names = self.names();
@@ -1969,16 +2139,16 @@ impl Ops for NormilIter<dcd::Project> {
 }
 
 trait GroupOps<TK> where TK: PartialEq + Eq + Hash {
-    fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<dcd::Project, TK>;
-    fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<dcd::Project, TK>;
-    fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<dcd::Project, TK>;
+    fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<Project, TK>;
+    fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<Project, TK>;
+    fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<Project, TK>;
     fn select_each<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> GroupIter<IntoT, TK>;
-    fn drop_key(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>>;
-    fn squash(self) -> NormilIter<dcd::Project>;
+    fn drop_key(self) -> Map<GroupIter<Project, TK>, fn((TK, Vec<Project>)) -> Vec<Project>>;
+    fn squash(self) -> NormilIter<Project>;
 }
 
-impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash + Clone {
-    fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<dcd::Project, TK> {
+impl<TK> GroupOps<TK> for GroupIter<Project, TK> where TK: PartialEq + Eq + Hash + Clone {
+    fn filter_each_by_attrib(self, attrib: impl FilterEach + Clone) -> GroupIter<Project, TK> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
         let names = self.names();
@@ -1989,12 +2159,12 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
                     let database = database.clone();
                     // FIXME giving up on laziness for now
                     attrib.filter(database, /*&key,*/ p)
-                }).collect::<Vec<dcd::Project>>())
+                }).collect::<Vec<Project>>())
             });
-        GroupIter::from(inherited_database, iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>(), names)
+        GroupIter::from(inherited_database, iterator.collect::<Vec<(TK, Vec<Project>)>>(), names)
     }
 
-    fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<dcd::Project, TK> {
+    fn sort_each_by_attrib(self, attrib: impl SortEach + Clone) -> GroupIter<Project, TK> {
         let database = self.get_database_ptr();
         let inherited_database = self.get_database_ptr();
         let names = self.names();
@@ -2004,10 +2174,10 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
                 attrib.sort(database, &mut projects);
                 (key, projects)
             });
-        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>(), names)
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<Project>)>>(), names)
     }
 
-    fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<dcd::Project, TK> {
+    fn sample_each(self, attrib: impl SampleEach + Clone) -> GroupIter<Project, TK> {
         let database = self.get_database_ptr();
         let names = self.names();
         let inherited_database = self.get_database_ptr();
@@ -2016,7 +2186,7 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
                 let database = database.clone();
                 (key, attrib.sample(database, projects))
             });
-        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<dcd::Project>)>>(), names)
+        GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<Project>)>>(), names)
     }
 
     fn select_each<IntoT>(self, attrib: impl SelectEach<Entity=IntoT> + Clone) -> GroupIter<IntoT, TK> {
@@ -2030,15 +2200,15 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
         GroupIter::from(inherited_database,iterator.collect::<Vec<(TK, Vec<IntoT>)>>(), attrib.names())
     }
 
-    fn drop_key(self) -> Map<GroupIter<dcd::Project, TK>, fn((TK, Vec<dcd::Project>)) -> Vec<dcd::Project>> {
+    fn drop_key(self) -> Map<GroupIter<Project, TK>, fn((TK, Vec<Project>)) -> Vec<Project>> {
         self.into_iter().map(|tupple| tupple.1)
     }
 
-    fn squash(self) -> NormilIter<dcd::Project> {
+    fn squash(self) -> NormilIter<Project> {
         let inherited_database = self.get_database_ptr();
         let names = self.names();
         let iterator = self.into_iter().map(|tupple| tupple.1).flatten();
-        NormilIter::from(inherited_database, iterator.collect::<Vec<dcd::Project>>(), names)
+        NormilIter::from(inherited_database, iterator.collect::<Vec<Project>>(), names)
     }
 }
 
@@ -2059,7 +2229,7 @@ impl<TK> GroupOps<TK> for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq +
 //     fn header_line(&self) -> String { A::name() }
 // }
 
-// impl<TK> WithCSVFormat for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + Hash + CSVItem { // FIXME TK?
+// impl<TK> WithCSVFormat for GroupIter<Project, TK> where TK: PartialEq + Eq + Hash + CSVItem { // FIXME TK?
 //     fn header_line(&self) -> String {
 //         "key,\
 //          id,url,last_update,language,\

@@ -130,6 +130,12 @@ impl Display for PathId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
 }
 
+pub trait Identity: Copy + Clone + Hash + Eq + PartialEq + Ord + PartialOrd {}
+impl Identity for ProjectId {}
+impl Identity for UserId    {}
+impl Identity for CommitId  {}
+impl Identity for PathId    {}
+
 /**== Objects ===================================================================================**/
 #[derive(Clone)] // TODO implement by hand
 pub struct Project {
@@ -449,3 +455,9 @@ impl Roster for Option<&dcd::Commit> {
         }
     }
 }
+
+pub trait Identifiable<T> where T: Identity { fn id(&self) -> T; }
+impl Identifiable<ProjectId> for Project { fn id(&self) -> ProjectId { self.id } }
+impl Identifiable<CommitId>  for Commit  { fn id(&self) -> CommitId  { self.id } }
+impl Identifiable<UserId>    for User    { fn id(&self) -> UserId    { self.id } }
+impl Identifiable<PathId>    for Path    { fn id(&self) -> PathId    { self.id } }

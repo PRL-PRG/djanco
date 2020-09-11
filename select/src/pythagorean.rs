@@ -1,6 +1,6 @@
 use crate::log::LogLevel;
 use std::path::PathBuf;
-use crate::objects::{Month, ProjectId, Project};
+use crate::objects::{Month, ProjectId, Project, Identifiable, Identity};
 use crate::{LoadFilter, Group, FilterEach, SampleEach, SelectEach};
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -9,6 +9,7 @@ use std::rc::Rc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use dcd::DCD;
+use std::collections::BTreeMap;
 
 /**
  * This is a Djanco API starting point. Query and database construction starts here.
@@ -62,16 +63,35 @@ impl DjancoPrototype {
 pub trait GroupKey: PartialEq + Eq + Hash {} // TODO move to lib.rs
 
 pub trait Filter<T> { // TODO move to lib.rs
-    fn decide(&self, database: Rc<RefCell<Data>>, object: &&T) -> bool;
+//    fn decide(&self, database: Rc<RefCell<Data>>, object: &&T) -> bool;
+    fn decide(&self, database: &Data, object: &&T) -> bool;
 }
 
-struct And<T> {
+pub trait Sample<Id,T>: Clone where T: Identifiable<Id>, Id: Identity {
+    fn sample_ids(self, database: &Data, iter: &mut dyn Iterator<Item=&T>) -> Vec<Id>;
+    fn sample(self, database: &Data, iter: &mut dyn Iterator<Item=T>) -> Vec<T>;
+}
+
+#[derive(Clone)]
+struct Top(usize);
+
+impl<Id,T> Sample<Id,T> for Top where T: Identifiable<Id>, Id: Identity {
+    fn sample_ids(self, database: &Data, iter: &mut dyn Iterator<Item=&T>) -> Vec<Id> {
+        iter.take(self.0).map(|p| p.id()).collect()
+    }
+    fn sample(self, database: &Data, iter: &mut dyn Iterator<Item=T>) -> Vec<T> {
+        iter.take(self.0).collect()
+    }
+}
+
+struct And<T> { // TODO move to lib.rs
     left: Box<dyn Filter<T>>,
     right: Box<dyn Filter<T>>,
 }
 
 impl<T> Filter<T> for And<T> {
-    fn decide(&self, database: Rc<RefCell<Data>>, object: &&T) -> bool {
+    //fn decide(&self, database: Rc<RefCell<Data>>, object: &&T) -> bool {
+    fn decide(&self, database: &Data, object: &&T) -> bool {
         if self.right.decide(database.clone(), object) {
             self.left.decide(database, object)
         } else {
@@ -112,15 +132,47 @@ impl<T> DjancoInstance<T> {
 }
 
 impl DjancoInstance<Project> {
-    fn sample_by_attrib(self, attrib: impl SampleEach) -> Self {
-
+    fn filtered_project_ids(&self) -> Vec<ProjectId> {
+        self.database.projects.iter().filter(|(project_id, project)| {
+            self.filters.iter().all(|filter| filter.decide(&self.database, project))
+        }).map(|(_, project)| project.id).collect()
     }
 
-    fn select<E>(self, attrib: impl SelectEach<Entity=E>) -> DjancoInstance<E> {
-        unimplemented!()
+    fn filtered_projects(&self) -> Vec<&Project> {
+        self.database.projects.iter().filter(|(project_id, project)| {
+            self.filters.iter().all(|filter| filter.decide(&self.database, project))
+        }).map(|(_, project)| project).collect()
     }
 
-    fn group_by_attrib<K>(self, attrib: impl Group<Key=K>) -> DjancoGroupInstance<K,Project> where K: GroupKey {
+    fn filtered_and_sampled_project_ids(&self, attrib: impl Sample<ProjectId, Project>) -> Vec<ProjectId> {
+        let mut iter =
+            self.database.projects.iter()
+                .filter(|(_, project)| {
+                    self.filters.iter().all(|filter| filter.decide(&self.database, project))
+                })
+                .map(|(_, project)| project);
+        attrib.sample_ids(&self.database, &mut iter)
+    }
+
+    pub fn collect(self) -> DjancoSelection<ProjectId, Project> {
+        let selection = self.filtered_project_ids();
+        let mut instance = DjancoSelection::from(self);
+        instance.selection.extend(selection);
+        instance
+    }
+
+    pub fn sample_by_attrib(self, attrib: impl Sample<ProjectId, Project>) -> DjancoSelection<ProjectId, Project> {
+        let selection = self.filtered_and_sampled_project_ids(attrib);
+        let mut instance = DjancoSelection::from(self);
+        instance.selection.extend(selection);
+        instance
+    }
+
+    // pub fn select<EId, E>(self, attrib: impl Select<EId, E>) -> DjancoInstance<EId, E> {
+    //     unimplemented!()
+    // }
+
+    pub fn group_by_attrib<K>(self, attrib: impl Group<Key=K>) -> DjancoGroupInstance<K,Project> where K: GroupKey {
         unimplemented!()
     }
 }
@@ -130,4 +182,27 @@ struct DjancoGroupInstance<K,T> {
     _value: PhantomData<T>,
 }
 
+struct DjancoSelection<Id: Identity, T: Identifiable<Id>> {
+    selection: Vec<Id>,
+    database: Data,
+    seed: u128,
+    timestamp: Month,
+    verbosity: LogLevel,
+    path: PathBuf,
+    _entity: PhantomData<T>,
+}
+
+impl From<DjancoInstance<Project>> for DjancoSelection<ProjectId, Project> {
+    fn from(instance: DjancoInstance<Project>) -> Self {
+        DjancoSelection {
+            selection: vec![],
+            database: instance.database,
+            seed: instance.seed,
+            timestamp: instance.timestamp,
+            verbosity: instance.verbosity,
+            path: instance.path,
+            _entity: PhantomData,
+        }
+    }
+}
 

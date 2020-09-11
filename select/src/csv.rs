@@ -1,8 +1,7 @@
-use crate::{WithDatabase, DatabasePtr, DataSource, ProjectId, CommitId, UserId, PathId, GroupIter, AttributeValue, Attribute};
-use crate::meta::ProjectMeta;
+use crate::{WithDatabase, DatabasePtr, DataSource, AttributeValue, Attribute};
 use std::io::Write;
 use crate::project::{Id, URL, Stars, Issues, BuggyIssues, Heads, Commits, Users, Paths, Language, Metadata};
-use crate::data::{Project, User, Path, Commit};
+use crate::objects::{ProjectId, UserId, PathId, CommitId, Project, User, Path, Commit};
 
 macro_rules! create_file {
     ($location:expr) => {{

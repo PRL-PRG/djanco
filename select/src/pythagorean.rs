@@ -10,6 +10,9 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use dcd::DCD;
 use std::collections::BTreeMap;
+use crate::require::AtLeast;
+use itertools::__std_iter::{Take, Zip, Chain, Copied, Rev, SkipWhile, Peekable, FilterMap, FlatMap, Inspect, StepBy, TakeWhile, Fuse, Flatten, Cycle, Enumerate, Skip, Scan, Cloned, Map};
+use std::cmp::Ordering;
 
 /**
  * This is a Djanco API starting point. Query and database construction starts here.
@@ -67,15 +70,15 @@ pub trait Filter<T> { // TODO move to lib.rs
     fn decide(&self, database: &Data, object: &&T) -> bool;
 }
 
-pub trait Sample<Id,T>: Clone where T: Identifiable<Id>, Id: Identity {
+pub trait Sample<Id,T>: Clone where T: Identifiable<Id>, Id: Identity { // TODO move to lib.rs
     fn sample_ids(self, database: &Data, iter: &mut dyn Iterator<Item=&T>) -> Vec<Id>;
     fn sample(self, database: &Data, iter: &mut dyn Iterator<Item=T>) -> Vec<T>;
 }
 
 #[derive(Clone)]
-struct Top(usize);
+struct Top(usize); // TODO move to lib.rs
 
-impl<Id,T> Sample<Id,T> for Top where T: Identifiable<Id>, Id: Identity {
+impl<Id,T> Sample<Id,T> for Top where T: Identifiable<Id>, Id: Identity { // TODO move to lib.rs
     fn sample_ids(self, database: &Data, iter: &mut dyn Iterator<Item=&T>) -> Vec<Id> {
         iter.take(self.0).map(|p| p.id()).collect()
     }
@@ -89,7 +92,7 @@ struct And<T> { // TODO move to lib.rs
     right: Box<dyn Filter<T>>,
 }
 
-impl<T> Filter<T> for And<T> {
+impl<T> Filter<T> for And<T> { // TODO move to lib.rs
     //fn decide(&self, database: Rc<RefCell<Data>>, object: &&T) -> bool {
     fn decide(&self, database: &Data, object: &&T) -> bool {
         if self.right.decide(database.clone(), object) {
@@ -154,6 +157,10 @@ impl DjancoInstance<Project> {
         attrib.sample_ids(&self.database, &mut iter)
     }
 
+    pub fn into_iter(self) -> DjancoSelection<ProjectId, Project> {
+        self.collect()
+    }
+
     pub fn collect(self) -> DjancoSelection<ProjectId, Project> {
         let selection = self.filtered_project_ids();
         let mut instance = DjancoSelection::from(self);
@@ -168,11 +175,11 @@ impl DjancoInstance<Project> {
         instance
     }
 
-    // pub fn select<EId, E>(self, attrib: impl Select<EId, E>) -> DjancoInstance<EId, E> {
-    //     unimplemented!()
+    // pub fn select<E>(self, attrib: impl Select<E>) -> DjancoInstance<E> {
+    //       unimplemented!()
     // }
 
-    pub fn group_by_attrib<K>(self, attrib: impl Group<Key=K>) -> DjancoGroupInstance<K,Project> where K: GroupKey {
+    pub fn group_by_attrib<K>(self, attrib: impl Group<Key=K>) -> DjancoGroupInstance<K, Project> where K: GroupKey {
         unimplemented!()
     }
 }
@@ -190,6 +197,7 @@ struct DjancoSelection<Id: Identity, T: Identifiable<Id>> {
     verbosity: LogLevel,
     path: PathBuf,
     _entity: PhantomData<T>,
+    current: usize,
 }
 
 impl From<DjancoInstance<Project>> for DjancoSelection<ProjectId, Project> {
@@ -202,7 +210,55 @@ impl From<DjancoInstance<Project>> for DjancoSelection<ProjectId, Project> {
             verbosity: instance.verbosity,
             path: instance.path,
             _entity: PhantomData,
+            current: 0,
         }
+    }
+}
+
+impl Iterator for DjancoSelection<ProjectId, Project> {
+    type Item = ProjectId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current >= self.selection.len() {
+            return None
+        }
+        let item =
+            self.selection.get(self.current).map(|id| *id);
+        self.current += 1;
+        item
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pythagorean::{Djanco, Filter};
+    use crate::objects::{Month, Project};
+    use crate::log::LogLevel;
+    use crate::data::Data;
+
+    struct MinCommits(usize);
+    struct MaxCommits(usize);
+
+    impl Filter<Project> for MinCommits {
+        fn decide(&self, database: &Data, object: &&Project) -> bool {
+            database.commits_from_project.get(&object.id).map_or(0, |e| e.len()) >= self.0
+        }
+    }
+
+    impl Filter<Project> for MaxCommits {
+        fn decide(&self, database: &Data, object: &&Project) -> bool {
+            database.commits_from_project.get(&object.id).map_or(0, |e| e.len()) <= self.0
+        }
+    }
+
+    #[test]
+    fn example() {
+        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020)).with_log_level(LogLevel::Verbose);
+
+        database.projects()
+            .filter_by_attrib(MinCommits(28))
+            .filter_by_attrib(MaxCommits(100))
+            .collect();
     }
 }
 

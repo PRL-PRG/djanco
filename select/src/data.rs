@@ -6,8 +6,16 @@ use crate::{LoadFilter, EntityIter, ProjectEntityIter};
 use std::time::Duration;
 use itertools::Itertools;
 use std::path::PathBuf;
+use std::rc::{Weak, Rc};
+use std::cell::RefCell;
+
+type DataPtr = Rc<RefCell<Data>>;
 
 pub struct Data {
+    me: Option<Weak<RefCell<Data>>>, // Thanks for the help, Colette.
+
+    warehouse: DCD,
+
     //cache_path: PathBuf, //TODO
     pub(crate) projects: BTreeMap<ProjectId, Project>, // TODO internal mutability + laziness
     pub(crate) commits:  BTreeMap<CommitId,  Commit>,
@@ -35,12 +43,25 @@ macro_rules! count_relationships {
 }
 
 impl Data {
+    pub fn me(&self) -> DataPtr {
+        self.me.as_ref().unwrap().upgrade().unwrap()
+    }
+
+    pub fn ptr(warehouse_path: &PathBuf, time: &Month, verbosity: &LogLevel) -> DataPtr {
+        let data = Self::from(warehouse_path, time, verbosity);
+        let pointer: DataPtr = Rc::new(RefCell::new(data));
+
+        // Things we do to avoid unsafe.
+        pointer.borrow_mut().me = Some(Rc::downgrade(&pointer));
+        pointer
+    }
+
     pub fn from(warehouse_path: &PathBuf, time: &Month, verbosity: &LogLevel) -> Self {
         let warehouse: DCD = DCD::new(warehouse_path.as_os_str().to_str().unwrap().to_string());
         unimplemented!()
     }
 
-    pub fn from_(warehouse: &DCD, verbosity: &LogLevel) -> Self {
+    pub fn from_(warehouse: DCD, verbosity: &LogLevel) -> Self {
         log_header!(verbosity, "Checking out data from warehouse"); // TODO path
 
         log_item!(verbosity, "loading project data");
@@ -126,12 +147,13 @@ impl Data {
         log_item!(verbosity, format!("loaded {} messages", message_from_commit.len()));
 
         Data {
+            me: None, warehouse,
             projects, commits, users, paths,
             commits_from_project, users_from_project, paths_from_commit, message_from_commit,
         }
     }
 
-    pub fn from_filtered(warehouse: &DCD, project_filters: &Vec<Box<dyn LoadFilter>>, verbosity: &LogLevel) -> Self {
+    pub fn from_filtered(warehouse: DCD, project_filters: &Vec<Box<dyn LoadFilter>>, verbosity: &LogLevel) -> Self {
         log_header!(verbosity, "Checking out data from warehouse"); // TODO path
 
         log_item!(verbosity, format!("loading project-commit mapping with {} filter{}",
@@ -246,6 +268,7 @@ impl Data {
         log_item!(verbosity, format!("loaded {} messages", message_from_commit.len()));
 
         Data {
+            me: None, warehouse,
             projects, commits, users, paths,
             commits_from_project, users_from_project, paths_from_commit, message_from_commit,
         }

@@ -1,10 +1,11 @@
 use crate::log::LogLevel;
 use std::collections::BTreeMap;
-use crate::objects::{ProjectId, UserId, CommitId, PathId, Project, Commit, User, Path, Message, Roster};
+use crate::objects::{ProjectId, UserId, CommitId, PathId, Project, Commit, User, Path, Message, Roster, Month};
 use dcd::{DCD, Database};
 use crate::{LoadFilter, EntityIter, ProjectEntityIter};
 use std::time::Duration;
 use itertools::Itertools;
+use std::path::PathBuf;
 
 pub struct Data {
     //cache_path: PathBuf, //TODO
@@ -34,7 +35,12 @@ macro_rules! count_relationships {
 }
 
 impl Data {
-    pub fn from(warehouse: &DCD, verbosity: &LogLevel) -> Self {
+    pub fn from(warehouse_path: &PathBuf, time: &Month, verbosity: &LogLevel) -> Self {
+        let warehouse: DCD = DCD::new(warehouse_path.as_os_str().to_str().unwrap().to_string());
+        unimplemented!()
+    }
+
+    pub fn from_(warehouse: &DCD, verbosity: &LogLevel) -> Self {
         log_header!(verbosity, "Checking out data from warehouse"); // TODO path
 
         log_item!(verbosity, "loading project data");

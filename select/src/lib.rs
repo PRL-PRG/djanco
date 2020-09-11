@@ -1,3 +1,4 @@
+mod pythagorean;
 #[macro_use] mod log;
 pub mod data;
 pub mod objects;
@@ -27,6 +28,7 @@ use crate::csv::WithNames;
 use crate::objects::{Project, Commit, User, Path, ProjectId, CommitId, UserId, PathId};
 use crate::log::LogLevel;
 use crate::data::Data;
+use std::fmt;
 
 
 trait DataSource {
@@ -121,28 +123,29 @@ impl Djanco {
     pub fn instantiate(self) -> DatabasePtr {
         let warehouse = DCD::new(self.path_as_string());
 
-        let data = if self.filters.is_empty() {
-            Data::from(&warehouse, &self.verbosity)
-        } else {
-            Data::from_filtered(&warehouse, &self.filters, &self.verbosity)
-        };
+        unimplemented!()
+        // let data = if self.filters.is_empty() {
+        //     Data::from(&warehouse, &self.verbosity)
+        // } else {
+        //     Data::from_filtered(&warehouse, &self.filters, &self.verbosity)
+        // };
 
-        let database = Djanco {
-            //warehouse: Some(warehouse),
-            verbosity: self.verbosity,
-            me: None,
-            path: self.path,
-            timestamp: self.timestamp,
-            seed: self.seed,
-            filters: self.filters,
-            data: Some(data),
-        };
-
-        let pointer: DatabasePtr = Rc::new(RefCell::new(database));
-
-        // Things we do to avoid unsafe.
-        pointer.borrow_mut().me = Some(Rc::downgrade(&pointer));
-        pointer
+        // let database = Djanco {
+        //     //warehouse: Some(warehouse),
+        //     verbosity: self.verbosity,
+        //     me: None,
+        //     path: self.path,
+        //     timestamp: self.timestamp,
+        //     seed: self.seed,
+        //     filters: self.filters,
+        //     data: Some(data),
+        // };
+        //
+        // let pointer: DatabasePtr = Rc::new(RefCell::new(database));
+        //
+        // // Things we do to avoid unsafe.
+        // pointer.borrow_mut().me = Some(Rc::downgrade(&pointer));
+        // pointer
     }
 
     pub fn me(&self) -> DatabasePtr {
@@ -1493,6 +1496,18 @@ impl<TK> GroupOps<TK> for GroupIter<Project, TK> where TK: PartialEq + Eq + Hash
 //         format!("{},{}", self.0.to_csv_line(db.clone()), self.1.to_csv_line(db))
 //     }
 // }
+
+struct Error {
+    message: String
+}
+
+impl Error {
+    pub fn new<S>(message: S) -> Self where S: Into<String> { Error { message: message.into() } }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.message) }
+}
 
 #[cfg(test)]
 mod tests {

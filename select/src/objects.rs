@@ -5,19 +5,10 @@ use crate::meta::ProjectMeta;
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 
+/**== Time====== ================================================================================**/
 pub enum Month {
-    January(u16),
-    February(u16),
-    March(u16),
-    April(u16),
-    May(u16),
-    June(u16),
-    July(u16),
-    August(u16),
-    September(u16),
-    October(u16),
-    November(u16),
-    December(u16),
+    January(u16), February(u16), March(u16), April(u16), May(u16), June(u16), July(u16),
+    August(u16), September(u16), October(u16), November(u16), December(u16),
 }
 
 impl Month {
@@ -69,11 +60,13 @@ impl Into<Date<Utc>>     for Month { fn into(self) -> Date<Utc>     { self.into_
 impl Into<DateTime<Utc>> for Month { fn into(self) -> DateTime<Utc> { self.into_datetime()   } }
 impl Into<i64>           for Month { fn into(self) -> i64 { self.into_datetime().timestamp() } }
 
+/**== Object IDs ================================================================================**/
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct ProjectId(pub u64);
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct CommitId(pub u64);
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct UserId(pub u64);
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct PathId(pub u64);
 
+/**== Object IDs convenience ====================================================================**/
 impl ProjectId { fn to_string(&self) -> String { self.0.to_string() } }
 impl CommitId  { fn to_string(&self) -> String { self.0.to_string() } }
 impl UserId    { fn to_string(&self) -> String { self.0.to_string() } }
@@ -137,6 +130,7 @@ impl Display for PathId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
 }
 
+/**== Objects ===================================================================================**/
 #[derive(Clone)] // TODO implement by hand
 pub struct Project {
     pub id: ProjectId,
@@ -180,6 +174,7 @@ pub struct Message {
     contents: Vec<u8>,
 }
 
+/**== Objects convenience =======================================================================**/
 impl Project {
     pub fn language_or_empty(&self) -> String {
         self.language.as_ref().map_or("", |s| s.as_str()).to_string()

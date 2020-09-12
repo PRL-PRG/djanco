@@ -3,6 +3,8 @@ use dcd::DCD;
 use crate::objects::Project;
 use crate::csv::WithNames;
 use crate::data::DataPtr;
+use itertools::Itertools;
+use std::hash::Hash;
 
 pub trait Attribute {}
 
@@ -25,10 +27,22 @@ pub trait LoadFilter {
 pub trait Group<T> {
     type Key;
     fn select(&self, data: DataPtr, project: &T) -> Self::Key;
+    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<(Self::Key, Vec<T>)> where <Self as Group<T>>::Key: Hash + Eq {
+        vector.into_iter()
+            .map(|e| (self.select(data.clone(), &e), e))
+            .into_group_map()
+            .into_iter()
+            .collect()
+    }
 }
 
 pub trait Filter<T> {
     fn filter(&self, data: DataPtr, project: &T) -> bool;
+    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T> {
+        vector.into_iter()
+            .filter(|e| self.filter(data.clone(), &e))
+            .collect()
+    }
 }
 
 pub trait SortEach {

@@ -62,7 +62,22 @@ impl /* Quincunx for */ Lazy {
 pub struct QuincunxIter<T> {
     spec: Spec,
     data: DataPtr,
-    source: Option<Vec<T>>, // Serves the iterator: None -> n elements -> ... -> 0 elements
+    sourcex: Option<Vec<T>>, // Serves the iterator: None -> n elements -> ... -> 0 elements
+}
+
+impl<T> /* LazyLoad for */ QuincunxIter<T> where T: Quincunx {
+    fn borrow_source(&mut self) -> &mut Vec<T> {
+        if self.sourcex.is_none() {
+            self.sourcex = Some(T::stream_from(&self.data))
+        }
+        self.sourcex.as_mut().unwrap()
+    }
+    fn consume_source(mut self) -> Vec<T> {
+        if self.sourcex.is_none() {
+            self.sourcex = Some(T::stream_from(&self.data))
+        }
+        self.sourcex.unwrap()
+    }
 }
 
 impl<T> WithData for QuincunxIter<T> {
@@ -73,52 +88,24 @@ impl<T> WithData for QuincunxIter<T> {
 
 impl<T> Iterator for QuincunxIter<T> where T: Quincunx {
     type Item = T;
-
     fn next(&mut self) -> Option<Self::Item> {
-        if self.source.is_none() {
-            self.source = Some(Self::Item::stream_from(&self.data))
-        }
-        let mut source = self.source.as_mut().unwrap();
-        let pop = source.pop();
-        pop
+        self.borrow_source().pop()
     }
 }
 
 impl<T> /* Query for */ QuincunxIter<T> where T: Quincunx {
-    pub fn group_by_attrib<K, G>(self, attrib: G) -> QuincunxGroupIter<K, T> where G: Group<T, Key=K>, K: Hash + Eq {
-        let db = self.data.clone();
-        let source: Vec<(K, Vec<T>)> = match self.source {
-            None => vec![],
-            Some(stream) => {
-                stream.into_iter()
-                    .map(|e| (attrib.select(db.clone(), &e), e))
-                    .into_group_map()
-                    .into_iter()
-                    .collect()
-            },
-        };
-        QuincunxGroupIter {
-            spec: self.spec.clone(),
-            data: self.data.clone(),
-            source,
-        }
+    pub fn group_by_attrib<K, G>(mut self, mut attrib: G) -> GroupIter<K, T> where G: Group<T, Key=K>, K: Hash + Eq {
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+        let source = attrib.execute(self.data.clone(), self.consume_source());
+        GroupIter { spec, data, source }
     }
 
-    pub fn filter<F>(mut self, attrib: F) -> QuincunxIter<T> where F: Filter<T> {
-        let db = self.data.clone();
-        let source: Vec<T> = match self.source {
-            None => vec![],
-            Some(stream) => {
-                stream.into_iter()
-                    .filter(|e| attrib.filter(db.clone(), &e))
-                    .collect()
-            },
-        };
-        QuincunxIter {
-            spec: self.spec.clone(),
-            data: self.data.clone(),
-            source: Some(source),
-        }
+    pub fn filter<F>(mut self, mut attrib: F) -> Iter<T> where F: Filter<T> {
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+        let source: Vec<T> = attrib.execute(self.data.clone(), self.consume_source());
+        Iter { spec, data, source }
     }
 }
 
@@ -133,48 +120,79 @@ impl<T> From<&Spec> for QuincunxIter<T> {
 impl<T> From<Lazy> for QuincunxIter<T> {
     fn from(lazy: Lazy) -> Self {
         let data = DataPtr::from(&lazy);
-        QuincunxIter { spec: lazy.spec, data, source: None }
+        QuincunxIter { spec: lazy.spec, data, sourcex: None }
+    }
+}
+
+/**
+ * A general version of QuincunxITer that is already initialized, and therefore can contain any
+ *  element type.
+ **/
+pub struct Iter<T> {
+    spec: Spec,
+    data: DataPtr,
+    source: Vec<T>,
+}
+
+impl<T> WithData for Iter<T> {
+    fn get_database_ptr(&self) -> DataPtr {
+        self.data.clone()
+    }
+}
+
+impl<T> Iterator for Iter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.source.pop()
+    }
+}
+
+impl<T> /* Query for */ Iter<T> {
+    pub fn group_by_attrib<K, G>(self, mut attrib: G) -> GroupIter<K, T> where G: Group<T, Key=K>, K: Hash + Eq {
+        let source = attrib.execute(self.data.clone(), self.source);
+        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn filter<F>(mut self, mut attrib: F) -> Iter<T> where F: Filter<T> {
+        let source = attrib.execute(self.data.clone(), self.source);
+        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 }
 
 // TODO: I think this is a potentially fun idea fror laziness, but I will implement a simple eager
 //       solution for now.
-struct TransformedSouce<T, Transform> {
+struct TransformedSource<T, Transform> {
     source: QuincunxIter<T>,
     transform: Transform,
 }
 
-impl<K, Transform> From<(QuincunxIter<Project>, Transform)> for TransformedSouce<Project, Transform> where Transform: Group<Project, Key=K> {
+impl<K, Transform> From<(QuincunxIter<Project>, Transform)> for TransformedSource<Project, Transform> where Transform: Group<Project, Key=K> {
     fn from(source_and_transform: (QuincunxIter<Project>, Transform)) -> Self {
-        TransformedSouce {
+        TransformedSource {
             source: source_and_transform.0,
             transform: source_and_transform.1,
         }
     }
 }
 
-pub struct QuincunxGroupIter<K, T> {
+/**
+ * Group iterator, probably the most used iterator we build.s
+ */
+pub struct GroupIter<K, T> {
     spec: Spec,
     data: DataPtr,
-    source: Vec<(K,Vec<T>)>
+    source: Vec<(K, Vec<T>)>
 }
 
-impl<K, T> WithData for QuincunxGroupIter<K, T> {
+impl<K, T> WithData for GroupIter<K, T> {
     fn get_database_ptr(&self) -> DataPtr {
         self.data.clone()
     }
 }
 
-impl<K, T> Iterator for QuincunxGroupIter<K, T> where T: Quincunx {
+impl<K, T> Iterator for GroupIter<K, T> {
     type Item = (K, Vec<T>);
-
     fn next(&mut self) -> Option<Self::Item> {
         self.source.pop()
-    }
-}
-
-impl<K, T> QuincunxGroupIter<K, T> {
-    pub fn new(spec: &Spec, data: DataPtr, source: Vec<(K, Vec<T>)>) -> Self {
-        QuincunxGroupIter{ spec: spec.clone(), data, source }
     }
 }

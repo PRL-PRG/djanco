@@ -62,15 +62,18 @@ impl fmt::Display for Error {
 #[cfg(test)]
 mod tests {
     use crate::Djanco;
+    use crate::project;
+    use crate::require;
     use crate::objects::*;
+
 
     #[test]
     fn example() {
         let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020));
 
-        database.projects();
-
-    //         .group_by_attrib(project::Stars)
+        database.projects()
+             .filter(require::AtLeast(project::Commits, 28))
+             .group_by_attrib(project::Stars);
     //         .filter_each_by_attrib(require::AtLeast(project::Stars, 1))
     //         .filter_each_by_attrib(require::AtLeast(project::Commits, 25))
     //         .filter_each_by_attrib(require::AtLeast(project::Users, 2))

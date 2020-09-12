@@ -1,3 +1,4 @@
+mod djanco;
 pub mod require;
 pub mod sample;
 pub mod attrib;
@@ -35,39 +36,40 @@ use crate::log::LogLevel;
 use crate::data::Data;
 use std::fmt;
 use crate::attrib::{LoadFilter, Group, FilterEach, SortEach, SampleEach, SelectEach};
+use crate::djanco::{Lazy, Spec};
 
 /**
  * This is a Djanco API starting point. Query and database construction starts here.
  */
-struct Djanco;
+pub struct Djanco;
 
 impl Djanco {
-    pub fn from<S: Into<String>>(path: S, seed: u128, timestamp: Month) -> () {
-        //DjancoPrototype::from(path, seed, timestamp)
-        unimplemented!()
+    pub fn from<S: Into<String>>(path: S, seed: u128, timestamp: Month) -> Lazy {
+        let spec = Spec::new(path, seed, timestamp, LogLevel::Verbose);
+        Lazy::from(spec)
     }
 }
 
-struct Error { message: String }
-
+/** Errors **/
+pub struct Error { message: String }
 impl Error {
     pub fn from<S>(message: S) -> Self where S: Into<String> { Error { message: message.into() } }
 }
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.message) }
 }
 
 #[cfg(test)]
 mod tests {
-    //use crate::{Djanco, DataSource, ProjectGroup, Ops, GroupOps, regex, project, require, sample, csv::*, objects::*};
+    use crate::Djanco;
+    use crate::objects::*;
 
-    //#[test]
-    // fn example() {
-    //     let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0,
-    //                                 Month::August(2020));
-    //     database
-    //         .projects()
+    #[test]
+    fn example() {
+        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020));
+
+        database.projects();
+
     //         .group_by_attrib(project::Stars)
     //         .filter_each_by_attrib(require::AtLeast(project::Stars, 1))
     //         .filter_each_by_attrib(require::AtLeast(project::Commits, 25))
@@ -79,5 +81,5 @@ mod tests {
     //         .squash()
     //         .select(project::Id)
     //         .to_csv("projects.csv").unwrap()
-    // }
+    }
 }

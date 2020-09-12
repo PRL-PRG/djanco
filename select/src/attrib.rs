@@ -19,6 +19,7 @@ impl<A, T> AttributeValue<A, T> where A: Attribute {
 
 pub trait LoadFilter {
     fn filter(&self, database: &DCD, /*key: &Self::Key,*/ project_id: &dcd::ProjectId, commit_ids: &Vec<dcd::CommitId>) -> bool;
+    fn clone_box(&self) -> Box<dyn LoadFilter>;
 }
 
 pub trait Group {

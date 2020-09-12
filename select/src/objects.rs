@@ -6,6 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 
 /**== Time====== ================================================================================**/
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Month {
     January(u16), February(u16), March(u16), April(u16), May(u16), June(u16), July(u16),
     August(u16), September(u16), October(u16), November(u16), December(u16),

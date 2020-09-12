@@ -10,14 +10,24 @@ use std::rc::{Weak, Rc};
 use std::cell::{RefCell, Ref};
 use std::fmt;
 use std::panic::catch_unwind;
+use crate::djanco;
+use crate::djanco::Loaded;
+use std::borrow::Borrow;
 
 pub type DataPtr = Rc<RefCell<Data>>;
 
 pub trait WithData { fn get_database_ptr(&self) -> DataPtr; }
 impl WithData for Data { fn get_database_ptr(&self) -> DataPtr { self.me() } }
 
+impl Clone for Box<dyn LoadFilter> {
+    fn clone(&self) -> Box<dyn LoadFilter> {
+        self.clone_box()
+    }
+}
+
 pub struct Data {
     me: Option<Weak<RefCell<Data>>>, // Thanks for the help, Colette.
+    filters: Vec<Box<dyn LoadFilter>>,
 
     warehouse: DCD,
 
@@ -41,6 +51,36 @@ pub struct Data {
     // TODO age
 
     seed: u128,
+}
+
+impl From<djanco::Spec> for DataPtr {
+    fn from(spec: djanco::Spec) -> Self {
+        Data::ptr(&spec.path, &spec.timestamp, spec.seed, &spec.log_level)
+    }
+}
+
+impl From<&djanco::Spec> for DataPtr {
+    fn from(spec: &djanco::Spec) -> Self {
+        Data::ptr(&spec.path, &spec.timestamp, spec.seed, &spec.log_level)
+    }
+}
+
+impl From<djanco::Lazy> for DataPtr {
+    fn from(lazy: djanco::Lazy) -> Self {
+        let mut data_ptr = DataPtr::from(&lazy.spec);
+        data_ptr.as_ref().borrow_mut().filters = lazy.filters;
+        data_ptr
+    }
+}
+
+impl From<&djanco::Lazy> for DataPtr {
+    fn from(lazy: &djanco::Lazy) -> Self {
+        let mut data_ptr = DataPtr::from(&lazy.spec);
+        let iter =
+            lazy.filters.iter().map(|f| f.clone_box());
+        data_ptr.as_ref().borrow_mut().filters.extend(iter);
+        data_ptr
+    }
 }
 
 macro_rules! count_relationships {
@@ -156,22 +196,22 @@ impl Data {
         log_item!(verbosity, format!("loaded {} messages", message_from_commit.len()));
 
         Data {
-            me: None, warehouse, seed,
+            me: None, warehouse, seed, filters: vec![],
             projects, commits, users, paths,
             commits_from_project, users_from_project, paths_from_commit, message_from_commit,
         }
     }
 
-    pub fn from_filtered(warehouse: DCD, project_filters: &Vec<Box<dyn LoadFilter>>, seed: u128, verbosity: &LogLevel) -> Self {
+    pub fn from_filtered(warehouse: DCD, filters: Vec<Box<dyn LoadFilter>>, seed: u128, verbosity: &LogLevel) -> Self {
         log_header!(verbosity, "Checking out data from warehouse"); // TODO path
 
         log_item!(verbosity, format!("loading project-commit mapping with {} filter{}",
-                                     project_filters.len(),
-                                     if project_filters.len() > 1 {"s"} else {""} ));
+                                     filters.len(),
+                                     if filters.len() > 1 {"s"} else {""} ));
         let commits_from_project: BTreeMap<ProjectId, Vec<CommitId>> =
             warehouse.project_ids_and_their_commit_ids()
                 .filter(|(project_id, commit_ids)| {
-                    project_filters.iter().all(|filter| {
+                    filters.iter().all(|filter| {
                         filter.filter(&warehouse, project_id, commit_ids)
                     })
                 })
@@ -277,7 +317,7 @@ impl Data {
         log_item!(verbosity, format!("loaded {} messages", message_from_commit.len()));
 
         Data {
-            me: None, warehouse, seed,
+            me: None, warehouse, seed, filters,
             projects, commits, users, paths,
             commits_from_project, users_from_project, paths_from_commit, message_from_commit,
         }
@@ -574,6 +614,30 @@ impl Data {
         unimplemented!()
     }
 }
+
+pub trait Quincunx {
+    fn stream_from(data: &DataPtr) -> Vec<Self> where Self: Sized;
+}
+
+impl Quincunx for Project {
+    fn stream_from(data: &DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().projects() }
+}
+
+impl Quincunx for Commit {
+    fn stream_from(data: &DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().commits() }
+}
+
+impl Quincunx for Path {
+    fn stream_from(data: &DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().paths() }
+}
+
+impl Quincunx for User {
+    fn stream_from(data: &DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().users() }
+}
+
+// impl Quincunx for Snapshot {
+//     fn stream_from(data: DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().snapshots() }
+// }
 
 enum NotFound {
     Project(ProjectId),

@@ -1,11 +1,29 @@
 use regex::Regex;
-use crate::attrib::{FilterEach, NumericalAttribute, StringAttribute};
+use crate::attrib::{FilterEach, NumericalAttribute, StringAttribute, Filter};
 use crate::objects::Project;
 use crate::data::DataPtr;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtLeast<N>(pub N, pub usize);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Exactly<N>(pub N, pub usize);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtMost<N> (pub N, pub usize);
+
+impl<T, N> Filter<T> for AtLeast<N> where N: NumericalAttribute<Entity=T> {
+    fn filter(&self, data: DataPtr, project: &T) -> bool {
+        self.0.calculate(data, project) >= self.1
+    }
+}
+
+impl<T, N> Filter<T> for Exactly<N> where N: NumericalAttribute<Entity=T> {
+    fn filter(&self, data: DataPtr, project: &T) -> bool {
+        self.0.calculate(data, project) == self.1
+    }
+}
+
+impl<T, N> Filter<T> for AtMost<N> where N: NumericalAttribute<Entity=T> {
+    fn filter(&self, data: DataPtr, project: &T) -> bool {
+        self.0.calculate(data, project) <= self.1
+    }
+}
 
 impl<N> FilterEach for AtLeast<N> where N: NumericalAttribute<Entity=Project> {
     fn filter(&self, database: DataPtr, project: &Project) -> bool {

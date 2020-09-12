@@ -138,37 +138,37 @@ impl NumericalAttribute for Paths {
     }
 }
 
-impl Group for Id {
+impl Group<Project> for Id {
     type Key = ProjectId;
-    fn select(&self, project: &Project) -> Self::Key {
+    fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
         project.id
     }
 }
 
-impl Group for Language {
+impl Group<Project> for Language {
     type Key = String;
-    fn select(&self, project: &Project) -> Self::Key {
+    fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
         project.language_or_empty()
     }
 }
 
-impl Group for Stars {
+impl Group<Project> for Stars {
     type Key = usize;
-    fn select(&self, project: &Project) -> Self::Key {
+    fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
         project.stars_or_zero()
     }
 }
 
-impl Group for Issues {
+impl Group<Project> for Issues {
     type Key = usize;
-    fn select(&self, project: &Project) -> Self::Key {
+    fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
         project.issues_or_zero()
     }
 }
 
-impl Group for BuggyIssues {
+impl Group<Project> for BuggyIssues {
     type Key = usize;
-    fn select(&self, project: &Project) -> Self::Key {
+    fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
         project.buggy_issues_or_zero()
     }
 }

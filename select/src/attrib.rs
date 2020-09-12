@@ -22,9 +22,13 @@ pub trait LoadFilter {
     fn clone_box(&self) -> Box<dyn LoadFilter>;
 }
 
-pub trait Group {
+pub trait Group<T> {
     type Key;
-    fn select(&self, project: &Project) -> Self::Key;
+    fn select(&self, data: DataPtr, project: &T) -> Self::Key;
+}
+
+pub trait Filter<T> {
+    fn filter(&self, data: DataPtr, project: &T) -> bool;
 }
 
 pub trait SortEach {

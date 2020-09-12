@@ -11,7 +11,7 @@ use std::cell::{RefCell, Ref};
 use std::fmt;
 use std::panic::catch_unwind;
 use crate::djanco;
-use crate::djanco::Loaded;
+use crate::djanco::QuincunxIter;
 use std::borrow::Borrow;
 
 pub type DataPtr = Rc<RefCell<Data>>;

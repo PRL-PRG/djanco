@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use crate::objects::{ProjectId, UserId, CommitId, PathId, Project, Commit, User, Path, Message, Roster, Month};
 use dcd::{DCD, Database};
 use crate::attrib::{LoadFilter};
-use crate::{EntityIter, ProjectEntityIter};
 use std::time::Duration;
 use itertools::Itertools;
 use std::path::PathBuf;
@@ -12,7 +11,10 @@ use std::cell::{RefCell, Ref};
 use std::fmt;
 use std::panic::catch_unwind;
 
-type DataPtr = Rc<RefCell<Data>>;
+pub type DataPtr = Rc<RefCell<Data>>;
+
+pub trait WithData { fn get_database_ptr(&self) -> DataPtr; }
+impl WithData for Data { fn get_database_ptr(&self) -> DataPtr { self.me() } }
 
 pub struct Data {
     me: Option<Weak<RefCell<Data>>>, // Thanks for the help, Colette.
@@ -37,6 +39,8 @@ pub struct Data {
     message_from_commit: BTreeMap<CommitId, Message>,                                // To be able to load them separately.
     //pub(crate) metadata_for_project:   RefCell<BTreeMap<ProjectId, HashMap<String, String>>>,
     // TODO age
+
+    seed: u128,
 }
 
 macro_rules! count_relationships {
@@ -50,8 +54,10 @@ impl Data {
         self.me.as_ref().unwrap().upgrade().unwrap()
     }
 
-    pub fn ptr(warehouse_path: &PathBuf, time: &Month, verbosity: &LogLevel) -> DataPtr {
-        let data = Self::from(warehouse_path, time, verbosity);
+    pub fn seed(&self) -> u128 { self.seed }
+
+    pub fn ptr(warehouse_path: &PathBuf, time: &Month, seed: u128, verbosity: &LogLevel) -> DataPtr {
+        let data = Self::from(warehouse_path, time, seed, verbosity);
         let pointer: DataPtr = Rc::new(RefCell::new(data));
 
         // Things we do to avoid unsafe.
@@ -59,12 +65,12 @@ impl Data {
         pointer
     }
 
-    pub fn from(warehouse_path: &PathBuf, time: &Month, verbosity: &LogLevel) -> Self {
+    pub fn from(warehouse_path: &PathBuf, time: &Month, seed: u128, verbosity: &LogLevel) -> Self {
         let warehouse: DCD = DCD::new(warehouse_path.as_os_str().to_str().unwrap().to_string());
         unimplemented!()
     }
 
-    pub fn from_(warehouse: DCD, verbosity: &LogLevel) -> Self {
+    pub fn from_(warehouse: DCD, seed: u128, verbosity: &LogLevel) -> Self {
         log_header!(verbosity, "Checking out data from warehouse"); // TODO path
 
         log_item!(verbosity, "loading project data");
@@ -150,13 +156,13 @@ impl Data {
         log_item!(verbosity, format!("loaded {} messages", message_from_commit.len()));
 
         Data {
-            me: None, warehouse,
+            me: None, warehouse, seed,
             projects, commits, users, paths,
             commits_from_project, users_from_project, paths_from_commit, message_from_commit,
         }
     }
 
-    pub fn from_filtered(warehouse: DCD, project_filters: &Vec<Box<dyn LoadFilter>>, verbosity: &LogLevel) -> Self {
+    pub fn from_filtered(warehouse: DCD, project_filters: &Vec<Box<dyn LoadFilter>>, seed: u128, verbosity: &LogLevel) -> Self {
         log_header!(verbosity, "Checking out data from warehouse"); // TODO path
 
         log_item!(verbosity, format!("loading project-commit mapping with {} filter{}",
@@ -271,7 +277,7 @@ impl Data {
         log_item!(verbosity, format!("loaded {} messages", message_from_commit.len()));
 
         Data {
-            me: None, warehouse,
+            me: None, warehouse, seed,
             projects, commits, users, paths,
             commits_from_project, users_from_project, paths_from_commit, message_from_commit,
         }
@@ -537,15 +543,15 @@ impl Data {
     //     //self.
     // }
 
-    // pub fn path_count_from(&self, project: &ProjectId) -> usize {
-    //     //self.paths_from_project.get(project).map_or(0, |v| v.len())
-    //     unimplemented!()
-    // }
+    pub fn path_count_from(&self, project: &ProjectId) -> usize {
+        //self.paths_from_project.get(project).map_or(0, |v| v.len())
+        unimplemented!()
+    }
 
-    // pub fn path_conditional_count_from<Filter>(&self, project: &ProjectId, filter: Filter) -> usize where Filter: Fn(&&PathId) -> bool {
-    //     //self.paths_from_project.get(project).map_or(0, |v| v.iter().filter(filter).count() )
-    //     unimplemented!()
-    // }
+    pub fn path_conditional_count_from<Filter>(&self, project: &ProjectId, filter: Filter) -> usize where Filter: Fn(&&PathId) -> bool {
+        //self.paths_from_project.get(project).map_or(0, |v| v.iter().filter(filter).count() )
+        unimplemented!()
+    }
 
 
     // pub fn authors_from(&self, project: &ProjectId) -> impl Iterator<Item=User> {
@@ -556,13 +562,13 @@ impl Data {
     //     unimplemented!()
     // }
 
-    // pub fn author_count_from(&self, project: &ProjectId) -> usize {
-    //     unimplemented!()
-    // }
-    //
-    // pub fn committer_count_from(&self, project: &ProjectId) -> usize {
-    //     unimplemented!()
-    // }
+    pub fn author_count_from(&self, project: &ProjectId) -> usize {
+        unimplemented!()
+    }
+
+    pub fn committer_count_from(&self, project: &ProjectId) -> usize {
+        unimplemented!()
+    }
 
     pub fn age_of(&self, project: &ProjectId) -> Option<Duration> {
         unimplemented!()

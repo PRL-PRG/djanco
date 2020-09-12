@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 use dcd::DCD;
 use crate::objects::Project;
-use crate::DatabasePtr;
 use crate::csv::WithNames;
+use crate::data::DataPtr;
 
 pub trait Attribute {}
 
@@ -28,36 +28,36 @@ pub trait Group {
 
 pub trait SortEach {
     /*type Key;*/ // TODO
-    fn sort(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: &mut Vec<Project>);
+    fn sort(&self, database: DataPtr, /*key: &Self::Key,*/ projects: &mut Vec<Project>);
 }
 
 pub trait FilterEach {
     /*type Key;*/ // TODO
-    fn filter(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: &Project) -> bool;
+    fn filter(&self, database: DataPtr, /*key: &Self::Key,*/ project: &Project) -> bool;
 }
 
 pub trait SampleEach {
     /*type Key;*/ // TODO
-    fn sample(&self, database: DatabasePtr, /*key: &Self::Key,*/ projects: Vec<Project>) -> Vec<Project>;
+    fn sample(&self, database: DataPtr, /*key: &Self::Key,*/ projects: Vec<Project>) -> Vec<Project>;
 }
 
 
 pub trait SelectEach: WithNames {
     type Entity;
-    fn select(&self, database: DatabasePtr, /*key: &Self::Key,*/ project: Project) -> Self::Entity;
+    fn select(&self, database: DataPtr, /*key: &Self::Key,*/ project: Project) -> Self::Entity;
 }
 
 pub trait NumericalAttribute {
     type Entity;
-    fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize;
 }
 
 pub trait CollectionAttribute {
     type Entity;
-    //fn calculate(&self, database: DatabasePtr, entity: &Self::Entity) -> usize;
+    //fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize;
 }
 
 pub trait StringAttribute {
     type Entity;
-    fn extract(&self, database: DatabasePtr, entity: &Self::Entity) -> String;
+    fn extract(&self, database: DataPtr, entity: &Self::Entity) -> String;
 }

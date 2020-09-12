@@ -1,4 +1,5 @@
-use crate::{WithDatabase, DatabasePtr, DataSource, AttributeValue, Attribute};
+use crate::{WithDatabase, DatabasePtr, DataSource};
+use crate::attrib::{AttributeValue, Attribute};
 use std::io::Write;
 use crate::project::{Id, URL, Stars, Issues, BuggyIssues, Heads, Commits, Users, Paths, Language, Metadata};
 use crate::objects::{ProjectId, UserId, PathId, CommitId, Project, User, Path, Commit};

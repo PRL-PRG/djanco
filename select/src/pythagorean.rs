@@ -1,7 +1,7 @@
 use crate::log::LogLevel;
 use std::path::PathBuf;
 use crate::objects::{Month, ProjectId, Project, Identifiable, Identity};
-use crate::{LoadFilter, Group, FilterEach, SampleEach, SelectEach};
+use crate::attrib::{LoadFilter, Group, FilterEach, SampleEach, SelectEach};
 use std::hash::Hash;
 use std::marker::PhantomData;
 use crate::data::Data;

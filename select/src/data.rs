@@ -17,21 +17,21 @@ pub struct Data {
     warehouse: DCD,
 
     //cache_path: PathBuf, //TODO
-    pub(crate) projects: BTreeMap<ProjectId, Project>, // TODO internal mutability + laziness
-    pub(crate) commits:  BTreeMap<CommitId,  Commit>,
-    pub(crate) users:    BTreeMap<UserId,    User>,
-    pub(crate) paths:    BTreeMap<PathId,    Path>,
+    projects: BTreeMap<ProjectId, Project>, // TODO internal mutability + laziness
+    commits:  BTreeMap<CommitId,  Commit>,
+    users:    BTreeMap<UserId,    User>,
+    paths:    BTreeMap<PathId,    Path>,
     //pub(crate) snapshots:    BTreeMap<SnapshotId,    Snapshot>,
 
-    pub(crate) commits_from_project: BTreeMap<ProjectId, Vec<CommitId>>,
-    pub(crate) users_from_project:   BTreeMap<ProjectId, Vec<UserId>>,
+    commits_from_project: BTreeMap<ProjectId, Vec<CommitId>>,
+    users_from_project:   BTreeMap<ProjectId, Vec<UserId>>,
     //pub(crate) authors_from_project:   BTreeMap<ProjectId, Vec<UserId>>,
     //pub(crate) committers_from_project:   BTreeMap<ProjectId, Vec<UserId>>,
     //pub(crate) paths_from_project:   RefCell<BTreeMap<ProjectId, Vec<PathId>>>,
 
-    pub(crate) paths_from_commit:   BTreeMap<CommitId, Vec<PathId>>,
+    paths_from_commit:   BTreeMap<CommitId, Vec<PathId>>,
     //pub(crate) snapshots_from_commit:   BTreeMap<CommitId, HashMap<PathId, SnapshotId>>,
-    pub(crate) message_from_commit: BTreeMap<CommitId, Message>,                                // To be able to load them separately.
+    message_from_commit: BTreeMap<CommitId, Message>,                                // To be able to load them separately.
     //pub(crate) metadata_for_project:   RefCell<BTreeMap<ProjectId, HashMap<String, String>>>,
     // TODO age
 }
@@ -336,61 +336,215 @@ impl Data {
     pub fn user_ids(&self)    -> impl Iterator<Item=&UserId>    { self.users.keys()    }
     pub fn path_ids(&self)    -> impl Iterator<Item=&PathId>    { self.paths.keys()    }
 
-    pub fn projects(&self) -> EntityIter<ProjectId, Project> {
-        unimplemented!()
+    /** Project iterators **/
+    pub fn project_iter(&self) -> impl Iterator<Item=&Project> {
+        self.projects.iter().map(|(_, project)| project)
     }
 
-    pub fn commits(&self) -> EntityIter<CommitId, Commit> {
-        unimplemented!()
+    pub fn projects(&self) -> Vec<Project> {
+        self.projects.iter().map(|(_, project)| project.clone()).collect()
     }
 
-    pub fn users(&self) -> EntityIter<UserId, User> {
-        unimplemented!()
+    pub fn projects_with_filter<Filter>(&self, filter: Filter) -> Vec<Project> where Filter: Fn(&&Project) -> bool {
+        self.projects.iter()
+            .filter(|(_, project)| filter(project))
+            .map(|(_, project)| project.clone())
+            .collect()
     }
 
-    pub fn paths(&self) -> EntityIter<PathId, Path> {
-        unimplemented!()
+    pub fn projects_with_map<Map,T>(&self, map: Map) -> Vec<T> where Map: Fn(&Project) -> T {
+        self.projects.iter()
+            .map(|(_, project)| map(project))
+            .collect()
     }
 
-    pub fn commits_from(&self, project: &ProjectId) -> ProjectEntityIter<Commit> {
-        unimplemented!()
+    pub fn projects_with_flat_map<Map,T,I>(&self, map: Map) -> Vec<T> where Map: Fn(&Project) -> I, I: IntoIterator<Item=T> {
+        self.projects.iter()
+            .flat_map(|(_, project)| map(project))
+            .collect()
     }
 
-    pub fn paths_from(&self, project: &ProjectId) -> ProjectEntityIter<Path> {
-        unimplemented!()
+    /** Commit iterators **/
+    pub fn commit_iter(&self) -> impl Iterator<Item=&Commit> {
+        self.commits.iter().map(|(_, commit)| commit)
     }
 
-    pub fn users_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
-        unimplemented!()
+    pub fn commits(&self) -> Vec<Commit> {
+        self.commits.iter().map(|(_, commit)| commit.clone()).collect()
     }
 
-    pub fn authors_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
-        unimplemented!()
+    pub fn commits_with_filter<Filter>(&self, filter: Filter) -> Vec<Commit> where Filter: Fn(&&Commit) -> bool {
+        self.commits.iter()
+            .filter(|(_, commit)| filter(commit))
+            .map(|(_, commit)| commit.clone())
+            .collect()
     }
 
-    pub fn committers_from(&self, project: &ProjectId) -> ProjectEntityIter<User> {
-        unimplemented!()
+    pub fn commits_with_map<Map,T>(&self, map: Map) -> Vec<T> where Map: Fn(&Commit) -> T {
+        self.commits.iter()
+            .map(|(_, commit)| map(commit))
+            .collect()
+    }
+
+    pub fn commits_with_flat_map<Map,T,I>(&self, map: Map) -> Vec<T> where Map: Fn(&Commit) -> I, I: IntoIterator<Item=T> {
+        self.commits.iter()
+            .flat_map(|(_, commit)| map(commit))
+            .collect()
+    }
+
+    pub fn commit_refs_from(&self, project: &ProjectId) -> Vec<&Commit> {
+        self.commits_from_project.get(project).map_or(Default::default(), |commit_ids| {
+            commit_ids.iter()
+                .flat_map(|commit_id| self.commits.get(commit_id))
+                .collect()
+        })
+    }
+
+    pub fn commits_from(&self, project: &ProjectId) -> Vec<&Commit> {
+        self.commits_from_project.get(project).map_or(Default::default(), |commit_ids| {
+            commit_ids.iter()
+                .flat_map(|commit_id| self.commits.get(commit_id))
+                .map(|commit| commit.clone())
+                .collect()
+        })
     }
 
     pub fn commit_count_from(&self, project: &ProjectId) -> usize {
-        unimplemented!()
+        self.commits_from_project.get(project).map_or(0, |v| v.len())
     }
 
-    pub fn path_count_from(&self, project: &ProjectId) -> usize {
-        unimplemented!()
+    pub fn commit_conditional_count_from<Filter>(&self, project: &ProjectId, filter: Filter) -> usize where Filter: Fn(&&CommitId) -> bool {
+        self.commits_from_project.get(project).map_or(0, |v| v.iter().filter(filter).count())
+    }
+
+    /** User iterators **/
+    pub fn user_iter(&self) -> impl Iterator<Item=&User> {
+        self.users.iter().map(|(_, user)| user)
+    }
+
+    pub fn users(&self) -> Vec<User> {
+        self.users.iter().map(|(_, user)| user.clone()).collect()
+    }
+
+    pub fn users_with_filter<Filter>(&self, filter: Filter) -> Vec<User> where Filter: Fn(&&User) -> bool {
+        self.users.iter()
+            .filter(|(_, user)| filter(user))
+            .map(|(_, user)| user.clone())
+            .collect()
+    }
+    pub fn users_with_map<Map,T>(&self, map: Map) -> Vec<T> where Map: Fn(&User) -> T {
+        self.users.iter()
+            .map(|(_, user)| map(user))
+            .collect()
+    }
+
+    pub fn users_with_flat_map<Map,T,I>(&self, map: Map) -> Vec<T> where Map: Fn(&User) -> I, I: IntoIterator<Item=T> {
+        self.users.iter()
+            .flat_map(|(_, user)| map(user))
+            .collect()
+    }
+
+    pub fn user_refs_from(&self, project: &ProjectId) -> Vec<&User> {
+        self.users_from_project.get(project).map_or(Default::default(), |user_ids| {
+            user_ids.iter()
+                .flat_map(|user_id| self.users.get(user_id))
+                .collect()
+        })
+    }
+
+    pub fn users_from(&self, project: &ProjectId) -> Vec<User> {
+        self.users_from_project.get(project).map_or(Default::default(), |user_ids| {
+            user_ids.iter()
+                .flat_map(|user_id| self.users.get(user_id))
+                .map(|user| user.clone())
+                .collect()
+        })
     }
 
     pub fn user_count_from(&self, project: &ProjectId) -> usize {
-        unimplemented!()
+        self.users_from_project.get(project).map_or(0, |v| v.len())
     }
 
-    pub fn author_count_from(&self, project: &ProjectId) -> usize {
-        unimplemented!()
+
+    pub fn user_conditional_count_from<Filter>(&self, project: &ProjectId, filter: Filter) -> usize where Filter: Fn(&&UserId) -> bool {
+        self.users_from_project.get(project).map_or(0, |v| v.iter().filter(filter).count())
     }
 
-    pub fn committer_count_from(&self, project: &ProjectId) -> usize {
-        unimplemented!()
+    /** Path iterators **/
+    pub fn path_iter(&self) -> impl Iterator<Item=&Path> {
+        self.paths.iter().map(|(_, path)| path)
     }
+
+    pub fn paths(&self) -> Vec<Path> {
+        self.paths.iter().map(|(_, path)| path.clone()).collect()
+    }
+
+    pub fn paths_with_filter<Filter>(&self, filter: Filter) -> Vec<Path> where Filter: Fn(&&Path) -> bool {
+        self.paths.iter()
+            .filter(|(_, path)| filter(path))
+            .map(|(_, path)| path.clone())
+            .collect()
+    }
+
+    pub fn paths_with_map<Map,T>(&self, map: Map) -> Vec<T> where Map: Fn(&Path) -> T {
+        self.paths.iter()
+            .map(|(_, path)| map(path))
+            .collect()
+    }
+
+    pub fn paths_with_flat_map<Map,T,I>(&self, map: Map) -> Vec<T> where Map: Fn(&Path) -> I, I: IntoIterator<Item=T> {
+        self.paths.iter()
+            .flat_map(|(_, path)| map(path))
+            .collect()
+    }
+
+    pub fn path_refs_from(&self, project: &ProjectId) -> Vec<&Path> {
+        self.paths_from_project.get(project).map_or(Default::default(), |path_ids| {
+            path_ids.iter()
+                .flat_map(|path_id| self.paths.get(path_id))
+                .collect()
+        })
+    }
+
+    pub fn paths_from(&self, project: &ProjectId) -> Vec<&Path> {
+        self.paths_from_project.get(project).map_or(Default::default(), |path_ids| {
+            path_ids.iter()
+                .flat_map(|path_id| self.paths.get(path_id))
+                .map(|path| path.clone())
+                .collect()
+        })
+    }
+
+    // pub fn paths_from_iter(&self, project: &ProjectId) -> impl Iterator<Item=&Path> {
+    //     //self.
+    // }
+
+    // pub fn path_count_from(&self, project: &ProjectId) -> usize {
+    //     //self.paths_from_project.get(project).map_or(0, |v| v.len())
+    //     unimplemented!()
+    // }
+
+    // pub fn path_conditional_count_from<Filter>(&self, project: &ProjectId, filter: Filter) -> usize where Filter: Fn(&&PathId) -> bool {
+    //     //self.paths_from_project.get(project).map_or(0, |v| v.iter().filter(filter).count() )
+    //     unimplemented!()
+    // }
+
+
+    // pub fn authors_from(&self, project: &ProjectId) -> impl Iterator<Item=User> {
+    //     unimplemented!()
+    // }
+    //
+    // pub fn committers_from(&self, project: &ProjectId) -> impl Iterator<Item=User> {
+    //     unimplemented!()
+    // }
+
+    // pub fn author_count_from(&self, project: &ProjectId) -> usize {
+    //     unimplemented!()
+    // }
+    //
+    // pub fn committer_count_from(&self, project: &ProjectId) -> usize {
+    //     unimplemented!()
+    // }
 
     pub fn age_of(&self, project: &ProjectId) -> Option<Duration> {
         unimplemented!()

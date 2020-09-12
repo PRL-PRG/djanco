@@ -1,4 +1,4 @@
-mod pythagorean;
+//mod pythagorean;
 #[macro_use] mod log;
 pub mod data;
 pub mod objects;

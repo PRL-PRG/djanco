@@ -502,28 +502,28 @@ impl ProjectEntityIter<Path> {
     fn populate_cache(&mut self) -> bool {
         loop {
             //return match self.next_commit() {
-            unimplemented!()
-            // Some(commit) => {
-            //     let changes: Vec<u64> =
-            //         commit.changes.map_or(vec![],
-            //             |map| {
-            //                 map.iter()
-            //                     .map(|(path_id, _)| *path_id)
-            //                     .filter(|path_id| {
-            //                         !self.seen_entities.contains(path_id)
-            //                     })
-            //                     .collect()
-            //             });
-            //
-            //     self.seen_entities.extend(changes);
-            //
-            //     if self.entity_cache.len() < self.desired_cache_size {
-            //         continue;
-            //     }
-            //
-            //     true
-            // },
-            // None => self.entity_cache.len() != 0
+                unimplemented!()
+                // Some(commit) => {
+                //     let changes: Vec<u64> =
+                //         commit.changes.map_or(vec![],
+                //             |map| {
+                //                 map.iter()
+                //                     .map(|(path_id, _)| *path_id)
+                //                     .filter(|path_id| {
+                //                         !self.seen_entities.contains(path_id)
+                //                     })
+                //                     .collect()
+                //             });
+                //
+                //     self.seen_entities.extend(changes);
+                //
+                //     if self.entity_cache.len() < self.desired_cache_size {
+                //         continue;
+                //     }
+                //
+                //     true
+                // },
+                // None => self.entity_cache.len() != 0
             //}
         }
     }
@@ -595,7 +595,7 @@ impl Iterator for EntityIter<ProjectId, Project> {
 }
 
 impl Iterator for EntityIter<CommitId, Commit> { // FIXME also bare commit
-type Item = Commit;
+    type Item = Commit;
     fn next(&mut self) -> Option<Self::Item> {
         self.ids.next().map(|id| self.database.commit(&id.into()).map(|e| e.clone())).flatten()
     }
@@ -1519,7 +1519,7 @@ mod tests {
     #[test]
     fn example() {
         let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0,
-                                    Month::August(2020));
+                                               Month::August(2020));
         database
             .projects()
             .group_by_attrib(project::Stars)

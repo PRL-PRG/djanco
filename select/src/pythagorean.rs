@@ -104,7 +104,7 @@ impl<T> Filter<T> for And<T> { // TODO move to lib.rs
 }
 
 struct DjancoInstance<T> {
-    database: Data,
+    database: RefCell<Data>,
     filters: Vec<Box<dyn Filter<T>>>,
     seed: u128,
     timestamp: Month,
@@ -116,7 +116,7 @@ struct DjancoInstance<T> {
 impl<T> From<DjancoPrototype> for DjancoInstance<T> {
     fn from(prototype: DjancoPrototype) -> Self {
         DjancoInstance {
-            database: Data::from(&prototype.path, &prototype.timestamp, &prototype.verbosity),
+            database: RefCell::new(Data::from(&prototype.path, &prototype.timestamp, &prototype.verbosity)),
             filters: vec![],
             seed: prototype.seed,
             timestamp: prototype.timestamp,
@@ -136,25 +136,24 @@ impl<T> DjancoInstance<T> {
 
 impl DjancoInstance<Project> {
     fn filtered_project_ids(&self) -> Vec<ProjectId> {
-        self.database.projects.iter().filter(|(project_id, project)| {
-            self.filters.iter().all(|filter| filter.decide(&self.database, project))
-        }).map(|(_, project)| project.id).collect()
+        self.database.borrow_mut().project_iter().filter(|project| {
+            self.filters.iter().all(|filter| filter.decide(&self.database.borrow_mut(), project))
+        }).map(|project| project.id).collect()
     }
 
-    fn filtered_projects(&self) -> Vec<&Project> {
-        self.database.projects.iter().filter(|(project_id, project)| {
-            self.filters.iter().all(|filter| filter.decide(&self.database, project))
-        }).map(|(_, project)| project).collect()
+    fn filtered_projects(&self) -> Vec<Project> {
+        self.database.borrow_mut().projects_with_filter(|project| {
+            self.filters.iter().all(|filter| filter.decide(&self.database.borrow_mut(), project))
+        })
     }
 
     fn filtered_and_sampled_project_ids(&self, attrib: impl Sample<ProjectId, Project>) -> Vec<ProjectId> {
         let mut iter =
-            self.database.projects.iter()
-                .filter(|(_, project)| {
-                    self.filters.iter().all(|filter| filter.decide(&self.database, project))
-                })
-                .map(|(_, project)| project);
-        attrib.sample_ids(&self.database, &mut iter)
+            self.database.borrow_mut().projects_with_filter(|project| {
+                    self.filters.iter().all(|filter| filter.decide(&self.database.borrow_mut(), project))
+                });
+                //.map(|(_, project)| project);
+        attrib.sample_ids(&self.database.borrow_mut(), &mut iter.iter())
     }
 
     pub fn into_iter(self) -> DjancoSelection<ProjectId, Project> {
@@ -191,7 +190,7 @@ struct DjancoGroupInstance<K,T> {
 
 struct DjancoSelection<Id: Identity, T: Identifiable<Id>> {
     selection: Vec<Id>,
-    database: Data,
+    database: RefCell<Data>,
     seed: u128,
     timestamp: Month,
     verbosity: LogLevel,
@@ -241,13 +240,13 @@ mod tests {
 
     impl Filter<Project> for MinCommits {
         fn decide(&self, database: &Data, object: &&Project) -> bool {
-            database.commits_from_project.get(&object.id).map_or(0, |e| e.len()) >= self.0
+            database.commits_from(&object.id).len() >= self.0
         }
     }
 
     impl Filter<Project> for MaxCommits {
         fn decide(&self, database: &Data, object: &&Project) -> bool {
-            database.commits_from_project.get(&object.id).map_or(0, |e| e.len()) <= self.0
+            database.commits_from(&object.id).len() <= self.0
         }
     }
 

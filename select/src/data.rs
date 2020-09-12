@@ -7,7 +7,9 @@ use std::time::Duration;
 use itertools::Itertools;
 use std::path::PathBuf;
 use std::rc::{Weak, Rc};
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref};
+use std::fmt;
+use std::panic::catch_unwind;
 
 type DataPtr = Rc<RefCell<Data>>;
 
@@ -321,44 +323,53 @@ impl Data {
 }
 
 impl Data {
-    pub fn project_count(&self) -> usize { self.projects.len() }
+    pub fn project_count(&mut self) -> usize { self.projects.len() }
     pub fn commit_count(&self)  -> usize { self.commits.len()  }
     pub fn user_count(&self)    -> usize { self.users.len()    }
     pub fn path_count(&self)    -> usize { self.paths.len()    }
 
-    pub fn project(&self, id: &ProjectId) -> Option<&Project> { self.projects.get(id) }
+    // pub fn project(&self, id: &ProjectId) -> Option<Ref<Project>> {
+    //     let borrowed = self.projects.borrow();
+    //     if !borrowed.contains_key(id) { return None; }
+    //     Some(Ref::map(borrowed, |borrowed| borrowed.get(id).unwrap()))
+    // }
+    pub fn project(&mut self, id: &CommitId)   -> Option<&Commit>  { self.commits.get(id)  }
     pub fn commit(&self, id: &CommitId)   -> Option<&Commit>  { self.commits.get(id)  }
     pub fn user(&self, id: &UserId)       -> Option<&User>    { self.users.get(id)    }
     pub fn path(&self, id: &PathId)       -> Option<&Path>    { self.paths.get(id)    }
 
-    pub fn project_ids(&self) -> impl Iterator<Item=&ProjectId> { self.projects.keys() }
+    // pub fn project_ids(&self) -> impl Iterator<Item=ProjectId> {
+    //     //Ref::map(self.projects.borrow(), |projects| &projects.keys())
+    //     Ref::map(self.projects.borrow(), |borrowed| borrowed.keys())
+    // }
+    pub fn project_ids(&mut self) -> impl Iterator<Item=&ProjectId> { self.projects.keys() }
     pub fn commit_ids(&self)  -> impl Iterator<Item=&CommitId>  { self.commits.keys()  }
     pub fn user_ids(&self)    -> impl Iterator<Item=&UserId>    { self.users.keys()    }
     pub fn path_ids(&self)    -> impl Iterator<Item=&PathId>    { self.paths.keys()    }
 
     /** Project iterators **/
-    pub fn project_iter(&self) -> impl Iterator<Item=&Project> {
+    pub fn project_iter(&mut self) -> impl Iterator<Item=&Project> {
         self.projects.iter().map(|(_, project)| project)
     }
 
-    pub fn projects(&self) -> Vec<Project> {
+    pub fn projects(&mut self) -> Vec<Project> {
         self.projects.iter().map(|(_, project)| project.clone()).collect()
     }
 
-    pub fn projects_with_filter<Filter>(&self, filter: Filter) -> Vec<Project> where Filter: Fn(&&Project) -> bool {
+    pub fn projects_with_filter<Filter>(&mut self, filter: Filter) -> Vec<Project> where Filter: Fn(&&Project) -> bool {
         self.projects.iter()
             .filter(|(_, project)| filter(project))
             .map(|(_, project)| project.clone())
             .collect()
     }
 
-    pub fn projects_with_map<Map,T>(&self, map: Map) -> Vec<T> where Map: Fn(&Project) -> T {
+    pub fn projects_with_map<Map,T>(&mut self, map: Map) -> Vec<T> where Map: Fn(&Project) -> T {
         self.projects.iter()
             .map(|(_, project)| map(project))
             .collect()
     }
 
-    pub fn projects_with_flat_map<Map,T,I>(&self, map: Map) -> Vec<T> where Map: Fn(&Project) -> I, I: IntoIterator<Item=T> {
+    pub fn projects_with_flat_map<Map,T,I>(&mut self, map: Map) -> Vec<T> where Map: Fn(&Project) -> I, I: IntoIterator<Item=T> {
         self.projects.iter()
             .flat_map(|(_, project)| map(project))
             .collect()
@@ -400,7 +411,7 @@ impl Data {
         })
     }
 
-    pub fn commits_from(&self, project: &ProjectId) -> Vec<&Commit> {
+    pub fn commits_from(&self, project: &ProjectId) -> Vec<Commit> {
         self.commits_from_project.get(project).map_or(Default::default(), |commit_ids| {
             commit_ids.iter()
                 .flat_map(|commit_id| self.commits.get(commit_id))
@@ -498,22 +509,28 @@ impl Data {
             .collect()
     }
 
-    pub fn path_refs_from(&self, project: &ProjectId) -> Vec<&Path> {
-        self.paths_from_project.get(project).map_or(Default::default(), |path_ids| {
-            path_ids.iter()
-                .flat_map(|path_id| self.paths.get(path_id))
-                .collect()
-        })
-    }
+    // pub fn path_refs_from(&self, project: &ProjectId) -> Vec<&Path> {
+    //     self.paths_from_project.get(project).map_or(Default::default(), |path_ids| {
+    //         path_ids.iter()
+    //             .flat_map(|path_id| self.paths.get(path_id))
+    //             .collect()
+    //     })
+    // }pub fn path_refs_from(&self, project: &ProjectId) -> Vec<&Path> {
+    //     self.paths_from_project.get(project).map_or(Default::default(), |path_ids| {
+    //         path_ids.iter()
+    //             .flat_map(|path_id| self.paths.get(path_id))
+    //             .collect()
+    //     })
+    // }
 
-    pub fn paths_from(&self, project: &ProjectId) -> Vec<&Path> {
-        self.paths_from_project.get(project).map_or(Default::default(), |path_ids| {
-            path_ids.iter()
-                .flat_map(|path_id| self.paths.get(path_id))
-                .map(|path| path.clone())
-                .collect()
-        })
-    }
+    // pub fn paths_from(&self, project: &ProjectId) -> Vec<&Path> {
+    //     self.paths_from_project.get(project).map_or(Default::default(), |path_ids| {
+    //         path_ids.iter()
+    //             .flat_map(|path_id| self.paths.get(path_id))
+    //             .map(|path| path.clone())
+    //             .collect()
+    //     })
+    // }
 
     // pub fn paths_from_iter(&self, project: &ProjectId) -> impl Iterator<Item=&Path> {
     //     //self.
@@ -548,5 +565,23 @@ impl Data {
 
     pub fn age_of(&self, project: &ProjectId) -> Option<Duration> {
         unimplemented!()
+    }
+}
+
+enum NotFound {
+    Project(ProjectId),
+    Commit(CommitId),
+    Path(PathId),
+    User(UserId),
+}
+
+impl fmt::Display for NotFound {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NotFound::Project(id) => write!(f, "Project {} not found", id),
+            NotFound::Commit(id) => write!(f, "Commit {} not found", id),
+            NotFound::Path(id) => write!(f, "Path {} not found", id),
+            NotFound::User(id) => write!(f, "User {} not found", id),
+        }
     }
 }

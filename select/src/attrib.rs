@@ -5,6 +5,7 @@ use crate::csv::WithNames;
 use crate::data::DataPtr;
 use itertools::Itertools;
 use std::hash::Hash;
+use crate::attrib;
 
 pub trait Attribute {}
 
@@ -26,7 +27,7 @@ pub trait LoadFilter {
 
 pub trait Group<T> {
     type Key;
-    fn select(&self, data: DataPtr, project: &T) -> Self::Key;
+    fn select(&self, data: DataPtr, element: &T) -> Self::Key;
     fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<(Self::Key, Vec<T>)> where <Self as Group<T>>::Key: Hash + Eq {
         vector.into_iter()
             .map(|e| (self.select(data.clone(), &e), e))
@@ -37,7 +38,7 @@ pub trait Group<T> {
 }
 
 pub trait Filter<T> {
-    fn filter(&self, data: DataPtr, project: &T) -> bool;
+    fn filter(&self, data: DataPtr, element: &T) -> bool;
     fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T> {
         vector.into_iter()
             .filter(|e| self.filter(data.clone(), &e))
@@ -45,26 +46,43 @@ pub trait Filter<T> {
     }
 }
 
-pub trait SortEach {
-    /*type Key;*/ // TODO
-    fn sort(&self, database: DataPtr, /*key: &Self::Key,*/ projects: &mut Vec<Project>);
+pub trait Sort<T> {
+    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T>;
 }
 
-pub trait FilterEach {
-    /*type Key;*/ // TODO
-    fn filter(&self, database: DataPtr, /*key: &Self::Key,*/ project: &Project) -> bool;
+pub trait Sample<T> {
+    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T>;
 }
 
-pub trait SampleEach {
-    /*type Key;*/ // TODO
-    fn sample(&self, database: DataPtr, /*key: &Self::Key,*/ projects: Vec<Project>) -> Vec<Project>;
+pub trait Select<T>: WithNames {
+    type Entity; // TODO rename
+    fn select(&self, data: DataPtr, project: T) -> Self::Entity;
+    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<Self::Entity> {
+        vector.into_iter()
+            .map(|e| self.select(data.clone(), e))
+            .collect()
+    }
 }
 
-
-pub trait SelectEach: WithNames {
-    type Entity;
-    fn select(&self, database: DataPtr, /*key: &Self::Key,*/ project: Project) -> Self::Entity;
-}
+// pub trait SortEach {
+//     /*type Key;*/ // TODO
+//     fn sort(&self, database: DataPtr, /*key: &Self::Key,*/ projects: &mut Vec<Project>);
+// }
+//
+// pub trait FilterEach {
+//     /*type Key;*/ // TODO
+//     fn filter(&self, database: DataPtr, /*key: &Self::Key,*/ project: &Project) -> bool;
+// }
+//
+// pub trait SampleEach {
+//     /*type Key;*/ // TODO
+//     fn sample(&self, database: DataPtr, /*key: &Self::Key,*/ projects: Vec<Project>) -> Vec<Project>;
+// }
+//
+// pub trait SelectEach: WithNames {
+//     type Entity;
+//     fn select(&self, database: DataPtr, /*key: &Self::Key,*/ project: Project) -> Self::Entity;
+// }
 
 pub trait NumericalAttribute {
     type Entity;

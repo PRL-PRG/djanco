@@ -1,9 +1,8 @@
 mod djanco;
-pub mod require;
+#[macro_use] pub mod require;
 pub mod sample;
 pub mod attrib;
 pub mod project;
-
 //mod pythagorean;
 #[macro_use] mod log;
 pub mod data;
@@ -18,25 +17,26 @@ pub mod meta;
 //pub mod selectors;
 
 use std::path::PathBuf;
-use dcd::DCD;
 use std::marker::PhantomData;
-use itertools::Itertools;
-//use crate::meta::*;
 use std::hash::Hash;
 use std::rc::{Rc, Weak};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::ops::Range;
 use std::borrow::Borrow;
 use std::iter::Map;
 use std::collections::{HashSet, VecDeque};
 use std::time::Duration;
-use crate::csv::WithNames;
-use crate::objects::{Project, Commit, User, Path, ProjectId, CommitId, UserId, PathId, Month};
-use crate::log::LogLevel;
-use crate::data::Data;
 use std::fmt;
-use crate::attrib::{LoadFilter, Group, FilterEach, SortEach, SampleEach, SelectEach};
-use crate::djanco::{Lazy, Spec};
+
+use dcd::DCD;
+use itertools::Itertools;
+
+use crate::csv::*;
+use crate::objects::*;
+use crate::log::*;
+use crate::djanco::*;
+use crate::data::*;
+use crate::attrib::*;
 
 /**
  * This is a Djanco API starting point. Query and database construction starts here.
@@ -64,6 +64,7 @@ mod tests {
     use crate::Djanco;
     use crate::project;
     use crate::require;
+    use crate::sample;
     use crate::objects::*;
 
 
@@ -72,17 +73,17 @@ mod tests {
         let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020));
 
         database.projects()
-             .filter(require::AtLeast(project::Commits, 28))
-             .group_by_attrib(project::Stars);
-    //         .filter_each_by_attrib(require::AtLeast(project::Stars, 1))
-    //         .filter_each_by_attrib(require::AtLeast(project::Commits, 25))
-    //         .filter_each_by_attrib(require::AtLeast(project::Users, 2))
-    //         .filter_each_by_attrib(require::Same(project::Language, "Rust"))
-    //         .filter_each_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
-    //         .sort_each_by_attrib(project::Stars)
-    //         .sample_each(sample::Top(2))
-    //         .squash()
-    //         .select(project::Id)
-    //         .to_csv("projects.csv").unwrap()
+             .filter_by_attrib(require::AtLeast(project::Commits, 28))
+             .group_by_attrib(project::Stars)
+             .filter_by_attrib(require::AtLeast(project::Stars, 1))
+             .filter_by_attrib(require::AtLeast(project::Commits, 25))
+             .filter_by_attrib(require::AtLeast(project::Users, 2))
+             .filter_by_attrib(require::Same(project::Language, "Rust"))
+             .filter_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
+             .sort_by_attrib(project::Stars)
+             .sample(sample::Top(2))
+             .squash()
+             .select_attrib(project::Id);
+             //.to_csv("projects.csv").unwrap()
     }
 }

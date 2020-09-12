@@ -639,7 +639,7 @@ impl Quincunx for User {
 //     fn stream_from(data: DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().snapshots() }
 // }
 
-enum NotFound {
+pub enum NotFound {
     Project(ProjectId),
     Commit(CommitId),
     Path(PathId),

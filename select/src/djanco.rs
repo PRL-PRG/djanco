@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use crate::objects::*;
 use crate::data::*;
 use crate::log::LogLevel;
-use crate::attrib::{LoadFilter, Group, FilterEach, Filter};
+use crate::attrib::{LoadFilter, Group, Filter, Sort, Sample, Select};
 use std::marker::PhantomData;
 use std::cell::RefCell;
 use itertools::Itertools;
@@ -62,21 +62,21 @@ impl /* Quincunx for */ Lazy {
 pub struct QuincunxIter<T> {
     spec: Spec,
     data: DataPtr,
-    sourcex: Option<Vec<T>>, // Serves the iterator: None -> n elements -> ... -> 0 elements
+    source_: Option<Vec<T>>, // Serves the iterator: None -> n elements -> ... -> 0 elements
 }
 
 impl<T> /* LazyLoad for */ QuincunxIter<T> where T: Quincunx {
     fn borrow_source(&mut self) -> &mut Vec<T> {
-        if self.sourcex.is_none() {
-            self.sourcex = Some(T::stream_from(&self.data))
+        if self.source_.is_none() {
+            self.source_ = Some(T::stream_from(&self.data))
         }
-        self.sourcex.as_mut().unwrap()
+        self.source_.as_mut().unwrap()
     }
     fn consume_source(mut self) -> Vec<T> {
-        if self.sourcex.is_none() {
-            self.sourcex = Some(T::stream_from(&self.data))
+        if self.source_.is_none() {
+            self.source_ = Some(T::stream_from(&self.data))
         }
-        self.sourcex.unwrap()
+        self.source_.unwrap()
     }
 }
 
@@ -101,26 +101,39 @@ impl<T> /* Query for */ QuincunxIter<T> where T: Quincunx {
         GroupIter { spec, data, source }
     }
 
-    pub fn filter<F>(mut self, mut attrib: F) -> Iter<T> where F: Filter<T> {
+    pub fn filter_by_attrib<F>(mut self, mut attrib: F) -> Iter<T> where F: Filter<T> {
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source: Vec<T> = attrib.execute(self.data.clone(), self.consume_source());
         Iter { spec, data, source }
     }
-}
 
-impl<T> From<Spec> for QuincunxIter<T> {
-    fn from(_spec: Spec) -> Self { unimplemented!() }
-}
+    pub fn sort_by_attrib<S>(mut self, mut attrib: S) -> Iter<T> where S: Sort<T> {
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+        let source = attrib.execute(self.data.clone(), self.consume_source());
+        Iter { spec, data, source }
+    }
 
-impl<T> From<&Spec> for QuincunxIter<T> {
-    fn from(_spec: &Spec) -> Self { unimplemented!() }
+    pub fn select_attrib<S, R>(mut self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=R> {
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+        let source = attrib.execute(self.data.clone(), self.consume_source());
+        Iter { spec, data, source }
+    }
+
+    pub fn sample<S>(mut self, mut attrib: S) -> Iter<T> where S: Sample<T> {
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+        let source = attrib.execute(self.data.clone(), self.consume_source());
+        Iter { spec, data, source }
+    }
 }
 
 impl<T> From<Lazy> for QuincunxIter<T> {
     fn from(lazy: Lazy) -> Self {
         let data = DataPtr::from(&lazy);
-        QuincunxIter { spec: lazy.spec, data, sourcex: None }
+        QuincunxIter { spec: lazy.spec, data, source_: None }
     }
 }
 
@@ -153,7 +166,22 @@ impl<T> /* Query for */ Iter<T> {
         GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
-    pub fn filter<F>(mut self, mut attrib: F) -> Iter<T> where F: Filter<T> {
+    pub fn filter_by_attrib<F>(mut self, mut attrib: F) -> Iter<T> where F: Filter<T> {
+        let source = attrib.execute(self.data.clone(), self.source);
+        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn sort_by_attrib<S>(mut self, mut attrib: S) -> Iter<T> where S: Sort<T> {
+        let source = attrib.execute(self.data.clone(), self.source);
+        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn select_attrib<S, R>(mut self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=R> {
+        let source = attrib.execute(self.data.clone(), self.source);
+        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn sample<S>(mut self, mut attrib: S) -> Iter<T> where S: Sample<T> {
         let source = attrib.execute(self.data.clone(), self.source);
         Iter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
@@ -194,5 +222,64 @@ impl<K, T> Iterator for GroupIter<K, T> {
     type Item = (K, Vec<T>);
     fn next(&mut self) -> Option<Self::Item> {
         self.source.pop()
+    }
+}
+
+impl<K, T> /* Query for */ GroupIter<K, T> {
+    // TODO skipping for now, because it's not expected to be popular and I'm stuck
+    // pub fn group_by_attrib<Kb, G>(self, mut attrib: G) -> GroupIter<(K, Kb), T> where G: Group<T, Key=Kb>, Kb: Hash + Eq, (K, Kb): Hash + Eq {
+    //     let source: Vec<((K, Kb), Vec<T>)> =
+    //         self.source.into_iter()
+    //             .map(|(key, vector)| {
+    //                 let vector: Vec<((K, Kb), Vec<T>)> =
+    //                     attrib.execute(self.data.clone(), vector).into_iter()
+    //                         .map(|(key_b, vector)| ((key, key_b), vector))
+    //                         .collect();
+    //                 vector
+    //             })
+    //             .into_group_map()
+    //             .into_iter()
+    //             .collect();
+    //     GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+    // }
+
+    pub fn filter_by_attrib<F>(mut self, mut attrib: F) -> GroupIter<K, T> where F: Filter<T> {
+        let data = self.data.clone();
+        let source = self.source.into_iter()
+            .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
+            .collect();
+        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn sort_by_attrib<S>(mut self, mut attrib: S) -> GroupIter<K, T> where S: Sort<T> {
+        let data = self.data.clone();
+        let source = self.source.into_iter()
+            .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
+            .collect();
+        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn select_attrib<S, R>(mut self, mut attrib: S) -> GroupIter<K, R> where S: Select<T, Entity=R> {
+        let data = self.data.clone();
+        let source = self.source.into_iter()
+            .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
+            .collect();
+        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn sample<S>(mut self, mut attrib: S) -> GroupIter<K, T> where S: Sample<T> {
+        let data = self.data.clone();
+        let source = self.source.into_iter()
+            .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
+            .collect();
+        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn squash(self) -> Iter<T> {
+        let source =
+            self.source.into_iter()
+                .flat_map(|(_, entity)| entity)
+                .collect();
+        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 }

@@ -1,5 +1,5 @@
 use crate::objects::{Project, ProjectId};
-use crate::attrib::{Attribute, StringAttribute, NumericalAttribute, Group, SortEach, SelectEach, AttributeValue};
+use crate::attrib::{Attribute, StringAttribute, NumericalAttribute, Group, AttributeValue, Sort, Select};
 use crate::data::DataPtr;
 
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
@@ -173,148 +173,152 @@ impl Group<Project> for BuggyIssues {
     }
 }
 
-impl SortEach for Id {
-    fn sort(&self, _database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by_key(|p| p.id)
+impl Sort<Project> for Id {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.id);
+        vector
     }
 }
 
-impl SortEach for URL {
-    fn sort(&self, _database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by(|p1, p2| p1.url.cmp(&p2.url))
+impl Sort<Project> for URL {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by(|p1, p2| p1.url.cmp(&p2.url));
+        vector
     }
 }
 
-impl SortEach for Language {
-    fn sort(&self, _database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by_key(|p| p.language.clone())
+impl Sort<Project> for Language {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.language.clone()); vector
     }
 }
 
-impl SortEach for Stars {
-    fn sort(&self, _database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by_key(|p| p.stars)
+impl Sort<Project> for Stars {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.stars); vector
     }
 }
 
-impl SortEach for Issues {
-    fn sort(&self, _database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by_key(|f| f.issues)
+impl Sort<Project> for Issues {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|f| f.issues); vector
     }
 }
 
-impl SortEach for BuggyIssues {
-    fn sort(&self, _database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by_key(|p| p.buggy_issues)
+impl Sort<Project> for BuggyIssues {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.buggy_issues); vector
     }
 }
 
-impl SortEach for Heads {
-    fn sort(&self, _database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by_key(|p| p.heads.len())
+impl Sort<Project> for Heads {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.heads.len()); vector
     }
 }
 
-impl SortEach for Metadata {
-    fn sort(&self, _database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by(|p1, p2| {
+impl Sort<Project> for Metadata {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by(|p1, p2| {
             p1.metadata.get(&self.0).cmp(&p2.metadata.get(&self.0))
         });
+        vector
     }
 }
 
-impl SortEach for Commits {
-    fn sort(&self, database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by_key(|p| database.as_ref().borrow().commit_count_from(&p.id))
+impl Sort<Project> for Commits {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| data.as_ref().borrow().commit_count_from(&p.id));
+        vector
     }
 }
 
-impl SortEach for Users {
-    fn sort(&self, database: DataPtr, projects: &mut Vec<Project>) {
-        projects.sort_by_key(|p| database.as_ref().borrow().user_count_from(&p.id))
+impl Sort<Project> for Users {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| data.as_ref().borrow().user_count_from(&p.id));
+        vector
     }
 }
 
-impl SortEach for Paths {
-    fn sort(&self, database: DataPtr, projects: &mut Vec<Project>) {
-        //projects.sort_by_key(|p| database.as_ref().borrow().path_count_from(&p.id))
+impl Sort<Project> for Paths {
+    fn execute(&mut self, data: DataPtr, vector: Vec<Project>) -> Vec<Project> {
         unimplemented!()
     }
 }
 
-impl SelectEach for Id {
+impl Select<Project> for Id {
     type Entity = AttributeValue<Id, ProjectId>;
-    fn select(&self, _database: DataPtr, project: Project) -> Self::Entity {
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, ProjectId::from(project.id))
     }
 }
 
-impl SelectEach for URL {
+impl Select<Project> for URL {
     type Entity = AttributeValue<URL, String>;
-    fn select(&self, _database: DataPtr, project: Project) -> Self::Entity {
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, project.url)
     }
 }
 
-impl SelectEach for Language {
+impl Select<Project> for Language {
     type Entity = AttributeValue<Language, Option<String>>;
-    fn select(&self, _database: DataPtr, project: Project) -> Self::Entity {
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, project.language)
     }
 }
 
-impl SelectEach for Stars {
+impl Select<Project> for Stars {
     type Entity = AttributeValue<Stars, Option<usize>>;
-    fn select(&self, _database: DataPtr, project: Project) -> Self::Entity {
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, project.stars)
     }
 }
 
-impl SelectEach for Issues {
+impl Select<Project> for Issues {
     type Entity = AttributeValue<Issues, Option<usize>>;
-    fn select(&self, _database: DataPtr, project: Project) -> Self::Entity {
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, project.issues)
     }
 }
 
-impl SelectEach for BuggyIssues {
+impl Select<Project> for BuggyIssues {
     type Entity = AttributeValue<BuggyIssues, Option<usize>>;
-    fn select(&self, _database: DataPtr, project: Project) -> Self::Entity {
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, project.buggy_issues)
     }
 }
 
-impl SelectEach for Heads {
+impl Select<Project> for Heads {
     type Entity = AttributeValue<Heads, usize>;
-    fn select(&self, _database: DataPtr, project: Project) -> Self::Entity {
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, project.heads.len())
     }
 }
 
-impl SelectEach for Metadata {
+impl Select<Project> for Metadata {
     //type Entity = AttributeValue<Metadata, Option<String>>;
     type Entity = Option<String>;
-    fn select(&self, _database: DataPtr, project: Project) -> Self::Entity {
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         //AttributeValue::new(self, project.metadata.get(&self.0).map(|s| s.clone()))
         project.metadata.get(&self.0).map(|s| s.clone())
     }
 }
 
-impl SelectEach for Commits {
+impl Select<Project> for Commits {
     type Entity = AttributeValue<Commits, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, database.as_ref().borrow().commit_count_from(&project.id))
     }
 }
 
-impl SelectEach for Users {
+impl Select<Project> for Users {
     type Entity = AttributeValue<Users, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, database.as_ref().borrow().user_count_from(&project.id))
     }
 }
 
-impl SelectEach for Paths {
+impl Select<Project> for Paths {
     type Entity = AttributeValue<Paths, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
         //AttributeValue::new(self, database.as_ref().borrow().path_count_from(&project.id))

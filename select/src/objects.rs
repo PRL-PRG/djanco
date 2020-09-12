@@ -68,10 +68,10 @@ impl Into<i64>           for Month { fn into(self) -> i64 { self.into_datetime()
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct PathId(pub u64);
 
 /**== Object IDs convenience ====================================================================**/
-impl ProjectId { fn to_string(&self) -> String { self.0.to_string() } }
-impl CommitId  { fn to_string(&self) -> String { self.0.to_string() } }
-impl UserId    { fn to_string(&self) -> String { self.0.to_string() } }
-impl PathId    { fn to_string(&self) -> String { self.0.to_string() } }
+impl ProjectId { pub fn to_string(&self) -> String { self.0.to_string() } }
+impl CommitId  { pub fn to_string(&self) -> String { self.0.to_string() } }
+impl UserId    { pub fn to_string(&self) -> String { self.0.to_string() } }
+impl PathId    { pub fn to_string(&self) -> String { self.0.to_string() } }
 
 impl Into<String> for ProjectId { fn into(self) -> String { self.0.to_string() } }
 impl Into<String> for CommitId  { fn into(self) -> String { self.0.to_string() } }

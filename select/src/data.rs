@@ -821,9 +821,63 @@ impl Data {
         Ok(())
     }
 
-    fn load_experience_from_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_commits_authored_by_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_commits_committed_by_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_experience_from_user_without_filters(&mut self) -> Result<(), Error> {
+        self.load_commits().unwrap();
+        self.load_commits_authored_by_user().unwrap();
+        let commits = give_me!(self.commits);
+        let commits_authored_by_user = give_me!(self.commits_authored_by_user);
+
+        log_item!(self.spec.log_level, "loading user experience");
+        let experience_from_user: BTreeMap<UserId, (u64, u64)>  =
+            commits_authored_by_user.iter()
+                .map(|(id, commit_ids)| {
+                    let min_max = commit_ids.into_iter()
+                        .flat_map(|commit_id| commits.get(commit_id))
+                        .map(|commit| commit.author_time)
+                        .minmax();
+                    match min_max {
+                        MinMaxResult::NoElements => None,
+                        MinMaxResult::OneElement(n) => Some((*id, (n as u64 , n as u64))),
+                        MinMaxResult::MinMax(min, max) => {
+                            assert!(max >= min);
+                            Some((*id, (max as u64, min as u64)))
+                        }
+                    }
+                })
+                .flat_map(|e| e)
+                .collect();
+        log_item!(self.spec.log_level,
+                  format!("loaded experience for {} authors", experience_from_user.len()));
+        Ok(())
+    }
+
+    fn load_commits_authored_by_user_without_filters(&mut self) -> Result<(), Error> {
+        self.load_commits().unwrap();
+        let commits = give_me!(self.commits);
+        log_item!(self.spec.log_level, "loading user/author-commit mapping");
+        let commits_authored_by_user: BTreeMap<UserId, Vec<CommitId>> =
+            commits.iter()
+                .map(|(commit_id, commit)| (commit.author, commit_id.clone()))
+                .into_group_map()
+                .into_iter().collect();
+        log_item!(self.spec.log_level, format!("loaded {} relationships",
+                  count_relationships!(commits_authored_by_user)));
+        Ok(())
+    }
+
+    fn load_commits_committed_by_user_without_filters(&mut self) -> Result<(), Error> {
+        self.load_commits().unwrap();
+        let commits = give_me!(self.commits);
+        log_item!(self.spec.log_level, "loading user/committer-commit mapping");
+        let commits_committed_by_user: BTreeMap<UserId, Vec<CommitId>> =
+            commits.iter()
+                .map(|(commit_id, commit)| (commit.committer, commit_id.clone()))
+                .into_group_map()
+                .into_iter().collect();
+        log_item!(self.spec.log_level, format!("loaded {} relationships",
+                  count_relationships!(commits_committed_by_user)));
+        Ok(())
+    }
 }
 
 /**===== Data: data loading methods (filtered) ==================================================**/
@@ -1010,9 +1064,17 @@ impl Data {
         self.load_age_from_project_without_filters()
     }
 
-    fn load_experience_from_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_commits_authored_by_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_commits_committed_by_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_experience_from_user_with_filters(&mut self) -> Result<(), Error> {
+        self.load_age_from_project_without_filters()
+    }
+
+    fn load_commits_authored_by_user_with_filters(&mut self) -> Result<(), Error> {
+        self.load_commits_authored_by_user_without_filters()
+    }
+
+    fn load_commits_committed_by_user_with_filters(&mut self) -> Result<(), Error> {
+        self.load_commits_committed_by_user_without_filters()
+    }
 }
 
 /**===== DataPtr ================================================================================**/

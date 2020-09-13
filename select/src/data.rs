@@ -56,8 +56,8 @@ pub struct Data {
 
     /** Derived properties: pre-calculated convenience properties that are expected to be used
         often and therefore are worth doing once and storing. **/
-    age_from_project: Option<BTreeMap<ProjectId, u64>>, // TODO
-    experience_from_user: Option<BTreeMap<UserId, u64>>, // TODO
+    age_from_project: Option<BTreeMap<ProjectId, (u64, u64)>>, // TODO
+    experience_from_user: Option<BTreeMap<UserId, (u64, u64)>>, // TODO
 }
 
 /**===== Data: basic methods ====================================================================**/
@@ -414,7 +414,7 @@ impl /* DataAccess for */ Data {
     }
 
     pub fn age_of(&mut self, project: &ProjectId) -> Option<Duration> {
-        lazy_age_from_project!(self).get(project).map(|secs| Duration::from_secs(*secs))
+        lazy_age_from_project!(self).get(project).map(|(max, min)| Duration::from_secs(max - min))
     }
 
     pub fn message_of(&mut self, commit: &CommitId) -> Option<&Message> {
@@ -422,7 +422,7 @@ impl /* DataAccess for */ Data {
     }
 
     pub fn experience_of(&mut self, user: &UserId) -> Option<Duration> {
-        lazy_experience_from_user!(self).get(user).map(|secs| Duration::from_secs(*secs))
+        lazy_experience_from_user!(self).get(user).map(|(max, min)| Duration::from_secs(max - min))
     }
 
     pub fn authored_commits_of(&mut self, user: &UserId) -> Vec<Commit> {
@@ -792,7 +792,6 @@ impl Data {
         Ok(())
     }
 
-    // TODO probably better to keep the earliest and latest dates
     fn load_age_from_project_without_filters(&mut self) -> Result<(), Error> {
         self.load_commits().unwrap();
         self.load_commits_from_project().unwrap();
@@ -800,7 +799,7 @@ impl Data {
         let commits_from_project = give_me!(self.commits_from_project);
 
         log_item!(self.spec.log_level, "loading project ages");
-        let age_from_project: BTreeMap<ProjectId, u64>  =
+        let age_from_project: BTreeMap<ProjectId, (u64, u64)>  =
             commits_from_project.iter()
                 .map(|(id, commit_ids)| {
                     let min_max = commit_ids.into_iter()
@@ -809,10 +808,10 @@ impl Data {
                         .minmax();
                     match min_max {
                         MinMaxResult::NoElements => None,
-                        MinMaxResult::OneElement(_) => None,
+                        MinMaxResult::OneElement(n) => Some((*id, (n as u64 , n as u64))),
                         MinMaxResult::MinMax(min, max) => {
                             assert!(max >= min);
-                            Some((*id, (max - min) as u64))
+                            Some((*id, (max as u64, min as u64)))
                         }
                     }
                 })

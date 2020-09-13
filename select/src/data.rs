@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::rc::Weak;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::fmt;
 
 use itertools::Itertools;
 
@@ -115,14 +114,14 @@ macro_rules! lazy_projects { ($self:expr) => {{ $self.load_projects().unwrap(); 
 macro_rules! lazy_commits  { ($self:expr) => {{ $self.load_commits().unwrap();  give_me!($self.commits) }}  }
 macro_rules! lazy_paths { ($self:expr) => {{ $self.load_paths().unwrap(); give_me!($self.paths) }} }
 macro_rules! lazy_users { ($self:expr) => {{ $self.load_users().unwrap(); give_me!($self.users) }} }
-macro_rules! lazy_snapshots { ($self:expr) => {{ $self.load_snapshots().unwrap(); give_me!($self.snapshots) }} }
+//macro_rules! lazy_snapshots { ($self:expr) => {{ $self.load_snapshots().unwrap(); give_me!($self.snapshots) }} }
 macro_rules! lazy_commits_from_project { ($self:expr) => {{ $self.load_commits_from_project().unwrap(); give_me!($self.commits_from_project) }} }
 macro_rules! lazy_users_from_project { ($self:expr) => {{ $self.load_users_from_project().unwrap(); give_me!($self.users_from_project) }} }
 macro_rules! lazy_authors_from_project { ($self:expr) => {{ $self.load_authors_from_project().unwrap(); give_me!($self.authors_from_project) }} }
 macro_rules! lazy_committers_from_project { ($self:expr) => {{ $self.load_committers_from_project().unwrap(); give_me!($self.committers_from_project) }} }
 macro_rules! lazy_paths_from_project { ($self:expr) => {{ $self.load_paths_from_project().unwrap(); give_me!($self.paths_from_project) }} }
 macro_rules! lazy_paths_from_commit { ($self:expr) => {{ $self.load_paths_from_commit().unwrap(); give_me!($self.paths_from_commit) }} }
-macro_rules! lazy_snapshots_from_commit { ($self:expr) => {{ $self.load_snapshots_from_commit().unwrap(); give_me!($self.snapshots_from_commit) }} }
+//macro_rules! lazy_snapshots_from_commit { ($self:expr) => {{ $self.load_snapshots_from_commit().unwrap(); give_me!($self.snapshots_from_commit) }} }
 macro_rules! lazy_message_from_commit { ($self:expr) => {{ $self.load_message_from_commit().unwrap(); give_me!($self.message_from_commit) }} }
 //macro_rules! lazy_metadata_from_project { ($self:expr) => {{ $self.load_metadata_for_project().unwrap(); give_me!($self.metadata_for_project) }} }
 macro_rules! lazy_age_from_project { ($self:expr) => {{ $self.load_age_from_project().unwrap(); give_me!($self.age_from_project) }} }
@@ -455,6 +454,22 @@ impl /* DataAccess for */ Data {
     pub fn committed_commit_count_of(&mut self, user: &UserId) -> usize {
         lazy_commits_committed_by_user!(self).get(user).map_or(0, |e| e.len())
     }
+
+    pub fn paths_of(&mut self, commit: &CommitId) -> Vec<Path> {
+        self.load_paths().unwrap();
+        self.load_paths_from_commit().unwrap();
+        let paths = give_me!(self.paths);
+        let paths_from_commit = give_me!(self.paths_from_commit);
+        paths_from_commit.get(commit).map_or(vec![], |v| {
+            v.iter().flat_map(|id| paths.get(id)).map(|p| p.clone()).collect()
+        })
+    }
+
+    pub fn path_count_of(&mut self, commit: &CommitId) -> usize {
+        lazy_paths_from_commit!(self).get(commit).map_or(0, |e| e.len())
+    }
+
+    // TODO There's quite a few convenience methods that can be added here.
 }
 
 /**===== Data: data loading methods =============================================================**/

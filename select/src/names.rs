@@ -36,8 +36,8 @@ impl WithNames for objects::Commit {
 impl WithNames for objects::User   {
     fn names() -> Vec<&'static str> {
         vec!["id","name","email",
-             "author_experience_time","committer_experience_time",
-             "authored_commit_count","committer_commit_count"]
+             "experience",
+             "authored","committed"]
     }
 }
 

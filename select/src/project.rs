@@ -133,8 +133,7 @@ impl NumericalAttribute for Users {
 impl NumericalAttribute for Paths {
     type Entity = Project;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        //untangle!(database).path_count_from(&entity.id)
-        unimplemented!()
+        untangle_mut!(database).path_count_from(&entity.id)
     }
 }
 
@@ -241,8 +240,9 @@ impl Sort<Project> for Users {
 }
 
 impl Sort<Project> for Paths {
-    fn execute(&mut self, data: DataPtr, vector: Vec<Project>) -> Vec<Project> {
-        unimplemented!()
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| untangle_mut!(data).path_count_from(&p.id));
+        vector
     }
 }
 
@@ -321,7 +321,6 @@ impl Select<Project> for Users {
 impl Select<Project> for Paths {
     type Entity = AttributeValue<Paths, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        //AttributeValue::new(self, untangle!(database).path_count_from(&project.id))
-        unimplemented!()
+        AttributeValue::new(self, untangle_mut!(database).path_count_from(&project.id))
     }
 }

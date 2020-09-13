@@ -47,19 +47,19 @@ impl Month {
         }
     }
 
-    pub fn into_date(&self) -> Date<Utc> {
+    pub fn to_date(&self) -> Date<Utc> {
         Utc.ymd(self.year() as i32, self.month() as u32, 1 as u32)
     }
 
-    pub fn into_datetime(&self) -> DateTime<Utc> {
+    pub fn to_datetime(&self) -> DateTime<Utc> {
         Utc.ymd(self.year() as i32, self.month() as u32, 1 as u32)
             .and_hms(0, 0, 0)
     }
 }
 
-impl Into<Date<Utc>>     for Month { fn into(self) -> Date<Utc>     { self.into_date()       } }
-impl Into<DateTime<Utc>> for Month { fn into(self) -> DateTime<Utc> { self.into_datetime()   } }
-impl Into<i64>           for Month { fn into(self) -> i64 { self.into_datetime().timestamp() } }
+impl Into<Date<Utc>>     for Month { fn into(self) -> Date<Utc>     { self.to_date()       } }
+impl Into<DateTime<Utc>> for Month { fn into(self) -> DateTime<Utc> { self.to_datetime()   } }
+impl Into<i64>           for Month { fn into(self) -> i64 { self.to_datetime().timestamp() } }
 
 /**== Object IDs ================================================================================**/
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct ProjectId(pub u64);

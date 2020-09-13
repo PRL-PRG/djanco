@@ -119,14 +119,14 @@ impl NumericalAttribute for Metadata {
 impl NumericalAttribute for Commits {
     type Entity = Project;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        untangle!(database).commit_count_from(&entity.id)
+        untangle_mut!(database).commit_count_from(&entity.id)
     }
 }
 
 impl NumericalAttribute for Users {
     type Entity = Project;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        untangle!(database).user_count_from(&entity.id)
+        untangle_mut!(database).user_count_from(&entity.id)
     }
 }
 
@@ -228,14 +228,14 @@ impl Sort<Project> for Metadata {
 
 impl Sort<Project> for Commits {
     fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| untangle!(data).commit_count_from(&p.id));
+        vector.sort_by_key(|p| untangle_mut!(data).commit_count_from(&p.id));
         vector
     }
 }
 
 impl Sort<Project> for Users {
     fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| untangle!(data).user_count_from(&p.id));
+        vector.sort_by_key(|p| untangle_mut!(data).user_count_from(&p.id));
         vector
     }
 }
@@ -307,14 +307,14 @@ impl Select<Project> for Heads {
 impl Select<Project> for Commits {
     type Entity = AttributeValue<Commits, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        AttributeValue::new(self, untangle!(database).commit_count_from(&project.id))
+        AttributeValue::new(self, untangle_mut!(database).commit_count_from(&project.id))
     }
 }
 
 impl Select<Project> for Users {
     type Entity = AttributeValue<Users, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        AttributeValue::new(self, untangle!(database).user_count_from(&project.id))
+        AttributeValue::new(self, untangle_mut!(database).user_count_from(&project.id))
     }
 }
 

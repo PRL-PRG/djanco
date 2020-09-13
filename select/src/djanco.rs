@@ -7,15 +7,23 @@ use std::hash::Hash;
 
 #[derive(Clone)]
 pub struct Spec {
-    pub path: PathBuf,
+    pub warehouse: PathBuf,
+    pub database: PathBuf,
     pub seed: u128,
     pub timestamp: Month,
     pub log_level: LogLevel,
 }
 
 impl Spec {
-    pub fn new<S: Into<String>>(path: S, seed: u128, timestamp: Month, log_level: LogLevel) -> Self {
-        Spec { path: PathBuf::from(path.into()), seed, timestamp, log_level }
+    pub fn new<S: Into<String>>(warehouse: S, database: S, seed: u128, timestamp: Month, log_level: LogLevel) -> Self {
+        Spec { warehouse: PathBuf::from(warehouse.into()), database: PathBuf::from(database.into()),
+               seed, timestamp, log_level }
+    }
+    pub fn from_paths(warehouse: PathBuf, database: PathBuf, seed: u128, timestamp: Month, log_level: LogLevel) -> Self {
+        Spec { warehouse, database, seed, timestamp, log_level }
+    }
+    pub fn path_as_string(&self) -> String {
+        self.warehouse.as_os_str().to_str().unwrap().to_owned()
     }
 }
 

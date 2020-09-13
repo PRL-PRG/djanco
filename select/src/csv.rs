@@ -54,12 +54,12 @@ impl CSVItem for Project {
                 self.issues.map_or(String::new(), |e| e.to_string()),
                 self.buggy_issues.map_or(String::new(), |e| e.to_string()),
                 self.heads.len(),
-                untangle!(data).commit_count_from(&self.id),
-                untangle!(data).user_count_from(&self.id),
-                untangle!(data).path_count_from(&self.id),
-                untangle!(data).author_count_from(&self.id),
-                untangle!(data).committer_count_from(&self.id),
-                untangle!(data).age_of(&self.id)
+                untangle_mut!(data).commit_count_from(&self.id),
+                untangle_mut!(data).user_count_from(&self.id),
+                untangle_mut!(data).path_count_from(&self.id),
+                untangle_mut!(data).author_count_from(&self.id),
+                untangle_mut!(data).committer_count_from(&self.id),
+                untangle_mut!(data).age_of(&self.id)
                     .map_or(String::new(), |e| e.as_secs().to_string()),
         )
     }

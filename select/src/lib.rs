@@ -21,12 +21,14 @@ pub mod meta;
 //pub mod mockdb;
 //pub mod selectors;
 //__lib.rs
+//csv2.rs
 
 use std::fmt;
 
 use crate::objects::*;
 use crate::log::*;
 use crate::djanco::*;
+use std::fmt::Formatter;
 
 /**
  * This is a Djanco API starting point. Query and database construction starts here.
@@ -34,8 +36,8 @@ use crate::djanco::*;
 pub struct Djanco;
 
 impl Djanco {
-    pub fn from<S: Into<String>>(path: S, seed: u128, timestamp: Month) -> Lazy {
-        let spec = Spec::new(path, seed, timestamp, LogLevel::Verbose);
+    pub fn from<S: Into<String>>(warehouse_path: S, database_path: S, seed: u128, timestamp: Month) -> Lazy {
+        let spec = Spec::new(warehouse_path, database_path, seed, timestamp, LogLevel::Verbose);
         Lazy::from(spec)
     }
 }
@@ -47,6 +49,9 @@ impl Error {
 }
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.message) }
+}
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { write!(f, "{}", self.message) }
 }
 
 #[cfg(test)]
@@ -60,7 +65,7 @@ mod tests {
 
     #[test]
     fn example() {
-        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020));
+        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", "/dejavuii/dejacode/cache-tiny", 0, Month::August(2020));
 
         database.projects()
              .filter_by_attrib(require::AtLeast(project::Commits, 28))

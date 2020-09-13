@@ -17,7 +17,7 @@ impl<T> Sample<T> for Top {
 
 impl<T> Sample<T> for Random {
     fn execute(&mut self,data: DataPtr, vector: Vec<T>) -> Vec<T> {
-        let mut rng = Pcg64Mcg::from_seed(data.as_ref().borrow().seed().to_be_bytes());
+        let mut rng = Pcg64Mcg::from_seed(untangle!(data).seed().to_be_bytes());
         vector.into_iter().choose_multiple(&mut rng, self.0)
     }
 }

@@ -1,11 +1,11 @@
 #[macro_use] pub mod require;
 #[macro_use] pub mod log;
+#[macro_use] pub mod data;
 
 pub mod djanco;
 pub mod sample;
 pub mod attrib;
 pub mod project;
-pub mod data;
 pub mod objects;
 pub mod csv;
 pub mod meta;
@@ -55,6 +55,7 @@ mod tests {
     use crate::require;
     use crate::sample;
     use crate::objects::*;
+    use crate::csv::*;
 
 
     #[test]

@@ -119,6 +119,21 @@ impl WithNames for User          { fn names(&self) -> Vec<String> { to_owned_vec
 impl WithNames for Path          { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
 impl WithNames for Commit        { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
 
+impl<T> WithStaticNames for Vec<T> where T: WithStaticNames {
+    fn names() -> Vec<&'static str> {
+        T::names()
+    }
+}
+
+impl<T> WithNames for Vec<T> where T: WithNames + WithStaticNames {
+    fn names(&self) -> Vec<String> {
+        match self.first() {
+            Some(e) => e.names(),
+            None => <T as WithStaticNames>::names().iter().map(|s| s.to_string()).collect(),
+        }
+    }
+}
+
 impl<K, T> WithNames for (K, T) where K: WithNames, T: WithNames {
     fn names(&self) -> Vec<String> {
         let mut vector: Vec<String> = vec![];
@@ -137,18 +152,21 @@ impl<K, T> WithStaticNames for (K, T) where K: WithStaticNames, T: WithStaticNam
     }
 }
 
-impl<T> WithStaticNames for Vec<T> where T: WithStaticNames {
-    fn names() -> Vec<&'static str> { T::names() }
-}
-
 #[allow(non_snake_case)]
 pub trait CSVHeader { fn header(&self) -> String; }
 
-impl<I, T> CSVHeader for I where I: Iterator<Item=T> + WithNames {
+// impl<I, T> CSVHeader for I where I: Iterator<Item=T>, T: WithNames {
+//     fn header(&self) -> String {
+//         self.names().join(",")
+//     }
+// }
+
+impl<I, T> CSVHeader for I where I: Iterator<Item=T>, T: WithStaticNames {
     fn header(&self) -> String {
-        self.names().join(",")
+        T::names().join(",")
     }
 }
+
 
 // impl<TK> CSVHeader for GroupIter<dcd::Project, TK> where TK: PartialEq + Eq + std::hash::Hash {
 //     fn header(&self) -> String {
@@ -159,7 +177,13 @@ impl<I, T> CSVHeader for I where I: Iterator<Item=T> + WithNames {
 //     }
 // }
 
-// impl<K, T> CSVHeader for djanco::GroupIter<K, T> where T: With{
+// impl<T> CSVHeader for djanco::Iter<T> where T: WithNames {
+//     fn header(&self) -> String {
+//         self.names()
+//     }
+// }
+//
+// impl<K, T> CSVHeader for djanco::GroupIter<K, T> where T: WithNames {
 //     fn header(&self) -> String {
 //
 //     }
@@ -188,12 +212,13 @@ impl CSVItem for Project {
                 self.issues.map_or(String::new(), |e| e.to_string()),
                 self.buggy_issues.map_or(String::new(), |e| e.to_string()),
                 self.heads.len(),
-                db.as_ref().borrow().commit_count_from(&self.id),
-                db.as_ref().borrow().user_count_from(&self.id),
-                db.as_ref().borrow().path_count_from(&self.id),
-                db.as_ref().borrow().author_count_from(&self.id),
-                db.as_ref().borrow().committer_count_from(&self.id),
-                db.as_ref().borrow().age_of(&self.id).map_or(String::new(), |e| e.as_secs().to_string()),
+                untangle!(db).commit_count_from(&self.id),
+                untangle!(db).user_count_from(&self.id),
+                untangle!(db).path_count_from(&self.id),
+                untangle!(db).author_count_from(&self.id),
+                untangle!(db).committer_count_from(&self.id),
+                untangle!(db).age_of(&self.id)
+                    .map_or(String::new(), |e| e.as_secs().to_string()),
         )
     }
 }

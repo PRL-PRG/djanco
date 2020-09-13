@@ -119,21 +119,21 @@ impl NumericalAttribute for Metadata {
 impl NumericalAttribute for Commits {
     type Entity = Project;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        database.as_ref().borrow().commit_count_from(&entity.id)
+        untangle!(database).commit_count_from(&entity.id)
     }
 }
 
 impl NumericalAttribute for Users {
     type Entity = Project;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        database.as_ref().borrow().user_count_from(&entity.id)
+        untangle!(database).user_count_from(&entity.id)
     }
 }
 
 impl NumericalAttribute for Paths {
     type Entity = Project;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        //database.as_ref().borrow().path_count_from(&entity.id)
+        //untangle!(database).path_count_from(&entity.id)
         unimplemented!()
     }
 }
@@ -228,14 +228,14 @@ impl Sort<Project> for Metadata {
 
 impl Sort<Project> for Commits {
     fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| data.as_ref().borrow().commit_count_from(&p.id));
+        vector.sort_by_key(|p| untangle!(data).commit_count_from(&p.id));
         vector
     }
 }
 
 impl Sort<Project> for Users {
     fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| data.as_ref().borrow().user_count_from(&p.id));
+        vector.sort_by_key(|p| untangle!(data).user_count_from(&p.id));
         vector
     }
 }
@@ -307,21 +307,21 @@ impl Select<Project> for Metadata {
 impl Select<Project> for Commits {
     type Entity = AttributeValue<Commits, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        AttributeValue::new(self, database.as_ref().borrow().commit_count_from(&project.id))
+        AttributeValue::new(self, untangle!(database).commit_count_from(&project.id))
     }
 }
 
 impl Select<Project> for Users {
     type Entity = AttributeValue<Users, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        AttributeValue::new(self, database.as_ref().borrow().user_count_from(&project.id))
+        AttributeValue::new(self, untangle!(database).user_count_from(&project.id))
     }
 }
 
 impl Select<Project> for Paths {
     type Entity = AttributeValue<Paths, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        //AttributeValue::new(self, database.as_ref().borrow().path_count_from(&project.id))
+        //AttributeValue::new(self, untangle!(database).path_count_from(&project.id))
         unimplemented!()
     }
 }

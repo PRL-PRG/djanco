@@ -17,6 +17,9 @@ use crate::djanco;
 
 pub type DataPtr = Rc<RefCell<Data>>;
 
+#[macro_export] macro_rules! untangle     { ($dataptr:expr) => { $dataptr.as_ref().borrow()     } }
+#[macro_export] macro_rules! untangle_mut { ($dataptr:expr) => { $dataptr.as_ref().borrow_mut() } }
+
 pub trait WithData { fn get_database_ptr(&self) -> DataPtr; }
 impl WithData for Data { fn get_database_ptr(&self) -> DataPtr { self.me() } }
 
@@ -69,7 +72,7 @@ impl From<&djanco::Spec> for DataPtr {
 impl From<djanco::Lazy> for DataPtr {
     fn from(lazy: djanco::Lazy) -> Self {
         let data_ptr = DataPtr::from(&lazy.spec);
-        data_ptr.as_ref().borrow_mut().filters = lazy.filters;
+        untangle_mut!(data_ptr).filters = lazy.filters;
         data_ptr
     }
 }
@@ -79,7 +82,7 @@ impl From<&djanco::Lazy> for DataPtr {
         let data_ptr = DataPtr::from(&lazy.spec);
         let iter =
             lazy.filters.iter().map(|f| f.clone_box());
-        data_ptr.as_ref().borrow_mut().filters.extend(iter);
+        untangle_mut!(data_ptr).filters.extend(iter);
         data_ptr
     }
 }
@@ -621,23 +624,23 @@ pub trait Quincunx {
 }
 
 impl Quincunx for Project {
-    fn stream_from(data: &DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().projects() }
+    fn stream_from(data: &DataPtr) -> Vec<Self> { untangle_mut!(data).projects() }
 }
 
 impl Quincunx for Commit {
-    fn stream_from(data: &DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().commits() }
+    fn stream_from(data: &DataPtr) -> Vec<Self> { untangle_mut!(data).commits() }
 }
 
 impl Quincunx for Path {
-    fn stream_from(data: &DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().paths() }
+    fn stream_from(data: &DataPtr) -> Vec<Self> { untangle_mut!(data).paths() }
 }
 
 impl Quincunx for User {
-    fn stream_from(data: &DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().users() }
+    fn stream_from(data: &DataPtr) -> Vec<Self> { untangle_mut!(data).users() }
 }
 
 // impl Quincunx for Snapshot {
-//     fn stream_from(data: DataPtr) -> Vec<Self> { data.as_ref().borrow_mut().snapshots() }
+//     fn stream_from(data: DataPtr) -> Vec<Self> { untangle_mut!(data).snapshots() }
 // }
 
 pub enum NotFound {

@@ -1,3 +1,4 @@
+mod names;
 #[macro_use] pub mod require;
 #[macro_use] pub mod log;
 #[macro_use] pub mod data;
@@ -57,7 +58,6 @@ mod tests {
     use crate::objects::*;
     use crate::csv::*;
 
-
     #[test]
     fn example() {
         let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020));
@@ -73,7 +73,7 @@ mod tests {
              .sort_by_attrib(project::Stars)
              .sample(sample::Top(2))
              .squash()
-             .select_attrib(project::Id);
-             //.to_csv("projects.csv").unwrap()
+             .select_attrib(project::Id)
+             .to_csv("projects.csv").unwrap();
     }
 }

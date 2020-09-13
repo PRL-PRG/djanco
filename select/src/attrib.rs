@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 use dcd::DCD;
-use crate::csv::WithNames;
 use crate::data::DataPtr;
 use itertools::Itertools;
 use std::hash::Hash;
+use crate::names::WithNames;
 
 pub trait Attribute {}
 

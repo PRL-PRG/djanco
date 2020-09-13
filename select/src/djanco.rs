@@ -185,19 +185,19 @@ impl<T> /* Query for */ Iter<T> {
 
 // TODO: I think this is a potentially fun idea fror laziness, but I will implement a simple eager
 //       solution for now.
-struct TransformedSource<T, Transform> {
-    source: QuincunxIter<T>,
-    transform: Transform,
-}
-
-impl<K, Transform> From<(QuincunxIter<Project>, Transform)> for TransformedSource<Project, Transform> where Transform: Group<Project, Key=K> {
-    fn from(source_and_transform: (QuincunxIter<Project>, Transform)) -> Self {
-        TransformedSource {
-            source: source_and_transform.0,
-            transform: source_and_transform.1,
-        }
-    }
-}
+// struct TransformedSource<T, Transform> {
+//     source: QuincunxIter<T>,
+//     transform: Transform,
+// }
+//
+// impl<K, Transform> From<(QuincunxIter<Project>, Transform)> for TransformedSource<Project, Transform> where Transform: Group<Project, Key=K> {
+//     fn from(source_and_transform: (QuincunxIter<Project>, Transform)) -> Self {
+//         TransformedSource {
+//             source: source_and_transform.0,
+//             transform: source_and_transform.1,
+//         }
+//     }
+// }
 
 /**
  * Group iterator, probably the most used iterator we build.s

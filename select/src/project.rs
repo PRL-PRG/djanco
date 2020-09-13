@@ -295,14 +295,14 @@ impl Select<Project> for Heads {
     }
 }
 
-impl Select<Project> for Metadata {
-    //type Entity = AttributeValue<Metadata, Option<String>>;
-    type Entity = Option<String>;
-    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
-        //AttributeValue::new(self, project.metadata.get(&self.0).map(|s| s.clone()))
-        project.metadata.get(&self.0).map(|s| s.clone())
-    }
-}
+// impl Select<Project> for Metadata {
+//     //type Entity = AttributeValue<Metadata, Option<String>>;
+//     type Entity = Option<String>;
+//     fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
+//         //AttributeValue::new(self, project.metadata.get(&self.0).map(|s| s.clone()))
+//         project.metadata.get(&self.0).map(|s| s.clone())
+//     }
+// }
 
 impl Select<Project> for Commits {
     type Entity = AttributeValue<Commits, usize>;

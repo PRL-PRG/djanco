@@ -1,42 +1,31 @@
-mod djanco;
 #[macro_use] pub mod require;
+
+pub mod djanco;
 pub mod sample;
 pub mod attrib;
 pub mod project;
-//mod pythagorean;
-#[macro_use] mod log;
 pub mod data;
 pub mod objects;
 pub mod csv;
+pub mod meta;
+
+#[macro_use] mod log;
+
+//mod pythagorean;
 //pub mod dump;
 //mod io;
 //pub mod query;
 //pub mod cachedb;
-pub mod meta;
+
 //pub mod mockdb;
 //pub mod selectors;
+//__lib.rs
 
-use std::path::PathBuf;
-use std::marker::PhantomData;
-use std::hash::Hash;
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
-use std::ops::Range;
-use std::borrow::Borrow;
-use std::iter::Map;
-use std::collections::{HashSet, VecDeque};
-use std::time::Duration;
 use std::fmt;
 
-use dcd::DCD;
-use itertools::Itertools;
-
-use crate::csv::*;
 use crate::objects::*;
 use crate::log::*;
 use crate::djanco::*;
-use crate::data::*;
-use crate::attrib::*;
 
 /**
  * This is a Djanco API starting point. Query and database construction starts here.

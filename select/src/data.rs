@@ -7,12 +7,9 @@ use std::time::Duration;
 use itertools::Itertools;
 use std::path::PathBuf;
 use std::rc::{Weak, Rc};
-use std::cell::{RefCell, Ref};
+use std::cell::RefCell;
 use std::fmt;
-use std::panic::catch_unwind;
 use crate::djanco;
-use crate::djanco::QuincunxIter;
-use std::borrow::Borrow;
 
 pub type DataPtr = Rc<RefCell<Data>>;
 
@@ -67,7 +64,7 @@ impl From<&djanco::Spec> for DataPtr {
 
 impl From<djanco::Lazy> for DataPtr {
     fn from(lazy: djanco::Lazy) -> Self {
-        let mut data_ptr = DataPtr::from(&lazy.spec);
+        let data_ptr = DataPtr::from(&lazy.spec);
         data_ptr.as_ref().borrow_mut().filters = lazy.filters;
         data_ptr
     }
@@ -75,7 +72,7 @@ impl From<djanco::Lazy> for DataPtr {
 
 impl From<&djanco::Lazy> for DataPtr {
     fn from(lazy: &djanco::Lazy) -> Self {
-        let mut data_ptr = DataPtr::from(&lazy.spec);
+        let data_ptr = DataPtr::from(&lazy.spec);
         let iter =
             lazy.filters.iter().map(|f| f.clone_box());
         data_ptr.as_ref().borrow_mut().filters.extend(iter);

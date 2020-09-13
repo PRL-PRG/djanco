@@ -1,6 +1,5 @@
 use regex::Regex;
 use crate::attrib::{NumericalAttribute, StringAttribute, Filter};
-use crate::objects::Project;
 use crate::data::DataPtr;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtLeast<N>(pub N, pub usize);

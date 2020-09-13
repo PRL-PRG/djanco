@@ -1,10 +1,7 @@
-use std::borrow::Borrow;
-
 use rand::seq::IteratorRandom;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 
-use crate::objects::*;
 use crate::data::*;
 use crate::attrib::*;
 

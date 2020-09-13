@@ -193,7 +193,7 @@ impl Project {
 
     fn filter_metadata(project: &dcd::Project) -> impl Iterator<Item=(String, String)> + '_ {
         project.metadata.iter()
-            .filter(|(key, value)| {
+            .filter(|(key, _)| {
                 key.as_str() != "ght_language" &&
                     key.as_str() != "star" &&
                     key.as_str() != "issues" &&
@@ -319,7 +319,7 @@ impl From<&dcd::Project> for Project {
                 })
                 .collect(),
             metadata: project.metadata.iter()
-                .filter(|(key, value)|
+                .filter(|(key, _)|
                     key.as_str() != "ght_language" && key.as_str() != "star" &&
                         key.as_str() != "issues" && key.as_str() != "buggy_issues")
                 .map(|(key, value)| (key.clone(), value.clone()))

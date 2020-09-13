@@ -24,9 +24,28 @@ impl WithNames for objects::Project {
     }
 }
 
-impl WithNames for objects::Commit { fn names() -> Vec<&'static str> { unimplemented!() } }
-impl WithNames for objects::User   { fn names() -> Vec<&'static str> { unimplemented!() } }
-impl WithNames for objects::Path   { fn names() -> Vec<&'static str> { unimplemented!() } }
+impl WithNames for objects::Commit {
+    fn names() -> Vec<&'static str> {
+        vec!["id","hash",
+             "committer_id","committer_time",
+             "author_id","author_time",
+             "additions","deletions"]
+    }
+}
+
+impl WithNames for objects::User   {
+    fn names() -> Vec<&'static str> {
+        vec!["id","name","email",
+             "author_experience_time","committer_experience_time",
+             "authored_commit_count","committer_commit_count"]
+    }
+}
+
+impl WithNames for objects::Path   {
+    fn names() -> Vec<&'static str> {
+        vec!["id","path"]
+    }
+}
 
 impl WithNames for project::Id          { fn names() -> Vec<&'static str> { vec!["project_id"]  } }
 impl WithNames for project::URL         { fn names() -> Vec<&'static str> { vec!["url"] } }

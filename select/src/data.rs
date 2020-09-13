@@ -40,11 +40,13 @@ pub struct Data {
     //snapshots:    BTreeMap<SnapshotId,    Snapshot>,
 
     /** Derived relationships. **/
-    commits_from_project:    Option<BTreeMap<ProjectId, Vec<CommitId>>>,
-    users_from_project:      Option<BTreeMap<ProjectId, Vec<UserId>>>,
-    authors_from_project:    Option<BTreeMap<ProjectId, Vec<UserId>>>, // TODO
-    committers_from_project: Option<BTreeMap<ProjectId, Vec<UserId>>>, // TODO
-    paths_from_project:      Option<BTreeMap<ProjectId, Vec<PathId>>>, // TODO
+    commits_from_project:      Option<BTreeMap<ProjectId, Vec<CommitId>>>,
+    users_from_project:        Option<BTreeMap<ProjectId, Vec<UserId>>>,
+    authors_from_project:      Option<BTreeMap<ProjectId, Vec<UserId>>>,   // TODO
+    committers_from_project:   Option<BTreeMap<ProjectId, Vec<UserId>>>,   // TODO
+    paths_from_project:        Option<BTreeMap<ProjectId, Vec<PathId>>>,   // TODO
+    commits_committed_by_user: Option<BTreeMap<UserId,    Vec<CommitId>>>, // TODO
+    commits_authored_by_user:  Option<BTreeMap<UserId,    Vec<CommitId>>>, // TODO
 
     /** Fields split off from the main objects because they are expected to be used less often, and
         therefore can be prevented from being loaded into memory most of the time. **/
@@ -55,7 +57,8 @@ pub struct Data {
 
     /** Derived properties: pre-calculated convenience properties that are expected to be used
         often and therefore are worth doing once and storing. **/
-    age_from_project: Option<BTreeMap<ProjectId, u64>>,
+    age_from_project: Option<BTreeMap<ProjectId, u64>>, // TODO
+    experience_from_user: Option<BTreeMap<UserId, u64>>, // TODO
 }
 
 /**===== Data: basic methods ====================================================================**/
@@ -85,9 +88,13 @@ impl Data {
 
             commits_from_project: None, users_from_project: None,
             authors_from_project: None, committers_from_project: None,
-            paths_from_project: None, age_from_project: None,
+            paths_from_project: None,
+            age_from_project: None,
 
             paths_from_commit: None, message_from_commit: None,
+
+            commits_committed_by_user: None, commits_authored_by_user: None,
+            experience_from_user: None,
 
             me: None,
         };
@@ -117,8 +124,11 @@ macro_rules! lazy_paths_from_project { ($self:expr) => {{ $self.load_paths_from_
 macro_rules! lazy_paths_from_commit { ($self:expr) => {{ $self.load_paths_from_commit().unwrap(); give_me!($self.paths_from_commit) }} }
 macro_rules! lazy_snapshots_from_commit { ($self:expr) => {{ $self.load_snapshots_from_commit().unwrap(); give_me!($self.snapshots_from_commit) }} }
 macro_rules! lazy_message_from_commit { ($self:expr) => {{ $self.load_message_from_commit().unwrap(); give_me!($self.message_from_commit) }} }
-macro_rules! lazy_metadata_from_project { ($self:expr) => {{ $self.load_metadata_for_project().unwrap(); give_me!($self.metadata_for_project) }} }
+//macro_rules! lazy_metadata_from_project { ($self:expr) => {{ $self.load_metadata_for_project().unwrap(); give_me!($self.metadata_for_project) }} }
 macro_rules! lazy_age_from_project { ($self:expr) => {{ $self.load_age_from_project().unwrap(); give_me!($self.age_from_project) }} }
+macro_rules! lazy_experience_from_user { ($self:expr) => {{ $self.load_experience_from_user().unwrap(); give_me!($self.experience_from_user) }} }
+macro_rules! lazy_commits_committed_by_user { ($self:expr) => {{ $self.load_commits_committed_by_user().unwrap(); give_me!($self.commits_committed_by_user) }} }
+macro_rules! lazy_commits_authored_by_user { ($self:expr) => {{ $self.load_commits_authored_by_user().unwrap(); give_me!($self.commits_authored_by_user) }} }
 
 /**===== Data: convenience ======================================================================**/
 macro_rules! count_relationships {
@@ -407,6 +417,44 @@ impl /* DataAccess for */ Data {
     pub fn age_of(&mut self, project: &ProjectId) -> Option<Duration> {
         lazy_age_from_project!(self).get(project).map(|secs| Duration::from_secs(*secs))
     }
+
+    pub fn message_of(&mut self, commit: &CommitId) -> Option<&Message> {
+        lazy_message_from_commit!(self).get(commit)
+    }
+
+    pub fn experience_of(&mut self, user: &UserId) -> Option<Duration> {
+        lazy_experience_from_user!(self).get(user).map(|secs| Duration::from_secs(*secs))
+    }
+
+    pub fn authored_commits_of(&mut self, user: &UserId) -> Vec<Commit> {
+        self.load_commits().unwrap();
+        self.load_commits_committed_by_user().unwrap();
+        let commits = give_me!(self.commits);
+        let commits_authored_by_user = give_me!(self.commits_authored_by_user);
+        commits_authored_by_user.get(user)
+            .map_or(vec![], |v| {
+                v.iter().flat_map(|id| commits.get(id)).map(|c| c.clone()).collect()
+            })
+    }
+
+    pub fn committed_commits_of(&mut self, user: &UserId) -> Vec<Commit> {
+        self.load_commits().unwrap();
+        self.load_commits_committed_by_user().unwrap();
+        let commits = give_me!(self.commits);
+        let commits_committed_by_user = give_me!(self.commits_committed_by_user);
+        commits_committed_by_user.get(user)
+            .map_or(vec![], |v| {
+                v.iter().flat_map(|id| commits.get(id)).map(|c| c.clone()).collect()
+            })
+    }
+
+    pub fn authored_commit_count_of(&mut self, user: &UserId) -> usize {
+        lazy_commits_authored_by_user!(self).get(user).map_or(0, |e| e.len())
+    }
+
+    pub fn committed_commit_count_of(&mut self, user: &UserId) -> usize {
+        lazy_commits_committed_by_user!(self).get(user).map_or(0, |e| e.len())
+    }
 }
 
 /**===== Data: data loading methods =============================================================**/
@@ -516,6 +564,33 @@ impl Data { // FIXME there's better ways of doing this, like composition
             self.load_message_from_commit_without_filters()
         } else {
             self.load_message_from_commit_with_filters()
+        }
+    }
+
+    fn load_experience_from_user(&mut self) -> Result<(), Error> {
+        if self.experience_from_user.is_some() { return Ok(()) }
+        if self.filters.is_empty() {
+            self.load_experience_from_user_without_filters()
+        } else {
+            self.load_experience_from_user_with_filters()
+        }
+    }
+
+    fn load_commits_authored_by_user(&mut self) -> Result<(), Error> {
+        if self.commits_authored_by_user.is_some() { return Ok(()) }
+        if self.filters.is_empty() {
+            self.load_commits_authored_by_user_without_filters()
+        } else {
+            self.load_commits_authored_by_user_with_filters()
+        }
+    }
+
+    fn load_commits_committed_by_user(&mut self) -> Result<(), Error> {
+        if self.commits_committed_by_user.is_some() { return Ok(()) }
+        if self.filters.is_empty() {
+            self.load_commits_committed_by_user_without_filters()
+        } else {
+            self.load_commits_committed_by_user_with_filters()
         }
     }
 }
@@ -639,6 +714,9 @@ impl Data {
     fn load_committers_from_project_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
     fn load_paths_from_project_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
     fn load_age_from_project_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_experience_from_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_commits_authored_by_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_commits_committed_by_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
 }
 
 /**===== Data: data loading methods (filtered) ==================================================**/
@@ -813,6 +891,9 @@ impl Data {
     fn load_committers_from_project_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
     fn load_paths_from_project_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
     fn load_age_from_project_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_experience_from_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_commits_authored_by_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_commits_committed_by_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
 }
 
 /**===== DataPtr ================================================================================**/

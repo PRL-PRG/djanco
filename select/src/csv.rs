@@ -48,7 +48,9 @@ impl CSVItem for PathId    { fn to_csv(&self, db: DataPtr) -> String { self.0.to
 impl CSVItem for Project {
     fn to_csv(&self, data: DataPtr) -> String {
         format!(r#"{},{},{},{},{},{},{},{},{},{},{},{},{},{}"#,
-                self.id, self.url, self.last_update,
+                self.id,
+                self.url,
+                self.last_update,
                 self.language_or_empty(),
                 self.stars.map_or(String::new(), |e| e.to_string()),
                 self.issues.map_or(String::new(), |e| e.to_string()),
@@ -65,9 +67,37 @@ impl CSVItem for Project {
     }
 }
 
-impl CSVItem for Commit { fn to_csv(&self, data: DataPtr) -> String { unimplemented!() } }
-impl CSVItem for User   { fn to_csv(&self, data: DataPtr) -> String { unimplemented!() } }
-impl CSVItem for Path   { fn to_csv(&self, data: DataPtr) -> String { unimplemented!() } }
+impl CSVItem for Commit {
+    fn to_csv(&self, _: DataPtr) -> String {
+        format!(r#"{},"{}",{},{},{},{},{},{}"#,
+                self.id,
+                self.hash,
+                self.committer,
+                self.committer_time,
+                self.author,
+                self.author_time,
+                self.additions.map_or(String::new(), |e| e.to_string()),
+                self.deletions.map_or(String::new(), |e| e.to_string()))
+    }
+}
+impl CSVItem for User {
+    fn to_csv(&self, data: DataPtr) -> String {
+        format!(r#"{},"{}","{}",{},{},{}"#,
+                self.id,
+                self.name,
+                self.email,
+                untangle_mut!(data).experience_of(&self.id)
+                    .map_or(String::new(), |e| e.as_secs().to_string()),
+                untangle_mut!(data).authored_commit_count_of(&self.id),
+                untangle_mut!(data).committed_commit_count_of(&self.id),
+        )
+    }
+}
+impl CSVItem for Path {
+    fn to_csv(&self, _: DataPtr) -> String {
+        format!(r#"{},{}"#, self.id, self.path)
+    }
+}
 
 impl<A, B> CSVItem for (A, B) where A: CSVItem, B: CSVItem {
     fn to_csv(&self, db: DataPtr) -> String {

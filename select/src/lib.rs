@@ -1,4 +1,5 @@
 #[macro_use] pub mod require;
+#[macro_use] pub mod log;
 
 pub mod djanco;
 pub mod sample;
@@ -9,7 +10,6 @@ pub mod objects;
 pub mod csv;
 pub mod meta;
 
-#[macro_use] mod log;
 
 //mod pythagorean;
 //pub mod dump;

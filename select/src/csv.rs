@@ -1,8 +1,10 @@
-use crate::attrib::{AttributeValue, Attribute};
 use std::io::Write;
-use crate::project::{Id, URL, Stars, Issues, BuggyIssues, Heads, Commits, Users, Paths, Language, Metadata};
-use crate::objects::{ProjectId, UserId, PathId, CommitId, Project, User, Path, Commit};
-use crate::data::{WithData, DataPtr};
+
+use crate::djanco;
+use crate::attrib::*;
+use crate::project::*;
+use crate::objects::*;
+use crate::data::*;
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -117,6 +119,28 @@ impl WithNames for User          { fn names(&self) -> Vec<String> { to_owned_vec
 impl WithNames for Path          { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
 impl WithNames for Commit        { fn names(&self) -> Vec<String> { to_owned_vec!(<Self as WithStaticNames>::names()) } }
 
+impl<K, T> WithNames for (K, T) where K: WithNames, T: WithNames {
+    fn names(&self) -> Vec<String> {
+        let mut vector: Vec<String> = vec![];
+        vector.extend(self.0.names());
+        vector.extend(self.1.names());
+        vector
+    }
+}
+
+impl<K, T> WithStaticNames for (K, T) where K: WithStaticNames, T: WithStaticNames {
+    fn names() -> Vec<&'static str> {
+        let mut vector: Vec<&'static str> = vec![];
+        vector.extend(K::names());
+        vector.extend(T::names());
+        vector
+    }
+}
+
+impl<T> WithStaticNames for Vec<T> where T: WithStaticNames {
+    fn names() -> Vec<&'static str> { T::names() }
+}
+
 #[allow(non_snake_case)]
 pub trait CSVHeader { fn header(&self) -> String; }
 
@@ -132,6 +156,12 @@ impl<I, T> CSVHeader for I where I: Iterator<Item=T> + WithNames {
 //          stars,issues,buggy_issues,\
 //          head_count,commit_count,user_count,path_count,author_count,committer_count,\
 //          age".to_owned()
+//     }
+// }
+
+// impl<K, T> CSVHeader for djanco::GroupIter<K, T> where T: With{
+//     fn header(&self) -> String {
+//
 //     }
 // }
 

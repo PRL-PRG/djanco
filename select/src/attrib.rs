@@ -96,3 +96,21 @@ pub trait StringAttribute {
     type Entity;
     fn extract(&self, database: DataPtr, entity: &Self::Entity) -> String;
 }
+
+pub mod raw {
+    pub trait NumericalAttribute {
+        type Entity;
+        fn calculate(&self, database: &dcd::DCD, project_id: &u64, commit_ids: &Vec<u64>) -> usize;
+    }
+
+    pub trait CollectionAttribute {
+        type Entity;
+        //fn calculate(&self, database: &dcd::DCD, project_id: &u64, commit_ids: &Vec<u64>) -> usize;
+    }
+
+    pub trait StringAttribute {
+        type Entity;
+        fn extract(&self, database: &dcd::DCD, project_id: &u64, commit_ids: &Vec<u64>) -> String;
+    }
+
+}

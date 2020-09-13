@@ -1,6 +1,10 @@
-use crate::objects::{Project, ProjectId};
-use crate::attrib::{Attribute, StringAttribute, NumericalAttribute, Group, AttributeValue, Sort, Select};
-use crate::data::DataPtr;
+use crate::objects::*;
+use crate::attrib::*;
+use crate::data::*;
+use crate::meta::*;
+
+use dcd::{DCD, Database};
+use itertools::Itertools;
 
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
@@ -322,5 +326,137 @@ impl Select<Project> for Paths {
     type Entity = AttributeValue<Paths, usize>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, untangle_mut!(database).path_count_from(&project.id))
+    }
+}
+
+impl raw::StringAttribute for Id {
+    type Entity = dcd::Project;
+    fn extract(&self, _database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> String {
+        project_id.to_string()
+    }
+}
+
+impl raw::StringAttribute for URL {
+    type Entity = dcd::Project;
+    fn extract(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> String {
+        database.get_project(*project_id)
+            .map(|p| p.url)
+            .unwrap_or(String::new())
+    }
+}
+
+impl raw::StringAttribute for Language {
+    type Entity = dcd::Project;
+    fn extract(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> String {
+        database.get_project(*project_id)
+            .map(|p| p.get_language())
+            .flatten()
+            .unwrap_or(String::new())
+    }
+}
+
+impl raw::StringAttribute for Stars {
+    type Entity = dcd::Project;
+    fn extract(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> String {
+        database.get_project(*project_id)
+            .map(|p| p.get_stars())
+            .flatten()
+            .map_or(String::new(), |e| e.to_string())
+    }
+}
+
+impl raw::StringAttribute for Issues {
+    type Entity = dcd::Project;
+    fn extract(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> String {
+        database.get_project(*project_id)
+            .map(|p| p.get_issue_count())
+            .flatten()
+            .map_or(String::new(), |e| e.to_string())
+    }
+}
+
+impl raw::StringAttribute for BuggyIssues {
+    type Entity = dcd::Project;
+    fn extract(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> String {
+        database.get_project(*project_id)
+            .map(|p| p.get_buggy_issue_count())
+            .flatten()
+            .map_or(String::new(), |e| e.to_string())
+    }
+}
+
+impl raw::NumericalAttribute for Id {
+    type Entity = dcd::Project;
+    fn calculate(&self, _database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> usize {
+        *project_id as usize
+    }
+}
+
+impl raw::NumericalAttribute for Stars {
+    type Entity = dcd::Project;
+    fn calculate(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> usize {
+        database.get_project(*project_id)
+            .map_or(0usize, |p| p.get_stars_or_zero() as usize)
+    }
+}
+
+impl raw::NumericalAttribute for Issues {
+    type Entity = dcd::Project;
+    fn calculate(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> usize {
+        database.get_project(*project_id)
+            .map_or(0usize, |p| p.get_issue_count_or_zero() as usize)
+    }
+}
+
+impl raw::NumericalAttribute for BuggyIssues {
+    type Entity = Project;
+    fn calculate(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> usize {
+        database.get_project(*project_id)
+            .map_or(0usize, |p| p.get_buggy_issue_count_or_zero() as usize)
+    }
+}
+
+impl raw::NumericalAttribute for Heads {
+    type Entity = dcd::Project;
+    fn calculate(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> usize {
+        database.get_project(*project_id).map_or(0usize, |p| p.heads.len())
+    }
+}
+
+impl raw::NumericalAttribute for Metadata {
+    type Entity = dcd::Project;
+    fn calculate(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> usize {
+        database.get_project(*project_id).map_or(0usize, |p| p.metadata.len())
+    }
+}
+
+impl raw::NumericalAttribute for Commits {
+    type Entity = dcd::Project;
+    fn calculate(&self, _database: &DCD, _project_id: &u64, commit_ids: &Vec<u64>) -> usize {
+        commit_ids.len()
+    }
+}
+
+impl raw::NumericalAttribute for Users {
+    type Entity = Project;
+    fn calculate(&self, database: &DCD, _project_id: &u64, commit_ids: &Vec<u64>) -> usize {
+        commit_ids.iter()
+            .flat_map(|id| database.get_commit(*id))
+            .flat_map(|c| vec![c.author_id, c.committer_id])
+            .unique()
+            .count()
+    }
+}
+
+impl raw::NumericalAttribute for Paths {
+    type Entity = dcd::Project;
+    fn calculate(&self, database: &DCD, _project_id: &u64, commit_ids: &Vec<u64>) -> usize {
+        commit_ids.iter()
+            .flat_map(|id| database.get_commit(*id))
+            .flat_map(|c| c.changes.map_or(vec![], |changes| {
+                changes.iter().map(|(path, _)| *path).unique().collect()
+            }))
+            .unique()
+            .count()
     }
 }

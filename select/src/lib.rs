@@ -11,7 +11,6 @@ pub mod objects;
 pub mod csv;
 pub mod meta;
 
-
 //mod pythagorean;
 //pub mod dump;
 //mod io;
@@ -65,7 +64,8 @@ mod tests {
 
     #[test]
     fn example() {
-        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", "/dejavuii/dejacode/cache-tiny", 0, Month::August(2020));
+        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", "/dejavuii/dejacode/cache-tiny", 0, Month::August(2020))
+            .with_filter(require::AtLeast(project::Commits, 10));
 
         database.projects()
              .filter_by_attrib(require::AtLeast(project::Commits, 28))

@@ -613,6 +613,7 @@ impl Data { // FIXME there's better ways of doing this, like composition
 /**===== Data: data loading methods (unfiltered) ================================================**/
 impl Data {
     fn load_projects_without_filters(&mut self) -> Result<(), Error> {
+
         log_item!(self.spec.log_level, "loading project data");
         let projects: BTreeMap<ProjectId, Project> =
             self.warehouse.projects().into_iter()
@@ -620,10 +621,12 @@ impl Data {
                 .collect();
         log_addendum!(self.spec.log_level,
                       format!("loaded project data for {} projects", projects.len()));
-        Ok(())
+
+        Ok(self.projects = Some(projects))
     }
 
     fn load_commits_without_filters(&mut self) -> Result<(), Error> {
+
         log_item!(self.spec.log_level, "loading commit data");
         let commits: BTreeMap<CommitId, Commit> =
             self.warehouse.bare_commits().into_iter()
@@ -631,20 +634,24 @@ impl Data {
                 .collect();
         log_addendum!(self.spec.log_level,
                       format!("loaded commit data for {} commits", commits.len()));
-        Ok(())
+
+        Ok(self.commits = Some(commits))
     }
 
     fn load_users_without_filters(&mut self) -> Result<(), Error> {
+
         log_item!(self.spec.log_level, "loading user data");
         let users: BTreeMap<UserId, User> =
             self.warehouse.users().into_iter()
                 .map(|user| (UserId::from(user.id), User::from(user)))
                 .collect();
         log_addendum!(self.spec.log_level, format!("loaded user data for {} users", users.len()));
-        Ok(())
+
+        Ok(self.users = Some(users))
     }
 
     fn load_paths_without_filters(&mut self) -> Result<(), Error> {
+
         log_item!(self.spec.log_level, "loading path data");
         let paths: BTreeMap<PathId, Path> =
             (0..self.warehouse.num_file_paths())
@@ -652,10 +659,12 @@ impl Data {
                 .map(|path| (PathId::from(path.id), Path::from(path)))
                 .collect();
         log_addendum!(self.spec.log_level, format!("loaded path data for {} paths", paths.len()));
-        Ok(())
+
+        Ok(self.paths = Some(paths))
     }
 
     fn load_commits_from_project_without_filters(&mut self) -> Result<(), Error> {
+
         log_item!(self.spec.log_level, "loading project-commit mapping");
         let commits_from_project: BTreeMap<ProjectId, Vec<CommitId>> =
             self.warehouse.project_ids_and_their_commit_ids().into_iter()
@@ -668,7 +677,8 @@ impl Data {
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(commits_from_project)));
-        Ok(())
+
+        Ok(self.commits_from_project = Some(commits_from_project))
     }
 
     fn load_users_from_project_without_filters(&mut self) -> Result<(), Error> {
@@ -690,10 +700,12 @@ impl Data {
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(users_from_project)));
-        Ok(())
+
+        Ok(self.users_from_project = Some(users_from_project))
     }
 
     fn load_paths_from_commit_without_filters(&mut self) -> Result<(), Error> {
+
         log_item!(self.spec.log_level, "loading commit-path mapping");
         let paths_from_commit: BTreeMap<CommitId, Vec<PathId>> =
             self.warehouse
@@ -708,10 +720,12 @@ impl Data {
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(paths_from_commit)));
-        Ok(())
+
+        Ok(self.paths_from_commit = Some(paths_from_commit))
     }
 
     fn load_message_from_commit_without_filters(&mut self) -> Result<(), Error> {
+
         log_item!(self.spec.log_level, "loading commit messages");
         let message_from_commit: BTreeMap<CommitId, Message> =
             self.warehouse.commits()
@@ -722,7 +736,8 @@ impl Data {
                 })
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} messages", message_from_commit.len()));
-        Ok(())
+
+        Ok(self.message_from_commit = Some(message_from_commit))
     }
 
     fn load_authors_from_project_without_filters(&mut self) -> Result<(), Error> {
@@ -744,7 +759,8 @@ impl Data {
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(authors_from_project)));
-        Ok(())
+
+        Ok(self.authors_from_project = Some(authors_from_project))
     }
 
     fn load_committers_from_project_without_filters(&mut self) -> Result<(), Error> {
@@ -754,7 +770,7 @@ impl Data {
         let commits_from_project = give_me!(self.commits_from_project);
 
         log_item!(self.spec.log_level, "loading project-committer mapping");
-        let comitters_from_project: BTreeMap<ProjectId, Vec<UserId>>  =
+        let committers_from_project: BTreeMap<ProjectId, Vec<UserId>>  =
             commits_from_project.iter()
                 .map(|(id, commit_ids)|
                     (*id,
@@ -765,8 +781,9 @@ impl Data {
                          .collect()))
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
-                                     count_relationships!(comitters_from_project)));
-        Ok(())
+                                     count_relationships!(committers_from_project)));
+
+        Ok(self.committers_from_project = Some(committers_from_project))
     }
 
     fn load_paths_from_project_without_filters(&mut self) -> Result<(), Error> {
@@ -789,7 +806,8 @@ impl Data {
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                   count_relationships!(paths_from_project)));
-        Ok(())
+
+        Ok(self.paths_from_project = Some(paths_from_project))
     }
 
     fn load_age_from_project_without_filters(&mut self) -> Result<(), Error> {
@@ -818,7 +836,8 @@ impl Data {
                 .flat_map(|e| e)
                 .collect();
         log_item!(self.spec.log_level, format!("loaded ages for {} projects", age_from_project.len()));
-        Ok(())
+
+        Ok(self.age_from_project = Some(age_from_project))
     }
 
     fn load_experience_from_user_without_filters(&mut self) -> Result<(), Error> {
@@ -848,12 +867,14 @@ impl Data {
                 .collect();
         log_item!(self.spec.log_level,
                   format!("loaded experience for {} authors", experience_from_user.len()));
-        Ok(())
+
+        Ok(self.experience_from_user = Some(experience_from_user))
     }
 
     fn load_commits_authored_by_user_without_filters(&mut self) -> Result<(), Error> {
         self.load_commits().unwrap();
         let commits = give_me!(self.commits);
+
         log_item!(self.spec.log_level, "loading user/author-commit mapping");
         let commits_authored_by_user: BTreeMap<UserId, Vec<CommitId>> =
             commits.iter()
@@ -862,12 +883,14 @@ impl Data {
                 .into_iter().collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                   count_relationships!(commits_authored_by_user)));
-        Ok(())
+
+        Ok(self.commits_authored_by_user = Some(commits_authored_by_user))
     }
 
     fn load_commits_committed_by_user_without_filters(&mut self) -> Result<(), Error> {
         self.load_commits().unwrap();
         let commits = give_me!(self.commits);
+
         log_item!(self.spec.log_level, "loading user/committer-commit mapping");
         let commits_committed_by_user: BTreeMap<UserId, Vec<CommitId>> =
             commits.iter()
@@ -876,7 +899,8 @@ impl Data {
                 .into_iter().collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                   count_relationships!(commits_committed_by_user)));
-        Ok(())
+
+        Ok(self.commits_committed_by_user = Some(commits_committed_by_user))
     }
 }
 
@@ -894,28 +918,29 @@ impl Data {
                 .map(|project| (ProjectId::from(project.id), Project::from(project)) )
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} projects", projects.len()));
-        Ok(())
+
+        Ok(self.projects = Some(projects))
     }
 
-    fn load_commits_with_filters(&mut self) -> Result<(), Error> {
+    fn load_commits_with_filters(&mut self) -> Result<(), Error> { // definitely different
         self.load_commits_from_project().unwrap();
         let commits_from_project =
             give_me!(self.commits_from_project);
 
         log_item!(self.spec.log_level, "loading commit data");
-        let commit_ids = commits_from_project.iter()
-            .flat_map(|(_, commit_ids)| commit_ids)
-            .unique();
-        let commits: BTreeMap<CommitId, Commit> =
-            commit_ids
+           let commits: BTreeMap<CommitId, Commit> =
+            commits_from_project.iter()
+                .flat_map(|(_, commit_ids)| commit_ids)
+                .unique()
                 .flat_map(|commit_id| self.warehouse.get_commit_bare(commit_id.into()))
                 .map(|commit| (CommitId::from(commit.id), Commit::from(commit)))
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} commits", commits.len()));
-        Ok(())
+
+        Ok(self.commits = Some(commits))
     }
 
-    fn load_users_with_filters(&mut self) -> Result<(), Error> {
+    fn load_users_with_filters(&mut self) -> Result<(), Error> { // definitely different
         self.load_commits().unwrap();
         let commits = give_me!(self.commits);
 
@@ -928,10 +953,11 @@ impl Data {
                 .map(|user| (UserId::from(user.id), User::from(user)))
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} users", users.len()));
-        Ok(())
+
+        Ok(self.users = Some(users))
     }
 
-    fn load_paths_with_filters(&mut self) -> Result<(), Error> {
+    fn load_paths_with_filters(&mut self) -> Result<(), Error> { // definitely different
         self.load_paths_from_commit().unwrap();
         let paths_from_commit = give_me!(self.paths_from_commit);
 
@@ -944,7 +970,8 @@ impl Data {
                 .map(|path| (PathId::from(path.id), Path::from(path)) )
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} paths", paths.len()));
-        Ok(())
+
+        Ok(self.paths = Some(paths))
     }
 
     fn load_commits_from_project_with_filters(&mut self) -> Result<(), Error> {
@@ -969,14 +996,14 @@ impl Data {
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                                                commits_from_project.iter()
                                                .map(|(_, v)| v.len()).sum::<usize>()));
-        Ok(())
+
+        Ok(self.commits_from_project = Some(commits_from_project))
     }
 
     fn load_users_from_project_with_filters(&mut self) -> Result<(), Error> {
         self.load_commits_from_project().unwrap();
         self.load_commits().unwrap();
-        let commits_from_project =
-            give_me!(self.commits_from_project);
+        let commits_from_project = give_me!(self.commits_from_project);
         let commits = give_me!(self.commits);
 
         log_item!(self.spec.log_level, "loading project-user mapping");
@@ -993,21 +1020,20 @@ impl Data {
                 })
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
-                                     count_relationships!(users_from_project)));
-        Ok(())
+                                       count_relationships!(users_from_project)));
+
+        Ok(self.users_from_project = Some(users_from_project))
     }
 
     fn load_paths_from_commit_with_filters(&mut self) -> Result<(), Error> {
         self.load_commits_from_project().unwrap();
-        let commits_from_project =
-            give_me!(self.commits_from_project);
+        let commits_from_project = give_me!(self.commits_from_project);
 
         log_item!(self.spec.log_level, "loading commit-path mapping");
-        let commit_ids = commits_from_project.iter()
-            .flat_map(|(_, commit_ids)| commit_ids)
-            .unique();
         let paths_from_commit: BTreeMap<CommitId, Vec<PathId>> =
-            commit_ids
+            commits_from_project.iter()
+                .flat_map(|(_, commit_ids)| commit_ids)
+                .unique()
                 .flat_map(|commit_id| self.warehouse.get_commit(commit_id.into()))
                 .map(|commit| {
                     (CommitId::from(commit.id),
@@ -1023,20 +1049,19 @@ impl Data {
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(paths_from_commit)));
-        Ok(())
+
+        Ok(self.paths_from_commit = Some(paths_from_commit))
     }
 
     fn load_message_from_commit_with_filters(&mut self) -> Result<(), Error> {
         self.load_commits_from_project().unwrap();
-        let commits_from_project =
-            give_me!(self.commits_from_project);
+        let commits_from_project = give_me!(self.commits_from_project);
 
         log_item!(self.spec.log_level, "loading commit messages");
-        let commit_ids = commits_from_project.iter()
-            .flat_map(|(_, commit_ids)| commit_ids)
-            .unique();
         let message_from_commit: BTreeMap<CommitId, Message> =
-            commit_ids
+            commits_from_project.iter()
+                .flat_map(|(_, commit_ids)| commit_ids)
+                .unique()
                 .flat_map(|commit_id| self.warehouse.get_commit(commit_id.into()))
                 .flat_map(|commit| {
                     commit.message.as_ref().map(|message| {
@@ -1045,7 +1070,8 @@ impl Data {
                 })
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} messages", message_from_commit.len()));
-        Ok(())
+
+        Ok(self.message_from_commit = Some(message_from_commit))
     }
 
     fn load_authors_from_project_with_filters(&mut self) -> Result<(), Error> {

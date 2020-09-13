@@ -5,7 +5,7 @@ use std::rc::Weak;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use itertools::Itertools;
+use itertools::{Itertools, MinMaxResult};
 
 use dcd::{DCD, Database};
 
@@ -725,10 +725,103 @@ impl Data {
         Ok(())
     }
 
-    fn load_authors_from_project_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_committers_from_project_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_paths_from_project_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_age_from_project_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_authors_from_project_without_filters(&mut self) -> Result<(), Error> {
+        self.load_commits().unwrap();
+        self.load_commits_from_project().unwrap();
+        let commits = give_me!(self.commits);
+        let commits_from_project = give_me!(self.commits_from_project);
+
+        log_item!(self.spec.log_level, "loading project-author mapping");
+        let authors_from_project: BTreeMap<ProjectId, Vec<UserId>>  =
+            commits_from_project.iter()
+                .map(|(id, commit_ids)|
+                    (*id,
+                     commit_ids.into_iter()
+                         .flat_map(|commit_id| commits.get(commit_id))
+                         .map(|commit| commit.author)
+                         .unique()
+                         .collect()))
+                .collect();
+        log_item!(self.spec.log_level, format!("loaded {} relationships",
+                                     count_relationships!(authors_from_project)));
+        Ok(())
+    }
+
+    fn load_committers_from_project_without_filters(&mut self) -> Result<(), Error> {
+        self.load_commits().unwrap();
+        self.load_commits_from_project().unwrap();
+        let commits = give_me!(self.commits);
+        let commits_from_project = give_me!(self.commits_from_project);
+
+        log_item!(self.spec.log_level, "loading project-committer mapping");
+        let comitters_from_project: BTreeMap<ProjectId, Vec<UserId>>  =
+            commits_from_project.iter()
+                .map(|(id, commit_ids)|
+                    (*id,
+                     commit_ids.into_iter()
+                         .flat_map(|commit_id| commits.get(commit_id))
+                         .map(|commit| commit.committer)
+                         .unique()
+                         .collect()))
+                .collect();
+        log_item!(self.spec.log_level, format!("loaded {} relationships",
+                                     count_relationships!(comitters_from_project)));
+        Ok(())
+    }
+
+    fn load_paths_from_project_without_filters(&mut self) -> Result<(), Error> {
+        self.load_paths_from_commit().unwrap();
+        self.load_commits_from_project().unwrap();
+        let paths_from_commit = give_me!(self.paths_from_commit);
+        let commits_from_project = give_me!(self.commits_from_project);
+
+        log_item!(self.spec.log_level, "loading project-path mapping");
+        let paths_from_project: BTreeMap<ProjectId, Vec<PathId>>  =
+            commits_from_project.iter()
+                .map(|(id, commit_ids)|
+                    (*id,
+                     commit_ids.into_iter()
+                         .flat_map(|commit_id| paths_from_commit.get(commit_id))
+                         .flat_map(|v| v)
+                         .map(|path_id| *path_id)
+                         .unique()
+                         .collect()))
+                .collect();
+        log_item!(self.spec.log_level, format!("loaded {} relationships",
+                  count_relationships!(paths_from_project)));
+        Ok(())
+    }
+
+    // TODO probably better to keep the earliest and latest dates
+    fn load_age_from_project_without_filters(&mut self) -> Result<(), Error> {
+        self.load_commits().unwrap();
+        self.load_commits_from_project().unwrap();
+        let commits = give_me!(self.commits);
+        let commits_from_project = give_me!(self.commits_from_project);
+
+        log_item!(self.spec.log_level, "loading project ages");
+        let age_from_project: BTreeMap<ProjectId, u64>  =
+            commits_from_project.iter()
+                .map(|(id, commit_ids)| {
+                    let min_max = commit_ids.into_iter()
+                        .flat_map(|commit_id| commits.get(commit_id))
+                        .map(|commit| commit.author_time)
+                        .minmax();
+                    match min_max {
+                        MinMaxResult::NoElements => None,
+                        MinMaxResult::OneElement(_) => None,
+                        MinMaxResult::MinMax(min, max) => {
+                            assert!(max >= min);
+                            Some((*id, (max - min) as u64))
+                        }
+                    }
+                })
+                .flat_map(|e| e)
+                .collect();
+        log_item!(self.spec.log_level, format!("loaded ages for {} projects", age_from_project.len()));
+        Ok(())
+    }
+
     fn load_experience_from_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
     fn load_commits_authored_by_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
     fn load_commits_committed_by_user_without_filters(&mut self) -> Result<(), Error> { unimplemented!() }
@@ -902,10 +995,22 @@ impl Data {
         Ok(())
     }
 
-    fn load_authors_from_project_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_committers_from_project_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_paths_from_project_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
-    fn load_age_from_project_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
+    fn load_authors_from_project_with_filters(&mut self) -> Result<(), Error> {
+        self.load_authors_from_project_without_filters()
+    }
+
+    fn load_committers_from_project_with_filters(&mut self) -> Result<(), Error> {
+        self.load_committers_from_project_without_filters()
+    }
+
+    fn load_paths_from_project_with_filters(&mut self) -> Result<(), Error> {
+        self.load_paths_from_project_without_filters()
+    }
+
+    fn load_age_from_project_with_filters(&mut self) -> Result<(), Error> {
+        self.load_age_from_project_without_filters()
+    }
+
     fn load_experience_from_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
     fn load_commits_authored_by_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }
     fn load_commits_committed_by_user_with_filters(&mut self) -> Result<(), Error> { unimplemented!() }

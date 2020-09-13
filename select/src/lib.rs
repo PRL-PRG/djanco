@@ -82,3 +82,9 @@ mod tests {
              .to_csv("projects.csv").unwrap();
     }
 }
+
+// TODO
+// * cache preprocessed data for greater good
+// * CommitsWhere, PathsWhere, UsersWhere, etc.
+// * snapshots
+// * keep and produce receipt snippets

@@ -41,11 +41,11 @@ pub struct Data {
     /** Derived relationships. **/
     commits_from_project:      Option<BTreeMap<ProjectId, Vec<CommitId>>>,
     users_from_project:        Option<BTreeMap<ProjectId, Vec<UserId>>>,
-    authors_from_project:      Option<BTreeMap<ProjectId, Vec<UserId>>>,   // TODO
-    committers_from_project:   Option<BTreeMap<ProjectId, Vec<UserId>>>,   // TODO
-    paths_from_project:        Option<BTreeMap<ProjectId, Vec<PathId>>>,   // TODO
-    commits_committed_by_user: Option<BTreeMap<UserId,    Vec<CommitId>>>, // TODO
-    commits_authored_by_user:  Option<BTreeMap<UserId,    Vec<CommitId>>>, // TODO
+    authors_from_project:      Option<BTreeMap<ProjectId, Vec<UserId>>>,
+    committers_from_project:   Option<BTreeMap<ProjectId, Vec<UserId>>>,
+    paths_from_project:        Option<BTreeMap<ProjectId, Vec<PathId>>>,
+    commits_committed_by_user: Option<BTreeMap<UserId,    Vec<CommitId>>>,
+    commits_authored_by_user:  Option<BTreeMap<UserId,    Vec<CommitId>>>,
 
     /** Fields split off from the main objects because they are expected to be used less often, and
         therefore can be prevented from being loaded into memory most of the time. **/
@@ -56,8 +56,8 @@ pub struct Data {
 
     /** Derived properties: pre-calculated convenience properties that are expected to be used
         often and therefore are worth doing once and storing. **/
-    age_from_project: Option<BTreeMap<ProjectId, (u64, u64)>>, // TODO
-    experience_from_user: Option<BTreeMap<UserId, (u64, u64)>>, // TODO
+    age_from_project: Option<BTreeMap<ProjectId, (u64, u64)>>,
+    experience_from_user: Option<BTreeMap<UserId, (u64, u64)>>,
 }
 
 /**===== Data: basic methods ====================================================================**/

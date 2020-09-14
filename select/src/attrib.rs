@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use dcd::DCD;
 use crate::data::DataPtr;
 use itertools::Itertools;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use crate::names::WithNames;
 
 pub trait Attribute {}
@@ -11,6 +11,16 @@ pub struct AttributeValue<A: Attribute, T> {
     pub value: T,
     attribute_type: PhantomData<A>,
 }
+
+impl<A, T> Hash for AttributeValue<A, T> where A: Attribute, T: Hash {
+    fn hash<H: Hasher>(&self, state: &mut H) { self.value.hash(state) }
+}
+
+impl<A, T> PartialEq for AttributeValue<A, T> where A: Attribute, T: Eq {
+    fn eq(&self, other: &Self) -> bool { self.value.eq(&other.value) }
+}
+
+impl<A, T> Eq for AttributeValue<A, T> where A: Attribute, T: Eq {}
 
 impl<A, T> AttributeValue<A, T> where A: Attribute {
     pub fn new(_attribute: &A, value: T) -> AttributeValue<A, T> {

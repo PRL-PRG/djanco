@@ -9,14 +9,15 @@ pub trait WithNames {
     }
 }
 
-impl WithNames for objects::ProjectId { fn names() -> Vec<&'static str> { vec!["project_id"] } }
-impl WithNames for objects::CommitId  { fn names() -> Vec<&'static str> { vec!["commit_id"]  } }
-impl WithNames for objects::UserId    { fn names() -> Vec<&'static str> { vec!["user_id"]    } }
-impl WithNames for objects::PathId    { fn names() -> Vec<&'static str> { vec!["path_id"]    } }
+impl WithNames for objects::ProjectId  { fn names() -> Vec<&'static str> { vec!["project_id"]  } }
+impl WithNames for objects::CommitId   { fn names() -> Vec<&'static str> { vec!["commit_id"]   } }
+impl WithNames for objects::UserId     { fn names() -> Vec<&'static str> { vec!["user_id"]     } }
+impl WithNames for objects::PathId     { fn names() -> Vec<&'static str> { vec!["path_id"]     } }
+impl WithNames for objects::SnapshotId { fn names() -> Vec<&'static str> { vec!["snapshot_id"] } }
 
 impl WithNames for objects::Project {
     fn names() -> Vec<&'static str> {
-        vec!["key", "id", "url", "last_update", "language",
+        vec!["id", "url", "last_update", "language",
              "stars", "issues", "buggy_issues",
              "head_count", "commit_count", "user_count", "path_count",
              "author_count", "committer_count",
@@ -29,7 +30,8 @@ impl WithNames for objects::Commit {
         vec!["id","hash",
              "committer_id","committer_time",
              "author_id","author_time",
-             "additions","deletions"]
+             "additions","deletions",
+             "parents"]
     }
 }
 
@@ -38,6 +40,12 @@ impl WithNames for objects::User   {
         vec!["id","name","email",
              "experience",
              "authored","committed"]
+    }
+}
+
+impl WithNames for objects::Message   {
+    fn names() -> Vec<&'static str> {
+        vec!["message"]
     }
 }
 

@@ -149,30 +149,30 @@ impl Group<Project> for Id {
 }
 
 impl Group<Project> for Language {
-    type Key = String;
+    type Key = AttributeValue<Self, String>;
     fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
-        project.language_or_empty()
+        AttributeValue::new(self, project.language_or_empty())
     }
 }
 
 impl Group<Project> for Stars {
-    type Key = usize;
+    type Key = AttributeValue<Self, usize>;
     fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
-        project.stars_or_zero()
+        AttributeValue::new(self, project.stars_or_zero())
     }
 }
 
 impl Group<Project> for Issues {
-    type Key = usize;
+    type Key = AttributeValue<Self, usize>;
     fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
-        project.issues_or_zero()
+        AttributeValue::new(self, project.issues_or_zero())
     }
 }
 
 impl Group<Project> for BuggyIssues {
-    type Key = usize;
+    type Key = AttributeValue<Self, usize>;
     fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
-        project.buggy_issues_or_zero()
+        AttributeValue::new(self, project.buggy_issues_or_zero())
     }
 }
 

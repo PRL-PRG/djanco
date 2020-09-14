@@ -69,52 +69,62 @@ impl Into<i64>           for Month { fn into(self) -> i64 { self.to_datetime().t
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct CommitId(pub u64);
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct UserId(pub u64);
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct PathId(pub u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct SnapshotId(pub u64);
 
 /**== Object IDs convenience ====================================================================**/
-impl ProjectId { pub fn to_string(&self) -> String { self.0.to_string() } }
-impl CommitId  { pub fn to_string(&self) -> String { self.0.to_string() } }
-impl UserId    { pub fn to_string(&self) -> String { self.0.to_string() } }
-impl PathId    { pub fn to_string(&self) -> String { self.0.to_string() } }
+impl ProjectId  { pub fn to_string(&self) -> String { self.0.to_string() } }
+impl CommitId   { pub fn to_string(&self) -> String { self.0.to_string() } }
+impl UserId     { pub fn to_string(&self) -> String { self.0.to_string() } }
+impl PathId     { pub fn to_string(&self) -> String { self.0.to_string() } }
+impl SnapshotId { pub fn to_string(&self) -> String { self.0.to_string() } }
 
-impl Into<String> for ProjectId { fn into(self) -> String { self.0.to_string() } }
-impl Into<String> for CommitId  { fn into(self) -> String { self.0.to_string() } }
-impl Into<String> for UserId    { fn into(self) -> String { self.0.to_string() } }
-impl Into<String> for PathId    { fn into(self) -> String { self.0.to_string() } }
+impl Into<String> for ProjectId  { fn into(self) -> String { self.0.to_string() } }
+impl Into<String> for CommitId   { fn into(self) -> String { self.0.to_string() } }
+impl Into<String> for UserId     { fn into(self) -> String { self.0.to_string() } }
+impl Into<String> for PathId     { fn into(self) -> String { self.0.to_string() } }
+impl Into<String> for SnapshotId { fn into(self) -> String { self.0.to_string() } }
 
-impl Into<usize> for ProjectId { fn into(self) -> usize { self.0 as usize } }
-impl Into<usize> for CommitId  { fn into(self) -> usize { self.0 as usize } }
-impl Into<usize> for UserId    { fn into(self) -> usize { self.0 as usize } }
-impl Into<usize> for PathId    { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for ProjectId  { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for CommitId   { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for UserId     { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for PathId     { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for SnapshotId { fn into(self) -> usize { self.0 as usize } }
 
-impl Into<usize> for &ProjectId { fn into(self) -> usize { self.0 as usize } }
-impl Into<usize> for &CommitId  { fn into(self) -> usize { self.0 as usize } }
-impl Into<usize> for &UserId    { fn into(self) -> usize { self.0 as usize } }
-impl Into<usize> for &PathId    { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for &ProjectId  { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for &CommitId   { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for &UserId     { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for &PathId     { fn into(self) -> usize { self.0 as usize } }
+impl Into<usize> for &SnapshotId { fn into(self) -> usize { self.0 as usize } }
 
-impl Into<u64>   for ProjectId { fn into(self) -> u64 { self.0 } }
-impl Into<u64>   for CommitId  { fn into(self) -> u64 { self.0 } }
-impl Into<u64>   for UserId    { fn into(self) -> u64 { self.0 } }
-impl Into<u64>   for PathId    { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for ProjectId  { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for CommitId   { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for UserId     { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for PathId     { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for SnapshotId { fn into(self) -> u64 { self.0 } }
 
-impl Into<u64>   for &ProjectId { fn into(self) -> u64 { self.0 } }
-impl Into<u64>   for &CommitId  { fn into(self) -> u64 { self.0 } }
-impl Into<u64>   for &UserId    { fn into(self) -> u64 { self.0 } }
-impl Into<u64>   for &PathId    { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for &ProjectId  { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for &CommitId   { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for &UserId     { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for &PathId     { fn into(self) -> u64 { self.0 } }
+impl Into<u64>   for &SnapshotId { fn into(self) -> u64 { self.0 } }
 
-impl From<usize> for ProjectId { fn from(n: usize) -> Self { ProjectId(n as u64) } }
-impl From<usize> for CommitId  { fn from(n: usize) -> Self { CommitId(n as u64)  } }
-impl From<usize> for UserId    { fn from(n: usize) -> Self { UserId(n as u64)    } }
-impl From<usize> for PathId    { fn from(n: usize) -> Self { PathId(n as u64)    } }
+impl From<usize> for ProjectId  { fn from(n: usize) -> Self { ProjectId(n as u64)  } }
+impl From<usize> for CommitId   { fn from(n: usize) -> Self { CommitId(n as u64)   } }
+impl From<usize> for UserId     { fn from(n: usize) -> Self { UserId(n as u64)     } }
+impl From<usize> for PathId     { fn from(n: usize) -> Self { PathId(n as u64)     } }
+impl From<usize> for SnapshotId { fn from(n: usize) -> Self { SnapshotId(n as u64) } }
 
-impl From<&usize> for ProjectId { fn from(n: &usize) -> Self { ProjectId(*n as u64) } }
-impl From<&usize> for CommitId  { fn from(n: &usize) -> Self { CommitId(*n as u64)  } }
-impl From<&usize> for UserId    { fn from(n: &usize) -> Self { UserId(*n as u64)    } }
-impl From<&usize> for PathId    { fn from(n: &usize) -> Self { PathId(*n as u64)    } }
+impl From<&usize> for ProjectId  { fn from(n: &usize) -> Self { ProjectId(*n as u64)  } }
+impl From<&usize> for CommitId   { fn from(n: &usize) -> Self { CommitId(*n as u64)   } }
+impl From<&usize> for UserId     { fn from(n: &usize) -> Self { UserId(*n as u64)     } }
+impl From<&usize> for PathId     { fn from(n: &usize) -> Self { PathId(*n as u64)     } }
+impl From<&usize> for SnapshotId { fn from(n: &usize) -> Self { SnapshotId(*n as u64) } }
 
-impl From<u64>   for ProjectId { fn from(n: u64) -> Self { ProjectId(n) } }
-impl From<u64>   for CommitId  { fn from(n: u64) -> Self { CommitId(n)  } }
-impl From<u64>   for UserId    { fn from(n: u64) -> Self { UserId(n)    } }
-impl From<u64>   for PathId    { fn from(n: u64) -> Self { PathId(n)    } }
+impl From<u64>   for ProjectId  { fn from(n: u64) -> Self { ProjectId(n)  } }
+impl From<u64>   for CommitId   { fn from(n: u64) -> Self { CommitId(n)   } }
+impl From<u64>   for UserId     { fn from(n: u64) -> Self { UserId(n)     } }
+impl From<u64>   for PathId     { fn from(n: u64) -> Self { PathId(n)     } }
+impl From<u64>   for SnapshotId { fn from(n: u64) -> Self { SnapshotId(n) } }
 
 impl From<&u64>   for ProjectId { fn from(n: &u64) -> Self { ProjectId(*n) } }
 impl From<&u64>   for CommitId  { fn from(n: &u64) -> Self { CommitId(*n)  } }
@@ -133,12 +143,16 @@ impl Display for UserId {
 impl Display for PathId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
 }
+impl Display for SnapshotId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+}
 
 pub trait Identity: Copy + Clone + Hash + Eq + PartialEq + Ord + PartialOrd {}
-impl Identity for ProjectId {}
-impl Identity for UserId    {}
-impl Identity for CommitId  {}
-impl Identity for PathId    {}
+impl Identity for ProjectId  {}
+impl Identity for UserId     {}
+impl Identity for CommitId   {}
+impl Identity for PathId     {}
+impl Identity for SnapshotId {}
 
 /**== Objects ===================================================================================**/
 #[derive(Clone, Serialize, Deserialize)] // TODO implement by hand
@@ -171,12 +185,40 @@ pub struct Commit {
     pub committer_time: i64,
     pub additions: Option<u64>,
     pub deletions: Option<u64>,
+    pub parents: Vec<CommitId>,
 }
 
 #[derive(Clone, Serialize, Deserialize)] // TODO implement by hand
 pub struct Path {
     pub id: PathId,
     pub path: String,
+}
+
+impl Path {
+    pub fn language(&self) -> Option<String> {
+        std::path::Path::new(&self.path).extension().map(|extension| {
+            match extension.to_str().unwrap() {
+                "c"                                                     => Some("C"),
+                "C" | ".cc" | "cpp" | "cxx" | "c++"                     => Some("C++"),
+                "m" | "mm" | "M"                                        => Some("Objective-C"),
+                "go"                                                    => Some("Go"),
+                "java"                                                  => Some("Java"),
+                "coffee" | "litcoffee"                                  => Some("Coffeescript"),
+                "js" | "mjs"                                            => Some("Javascript"),
+                "ts" | "tsx"                                            => Some("Typescript"),
+                "rb"                                                    => Some("Ruby"),
+                "php" | "phtml" | "php3" | "php4" | "php5" | "php7" | "phps" | "php-s" | "pht" | "phar"
+                                                                        => Some("Php"),
+                "py" | "pyi" | "pyc" | "pyd" | "pyo" | "pyw" | "pyz"    => Some("Python"),
+                "plx" | "pl" | "pm" | "xs" | "t" | "pod"                => Some("Perl"),
+                "clj" | "cljs" | "cljc" | "edn"                         => Some("Clojure"),
+                "erl" | "hrl"                                           => Some("Erlang"),
+                "hs" | "lhs"                                            => Some("Haskell"),
+                "scala" | "sc"                                          => Some("Scala"),
+                _                                                       => None,
+            }.map(|s: &str| s.to_owned())
+        }).flatten()
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] // TODO implement by hand
@@ -342,7 +384,8 @@ impl From<dcd::Commit> for Commit {
             committer_time: commit.committer_time,
             additions: commit.additions,
             deletions: commit.deletions,
-            hash: "x.x".to_owned(), //commit.hash.to_string(),
+            hash: commit.hash.to_string(),
+            parents: commit.parents.iter().map(|n| CommitId::from(n)).collect(),
         }
     }
 }
@@ -357,7 +400,8 @@ impl From<&dcd::Commit> for Commit {
             committer_time: commit.committer_time,
             additions: commit.additions,
             deletions: commit.deletions,
-            hash: "x.x".to_owned(), //commit.hash.to_string(),
+            hash: commit.hash.to_string(),
+            parents: commit.parents.iter().map(|n| CommitId::from(n)).collect(),
         }
     }
 }

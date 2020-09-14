@@ -501,7 +501,7 @@ impl Data { // TODO Maybe there's better ways of doing this, like composition or
             return Ok(())
         }
         if self.file_in_cache("commits") {
-            return self.load_commits_from_cache()
+            return self.load_commits_from_cache() // FIXME remember filters!!!
         }
         if self.filters.is_empty() {
             self.load_commits_without_filters()?
@@ -535,7 +535,7 @@ impl Data { // TODO Maybe there's better ways of doing this, like composition or
     }
 
     fn load_paths(&mut self) -> Result<(), Error> {
-        if self.projects.is_some() {
+        if self.paths.is_some() {
             return Ok(())
         }
         if self.file_in_cache("paths") {

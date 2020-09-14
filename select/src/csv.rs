@@ -1,4 +1,6 @@
 use std::io::Write;
+use std::ffi::CString;
+use itertools::Itertools;
 
 use crate::attrib::*;
 use crate::objects::*;
@@ -69,8 +71,8 @@ impl CSVItem for Project {
 }
 
 impl CSVItem for Commit {
-    fn to_csv(&self, _: DataPtr) -> String {
-        format!(r#"{},"{}",{},{},{},{},{},{}"#,
+    fn to_csv(&self, _data: DataPtr) -> String {
+        format!(r#"{},"{}",{},{},{},{},{},{},{}"#,
                 self.id,
                 self.hash,
                 self.committer,
@@ -78,7 +80,8 @@ impl CSVItem for Commit {
                 self.author,
                 self.author_time,
                 self.additions.map_or(String::new(), |e| e.to_string()),
-                self.deletions.map_or(String::new(), |e| e.to_string()))
+                self.deletions.map_or(String::new(), |e| e.to_string()),
+                self.parents.iter().join(" "))
     }
 }
 impl CSVItem for User {
@@ -91,10 +94,18 @@ impl CSVItem for User {
                 data.experience_of(&self.id)
                     .map_or(String::new(), |e| e.as_secs().to_string()),
                 data.authored_commit_count_of(&self.id),
-                data.committed_commit_count_of(&self.id),
-        )
+                data.committed_commit_count_of(&self.id))
     }
 }
+
+impl CSVItem for Message {
+    fn to_csv(&self, _: DataPtr) -> String {
+        format!(r#"{:?}"#,
+                CString::new(self.contents.clone())
+                    .unwrap_or(CString::new("").unwrap()))
+    }
+}
+
 impl CSVItem for Path {
     fn to_csv(&self, _: DataPtr) -> String {
         format!(r#"{},{}"#, self.id, self.path)

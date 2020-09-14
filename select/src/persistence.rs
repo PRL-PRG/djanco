@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Error, Write};
+use std::io::Error;
 use std::collections::{BTreeMap, HashMap};
 use byteorder::{WriteBytesExt, ReadBytesExt, BigEndian};
 use crate::objects::{CommitId, ProjectId, UserId, PathId, Project, Commit, User, Path, Message};
@@ -253,6 +253,7 @@ impl Persistent for Commit {
             self.committer_time.dump(file)?;
             self.additions.dump(file)?;
             self.deletions.dump(file)?;
+            self.parents.dump(file)?;
         })
     }
     fn load(file: &mut File) -> Result<Self, Error> where Self: Sized {
@@ -274,6 +275,7 @@ impl Persistent for Commit {
             committer_time: i64::load(file)?,
             additions: Option::load(file)?,
             deletions: Option::load(file)?,
+            parents: Vec::load(file)?,
         })
     }
 }

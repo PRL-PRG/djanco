@@ -342,7 +342,7 @@ impl From<dcd::Commit> for Commit {
             committer_time: commit.committer_time,
             additions: commit.additions,
             deletions: commit.deletions,
-            hash: commit.hash.to_string(),
+            hash: "x.x".to_owned(), //commit.hash.to_string(),
         }
     }
 }
@@ -357,7 +357,7 @@ impl From<&dcd::Commit> for Commit {
             committer_time: commit.committer_time,
             additions: commit.additions,
             deletions: commit.deletions,
-            hash: commit.hash.to_string(),
+            hash: "x.x".to_owned(), //commit.hash.to_string(),
         }
     }
 }

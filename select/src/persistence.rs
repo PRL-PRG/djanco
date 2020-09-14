@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::Error;
+use std::io::{Error, Write};
 use std::collections::{BTreeMap, HashMap};
 use byteorder::{WriteBytesExt, ReadBytesExt, BigEndian};
 use crate::objects::{CommitId, ProjectId, UserId, PathId, Project, Commit, User, Path, Message};
@@ -57,15 +57,18 @@ impl Persistent for u8 {
 
 impl Persistent for String {
     fn dump(&self, file: &mut File) -> Result<(), Error> {
-        self.len().dump(file)?;
-        for value in self.bytes() {
-            value.dump(file)?
+        let vector = self.as_bytes();
+        vector.len().dump(file)?;
+        //eprintln!("String {} written {} bytes", self, vector.len());
+        for value in vector {
+             value.dump(file)?
         }
         Ok(())
     }
     fn load(file: &mut File) -> Result<Self, Error> {
         let length = usize::load(file)?;
         let mut vector: Vec<u8> = Vec::with_capacity(length);
+        //eprintln!("String reading {} bytes", length);
         for _ in 0..length {
             vector.push(u8::load(file)?)
         }
@@ -84,12 +87,13 @@ impl<T> Persistent for Option<T> where T: Persistent + Sized {
         }
     }
     fn load(file: &mut File) -> Result<Self, Error> where Self: Sized {
-        match u8::load(file)? {
+        let x = u8::load(file)?;
+        //eprintln!("loading Option {}", x);
+        match x {
             0u8 => Ok(None),
             170u8 => Ok(Some(T::load(file)?)),
-            _ => Err(std::io::Error::from(std::io::ErrorKind::InvalidData))
+            _ => Err(std::io::Error::from(std::io::ErrorKind::InvalidInput))
         }
-
     }
 }
 
@@ -212,16 +216,28 @@ impl Persistent for Project {
         })
     }
     fn load(file: &mut File) -> Result<Self, Error> where Self: Sized {
+
+        let id = ProjectId::load(file)?;// eprintln!("id {}", id);
+        let url = String::load(file)?;// eprintln!("url {}", url);
+        let last_update = i64::load(file)?;// eprintln!("lu {}", last_update);
+        let language: Option<String> = Option::load(file)?;// eprintln!("lang {}", language.as_ref().map_or("NA".to_owned(), |e| e.to_string()));
+        let stars: Option<usize> = Option::load(file)?;// eprintln!("stars {}", stars.as_ref().map_or("NA".to_owned(), |e| e.to_string()));
+        let issues: Option<usize> = Option::load(file)?;// eprintln!("iss {}", issues.as_ref().map_or("NA".to_owned(), |e| e.to_string()));
+        let buggy_issues: Option<usize> = Option::load(file)?;// eprintln!("biss {}", buggy_issues.as_ref().map_or("NA".to_owned(), |e| e.to_string()));
+        let heads = Vec::load(file)?;// eprintln!("head {}", heads.len());
+        let metadata = HashMap::load(file)?;// eprintln!("meta {}", metadata.len());
+
+        //eprintln!("loading project {}", id);
         Ok(Project {
-            id: ProjectId::load(file)?,
-            url: String::load(file)?,
-            last_update: i64::load(file)?,
-            language: Option::load(file)?,
-            stars: Option::load(file)?,
-            issues: Option::load(file)?,
-            buggy_issues: Option::load(file)?,
-            heads: Vec::load(file)?,
-            metadata: HashMap::load(file)?,
+            id,//: ProjectId::load(file)?,
+            url,//: String::load(file)?,
+            last_update,//: i64::load(file)?,
+            language,//: Option::load(file)?,
+            stars,//: Option::load(file)?,
+            issues,//: Option::load(file)?,
+            buggy_issues,//: Option::load(file)?,
+            heads,//: Vec::load(file)?,
+            metadata,//: HashMap::load(file)?,
         })
     }
 }
@@ -240,6 +256,15 @@ impl Persistent for Commit {
         })
     }
     fn load(file: &mut File) -> Result<Self, Error> where Self: Sized {
+        // let id= CommitId::load(file)?;eprintln!("id {}", id);
+        // let hash= String::load(file)?;eprintln!("hash {}", hash);
+        // let author= UserId::load(file)?;eprintln!("author {}", author);
+        // let committer= UserId::load(file)?;eprintln!("committer {}", committer);
+        // let author_time= i64::load(file)?;eprintln!("author time {}", author_time);
+        // let committer_time= i64::load(file)?;eprintln!("committer time {}", committer_time);
+        // let additions= Option::load(file)?;eprintln!("additions {}", additions.map_or("NA".to_owned(), |e:u64| e.to_string()));
+        // let deletions= Option::load(file)?;eprintln!("deletions {}", deletions.map_or("NA".to_owned(), |e:u64| e.to_string()));
+
         Ok(Commit{
             id: CommitId::load(file)?,
             hash: String::load(file)?,

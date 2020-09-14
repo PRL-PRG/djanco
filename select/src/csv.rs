@@ -47,6 +47,7 @@ impl CSVItem for PathId    { fn to_csv(&self, db: DataPtr) -> String { self.0.to
 
 impl CSVItem for Project {
     fn to_csv(&self, data: DataPtr) -> String {
+        let mut data = untangle_mut!(data);
         format!(r#"{},{},{},{},{},{},{},{},{},{},{},{},{},{}"#,
                 self.id,
                 self.url,
@@ -56,12 +57,12 @@ impl CSVItem for Project {
                 self.issues.map_or(String::new(), |e| e.to_string()),
                 self.buggy_issues.map_or(String::new(), |e| e.to_string()),
                 self.heads.len(),
-                untangle_mut!(data).commit_count_from(&self.id),
-                untangle_mut!(data).user_count_from(&self.id),
-                untangle_mut!(data).path_count_from(&self.id),
-                untangle_mut!(data).author_count_from(&self.id),
-                untangle_mut!(data).committer_count_from(&self.id),
-                untangle_mut!(data).age_of(&self.id)
+                data.commit_count_from(&self.id),
+                data.user_count_from(&self.id),
+                data.path_count_from(&self.id),
+                data.author_count_from(&self.id),
+                data.committer_count_from(&self.id),
+                data.age_of(&self.id)
                     .map_or(String::new(), |e| e.as_secs().to_string()),
         )
     }
@@ -82,14 +83,15 @@ impl CSVItem for Commit {
 }
 impl CSVItem for User {
     fn to_csv(&self, data: DataPtr) -> String {
+        let mut data = untangle_mut!(data);
         format!(r#"{},"{}","{}",{},{},{}"#,
                 self.id,
                 self.name,
                 self.email,
-                untangle_mut!(data).experience_of(&self.id)
+                data.experience_of(&self.id)
                     .map_or(String::new(), |e| e.as_secs().to_string()),
-                untangle_mut!(data).authored_commit_count_of(&self.id),
-                untangle_mut!(data).committed_commit_count_of(&self.id),
+                data.authored_commit_count_of(&self.id),
+                data.committed_commit_count_of(&self.id),
         )
     }
 }

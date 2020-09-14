@@ -1532,6 +1532,6 @@ mod tests {
             .sample_each(sample::Top(2))
             .squash()
             .select(project::Id)
-            .to_csv("projects.csv").unwrap()
+            .to_csv("projects_.csv").unwrap()
     }
 }

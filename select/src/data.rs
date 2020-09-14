@@ -668,7 +668,7 @@ impl Data { // TODO Maybe there's better ways of doing this, like composition or
     }
 
     fn load_paths_from_commit(&mut self) -> Result<(), Error> {
-        if self.projects.is_some() {
+        if self.paths_from_commit.is_some() {
             return Ok(())
         }
         if self.file_in_cache("paths_from_commit") {
@@ -687,7 +687,7 @@ impl Data { // TODO Maybe there's better ways of doing this, like composition or
     }
 
     fn load_message_from_commit(&mut self) -> Result<(), Error> {
-        if self.projects.is_some() {
+        if self.message_from_commit.is_some() {
             return Ok(())
         }
         if self.file_in_cache("message_from_commit") {
@@ -828,7 +828,7 @@ impl Data {
                          .collect())
                 })
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(commits_from_project)));
 
         Ok(self.commits_from_project = Some(commits_from_project))
@@ -851,7 +851,7 @@ impl Data {
                          .unique()
                          .collect()))
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(users_from_project)));
 
         Ok(self.users_from_project = Some(users_from_project))
@@ -871,7 +871,7 @@ impl Data {
                              .collect()
                      })))
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(paths_from_commit)));
 
         Ok(self.paths_from_commit = Some(paths_from_commit))
@@ -888,7 +888,7 @@ impl Data {
                     })
                 })
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} messages", message_from_commit.len()));
+        log_addendum!(self.spec.log_level, format!("loaded {} messages", message_from_commit.len()));
 
         Ok(self.message_from_commit = Some(message_from_commit))
     }
@@ -910,7 +910,7 @@ impl Data {
                          .unique()
                          .collect()))
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(authors_from_project)));
 
         Ok(self.authors_from_project = Some(authors_from_project))
@@ -933,7 +933,7 @@ impl Data {
                          .unique()
                          .collect()))
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                   count_relationships!(committers_from_project)));
 
         Ok(self.committers_from_project = Some(committers_from_project))
@@ -957,7 +957,7 @@ impl Data {
                          .unique()
                          .collect()))
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                   count_relationships!(paths_from_project)));
 
         Ok(self.paths_from_project = Some(paths_from_project))
@@ -988,7 +988,7 @@ impl Data {
                 })
                 .flat_map(|e| e)
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded ages for {} projects", age_from_project.len()));
+        log_addendum!(self.spec.log_level, format!("loaded ages for {} projects", age_from_project.len()));
 
         Ok(self.age_from_project = Some(age_from_project))
     }
@@ -1018,7 +1018,7 @@ impl Data {
                 })
                 .flat_map(|e| e)
                 .collect();
-        log_item!(self.spec.log_level,
+        log_addendum!(self.spec.log_level,
                   format!("loaded experience for {} authors", experience_from_user.len()));
 
         Ok(self.experience_from_user = Some(experience_from_user))
@@ -1034,7 +1034,7 @@ impl Data {
                 .map(|(commit_id, commit)| (commit.author, commit_id.clone()))
                 .into_group_map()
                 .into_iter().collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                   count_relationships!(commits_authored_by_user)));
 
         Ok(self.commits_authored_by_user = Some(commits_authored_by_user))
@@ -1050,7 +1050,7 @@ impl Data {
                 .map(|(commit_id, commit)| (commit.committer, commit_id.clone()))
                 .into_group_map()
                 .into_iter().collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                   count_relationships!(commits_committed_by_user)));
 
         Ok(self.commits_committed_by_user = Some(commits_committed_by_user))
@@ -1070,7 +1070,7 @@ impl Data {
                 .flat_map(|(project_id, _)| self.warehouse.get_project(project_id.into()))
                 .map(|project| (ProjectId::from(project.id), Project::from(project)) )
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} projects", projects.len()));
+        log_addendum!(self.spec.log_level, format!("loaded {} projects", projects.len()));
 
         Ok(self.projects = Some(projects))
     }
@@ -1088,7 +1088,7 @@ impl Data {
                 .flat_map(|commit_id| self.warehouse.get_commit_bare(commit_id.into()))
                 .map(|commit| (CommitId::from(commit.id), Commit::from(commit)))
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} commits", commits.len()));
+        log_addendum!(self.spec.log_level, format!("loaded {} commits", commits.len()));
 
         Ok(self.commits = Some(commits))
     }
@@ -1105,7 +1105,7 @@ impl Data {
                 .flat_map(|user_id| self.warehouse.get_user(user_id.into()))
                 .map(|user| (UserId::from(user.id), User::from(user)))
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} users", users.len()));
+        log_addendum!(self.spec.log_level, format!("loaded {} users", users.len()));
 
         Ok(self.users = Some(users))
     }
@@ -1122,7 +1122,7 @@ impl Data {
                 .flat_map(|path_id| self.warehouse.get_file_path(path_id.into()))
                 .map(|path| (PathId::from(path.id), Path::from(path)) )
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} paths", paths.len()));
+        log_addendum!(self.spec.log_level, format!("loaded {} paths", paths.len()));
 
         Ok(self.paths = Some(paths))
     }
@@ -1146,7 +1146,7 @@ impl Data {
                 })
                 .collect();
 
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                                                commits_from_project.iter()
                                                .map(|(_, v)| v.len()).sum::<usize>()));
 
@@ -1172,7 +1172,7 @@ impl Data {
                          .collect::<Vec<UserId>>())
                 })
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                                        count_relationships!(users_from_project)));
 
         Ok(self.users_from_project = Some(users_from_project))
@@ -1200,7 +1200,7 @@ impl Data {
                          }))
                 })
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} relationships",
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
                                      count_relationships!(paths_from_commit)));
 
         Ok(self.paths_from_commit = Some(paths_from_commit))
@@ -1222,7 +1222,7 @@ impl Data {
                     })
                 })
                 .collect();
-        log_item!(self.spec.log_level, format!("loaded {} messages", message_from_commit.len()));
+        log_addendum!(self.spec.log_level, format!("loaded {} messages", message_from_commit.len()));
 
         Ok(self.message_from_commit = Some(message_from_commit))
     }
@@ -1259,7 +1259,7 @@ impl Data {
 /**===== Data: data loading methods (check cache and other convenience functions) ===============**/
 impl Data {
     fn path_in_cache(&self, file: &str) -> PathBuf {
-        let cache = self.spec.database.as_ref().unwrap();
+        let cache = give_me!(self.spec.database);
         let mut path = cache.clone();
         path.push(file);
         path.set_extension("bin");
@@ -1275,7 +1275,7 @@ impl Data {
     }
     fn create_file_in_cache(&self, file: &str) -> Result<File, Error> {
         let path = self.path_in_cache(file);
-        create_dir_all(self.spec.database.as_ref().unwrap())?;
+        create_dir_all(give_me!(self.spec.database))?;
         File::create(path)
     }
 }
@@ -1283,64 +1283,124 @@ impl Data {
 /**===== Data: data loading methods (load from cache) ===========================================**/
 impl Data {
     fn load_projects_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading project data from cache");
         let mut file = self.open_file_in_cache("projects")?;
-        Ok(self.projects = Some(BTreeMap::load(&mut file)?))
+        self.projects = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} projects",
+                                                   give_me!(self.projects).len()));
+        Ok(())
     }
     fn load_commits_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading commit data from cache");
         let mut file = self.open_file_in_cache("commits")?;
-        Ok(self.commits = Some(BTreeMap::load(&mut file)?))
+        self.commits = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} commits",
+                                                   give_me!(self.commits).len()));
+        Ok(())
     }
     fn load_users_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading user data from cache");
         let mut file = self.open_file_in_cache("users")?;
-        Ok(self.users = Some(BTreeMap::load(&mut file)?))
+        self.users = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} users",
+                                                   give_me!(self.users).len()));
+        Ok(())
     }
     fn load_paths_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading path data from cache");
         let mut file = self.open_file_in_cache("paths")?;
-        Ok(self.paths = Some(BTreeMap::load(&mut file)?))
+        self.paths = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} paths",
+                                                   give_me!(self.paths).len()));
+        Ok(())
     }
     fn load_commits_from_project_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading project-commit mapping from cache");
         let mut file = self.open_file_in_cache("commits_from_project")?;
-        Ok(self.commits_from_project = Some(BTreeMap::load(&mut file)?))
+        self.commits_from_project = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
+                                                   count_relationships!(give_me!(self.commits_from_project))));
+        Ok(())
     }
     fn load_users_from_project_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading project-user mapping from cache");
         let mut file = self.open_file_in_cache("users_from_project")?;
-        Ok(self.users_from_project = Some(BTreeMap::load(&mut file)?))
+        self.users_from_project = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
+                                                   count_relationships!(give_me!(self.users_from_project))));
+        Ok(())
     }
     fn load_paths_from_commit_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading commit-path mapping from cache");
         let mut file = self.open_file_in_cache("paths_from_commit")?;
-        Ok(self.paths_from_commit = Some(BTreeMap::load(&mut file)?))
+        self.paths_from_commit = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
+                                                   count_relationships!(give_me!(self.paths_from_commit))));
+        Ok(())
     }
     fn load_message_from_commit_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading message data from cache");
         let mut file = self.open_file_in_cache("message_from_commit")?;
-        Ok(self.message_from_commit = Some(BTreeMap::load(&mut file)?))
+        self.message_from_commit = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} messages",
+                                                   give_me!(self.message_from_commit).len()));
+        Ok(())
     }
     fn load_authors_from_project_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading project-author mapping from cache");
         let mut file = self.open_file_in_cache("authors_from_project")?;
-        Ok(self.authors_from_project = Some(BTreeMap::load(&mut file)?))
+        self.authors_from_project = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
+                                                   count_relationships!(give_me!(self.authors_from_project))));
+        Ok(())
     }
     fn load_committers_from_project_from_cache(&mut self) -> Result<(), Error> {
-        let mut file = self.open_file_in_cache("commits_from_project")?;
-        Ok(self.commits_from_project = Some(BTreeMap::load(&mut file)?))
+        log_item!(self.spec.log_level, "loading project-committer mapping from cache");
+        let mut file = self.open_file_in_cache("committers_from_project")?;
+        self.committers_from_project = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
+                                                   count_relationships!(give_me!(self.commits_from_project))));
+        Ok(())
     }
     fn load_paths_from_project_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading project-path mapping from cache");
         let mut file = self.open_file_in_cache("paths_from_project")?;
-        Ok(self.paths_from_project = Some(BTreeMap::load(&mut file)?))
+        self.paths_from_project = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
+                                                   count_relationships!(give_me!(self.paths_from_project))));
+        Ok(())
     }
     fn load_age_from_project_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading project age data from cache");
         let mut file = self.open_file_in_cache("age_from_project")?;
-        Ok(self.age_from_project = Some(BTreeMap::load(&mut file)?))
+        self.age_from_project = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded age for {} projects",
+                                                    give_me!(self.age_from_project).len()));
+        Ok(())
     }
     fn load_experience_from_user_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading user experience data from cache");
         let mut file = self.open_file_in_cache("experience_from_user")?;
-        Ok(self.experience_from_user = Some(BTreeMap::load(&mut file)?))
+        self.experience_from_user = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded experience for {} users",
+                                                   give_me!(self.experience_from_user).len()));
+        Ok(())
     }
     fn load_commits_authored_by_user_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading user/author-commit mapping from cache");
         let mut file = self.open_file_in_cache("commits_authored_by_user")?;
-        Ok(self.commits_authored_by_user = Some(BTreeMap::load(&mut file)?))
+        self.commits_authored_by_user = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
+                                                   count_relationships!(give_me!(self.commits_authored_by_user))));
+        Ok(())
     }
     fn load_commits_committed_by_user_from_cache(&mut self) -> Result<(), Error> {
+        log_item!(self.spec.log_level, "loading user/committer-commit mapping from cache");
         let mut file = self.open_file_in_cache("commits_committed_by_user")?;
-        Ok(self.commits_committed_by_user = Some(BTreeMap::load(&mut file)?))
+        self.commits_committed_by_user = Some(BTreeMap::load(&mut file)?);
+        log_addendum!(self.spec.log_level, format!("loaded {} relationships",
+                                                   count_relationships!(give_me!(self.commits_committed_by_user))));
+        Ok(())
     }
 }
 
@@ -1348,63 +1408,63 @@ impl Data {
 impl Data {
     fn dump_projects_to_cache(&self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("projects")?;
-        self.projects.dump(&mut file)
+        give_me!(self.projects).dump(&mut file)
     }
     fn dump_commits_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("commits")?;
-        self.commits.dump(&mut file)
+        give_me!(self.commits).dump(&mut file)
     }
     fn dump_users_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("users")?;
-        self.users.dump(&mut file)
+        give_me!(self.users).dump(&mut file)
     }
     fn dump_paths_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("paths")?;
-        self.paths.dump(&mut file)
+        give_me!(self.paths).dump(&mut file)
     }
     fn dump_commits_from_project_to_cache(&mut self) -> Result<(), Error> {
-        let mut file = self.create_file_in_cache("commits")?;
-        self.commits.dump(&mut file)
+        let mut file = self.create_file_in_cache("commits_from_project")?;
+        give_me!(self.commits_from_project).dump(&mut file)
     }
     fn dump_users_from_project_to_cache(&mut self) -> Result<(), Error> {
-        let mut file = self.create_file_in_cache("users")?;
-        self.users.dump(&mut file)
+        let mut file = self.create_file_in_cache("users_from_project")?;
+        give_me!(self.users_from_project).dump(&mut file)
     }
     fn dump_paths_from_commit_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("paths_from_commit")?;
-        self.paths_from_commit.dump(&mut file)
+        give_me!(self.paths_from_commit).dump(&mut file)
     }
     fn dump_message_from_commit_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("message_from_commit")?;
-        self.message_from_commit.dump(&mut file)
+        give_me!(self.message_from_commit).dump(&mut file)
     }
     fn dump_authors_from_project_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("authors_from_project")?;
-        self.authors_from_project.dump(&mut file)
+        give_me!(self.authors_from_project).dump(&mut file)
     }
     fn dump_committers_from_project_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("committers_from_project")?;
-        self.committers_from_project.dump(&mut file)
+        give_me!(self.committers_from_project).dump(&mut file)
     }
     fn dump_paths_from_project_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("paths_from_project")?;
-        self.paths_from_project.dump(&mut file)
+        give_me!(self.paths_from_project).dump(&mut file)
     }
     fn dump_age_from_project_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("age_from_project")?;
-        self.age_from_project.dump(&mut file)
+        give_me!(self.age_from_project).dump(&mut file)
     }
     fn dump_experience_from_user_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("experience_from_user")?;
-        self.experience_from_user.dump(&mut file)
+        give_me!(self.experience_from_user).dump(&mut file)
     }
     fn dump_commits_authored_by_user_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("commits_authored_by_user")?;
-        self.commits_authored_by_user.dump(&mut file)
+        give_me!(self.commits_authored_by_user).dump(&mut file)
     }
     fn dump_commits_committed_by_user_to_cache(&mut self) -> Result<(), Error> {
         let mut file = self.create_file_in_cache("commits_committed_by_user")?;
-        self.commits_committed_by_user.dump(&mut file)
+        give_me!(self.commits_committed_by_user).dump(&mut file)
     }
 }
 

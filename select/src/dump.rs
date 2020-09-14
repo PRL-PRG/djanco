@@ -25,7 +25,7 @@ impl<D> DumpFrom for D where D: Database + MetaDatabase {
 
         create_dir_all(dir)?;
 
-        let mut project_sink            = create_file!("projects.csv")?;
+        let mut project_sink            = create_file!("projects_.csv")?;
         let mut commit_sink             = create_file!("commits.csv")?;
         let mut commit_message_sink     = create_file!("commit_message.csv")?;
         let mut user_sink               = create_file!("users.csv")?;

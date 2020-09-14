@@ -181,7 +181,7 @@ pub struct Path {
 
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] // TODO implement by hand
 pub struct Message {
-    contents: Vec<u8>,
+    pub contents: Vec<u8>,
 }
 
 /**== Objects convenience =======================================================================**/
@@ -407,6 +407,7 @@ impl From<&Vec<u8>> for Message {
     fn from(bytes: &Vec<u8>) -> Self { Message { contents: bytes.clone() } }
 }
 
+/** ==== Convenience functions for dealing with two different user types in commits ============ **/
 pub trait Roster { fn users(&self) -> Vec<UserId>; }
 
 impl Roster for Commit {
@@ -460,6 +461,7 @@ impl Roster for Option<&dcd::Commit> {
     }
 }
 
+/** ==== Object-ID relationship indication ===================================================== **/
 pub trait Identifiable<T> where T: Identity { fn id(&self) -> T; }
 impl Identifiable<ProjectId> for Project { fn id(&self) -> ProjectId { self.id } }
 impl Identifiable<CommitId>  for Commit  { fn id(&self) -> CommitId  { self.id } }

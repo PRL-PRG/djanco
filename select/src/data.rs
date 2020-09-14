@@ -4,15 +4,18 @@ use std::path::PathBuf;
 use std::rc::Weak;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::fs::{File, create_dir_all};
+use std::io::Error;
 
 use itertools::{Itertools, MinMaxResult};
 
 use dcd::{DCD, Database};
 
-use crate::log::LogLevel;
+use crate::djanco;
+use crate::log::*;
 use crate::objects::*;
 use crate::attrib::*;
-use crate::{djanco, Error};
+use crate::persistence::*;
 
 macro_rules! give_me { ($option:expr)  => { $option.as_ref().unwrap() } }
 
@@ -56,8 +59,8 @@ pub struct Data {
 
     /** Derived properties: pre-calculated convenience properties that are expected to be used
         often and therefore are worth doing once and storing. **/
-    age_from_project: Option<BTreeMap<ProjectId, (u64, u64)>>,
-    experience_from_user: Option<BTreeMap<UserId, (u64, u64)>>,
+    age_from_project:     Option<BTreeMap<ProjectId, (u64, u64)>>,
+    experience_from_user: Option<BTreeMap<UserId,    (u64, u64)>>,
 }
 
 /**===== Data: basic methods ====================================================================**/
@@ -65,12 +68,12 @@ pub struct Data {
 impl Data {
     /** The constructor does not actually create a Data object. Data objects are only ever
         accessible through DataPtr and must be untangled to be used. **/
-    pub fn new(warehouse: &PathBuf, cache: &PathBuf,
+    pub fn new(warehouse: &PathBuf, cache: &Option<PathBuf>,
                timestamp: Month, seed: u128, log_level: LogLevel) -> DataPtr {
         Self::new_with_filters(warehouse, cache, timestamp, seed, log_level, None)
     }
 
-    pub fn new_with_filters(warehouse: &PathBuf, cache: &PathBuf,
+    pub fn new_with_filters(warehouse: &PathBuf, cache: &Option<PathBuf>,
                timestamp: Month, seed: u128, log_level: LogLevel,
                filters: Option<Vec<Box<dyn LoadFilter>>>) -> DataPtr {
 
@@ -472,140 +475,290 @@ impl /* DataAccess for */ Data {
     // TODO There's quite a few convenience methods that can be added here.
 }
 
-/**===== Data: data loading methods =============================================================**/
-impl Data { // FIXME there's better ways of doing this, like composition
+/**===== Data: data loading methods, directs towards caching or filtering =======================**/
+impl Data { // TODO Maybe there's better ways of doing this, like composition or just macros
     fn load_projects(&mut self) -> Result<(), Error> {
-        if self.projects.is_some() { return Ok(()) }
+        if self.projects.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("projects") {
+            return self.load_projects_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_projects_without_filters()
+            self.load_projects_without_filters()?
         } else {
-            self.load_projects_with_filters()
+            self.load_projects_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_projects_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_commits(&mut self) -> Result<(), Error> {
-        if self.commits.is_some() { return Ok(()) }
+        if self.commits.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("commits") {
+            return self.load_commits_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_commits_without_filters()
+            self.load_commits_without_filters()?
         } else {
-            self.load_commits_with_filters()
+            self.load_commits_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_commits_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_users(&mut self) -> Result<(), Error> {
-        if self.users.is_some() { return Ok(()) }
+        if self.users.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("users") {
+            return self.load_users_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_users_without_filters()
+            self.load_users_without_filters()?
         } else {
-            self.load_users_with_filters()
+            self.load_users_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_users_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_paths(&mut self) -> Result<(), Error> {
-        if self.projects.is_some() { return Ok(()) }
+        if self.projects.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("paths") {
+            return self.load_paths_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_paths_without_filters()
+            self.load_paths_without_filters()?
         } else {
-            self.load_paths_with_filters()
+            self.load_paths_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_paths_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_commits_from_project(&mut self) -> Result<(), Error> {
-        if self.commits_from_project.is_some() { return Ok(()) }
+        if self.commits_from_project.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("commits_from_project") {
+            return self.load_commits_from_project_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_commits_from_project_without_filters()
+            self.load_commits_from_project_without_filters()?
         } else {
-            self.load_commits_from_project_with_filters()
+            self.load_commits_from_project_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_commits_from_project_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_users_from_project(&mut self) -> Result<(), Error> {
-        if self.users_from_project.is_some() { return Ok(()) }
+        if self.users_from_project.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("users_from_project") {
+            return self.load_users_from_project_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_users_from_project_without_filters()
+            self.load_users_from_project_without_filters()?
         } else {
-            self.load_users_from_project_with_filters()
+            self.load_users_from_project_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_users_from_project_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_authors_from_project(&mut self) -> Result<(), Error> {
-        if self.authors_from_project.is_some() { return Ok(()) }
+        if self.authors_from_project.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("authors_from_project") {
+            return self.load_authors_from_project_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_authors_from_project_without_filters()
+            self.load_authors_from_project_without_filters()?
         } else {
-            self.load_authors_from_project_with_filters()
+            self.load_authors_from_project_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_authors_from_project_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_committers_from_project(&mut self) -> Result<(), Error> {
-        if self.committers_from_project.is_some() { return Ok(()) }
+        if self.committers_from_project.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("committers_from_project") {
+            return self.load_committers_from_project_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_committers_from_project_without_filters()
+            self.load_committers_from_project_without_filters()?
         } else {
-            self.load_committers_from_project_with_filters()
+            self.load_committers_from_project_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_committers_from_project_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_paths_from_project(&mut self) -> Result<(), Error> {
-        if self.paths_from_project.is_some() { return Ok(()) }
+        if self.paths_from_project.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("paths_from_project") {
+            return self.load_paths_from_project_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_paths_from_project_without_filters()
+            self.load_paths_from_project_without_filters()?
         } else {
-            self.load_paths_from_project_with_filters()
+            self.load_paths_from_project_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_paths_from_project_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_age_from_project(&mut self) -> Result<(), Error> {
-        if self.age_from_project.is_some() { return Ok(()) }
+        if self.age_from_project.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("age_from_project") {
+            return self.load_age_from_project_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_age_from_project_without_filters()
+            self.load_age_from_project_without_filters()?
         } else {
-            self.load_age_from_project_with_filters()
+            self.load_age_from_project_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_age_from_project_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_paths_from_commit(&mut self) -> Result<(), Error> {
-        if self.projects.is_some() { return Ok(()) }
+        if self.projects.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("paths_from_commit") {
+            return self.load_paths_from_commit_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_paths_from_commit_without_filters()
+            self.load_paths_from_commit_without_filters()?
         } else {
-            self.load_paths_from_commit_with_filters()
+            self.load_paths_from_commit_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_paths_from_commit_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_message_from_commit(&mut self) -> Result<(), Error> {
-        if self.projects.is_some() { return Ok(()) }
+        if self.projects.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("message_from_commit") {
+            return self.load_message_from_commit_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_message_from_commit_without_filters()
+            self.load_message_from_commit_without_filters()?
         } else {
-            self.load_message_from_commit_with_filters()
+            self.load_message_from_commit_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_message_from_commit_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_experience_from_user(&mut self) -> Result<(), Error> {
-        if self.experience_from_user.is_some() { return Ok(()) }
+        if self.experience_from_user.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("experience_from_user") {
+            return self.load_experience_from_user_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_experience_from_user_without_filters()
+            self.load_experience_from_user_without_filters()?
         } else {
-            self.load_experience_from_user_with_filters()
+            self.load_experience_from_user_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_experience_from_user_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_commits_authored_by_user(&mut self) -> Result<(), Error> {
-        if self.commits_authored_by_user.is_some() { return Ok(()) }
+        if self.commits_authored_by_user.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("commits_authored_by_user") {
+            return self.load_commits_authored_by_user_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_commits_authored_by_user_without_filters()
+            self.load_commits_authored_by_user_without_filters()?
         } else {
-            self.load_commits_authored_by_user_with_filters()
+            self.load_commits_authored_by_user_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_commits_authored_by_user_to_cache()
+        } else {
+            Ok(())
         }
     }
 
     fn load_commits_committed_by_user(&mut self) -> Result<(), Error> {
-        if self.commits_committed_by_user.is_some() { return Ok(()) }
+        if self.commits_committed_by_user.is_some() {
+            return Ok(())
+        }
+        if self.file_in_cache("commits_committed_by_user") {
+            return self.load_commits_committed_by_user_from_cache()
+        }
         if self.filters.is_empty() {
-            self.load_commits_committed_by_user_without_filters()
+            self.load_commits_committed_by_user_without_filters()?
         } else {
-            self.load_commits_committed_by_user_with_filters()
+            self.load_commits_committed_by_user_with_filters()?
+        }
+        if self.spec.database.is_some() {
+            self.dump_commits_committed_by_user_to_cache()
+        } else {
+            Ok(())
         }
     }
 }
@@ -781,7 +934,7 @@ impl Data {
                          .collect()))
                 .collect();
         log_item!(self.spec.log_level, format!("loaded {} relationships",
-                                     count_relationships!(committers_from_project)));
+                  count_relationships!(committers_from_project)));
 
         Ok(self.committers_from_project = Some(committers_from_project))
     }
@@ -1100,6 +1253,158 @@ impl Data {
 
     fn load_commits_committed_by_user_with_filters(&mut self) -> Result<(), Error> {
         self.load_commits_committed_by_user_without_filters()
+    }
+}
+
+/**===== Data: data loading methods (check cache and other convenience functions) ===============**/
+impl Data {
+    fn path_in_cache(&self, file: &str) -> PathBuf {
+        let cache = self.spec.database.as_ref().unwrap();
+        let mut path = cache.clone();
+        path.push(file);
+        path.set_extension("bin");
+        path
+    }
+    fn file_in_cache(&self, file: &str) -> bool {
+        self.spec.database.as_ref().map_or(false, |_| self.path_in_cache(file).exists())
+    }
+    fn open_file_in_cache(&self, file: &str) -> Result<File, Error> {
+        let path = self.path_in_cache(file);
+        //create_dir_all(&path)?;
+        File::open(path)
+    }
+    fn create_file_in_cache(&self, file: &str) -> Result<File, Error> {
+        let path = self.path_in_cache(file);
+        create_dir_all(&path)?;
+        File::create(path)
+    }
+}
+
+/**===== Data: data loading methods (load from cache) ===========================================**/
+impl Data {
+    fn load_projects_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("projects")?;
+        Ok(self.projects = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_commits_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("commits")?;
+        Ok(self.commits = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_users_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("users")?;
+        Ok(self.users = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_paths_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("paths")?;
+        Ok(self.paths = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_commits_from_project_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("commits_from_project")?;
+        Ok(self.commits_from_project = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_users_from_project_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("users_from_project")?;
+        Ok(self.users_from_project = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_paths_from_commit_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("paths_from_commit")?;
+        Ok(self.paths_from_commit = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_message_from_commit_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("message_from_commit")?;
+        Ok(self.message_from_commit = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_authors_from_project_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("authors_from_project")?;
+        Ok(self.authors_from_project = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_committers_from_project_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("commits_from_project")?;
+        Ok(self.commits_from_project = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_paths_from_project_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("paths_from_project")?;
+        Ok(self.paths_from_project = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_age_from_project_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("age_from_project")?;
+        Ok(self.age_from_project = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_experience_from_user_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("experience_from_user")?;
+        Ok(self.experience_from_user = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_commits_authored_by_user_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("commits_authored_by_user")?;
+        Ok(self.commits_authored_by_user = Some(BTreeMap::load(&mut file)?))
+    }
+    fn load_commits_committed_by_user_from_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.open_file_in_cache("commits_committed_by_user")?;
+        Ok(self.commits_committed_by_user = Some(BTreeMap::load(&mut file)?))
+    }
+}
+
+/**===== Data: data loading methods (dump to cache) =============================================**/
+impl Data {
+    fn dump_projects_to_cache(&self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("projects")?;
+        self.projects.dump(&mut file)
+    }
+    fn dump_commits_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("commits")?;
+        self.commits.dump(&mut file)
+    }
+    fn dump_users_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("users")?;
+        self.users.dump(&mut file)
+    }
+    fn dump_paths_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("paths")?;
+        self.paths.dump(&mut file)
+    }
+    fn dump_commits_from_project_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("commits")?;
+        self.commits.dump(&mut file)
+    }
+    fn dump_users_from_project_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("users")?;
+        self.users.dump(&mut file)
+    }
+    fn dump_paths_from_commit_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("paths_from_commit")?;
+        self.paths_from_commit.dump(&mut file)
+    }
+    fn dump_message_from_commit_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("message_from_commit")?;
+        self.message_from_commit.dump(&mut file)
+    }
+    fn dump_authors_from_project_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("authors_from_project")?;
+        self.authors_from_project.dump(&mut file)
+    }
+    fn dump_committers_from_project_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("committers_from_project")?;
+        self.committers_from_project.dump(&mut file)
+    }
+    fn dump_paths_from_project_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("paths_from_project")?;
+        self.paths_from_project.dump(&mut file)
+    }
+    fn dump_age_from_project_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("age_from_project")?;
+        self.age_from_project.dump(&mut file)
+    }
+    fn dump_experience_from_user_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("experience_from_user")?;
+        self.experience_from_user.dump(&mut file)
+    }
+    fn dump_commits_authored_by_user_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("commits_authored_by_user")?;
+        self.commits_authored_by_user.dump(&mut file)
+    }
+    fn dump_commits_committed_by_user_to_cache(&mut self) -> Result<(), Error> {
+        let mut file = self.create_file_in_cache("commits_committed_by_user")?;
+        self.commits_committed_by_user.dump(&mut file)
     }
 }
 

@@ -1,8 +1,9 @@
-mod names;
 #[macro_use] pub mod require;
 #[macro_use] pub mod log;
 #[macro_use] pub mod data;
 
+pub mod names;
+pub mod persistence;
 pub mod djanco;
 pub mod sample;
 pub mod attrib;
@@ -22,12 +23,9 @@ pub mod meta;
 //__lib.rs
 //csv2.rs
 
-use std::fmt;
-
 use crate::objects::*;
 use crate::log::*;
 use crate::djanco::*;
-use std::fmt::Formatter;
 
 /**
  * This is a Djanco API starting point. Query and database construction starts here.
@@ -35,23 +33,32 @@ use std::fmt::Formatter;
 pub struct Djanco;
 
 impl Djanco {
-    pub fn from<S: Into<String>>(warehouse_path: S, database_path: S, seed: u128, timestamp: Month) -> Lazy {
-        let spec = Spec::new(warehouse_path, database_path, seed, timestamp, LogLevel::Verbose);
+    pub fn from<S: Into<String>>(warehouse_path: S, seed: u128, timestamp: Month) -> Lazy {
+        let spec = Spec::new(warehouse_path, None, seed, timestamp, LogLevel::Verbose);
+        Lazy::from(spec)
+    }
+
+    pub fn cached<S: Into<String>>(warehouse_path: S, cache_path: S, seed: u128, timestamp: Month) -> Lazy {
+        let spec = Spec::new(warehouse_path, Some(cache_path), seed, timestamp, LogLevel::Verbose);
+        Lazy::from(spec)
+    }
+
+    pub fn from_spec(spec: Spec) -> Lazy {
         Lazy::from(spec)
     }
 }
 
 /** Errors **/
-pub struct Error { message: String }
-impl Error {
-    pub fn from<S>(message: S) -> Self where S: Into<String> { Error { message: message.into() } }
-}
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.message) }
-}
-impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { write!(f, "{}", self.message) }
-}
+// pub struct Error { message: String }
+// impl Error {
+//     pub fn from<S>(message: S) -> Self where S: Into<String> { Error { message: message.into() } }
+// }
+// impl fmt::Display for Error {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.message) }
+// }
+// impl fmt::Debug for Error {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { write!(f, "{}", self.message) }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -64,7 +71,8 @@ mod tests {
 
     #[test]
     fn example() {
-        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", "/dejavuii/dejacode/cache-tiny", 0, Month::August(2020))
+        let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020))
+            .with_cache("/dejavuii/dejacode/cache-tiny")
             .with_filter(require::AtLeast(project::Commits, 10));
 
         database.projects()

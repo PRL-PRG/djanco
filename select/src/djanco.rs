@@ -8,18 +8,19 @@ use std::hash::Hash;
 #[derive(Clone)]
 pub struct Spec {
     pub warehouse: PathBuf,
-    pub database: PathBuf,
+    pub database: Option<PathBuf>,
     pub seed: u128,
     pub timestamp: Month,
     pub log_level: LogLevel,
 }
 
 impl Spec {
-    pub fn new<S: Into<String>>(warehouse: S, database: S, seed: u128, timestamp: Month, log_level: LogLevel) -> Self {
-        Spec { warehouse: PathBuf::from(warehouse.into()), database: PathBuf::from(database.into()),
+    pub fn new<S: Into<String>>(warehouse: S, database: Option<S>, seed: u128, timestamp: Month, log_level: LogLevel) -> Self {
+        Spec { warehouse: PathBuf::from(warehouse.into()),
+               database: database.map(|database| PathBuf::from(database.into())),
                seed, timestamp, log_level }
     }
-    pub fn from_paths(warehouse: PathBuf, database: PathBuf, seed: u128, timestamp: Month, log_level: LogLevel) -> Self {
+    pub fn from_paths(warehouse: PathBuf, database: Option<PathBuf>, seed: u128, timestamp: Month, log_level: LogLevel) -> Self {
         Spec { warehouse, database, seed, timestamp, log_level }
     }
     pub fn path_as_string(&self) -> String {
@@ -50,6 +51,12 @@ impl /* LoadFiltering for */ Lazy {
 impl /* VerbositySetting for */ Lazy {
     pub fn with_log_level(mut self, log_level: LogLevel) -> Self {
         self.spec.log_level = log_level; self
+    }
+}
+
+impl /* CachePathSetting for */ Lazy {
+    pub fn with_cache<S: Into<String>>(mut self, path: S) -> Self {
+        self.spec.database = Some(PathBuf::from(path.into())); self
     }
 }
 

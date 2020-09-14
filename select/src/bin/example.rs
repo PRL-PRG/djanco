@@ -1,5 +1,5 @@
-use select::{Djanco, project, sample};
-use select::objects::Month;
+use select::{Djanco, project, sample, require};
+use select::objects::*;
 //use select::csv::*;
 use select::dump::*;
 
@@ -25,6 +25,7 @@ fn main() {
         //.filter_by_attrib(require::Same(project::Language, "Rust"))
         //.filter_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
         .sort_by_attrib(project::Stars)
+        .filter_by_attrib(require::Contains(project::Users, User{ id: UserId::from(123614usize), email: "edokeh@163.com".to_string(), name: "Chaos".to_string()}))
         .sample(sample::Top(1))
         .squash()
         //.select_attrib(project::Id)

@@ -36,6 +36,30 @@ impl Attribute for Commits     {}
 impl Attribute for Users       {}
 impl Attribute for Paths       {}
 
+impl CollectionAttribute for Commits {
+    type Entity = Project;
+    type Item = Commit;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        untangle_mut!(database).commits_from(&entity.id)
+    }
+}
+
+impl CollectionAttribute for Users {
+    type Entity = Project;
+    type Item = User;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        untangle_mut!(database).users_from(&entity.id)
+    }
+}
+
+impl CollectionAttribute for Paths {
+    type Entity = Project;
+    type Item = Path;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        untangle_mut!(database).paths_from(&entity.id)
+    }
+}
+
 impl StringAttribute for Id {
     type Entity = Project;
     fn extract(&self, _database: DataPtr, entity: &Self::Entity) -> String {

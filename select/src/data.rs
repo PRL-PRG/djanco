@@ -1275,7 +1275,7 @@ impl Data {
     }
     fn create_file_in_cache(&self, file: &str) -> Result<File, Error> {
         let path = self.path_in_cache(file);
-        create_dir_all(&path)?;
+        create_dir_all(self.spec.database.as_ref().unwrap())?;
         File::create(path)
     }
 }

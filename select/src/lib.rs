@@ -88,3 +88,4 @@ mod tests {
 // * CommitsWhere, PathsWhere, UsersWhere, etc.
 // * snapshots
 // * keep and produce receipt snippets
+// * plug in dump

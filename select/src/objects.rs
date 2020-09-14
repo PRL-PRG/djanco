@@ -1,12 +1,15 @@
-use chrono::{Date, Utc, DateTime, TimeZone};
 use std::fmt::{Display, Formatter};
 use std::collections::HashMap;
-use crate::meta::ProjectMeta;
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 
+use chrono::{Date, Utc, DateTime, TimeZone};
+use serde::{Serialize, Deserialize};
+
+use crate::meta::ProjectMeta;
+
 /**== Time====== ================================================================================**/
-#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Month {
     January(u16), February(u16), March(u16), April(u16), May(u16), June(u16), July(u16),
     August(u16), September(u16), October(u16), November(u16), December(u16),
@@ -62,10 +65,10 @@ impl Into<DateTime<Utc>> for Month { fn into(self) -> DateTime<Utc> { self.to_da
 impl Into<i64>           for Month { fn into(self) -> i64 { self.to_datetime().timestamp() } }
 
 /**== Object IDs ================================================================================**/
-#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct ProjectId(pub u64);
-#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct CommitId(pub u64);
-#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct UserId(pub u64);
-#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub struct PathId(pub u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct ProjectId(pub u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct CommitId(pub u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct UserId(pub u64);
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct PathId(pub u64);
 
 /**== Object IDs convenience ====================================================================**/
 impl ProjectId { pub fn to_string(&self) -> String { self.0.to_string() } }
@@ -138,7 +141,7 @@ impl Identity for CommitId  {}
 impl Identity for PathId    {}
 
 /**== Objects ===================================================================================**/
-#[derive(Clone)] // TODO implement by hand
+#[derive(Clone, Serialize, Deserialize)] // TODO implement by hand
 pub struct Project {
     pub id: ProjectId,
     pub url: String,
@@ -148,20 +151,20 @@ pub struct Project {
     pub issues: Option<usize>,
     pub buggy_issues: Option<usize>,
     pub heads: Vec<(String, CommitId)>,
-    pub metadata: HashMap<String, String>,
+    pub metadata: HashMap<String, String>, // FIXME remove
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
     pub email: String,
     pub name: String,
 }
 
-#[derive(Clone)] // TODO implement by hand
+#[derive(Clone, Serialize, Deserialize)] // TODO implement by hand
 pub struct Commit {
     pub id: CommitId,
-    pub hash: git2::Oid,
+    pub hash: String,
     pub author: UserId,
     pub committer: UserId,
     pub author_time: i64,
@@ -170,13 +173,13 @@ pub struct Commit {
     pub deletions: Option<u64>,
 }
 
-#[derive(Clone)] // TODO implement by hand
+#[derive(Clone, Serialize, Deserialize)] // TODO implement by hand
 pub struct Path {
     pub id: PathId,
     pub path: String,
 }
 
-#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)] // TODO implement by hand
+#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] // TODO implement by hand
 pub struct Message {
     contents: Vec<u8>,
 }
@@ -339,7 +342,7 @@ impl From<dcd::Commit> for Commit {
             committer_time: commit.committer_time,
             additions: commit.additions,
             deletions: commit.deletions,
-            hash: commit.hash,
+            hash: commit.hash.to_string(),
         }
     }
 }
@@ -354,7 +357,7 @@ impl From<&dcd::Commit> for Commit {
             committer_time: commit.committer_time,
             additions: commit.additions,
             deletions: commit.deletions,
-            hash: commit.hash.clone(),
+            hash: commit.hash.to_string(),
         }
     }
 }

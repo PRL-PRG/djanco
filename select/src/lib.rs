@@ -2,22 +2,25 @@
 #[macro_use] pub mod log;
 #[macro_use] pub mod data;
 
+pub mod djanco;
+
 pub mod time;
 
 pub mod attrib;
-pub mod project;
-pub mod path;
-pub mod user;
 pub mod prototype;
 pub mod sample;
 pub mod stats;
+
+pub mod project;
+pub mod path;
+pub mod user;
+pub mod commit;
 
 pub mod objects;
 pub mod meta;
 
 pub mod names;
 pub mod persistence;
-pub mod djanco;
 
 pub mod csv;
 pub mod dump;

@@ -1,6 +1,7 @@
 use crate::djanco;
 use crate::objects;
 use crate::user;
+use crate::commit;
 use crate::project;
 use crate::path;
 use crate::attrib::*;
@@ -58,28 +59,42 @@ impl WithNames for objects::Path   {
     }
 }
 
-impl WithNames for project::Id          { fn names() -> Vec<&'static str> { vec!["project_id"]   } }
-impl WithNames for project::URL         { fn names() -> Vec<&'static str> { vec!["url"]          } }
-impl WithNames for project::Language    { fn names() -> Vec<&'static str> { vec!["language"]     } }
-impl WithNames for project::Stars       { fn names() -> Vec<&'static str> { vec!["stars"]        } }
-impl WithNames for project::Issues      { fn names() -> Vec<&'static str> { vec!["issues"]       } }
-impl WithNames for project::AllIssues   { fn names() -> Vec<&'static str> { vec!["all_issues"]   } }
-impl WithNames for project::BuggyIssues { fn names() -> Vec<&'static str> { vec!["buggy_issues"] } }
-//impl WithNames for project::Metadata   { fn names() -> Vec<&'static str> { vec![&self.0.]       } }
-impl WithNames for project::Heads       { fn names() -> Vec<&'static str> { vec!["heads"]        } }
-impl WithNames for project::Commits     { fn names() -> Vec<&'static str> { vec!["commits"]      } }
-impl WithNames for project::Users       { fn names() -> Vec<&'static str> { vec!["users"]        } }
-impl WithNames for project::Paths       { fn names() -> Vec<&'static str> { vec!["paths"]        } }
-impl WithNames for project::Age         { fn names() -> Vec<&'static str> { vec!["age"]          } }
+impl WithNames for project::Id           { fn names() -> Vec<&'static str> { vec!["project_id"]  } }
+impl WithNames for project::URL          { fn names() -> Vec<&'static str> { vec!["url"]         } }
+impl WithNames for project::Language     { fn names() -> Vec<&'static str> { vec!["language"]    } }
+impl WithNames for project::Stars        { fn names() -> Vec<&'static str> { vec!["stars"]       } }
+impl WithNames for project::Issues       { fn names() -> Vec<&'static str> { vec!["issues"]      } }
+impl WithNames for project::AllIssues    { fn names() -> Vec<&'static str> { vec!["all_issues"]  } }
+impl WithNames for project::BuggyIssues  { fn names() -> Vec<&'static str> { vec!["buggy_issues"]} }
+//impl WithNames for project::Metadata    { fn names() -> Vec<&'static str> { vec![&self.0.]      } }
+impl WithNames for project::Heads        { fn names() -> Vec<&'static str> { vec!["heads"]       } }
+impl WithNames for project::Commits      { fn names() -> Vec<&'static str> { vec!["commits"]     } }
+impl WithNames for project::Users        { fn names() -> Vec<&'static str> { vec!["users"]       } }
+impl WithNames for project::Paths        { fn names() -> Vec<&'static str> { vec!["paths"]       } }
+impl WithNames for project::Age          { fn names() -> Vec<&'static str> { vec!["age"]         } }
 
-impl WithNames for user::Id             { fn names() -> Vec<&'static str> { vec!["user_id"]      } }
-impl WithNames for user::Name           { fn names() -> Vec<&'static str> { vec!["name"]         } }
-impl WithNames for user::Email          { fn names() -> Vec<&'static str> { vec!["email"]        } }
-impl WithNames for user::Experience     { fn names() -> Vec<&'static str> { vec!["experience"]   } }
-impl WithNames for user::Commits        { fn names() -> Vec<&'static str> { vec!["commits"]      } }
+impl WithNames for user::Id              { fn names() -> Vec<&'static str> { vec!["user_id"]     } }
+impl WithNames for user::Name            { fn names() -> Vec<&'static str> { vec!["name"]        } }
+impl WithNames for user::Email           { fn names() -> Vec<&'static str> { vec!["email"]       } }
+impl WithNames for user::Experience      { fn names() -> Vec<&'static str> { vec!["experience"]  } }
+impl WithNames for user::Commits         { fn names() -> Vec<&'static str> { vec!["commits"]     } }
 
-impl WithNames for path::Id             { fn names() -> Vec<&'static str> { vec!["path_id"]      } }
-impl WithNames for path::Path           { fn names() -> Vec<&'static str> { vec!["path"]         } }
+impl WithNames for path::Id              { fn names() -> Vec<&'static str> { vec!["path_id"]     } }
+impl WithNames for path::Path            { fn names() -> Vec<&'static str> { vec!["path"]        } }
+impl WithNames for path::Language        { fn names() -> Vec<&'static str> { vec!["language"]    } }
+
+impl WithNames for commit::Id            { fn names() -> Vec<&'static str> { vec!["commit_id"]   } }
+impl WithNames for commit::Hash          { fn names() -> Vec<&'static str> { vec!["hash"]        } }
+impl WithNames for commit::Author        { fn names() -> Vec<&'static str> { vec!["author_id"]   } }
+impl WithNames for commit::Committer     { fn names() -> Vec<&'static str> { vec!["committer_id"]} }
+impl WithNames for commit::AuthorTime    { fn names() -> Vec<&'static str> { vec!["author_time"] } }
+impl WithNames for commit::CommitterTime { fn names() -> Vec<&'static str> { vec!["committer_time"] } }
+impl WithNames for commit::Additions     { fn names() -> Vec<&'static str> { vec!["additions"]    } }
+impl WithNames for commit::Deletions     { fn names() -> Vec<&'static str> { vec!["deletions"]    } }
+impl WithNames for commit::Parents       { fn names() -> Vec<&'static str> { vec!["parents"]     } }
+impl WithNames for commit::Users         { fn names() -> Vec<&'static str> { vec!["user"]        } }
+impl WithNames for commit::Message       { fn names() -> Vec<&'static str> { vec!["message"]     } }
+impl WithNames for commit::Paths         { fn names() -> Vec<&'static str> { vec!["paths"]       } }
 
 macro_rules! join_vec { ($v1:expr, $v2:expr) => {{ $v1.extend($v2); $v1 }} }
 

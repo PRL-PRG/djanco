@@ -160,6 +160,18 @@ pub struct Commit {
     pub parents: Vec<CommitId>,
 }
 
+impl Commit {
+    pub fn message(&self, data: DataPtr) -> Option<Message> {
+        untangle_mut!(data).message_of(&self.id)
+    }
+    pub fn paths(&self, data: DataPtr) -> Vec<Path> {
+        untangle_mut!(data).paths_of(&self.id)
+    }
+    pub fn path_count(&self, data: DataPtr) -> usize {
+        untangle_mut!(data).path_count_of(&self.id)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)] // TODO implement by hand
 pub struct Path {
     pub id: PathId,

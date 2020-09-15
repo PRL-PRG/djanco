@@ -5,7 +5,7 @@ use crate::meta::*;
 
 use dcd::{DCD, Database};
 use itertools::Itertools;
-use std::time::Duration;
+use crate::time::Seconds;
 
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
@@ -135,31 +135,31 @@ impl ExistentialAttribute for Heads {
     }
 }
 
-impl ExistentialAttribute for Commits {
-    type Entity = Project;
-    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
-        untangle_mut!(database).commit_count_from(&entity.id) > 0
-    }
-}
-
-impl ExistentialAttribute for Users {
-    type Entity = Project;
-    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
-        untangle_mut!(database).user_count_from(&entity.id) > 0
-    }
-}
-
-impl ExistentialAttribute for Paths {
-    type Entity = Project;
-    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
-        untangle_mut!(database).path_count_from(&entity.id) > 0
-    }
-}
+// impl ExistentialAttribute for Commits {
+//     type Entity = Project;
+//     fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+//         untangle_mut!(database).commit_count_from(&entity.id) > 0
+//     }
+// }
+//
+// impl ExistentialAttribute for Users {
+//     type Entity = Project;
+//     fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+//         untangle_mut!(database).user_count_from(&entity.id) > 0
+//     }
+// }
+//
+// impl ExistentialAttribute for Paths {
+//     type Entity = Project;
+//     fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+//         untangle_mut!(database).path_count_from(&entity.id) > 0
+//     }
+// }
 
 impl ExistentialAttribute for Age {
     type Entity = Project;
     fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
-        entity.age(database).map_or(false, |e| e.as_secs() > 0)
+        entity.age(database).map_or(false, |e| e > Seconds(0))
     }
 }
 
@@ -311,7 +311,7 @@ impl StringAttribute for BuggyIssues {
 impl StringAttribute for Age {
     type Entity = Project;
     fn extract(&self, database: DataPtr, entity: &Self::Entity) -> String {
-        entity.age(database).as_ref().map_or(String::new(), |e| e.as_secs().to_string())
+        entity.age(database).as_ref().map_or(String::new(), |e| e.to_string())
     }
 }
 
@@ -395,11 +395,42 @@ impl NumericalAttribute for Paths {
     }
 }
 
+impl<F> NumericalAttribute for CommitsWith<F> where F: Filter<Entity=Commit> {
+    type Entity = Project;
+    type Number = usize;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        //Some(untangle_mut!(database).path_count_from(&entity.id))
+        Some(entity.commits(database.clone()).into_iter()
+            .filter(|c| self.0.filter(database.clone(), c))
+            .count())
+    }
+}
+
+impl<F> NumericalAttribute for UsersWith<F> where F: Filter<Entity=User> {
+    type Entity = Project;
+    type Number = usize;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        Some(entity.users(database.clone()).into_iter()
+            .filter(|u| self.0.filter(database.clone(), u))
+            .count())
+    }
+}
+
+impl<F> NumericalAttribute for PathsWith<F> where F: Filter<Entity=Path> {
+    type Entity = Project;
+    type Number = usize;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        Some(entity.paths(database.clone()).into_iter()
+                .filter(|p| self.0.filter(database.clone(), p))
+                .count())
+    }
+}
+
 impl NumericalAttribute for Age {
     type Entity = Project;
-    type Number = u64;
+    type Number = Seconds;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        entity.age(database).as_ref().map(|e| e.as_secs())
+        entity.age(database)
     }
 }
 
@@ -446,9 +477,9 @@ impl Group<Project> for BuggyIssues {
 }
 
 impl Group<Project> for Age {
-    type Key = AttributeValue<Self, Duration>;
+    type Key = AttributeValue<Self, Seconds>;
     fn select(&self, data: DataPtr, project: &Project) -> Self::Key {
-        AttributeValue::new(self, project.age(data).unwrap_or(Duration::from_secs(0)))
+        AttributeValue::new(self, project.age(data).unwrap_or(Seconds(0)))
     }
 }
 
@@ -626,9 +657,9 @@ impl Select<Project> for Paths {
 }
 
 impl Select<Project> for Age {
-    type Entity = Duration;
+    type Entity = Seconds;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        project.age(database).unwrap_or(Duration::from_secs(0))
+        project.age(database).unwrap_or(Seconds(0))
     }
 }
 

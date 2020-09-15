@@ -3,10 +3,12 @@ use select::objects::*;
 use select::csv::*;
 use select::stats;
 use select::project;
+use select::user;
 use select::sample;
 use select::require;
 //use select::dump::*;
 use select::prototype::api::*;
+use select::time::{Month, Seconds};
 
 // TODO
 // * CommitsWhere, PathsWhere, UsersWhere, etc.
@@ -38,27 +40,27 @@ fn _touched_files(path: &str) { // FIXME
         .to_csv("/dejavuii/dejacode/examples/output/touched_files.csv").unwrap();
 }
 
-fn _experienced_author(path: &str) { // FIXME
+fn _experienced_author(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
         .with_cache("/dejavuii/dejacode/examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
-        //.filter_by_attrib(require::Exists(project::UsersWhere(require::AtLeast(user::Experience, Duration::years(2)))))
+        .filter_by_attrib(require::Exists(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2)))))
 
         .sample(sample::Random(50))
         .squash()
         .to_csv("/dejavuii/dejacode/examples/output/experienced_author.csv").unwrap();
 }
 
-fn _fifty_percent_experienced(path: &str) { // FIXME
+fn _fifty_percent_experienced(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
         .with_cache("/dejavuii/dejacode/examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
         .filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
-        //.filter_by_attrib(require::AtLeast(stats::Ratio(project::UsersWhere(require::AtLeast(user::Experience, Duration::years(2)))), 0.5))
+        .filter_by_attrib(require::AtLeast(stats::Ratio(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2)))), 0.5))
 
         .sample(sample::Random(50))
         .squash()
@@ -113,7 +115,7 @@ fn main() {
     database.projects()
         //.filter_by_attrib(require::AtLeast(project::Commits, 28))
         .group_by_attrib(project::Language)
-        .filter_by_attrib(require::Exists(project::Commits))
+        .filter_by_attrib(require::Exists(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(1)))))
         //.filter_by_attrib(require::AtLeast(project::Commits, 25))
         //.filter_by_attrib(require::AtLeast(project::Users, 2))
         //.filter_by_attrib(require::Same(project::Language, "Rust"))

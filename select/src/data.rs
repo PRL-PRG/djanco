@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::time::Duration;
 use std::path::PathBuf;
 use std::rc::Weak;
 use std::rc::Rc;
@@ -17,6 +16,7 @@ use crate::objects::*;
 use crate::attrib::*;
 use crate::persistence::*;
 use crate::djanco::Spec;
+use crate::time::{Month, Seconds};
 
 macro_rules! give_me { ($option:expr)  => { $option.as_ref().unwrap() } }
 
@@ -443,16 +443,16 @@ impl /* DataAccess for */ Data {
         lazy_paths_from_project!(self).get(project).map_or(0, |v| v.iter().filter(filter).count())
     }
 
-    pub fn age_of(&mut self, project: &ProjectId) -> Option<Duration> {
-        lazy_age_from_project!(self).get(project).map(|(max, min)| Duration::from_secs(max - min))
+    pub fn age_of(&mut self, project: &ProjectId) -> Option<Seconds> {
+        lazy_age_from_project!(self).get(project).map(|(max, min)| Seconds::from(max - min))
     }
 
     pub fn message_of(&mut self, commit: &CommitId) -> Option<Message> {
         lazy_message_from_commit!(self).get(commit).map(|msg| msg.clone())
     }
 
-    pub fn experience_of(&mut self, user: &UserId) -> Option<Duration> {
-        lazy_experience_from_user!(self).get(user).map(|(max, min)| Duration::from_secs(max - min))
+    pub fn experience_of(&mut self, user: &UserId) -> Option<Seconds> {
+        lazy_experience_from_user!(self).get(user).map(|(max, min)| Seconds::from(max - min))
     }
 
     pub fn authored_commits_of(&mut self, user: &UserId) -> Vec<Commit> {

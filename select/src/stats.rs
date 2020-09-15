@@ -46,34 +46,37 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Mean<C> where C: CollectionAttribute<
     }
 }
 
-impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Into<usize> + Ord {
+impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Into<f64> + Copy {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        let mut items: Vec<usize> =
-            self.0.items(database, entity).into_iter().sorted().map(|n| n.into()).collect();
+        let mut items= self.0.items(database, entity);//.into_iter().map(|n| n.into()).collect();
 
         items.sort();
 
         match items.len() {
             0usize => None,
-            1usize => items.get(0).map(|e| *e as f64),
+            1usize => items.get(0).map(|e| (*e).clone().into()),
 
             odd  if odd % 2 != 0usize => {
-                items.get(odd / 2).map(|e| *e as f64)
+                items.get(odd / 2).map(|e| (*e).into())
             }
 
             even /* if even % 2 == 0usize */ => {
                 let left = items.get((even / 2) - 1);
                 let right = items.get(even / 2);
                 if left.is_none() || right.is_none() { None }
-                else { Some((*left.unwrap() + *right.unwrap()) as f64 / 2f64) }
+                else {
+                    let left = (*left.unwrap()).into();
+                    let right = (*right.unwrap()).into();
+                    Some(left + right / 2f64)
+                }
             }
         }
     }
 }
 
-impl<I,C,E>/*baby*/ NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Into<usize> + Ord {
+impl<I,C,E>/*baby*/ NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E> {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {

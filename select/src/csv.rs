@@ -65,7 +65,7 @@ impl CSVItem for Project {
                 data.author_count_from(&self.id),
                 data.committer_count_from(&self.id),
                 data.age_of(&self.id)
-                    .map_or(String::new(), |e| e.as_secs().to_string()),
+                    .map_or(String::new(), |e| e.to_string()),
         )
     }
 }
@@ -92,7 +92,7 @@ impl CSVItem for User {
                 self.name,
                 self.email,
                 data.experience_of(&self.id)
-                    .map_or(String::new(), |e| e.as_secs().to_string()),
+                    .map_or(String::new(), |e| e.to_string()),
                 data.authored_commit_count_of(&self.id),
                 data.committed_commit_count_of(&self.id))
     }

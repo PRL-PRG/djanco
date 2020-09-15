@@ -2,7 +2,6 @@ use dcd::{Database, Project};
 use crate::query::project::{Group, Property, GroupKey};
 use itertools::Itertools;
 use crate::meta::{ProjectMeta, MetaDatabase};
-use std::time::Duration;
 use std::io::Error;
 use std::path::PathBuf;
 use std::fs::{create_dir_all, File};

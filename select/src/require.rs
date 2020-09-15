@@ -5,25 +5,26 @@ use crate::attrib::*;
 use crate::data::DataPtr;
 use crate::prototype::Prototype;
 
+
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtLeast<N,V>(pub N, pub V);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Exactly<N,V>(pub N, pub V);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtMost<N,V> (pub N, pub V);
 
-impl<T, V, N> Filter for AtLeast<N,V> where N: NumericalAttribute<Entity=T, Number=usize>, V: From<usize> + Ord {
+impl<T, V, N, X> Filter for AtLeast<N,V> where N: NumericalAttribute<Entity=T, Number=X>, V: From<X> + PartialOrd {
     type Entity=T;
     fn filter(&self, data: DataPtr, project: &T) -> bool {
         self.0.calculate(data, project).map_or(false, |e| V::from(e) >= self.1)
     }
 }
 
-impl<T, V, N> Filter for Exactly<N,V> where N: NumericalAttribute<Entity=T, Number=usize>, V: From<usize> +Ord  {
+impl<T, V, N, X> Filter for Exactly<N,V> where N: NumericalAttribute<Entity=T, Number=X>, V: From<X> + PartialEq {
     type Entity=T;
     fn filter(&self, data: DataPtr, project: &T) -> bool {
         self.0.calculate(data, project).map_or(false, |e| V::from(e) == self.1)
     }
 }
 
-impl<T, V, N> Filter for AtMost<N,V> where N: NumericalAttribute<Entity=T, Number=usize>, V: From<usize> + Ord {
+impl<T, V, N, X> Filter for AtMost<N,V> where N: NumericalAttribute<Entity=T, Number=X>, V: From<X> + PartialOrd {
     type Entity=T;
     fn filter(&self, data: DataPtr, project: &T) -> bool {
         self.0.calculate(data, project).map_or(false, |e| V::from(e) <= self.1)

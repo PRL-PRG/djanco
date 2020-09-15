@@ -3,68 +3,11 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 
-use chrono::{Date, Utc, DateTime, TimeZone};
 use serde::{Serialize, Deserialize};
 
 use crate::meta::ProjectMeta;
 use crate::data::DataPtr;
-use std::time::Duration;
-
-/**== Time====== ================================================================================**/
-#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum Month {
-    January(u16), February(u16), March(u16), April(u16), May(u16), June(u16), July(u16),
-    August(u16), September(u16), October(u16), November(u16), December(u16),
-}
-
-impl Month {
-    pub fn month(&self) -> u8 {
-        match &self {
-            Month::January(_)   => 1,
-            Month::February(_)  => 2,
-            Month::March(_)     => 3,
-            Month::April(_)     => 4,
-            Month::May(_)       => 5,
-            Month::June(_)      => 6,
-            Month::July(_)      => 7,
-            Month::August(_)    => 8,
-            Month::September(_) => 9,
-            Month::October(_)   => 10,
-            Month::November(_)  => 11,
-            Month::December(_)  => 12,
-        }
-    }
-
-    pub fn year(&self) -> u16 {
-        match &self {
-            Month::January(year)   => *year,
-            Month::February(year)  => *year,
-            Month::March(year)     => *year,
-            Month::April(year)     => *year,
-            Month::May(year)       => *year,
-            Month::June(year)      => *year,
-            Month::July(year)      => *year,
-            Month::August(year)    => *year,
-            Month::September(year) => *year,
-            Month::October(year)   => *year,
-            Month::November(year)  => *year,
-            Month::December(year)  => *year,
-        }
-    }
-
-    pub fn to_date(&self) -> Date<Utc> {
-        Utc.ymd(self.year() as i32, self.month() as u32, 1 as u32)
-    }
-
-    pub fn to_datetime(&self) -> DateTime<Utc> {
-        Utc.ymd(self.year() as i32, self.month() as u32, 1 as u32)
-            .and_hms(0, 0, 0)
-    }
-}
-
-impl Into<Date<Utc>>     for Month { fn into(self) -> Date<Utc>     { self.to_date()       } }
-impl Into<DateTime<Utc>> for Month { fn into(self) -> DateTime<Utc> { self.to_datetime()   } }
-impl Into<i64>           for Month { fn into(self) -> i64 { self.to_datetime().timestamp() } }
+use crate::time::Seconds;
 
 /**== Object IDs ================================================================================**/
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] pub struct ProjectId(pub u64);
@@ -171,7 +114,7 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn age(&self, data: DataPtr) -> Option<Duration> { untangle_mut!(data).age_of(&self.id) }
+    pub fn age(&self, data: DataPtr) -> Option<Seconds> { untangle_mut!(data).age_of(&self.id) }
 
     pub fn commits(&self, data: DataPtr) -> Vec<Commit> { untangle_mut!(data).commits_from(&self.id) }
     pub fn paths(&self, data: DataPtr) -> Vec<Path> { untangle_mut!(data).paths_from(&self.id) }
@@ -199,7 +142,7 @@ pub struct User {
 }
 
 impl User {
-    pub fn experience(&self, data: DataPtr) -> Option<Duration> { untangle_mut!(data).experience_of(&self.id) }
+    pub fn experience(&self, data: DataPtr) -> Option<Seconds> { untangle_mut!(data).experience_of(&self.id) }
     pub fn authored_commits(&self, data: DataPtr) -> Vec<Commit> { untangle_mut!(data).authored_commits_of(&self.id) }
     pub fn committed_commits(&self, data: DataPtr) -> Vec<Commit> { untangle_mut!(data).committed_commits_of(&self.id) }
 }

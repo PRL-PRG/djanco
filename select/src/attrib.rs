@@ -114,3 +114,11 @@ pub mod raw {
     }
 
 }
+
+impl<C,E,T> ExistentialAttribute for C where C: CollectionAttribute<Entity=T,Item=E> {
+    type Entity = T;
+
+    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+        self.len(database, entity) > 0
+    }
+}

@@ -242,6 +242,20 @@ impl /* DataAccess for */ Data {
         })
     }
 
+    // pub fn commits_with_filter_from<Filter>(&mut self, filter: Filter, project: &ProjectId) -> Vec<Commit> where Filter: Fn(&&Commit) -> bool {
+    //     self.load_commits().unwrap();
+    //     self.load_commits_from_project().unwrap();
+    //     let commits = give_me!(self.commits);
+    //     let commits_from_project = give_me!(self.commits_from_project);
+    //     commits_from_project.get(project).map_or(Default::default(), |commit_ids| {
+    //         commit_ids.iter()
+    //             .flat_map(|commit_id| commits.get(commit_id))
+    //             .filter(filter)
+    //             .map(|commit| commit.clone())
+    //             .collect()
+    //     })
+    // }
+
     pub fn commit_count_from(&mut self, project: &ProjectId) -> usize {
         lazy_commits_from_project!(self).get(project).map_or(0, |v| v.len())
     }

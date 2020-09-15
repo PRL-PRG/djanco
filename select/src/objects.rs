@@ -177,6 +177,10 @@ impl Project {
     pub fn paths(&self, data: DataPtr) -> Vec<Path> { untangle_mut!(data).paths_from(&self.id) }
     pub fn users(&self, data: DataPtr) -> Vec<User> { untangle_mut!(data).users_from(&self.id) }
 
+    pub fn commit_count(&self, data: DataPtr) -> usize { untangle_mut!(data).commit_count_from(&self.id) }
+    pub fn path_count(&self, data: DataPtr) -> usize { untangle_mut!(data).path_count_from(&self.id) }
+    pub fn user_count(&self, data: DataPtr) -> usize { untangle_mut!(data).user_count_from(&self.id) }
+
     pub fn all_issues(&self)  -> Option<usize> {
         match (self.issues, self.buggy_issues) {
             (None, None) => None,

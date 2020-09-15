@@ -45,9 +45,10 @@ pub trait Group<T> {
     }
 }
 
-pub trait Filter<T> {
-    fn filter(&self, data: DataPtr, element: &T) -> bool;
-    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T> {
+pub trait Filter {
+    type Entity;
+    fn filter(&self, data: DataPtr, element: &Self::Entity) -> bool;
+    fn execute(&mut self, data: DataPtr, vector: Vec<Self::Entity>) -> Vec<Self::Entity> {
         vector.into_iter()
             .filter(|e| self.filter(data.clone(), &e))
             .collect()
@@ -84,13 +85,16 @@ pub trait ExistentialAttribute {
 
 pub trait NumericalAttribute {
     type Entity;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize;
+    type Number;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number>;
 }
 
 pub trait CollectionAttribute {
     type Entity;
     type Item;
     fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item>;
+    fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize;
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize;
 }
 
 pub trait StringAttribute {
@@ -102,11 +106,6 @@ pub mod raw {
     pub trait NumericalAttribute {
         type Entity;
         fn calculate(&self, database: &dcd::DCD, project_id: &u64, commit_ids: &Vec<u64>) -> usize;
-    }
-
-    pub trait CollectionAttribute {
-        type Entity;
-        //fn calculate(&self, database: &dcd::DCD, project_id: &u64, commit_ids: &Vec<u64>) -> usize;
     }
 
     pub trait StringAttribute {

@@ -32,7 +32,7 @@ fn _touched_files(path: &str) { // FIXME
         .with_cache("/dejavuii/dejacode/examples/cache")
         .projects()
         .group_by_attrib(project::Language)
-        //.sort_by_attrib(stats::Median(projects::CommitsWhere(require::Require(commits::Changes))))
+        //.sort_by_attrib(stats::Median(projects::CommitsWhere(require::Exists(commits::Changes))))
         .sample(sample::Top(50))
         .squash()
         .to_csv("/dejavuii/dejacode/examples/output/touched_files.csv").unwrap();

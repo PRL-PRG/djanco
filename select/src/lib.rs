@@ -2,20 +2,24 @@
 #[macro_use] pub mod log;
 #[macro_use] pub mod data;
 
+pub mod attrib;
+pub mod project;
+pub mod path;
 pub mod prototype;
+pub mod sample;
+pub mod stats;
+
+pub mod objects;
+pub mod meta;
+
 pub mod names;
 pub mod persistence;
 pub mod djanco;
-pub mod sample;
-pub mod attrib;
-pub mod project;
-pub mod objects;
+
 pub mod csv;
 pub mod dump;
-pub mod meta;
-pub mod stats;
 
-//oub mod io;
+//pub mod io;
 //pub mod query;
 
 use crate::objects::*;

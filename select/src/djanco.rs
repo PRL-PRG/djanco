@@ -114,7 +114,7 @@ impl<T> /* Query for */ QuincunxIter<T> where T: Quincunx {
         GroupIter { spec, data, source }
     }
 
-    pub fn filter_by_attrib<F>(self, mut attrib: F) -> Iter<T> where F: Filter<T> {
+    pub fn filter_by_attrib<F>(self, mut attrib: F) -> Iter<T> where F: Filter<Entity=T> {
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source: Vec<T> = attrib.execute(self.data.clone(), self.consume_source());
@@ -187,7 +187,7 @@ impl<T> /* Query for */ Iter<T> {
         GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
-    pub fn filter_by_attrib<F>(self, mut attrib: F) -> Iter<T> where F: Filter<T> {
+    pub fn filter_by_attrib<F>(self, mut attrib: F) -> Iter<T> where F: Filter<Entity=T> {
         let source = attrib.execute(self.data.clone(), self.source);
         Iter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
@@ -270,7 +270,7 @@ impl<K, T> /* Query for */ GroupIter<K, T> {
     //     GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
     // }
 
-    pub fn filter_by_attrib<F>(self, mut attrib: F) -> GroupIter<K, T> where F: Filter<T> {
+    pub fn filter_by_attrib<F>(self, mut attrib: F) -> GroupIter<K, T> where F: Filter<Entity=T> {
         let data = self.data.clone();
         let source = self.source.into_iter()
             .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))

@@ -23,6 +23,10 @@ use std::time::Duration;
 #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Users;
 #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Paths;
 
+#[derive(Eq, PartialEq,       Clone, Hash)] pub struct CommitsWith<F>(pub F) where F: Filter<Entity=Commit>;
+#[derive(Eq, PartialEq,       Clone, Hash)] pub struct UsersWith<F>(pub F)   where F: Filter<Entity=User>;
+#[derive(Eq, PartialEq,       Clone, Hash)] pub struct PathsWith<F>(pub F)   where F: Filter<Entity=Path>;
+
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Age;
 
 impl Attribute for Id          {}
@@ -40,6 +44,10 @@ impl Attribute for Metadata    {}
 impl Attribute for Commits     {}
 impl Attribute for Users       {}
 impl Attribute for Paths       {}
+
+impl<F> Attribute for CommitsWith<F> where F: Filter<Entity=Commit> {}
+impl<F> Attribute for UsersWith<F>   where F: Filter<Entity=User>   {}
+impl<F> Attribute for PathsWith<F>   where F: Filter<Entity=Path>   {}
 
 impl Attribute for Age         {}
 
@@ -161,6 +169,12 @@ impl CollectionAttribute for Commits {
     fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
         entity.commits(database)
     }
+    fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.commit_count(database)
+    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.commit_count(database)
+    }
 }
 
 impl CollectionAttribute for Users {
@@ -169,6 +183,12 @@ impl CollectionAttribute for Users {
     fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
         entity.users(database)
     }
+    fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.user_count(database)
+    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.user_count(database)
+    }
 }
 
 impl CollectionAttribute for Paths {
@@ -176,6 +196,66 @@ impl CollectionAttribute for Paths {
     type Item = Path;
     fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
         entity.paths(database)
+    }
+    fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.path_count(database)
+    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.path_count(database)
+    }
+}
+
+impl<F> CollectionAttribute for CommitsWith<F> where F: Filter<Entity=Commit> {
+    type Entity = Project;
+    type Item = Commit;
+    fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.commits(database.clone()).into_iter()
+            .filter(|c| self.0.filter(database.clone(), c))
+            .collect()
+    }
+    fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.commits(database.clone()).into_iter()
+            .filter(|c| self.0.filter(database.clone(), c))
+            .count()
+    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.commit_count(database)
+    }
+}
+
+impl<F> CollectionAttribute for UsersWith<F> where F: Filter<Entity=User> {
+    type Entity = Project;
+    type Item = User;
+    fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.users(database.clone()).into_iter()
+            .filter(|u| self.0.filter(database.clone(), u))
+            .collect()
+    }
+    fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.users(database.clone()).into_iter()
+            .filter(|u| self.0.filter(database.clone(), u))
+            .count()
+    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.user_count(database)
+    }
+}
+
+impl<F> CollectionAttribute for PathsWith<F> where F: Filter<Entity=Path> {
+    type Entity = Project;
+    type Item = Path;
+    fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.paths(database.clone()).into_iter()
+            .filter(|p| self.0.filter(database.clone(), p))
+            .collect()
+    }
+    fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.paths(database.clone()).into_iter()
+            .filter(|p| self.0.filter(database.clone(), p))
+            .count()
+    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.user_count(database)
     }
 }
 
@@ -237,78 +317,89 @@ impl StringAttribute for Age {
 
 impl NumericalAttribute for Id {
     type Entity = Project;
-    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.id.into()
+    type Number = usize;
+    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        Some(entity.id.into())
     }
 }
 
 impl NumericalAttribute for Stars {
     type Entity = Project;
-    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.stars.map_or(0usize, |n| n as usize)
+    type Number = usize;
+    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) ->  Option<Self::Number> {
+        entity.stars
     }
 }
 
 impl NumericalAttribute for Issues {
     type Entity = Project;
-    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.issues.map_or(0usize, |n| n as usize)
+    type Number = usize;
+    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        entity.issues
     }
 }
 
 impl NumericalAttribute for AllIssues {
     type Entity = Project;
-    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.all_issues().map_or(0usize, |n| n as usize)
+    type Number = usize;
+    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        entity.all_issues()
     }
 }
 
 impl NumericalAttribute for BuggyIssues {
     type Entity = Project;
-    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.buggy_issues.map_or(0usize, |n| n as usize)
+    type Number = usize;
+    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        entity.buggy_issues
     }
 }
 
 impl NumericalAttribute for Heads {
     type Entity = Project;
-    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.heads.len()
+    type Number = usize;
+    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        Some(entity.heads.len())
     }
 }
 
 impl NumericalAttribute for Metadata {
     type Entity = Project;
-    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.metadata.len()
+    type Number = usize;
+    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        Some(entity.metadata.len())
     }
 }
 
 impl NumericalAttribute for Commits {
     type Entity = Project;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        untangle_mut!(database).commit_count_from(&entity.id)
+    type Number = usize;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        Some(untangle_mut!(database).commit_count_from(&entity.id))
     }
 }
 
 impl NumericalAttribute for Users {
     type Entity = Project;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        untangle_mut!(database).user_count_from(&entity.id)
+    type Number = usize;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        Some(untangle_mut!(database).user_count_from(&entity.id))
     }
 }
 
 impl NumericalAttribute for Paths {
     type Entity = Project;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        untangle_mut!(database).path_count_from(&entity.id)
+    type Number = usize;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        Some(untangle_mut!(database).path_count_from(&entity.id))
     }
 }
 
 impl NumericalAttribute for Age {
     type Entity = Project;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.age(database).as_ref().map_or(0usize, |e| e.as_secs() as usize)
+    type Number = u64;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
+        entity.age(database).as_ref().map(|e| e.as_secs())
     }
 }
 

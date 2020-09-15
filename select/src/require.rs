@@ -107,3 +107,11 @@ impl<C,E,P,T> Filter<T> for Contains<C, P> where C: CollectionAttribute<Entity=T
         }
     }
 }
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Exists<N> (pub N);
+
+impl<T, N> Filter<T> for Exists<N> where N: ExistentialAttribute<Entity=T> {
+    fn filter(&self, data: DataPtr, project: &T) -> bool {
+        self.0.exists(data, project)
+    }
+}

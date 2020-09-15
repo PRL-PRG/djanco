@@ -43,6 +43,118 @@ impl Attribute for Paths       {}
 
 impl Attribute for Age         {}
 
+impl OptionalAttribute for Language {
+    type Entity = Project;
+    fn unknown(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.language.is_some()
+    }
+}
+
+impl OptionalAttribute for Stars {
+    type Entity = Project;
+    fn unknown(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.stars.is_some()
+    }
+}
+
+impl OptionalAttribute for Issues {
+    type Entity = Project;
+    fn unknown(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.issues.is_some()
+    }
+}
+
+impl OptionalAttribute for BuggyIssues {
+    type Entity = Project;
+    fn unknown(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.buggy_issues.is_some()
+    }
+}
+
+impl OptionalAttribute for AllIssues {
+    type Entity = Project;
+    fn unknown(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.all_issues().is_some()
+    }
+}
+
+impl OptionalAttribute for Age {
+    type Entity = Project;
+    fn unknown(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.age(database).is_some()
+    }
+}
+
+impl ExistentialAttribute for Language {
+    type Entity = Project;
+    fn exists(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.language.is_some()
+    }
+}
+
+impl ExistentialAttribute for Stars {
+    type Entity = Project;
+    fn exists(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.stars_or_zero() > 0
+    }
+}
+
+impl ExistentialAttribute for Issues {
+    type Entity = Project;
+    fn exists(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.issues_or_zero() > 0
+    }
+}
+
+impl ExistentialAttribute for BuggyIssues {
+    type Entity = Project;
+    fn exists(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.buggy_issues_or_zero() > 0
+    }
+}
+
+impl ExistentialAttribute for AllIssues {
+    type Entity = Project;
+    fn exists(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.all_issues_or_zero() > 0
+    }
+}
+
+impl ExistentialAttribute for Heads {
+    type Entity = Project;
+    fn exists(&self, _database: DataPtr, entity: &Self::Entity) -> bool {
+        !entity.heads.is_empty()
+    }
+}
+
+impl ExistentialAttribute for Commits {
+    type Entity = Project;
+    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+        untangle_mut!(database).commit_count_from(&entity.id) > 0
+    }
+}
+
+impl ExistentialAttribute for Users {
+    type Entity = Project;
+    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+        untangle_mut!(database).user_count_from(&entity.id) > 0
+    }
+}
+
+impl ExistentialAttribute for Paths {
+    type Entity = Project;
+    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+        untangle_mut!(database).path_count_from(&entity.id) > 0
+    }
+}
+
+impl ExistentialAttribute for Age {
+    type Entity = Project;
+    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool {
+        entity.age(database).map_or(false, |e| e.as_secs() > 0)
+    }
+}
+
 impl CollectionAttribute for Commits {
     type Entity = Project;
     type Item = Commit;

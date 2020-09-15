@@ -72,6 +72,16 @@ pub trait Select<T>: WithNames {
     }
 }
 
+pub trait OptionalAttribute {
+    type Entity;
+    fn unknown(&self, database: DataPtr, entity: &Self::Entity) -> bool;
+}
+
+pub trait ExistentialAttribute {
+    type Entity;
+    fn exists(&self, database: DataPtr, entity: &Self::Entity) -> bool;
+}
+
 pub trait NumericalAttribute {
     type Entity;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize;

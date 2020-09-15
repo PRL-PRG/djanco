@@ -113,7 +113,7 @@ fn main() {
     database.projects()
         //.filter_by_attrib(require::AtLeast(project::Commits, 28))
         .group_by_attrib(project::Language)
-        //.filter_by_attrib(require::AtLeast(project::Stars, 1))
+        .filter_by_attrib(require::Exists(project::Commits))
         //.filter_by_attrib(require::AtLeast(project::Commits, 25))
         //.filter_by_attrib(require::AtLeast(project::Users, 2))
         //.filter_by_attrib(require::Same(project::Language, "Rust"))

@@ -1,6 +1,9 @@
-use crate::{project, djanco, user};
+use crate::djanco;
 use crate::objects;
-use crate::attrib::{AttributeValue, Attribute};
+use crate::user;
+use crate::project;
+use crate::path;
+use crate::attrib::*;
 
 pub trait WithNames {
     fn names() -> Vec<&'static str>;
@@ -74,6 +77,9 @@ impl WithNames for user::Name           { fn names() -> Vec<&'static str> { vec!
 impl WithNames for user::Email          { fn names() -> Vec<&'static str> { vec!["email"]        } }
 impl WithNames for user::Experience     { fn names() -> Vec<&'static str> { vec!["experience"]   } }
 impl WithNames for user::Commits        { fn names() -> Vec<&'static str> { vec!["commits"]      } }
+
+impl WithNames for path::Id             { fn names() -> Vec<&'static str> { vec!["path_id"]      } }
+impl WithNames for path::Path           { fn names() -> Vec<&'static str> { vec!["path"]         } }
 
 macro_rules! join_vec { ($v1:expr, $v2:expr) => {{ $v1.extend($v2); $v1 }} }
 

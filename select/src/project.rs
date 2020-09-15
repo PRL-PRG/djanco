@@ -172,9 +172,7 @@ impl CollectionAttribute for Commits {
     fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
         entity.commit_count(database)
     }
-    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.commit_count(database)
-    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize { self.len(database, entity) }
 }
 
 impl CollectionAttribute for Users {
@@ -186,9 +184,7 @@ impl CollectionAttribute for Users {
     fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
         entity.user_count(database)
     }
-    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.user_count(database)
-    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize { self.len(database, entity) }
 }
 
 impl CollectionAttribute for Paths {
@@ -200,9 +196,7 @@ impl CollectionAttribute for Paths {
     fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
         entity.path_count(database)
     }
-    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.path_count(database)
-    }
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize { self.len(database, entity)  }
 }
 
 impl<F> CollectionAttribute for CommitsWith<F> where F: Filter<Entity=Commit> {
@@ -569,6 +563,31 @@ impl Sort<Project> for Age {
         vector
     }
 }
+
+impl<F> Sort<Project> for CommitsWith<F> where F: Filter<Entity=Commit> {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.commits(data.clone())
+                    .iter().filter(|c|self.0.filter(data.clone(), c)).count());
+        vector
+    }
+}
+
+impl<F> Sort<Project> for UsersWith<F> where F: Filter<Entity=User> {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.users(data.clone())
+                    .iter().filter(|u|self.0.filter(data.clone(), u)).count());
+        vector
+    }
+}
+
+impl<F> Sort<Project> for PathsWith<F> where F: Filter<Entity=Path> {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.paths(data.clone())
+                    .iter().filter(|p|self.0.filter(data.clone(), p)).count());
+        vector
+    }
+}
+
 
 impl Select<Project> for Id {
     type Entity = AttributeValue<Id, ProjectId>;

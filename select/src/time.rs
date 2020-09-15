@@ -33,6 +33,10 @@ impl Display for Seconds {
     }
 }
 
+// impl ToString for Seconds {
+//     fn to_string(&self) -> String { self.0.to_string() }
+// }
+
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Month {
     January(u16), February(u16), March(u16), April(u16), May(u16), June(u16), July(u16),

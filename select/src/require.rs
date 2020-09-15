@@ -106,9 +106,3 @@ impl<C,E,P,T> Filter<T> for Contains<C, P> where C: CollectionAttribute<Entity=T
         }
     }
 }
-
-// impl<C,E,T> Filter<T> for Intersects<C, E> where C: CollectionAttribute<Entity=T,Item=E>, E: Eq {
-//     fn filter(&self, data: DataPtr, element: &T) -> bool {
-//         self.1.iter().any(|e| { self.0.calculate(data.clone(), element).contains(e) })
-//     }
-// }

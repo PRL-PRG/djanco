@@ -73,7 +73,7 @@ impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I
     }
 }
 
-impl<I,C,E> NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Into<usize> + Ord {
+impl<I,C,E>/*baby*/ NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Into<usize> + Ord {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {

@@ -60,6 +60,7 @@ impl WithNames for project::URL         { fn names() -> Vec<&'static str> { vec!
 impl WithNames for project::Language    { fn names() -> Vec<&'static str> { vec!["language"]     } }
 impl WithNames for project::Stars       { fn names() -> Vec<&'static str> { vec!["stars"]        } }
 impl WithNames for project::Issues      { fn names() -> Vec<&'static str> { vec!["issues"]       } }
+impl WithNames for project::AllIssues   { fn names() -> Vec<&'static str> { vec!["all_issues"]   } }
 impl WithNames for project::BuggyIssues { fn names() -> Vec<&'static str> { vec!["buggy_issues"] } }
 //impl WithNames for project::Metadata   { fn names() -> Vec<&'static str> { vec![&self.0.]       } }
 impl WithNames for project::Heads       { fn names() -> Vec<&'static str> { vec!["heads"]        } }

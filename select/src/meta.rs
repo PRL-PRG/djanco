@@ -11,7 +11,9 @@ pub trait ProjectMeta {
     fn get_stars_or_zero(&self)                                -> u64;
     fn get_language(&self)                                     -> Option<String>;
     fn get_language_or_empty(&self)                            -> String;
+    fn get_all_issue_count(&self)                                  -> Option<u64>;
     fn get_issue_count(&self)                                  -> Option<u64>;
+    fn get_all_issue_count_or_zero(&self)                          -> u64 ;
     fn get_issue_count_or_zero(&self)                          -> u64 ;
     fn get_buggy_issue_count(&self)                            -> Option<u64>;
     fn get_buggy_issue_count_or_zero(&self)                    -> u64;
@@ -54,12 +56,25 @@ impl ProjectMeta for Project {
         }
     }
 
+    fn get_all_issue_count(&self) -> Option<u64> {
+        match (self.get_issue_count(), self.get_buggy_issue_count()) {
+            (None, None) => None,
+            (Some(x), None) => Some(x),
+            (None, Some(y)) => Some(y),
+            (Some(x), Some(y)) => Some(x + y),
+        }
+    }
+
     fn get_issue_count(&self) -> Option<u64> {
         self.metadata.get("ght_issue").map(|e| e.parse::<u64>().unwrap())
     }
 
     fn get_issue_count_or_zero(&self) -> u64 {
         self.metadata.get("ght_issue").map_or(0u64, |e| e.parse::<u64>().unwrap())
+    }
+
+    fn get_all_issue_count_or_zero(&self) -> u64 {
+        self.get_issue_count_or_zero() + self.get_buggy_issue_count_or_zero()
     }
 
     fn get_buggy_issue_count(&self) -> Option<u64> {

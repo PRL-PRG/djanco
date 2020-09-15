@@ -89,17 +89,17 @@ impl<C,E,P,T> Filter<T> for Contains<C, P> where C: CollectionAttribute<Entity=T
     fn filter(&self, data: DataPtr, element: &T) -> bool {
         match self {
             Contains::Item(collection_attribute, prototype) => {
-                let objects = collection_attribute.calculate(data.clone(), element);
+                let objects = collection_attribute.items(data.clone(), element);
                 objects.iter().any(|object| prototype.matches(data.clone(), object))
             }
             Contains::Any(collection_attribute, prototypes) => {
-                let objects = collection_attribute.calculate(data.clone(), element);
+                let objects = collection_attribute.items(data.clone(), element);
                 prototypes.iter().any(|prototype| {
                     objects.iter().any(|object| prototype.matches(data.clone(), object))
                 })
             }
             Contains::All(collection_attribute, prototypes) => {
-                let objects = collection_attribute.calculate(data.clone(), element);
+                let objects = collection_attribute.items(data.clone(), element);
                 prototypes.iter().all(|prototype| {
                     objects.iter().any(|object| prototype.matches(data.clone(), object))
                 })

@@ -80,7 +80,7 @@ pub trait NumericalAttribute {
 pub trait CollectionAttribute {
     type Entity;
     type Item;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item>;
+    fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item>;
 }
 
 pub trait StringAttribute {

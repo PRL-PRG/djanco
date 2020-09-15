@@ -176,6 +176,15 @@ impl Project {
     pub fn commits(&self, data: DataPtr) -> Vec<Commit> { untangle_mut!(data).commits_from(&self.id) }
     pub fn paths(&self, data: DataPtr) -> Vec<Path> { untangle_mut!(data).paths_from(&self.id) }
     pub fn users(&self, data: DataPtr) -> Vec<User> { untangle_mut!(data).users_from(&self.id) }
+
+    pub fn all_issues(&self)  -> Option<usize> {
+        match (self.issues, self.buggy_issues) {
+            (None, None) => None,
+            (Some(x), None) => Some(x),
+            (None, Some(y)) => Some(y),
+            (Some(x), Some(y)) => Some(x + y),
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -249,6 +258,7 @@ impl Project {
     }
 
     pub fn stars_or_zero(&self) -> usize { self.stars.map_or(0usize, |n| n as usize) }
+    pub fn all_issues_or_zero(&self) -> usize { self.issues_or_zero() + self.buggy_issues_or_zero() }
     pub fn issues_or_zero(&self) -> usize { self.issues.map_or(0usize, |n| n as usize) }
     pub fn buggy_issues_or_zero(&self) -> usize { self.buggy_issues.map_or(0usize, |n| n as usize) }
 

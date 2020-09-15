@@ -13,6 +13,7 @@ pub mod objects;
 pub mod csv;
 pub mod dump;
 pub mod meta;
+pub mod stats;
 
 //oub mod io;
 //pub mod query;

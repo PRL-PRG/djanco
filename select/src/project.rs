@@ -13,6 +13,7 @@ use std::time::Duration;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Language;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Stars;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Issues;
+#[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct AllIssues;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct BuggyIssues;
 
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Heads;
@@ -30,6 +31,7 @@ impl Attribute for URL         {}
 impl Attribute for Language    {}
 impl Attribute for Stars       {}
 impl Attribute for Issues      {}
+impl Attribute for AllIssues   {}
 impl Attribute for BuggyIssues {}
 
 impl Attribute for Heads       {}
@@ -44,7 +46,7 @@ impl Attribute for Age         {}
 impl CollectionAttribute for Commits {
     type Entity = Project;
     type Item = Commit;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+    fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
         entity.commits(database)
     }
 }
@@ -52,7 +54,7 @@ impl CollectionAttribute for Commits {
 impl CollectionAttribute for Users {
     type Entity = Project;
     type Item = User;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+    fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
         entity.users(database)
     }
 }
@@ -60,7 +62,7 @@ impl CollectionAttribute for Users {
 impl CollectionAttribute for Paths {
     type Entity = Project;
     type Item = Path;
-    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+    fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
         entity.paths(database)
     }
 }
@@ -100,6 +102,13 @@ impl StringAttribute for Issues {
     }
 }
 
+impl StringAttribute for AllIssues {
+    type Entity = Project;
+    fn extract(&self, _database: DataPtr, entity: &Self::Entity) -> String {
+        entity.all_issues().map_or(String::new(), |e| e.to_string())
+    }
+}
+
 impl StringAttribute for BuggyIssues {
     type Entity = Project;
     fn extract(&self, _database: DataPtr, entity: &Self::Entity) -> String {
@@ -132,6 +141,13 @@ impl NumericalAttribute for Issues {
     type Entity = Project;
     fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
         entity.issues.map_or(0usize, |n| n as usize)
+    }
+}
+
+impl NumericalAttribute for AllIssues {
+    type Entity = Project;
+    fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.all_issues().map_or(0usize, |n| n as usize)
     }
 }
 
@@ -212,6 +228,13 @@ impl Group<Project> for Issues {
     }
 }
 
+impl Group<Project> for AllIssues {
+    type Key = AttributeValue<Self, usize>;
+    fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
+        AttributeValue::new(self, project.all_issues_or_zero())
+    }
+}
+
 impl Group<Project> for BuggyIssues {
     type Key = AttributeValue<Self, usize>;
     fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
@@ -255,6 +278,12 @@ impl Sort<Project> for Stars {
 impl Sort<Project> for Issues {
     fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
         vector.sort_by_key(|f| f.issues); vector
+    }
+}
+
+impl Sort<Project> for AllIssues {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|f| f.all_issues()); vector
     }
 }
 
@@ -339,6 +368,13 @@ impl Select<Project> for Issues {
     type Entity = AttributeValue<Issues, Option<usize>>;
     fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
         AttributeValue::new(self, project.issues)
+    }
+}
+
+impl Select<Project> for AllIssues {
+    type Entity = AttributeValue<AllIssues, Option<usize>>;
+    fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
+        AttributeValue::new(self, project.all_issues())
     }
 }
 
@@ -439,6 +475,16 @@ impl raw::StringAttribute for Issues {
     }
 }
 
+impl raw::StringAttribute for AllIssues {
+    type Entity = dcd::Project;
+    fn extract(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> String {
+        database.get_project(*project_id)
+            .map(|p| p.get_all_issue_count())
+            .flatten()
+            .map_or(String::new(), |e| e.to_string())
+    }
+}
+
 impl raw::StringAttribute for BuggyIssues {
     type Entity = dcd::Project;
     fn extract(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> String {
@@ -469,6 +515,14 @@ impl raw::NumericalAttribute for Issues {
     fn calculate(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> usize {
         database.get_project(*project_id)
             .map_or(0usize, |p| p.get_issue_count_or_zero() as usize)
+    }
+}
+
+impl raw::NumericalAttribute for AllIssues {
+    type Entity = dcd::Project;
+    fn calculate(&self, database: &DCD, project_id: &u64, _commit_ids: &Vec<u64>) -> usize {
+        database.get_project(*project_id)
+            .map_or(0usize, |p| p.get_all_issue_count_or_zero() as usize)
     }
 }
 

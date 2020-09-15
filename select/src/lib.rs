@@ -14,16 +14,8 @@ pub mod csv;
 pub mod dump;
 pub mod meta;
 
-//mod pythagorean;
-//pub mod dump;
-//mod io;
+//oub mod io;
 //pub mod query;
-//pub mod cachedb;
-
-//pub mod mockdb;
-//pub mod selectors;
-//__lib.rs
-//csv2.rs
 
 use crate::objects::*;
 use crate::log::*;

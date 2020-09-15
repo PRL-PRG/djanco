@@ -72,26 +72,6 @@ pub trait Select<T>: WithNames {
     }
 }
 
-// pub trait SortEach {
-//     /*type Key;*/ // TODO
-//     fn sort(&self, database: DataPtr, /*key: &Self::Key,*/ projects: &mut Vec<Project>);
-// }
-//
-// pub trait FilterEach {
-//     /*type Key;*/ // TODO
-//     fn filter(&self, database: DataPtr, /*key: &Self::Key,*/ project: &Project) -> bool;
-// }
-//
-// pub trait SampleEach {
-//     /*type Key;*/ // TODO
-//     fn sample(&self, database: DataPtr, /*key: &Self::Key,*/ projects: Vec<Project>) -> Vec<Project>;
-// }
-//
-// pub trait SelectEach: WithNames {
-//     type Entity;
-//     fn select(&self, database: DataPtr, /*key: &Self::Key,*/ project: Project) -> Self::Entity;
-// }
-
 pub trait NumericalAttribute {
     type Entity;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize;

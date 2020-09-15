@@ -126,10 +126,18 @@ impl<T> /* Query for */ QuincunxIter<T> where T: Quincunx {
         Iter { spec, data, source }
     }
 
-    pub fn select_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=R> {
+    pub fn map_to_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=R> {
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source = attrib.execute(self.data.clone(), self.consume_source());
+        Iter { spec, data, source }
+    }
+
+    pub fn flat_map_to_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=Vec<R>> {
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+        let source = attrib.execute(self.data.clone(), self.consume_source())
+            .into_iter().flat_map(|e| e).collect();
         Iter { spec, data, source }
     }
 
@@ -187,8 +195,14 @@ impl<T> /* Query for */ Iter<T> {
         Iter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
-    pub fn select_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=R> {
+    pub fn map_to_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=R> {
         let source = attrib.execute(self.data.clone(), self.source);
+        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn flat_map_to_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=Vec<R>> {
+        let source = attrib.execute(self.data.clone(), self.source)
+                                .into_iter().flat_map(|e| e).collect();
         Iter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
@@ -270,7 +284,15 @@ impl<K, T> /* Query for */ GroupIter<K, T> {
         GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
-    pub fn select_attrib<S, R>(self, mut attrib: S) -> GroupIter<K, R> where S: Select<T, Entity=R> {
+    pub fn map_to_attrib<S, R>(self, mut attrib: S) -> GroupIter<K, R> where S: Select<T, Entity=R> {
+        let data = self.data.clone();
+        let source = self.source.into_iter()
+            .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
+            .collect();
+        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn flat_map_to_attrib<S, R>(self, mut attrib: S) -> GroupIter<K, R> where S: Select<T, Entity=R> {
         let data = self.data.clone();
         let source = self.source.into_iter()
             .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))

@@ -1,7 +1,8 @@
 use regex::Regex;
-use crate::attrib::{NumericalAttribute, StringAttribute, Filter, LoadFilter, raw, CollectionAttribute};
-use crate::data::DataPtr;
 use dcd::DCD;
+
+use crate::attrib::*;
+use crate::data::DataPtr;
 use crate::prototype::Prototype;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtLeast<N>(pub N, pub usize);

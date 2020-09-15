@@ -1,7 +1,7 @@
 use select::{Djanco, project, sample, require};
 use select::objects::*;
-//use select::csv::*;
-use select::dump::*;
+use select::csv::*;
+//use select::dump::*;
 use select::prototype::api::*;
 
 // TODO
@@ -25,11 +25,11 @@ fn main() {
         //.filter_by_attrib(require::AtLeast(project::Users, 2))
         //.filter_by_attrib(require::Same(project::Language, "Rust"))
         //.filter_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
-        .sort_by_attrib(project::Stars)
+        .sort_by_attrib(project::Age)
         .filter_by_attrib(require::Contains::Item(project::Users, User::with_name("Konrad Siek")))
         .sample(sample::Top(1))
         .squash()
-        //.select_attrib(project::Id)
-        //.to_csv("projects.csv").unwrap();
-        .dump_all_info_to("dump").unwrap();
+        .flat_map_to_attrib(project::Commits)
+        .to_csv("commits.csv").unwrap();
+        //.dump_all_info_to("dump").unwrap();
 }

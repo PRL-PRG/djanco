@@ -5,6 +5,7 @@ use crate::meta::*;
 
 use dcd::{DCD, Database};
 use itertools::Itertools;
+use std::time::Duration;
 
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
@@ -21,6 +22,8 @@ use itertools::Itertools;
 #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Users;
 #[derive(Eq, PartialEq,       Clone, Hash)] pub struct Paths;
 
+#[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Age;
+
 impl Attribute for Id          {}
 impl Attribute for URL         {}
 
@@ -36,11 +39,13 @@ impl Attribute for Commits     {}
 impl Attribute for Users       {}
 impl Attribute for Paths       {}
 
+impl Attribute for Age         {}
+
 impl CollectionAttribute for Commits {
     type Entity = Project;
     type Item = Commit;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
-        untangle_mut!(database).commits_from(&entity.id)
+        entity.commits(database)
     }
 }
 
@@ -48,7 +53,7 @@ impl CollectionAttribute for Users {
     type Entity = Project;
     type Item = User;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
-        untangle_mut!(database).users_from(&entity.id)
+        entity.users(database)
     }
 }
 
@@ -56,7 +61,7 @@ impl CollectionAttribute for Paths {
     type Entity = Project;
     type Item = Path;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
-        untangle_mut!(database).paths_from(&entity.id)
+        entity.paths(database)
     }
 }
 
@@ -99,6 +104,13 @@ impl StringAttribute for BuggyIssues {
     type Entity = Project;
     fn extract(&self, _database: DataPtr, entity: &Self::Entity) -> String {
         entity.buggy_issues.map_or(String::new(), |e| e.to_string())
+    }
+}
+
+impl StringAttribute for Age {
+    type Entity = Project;
+    fn extract(&self, database: DataPtr, entity: &Self::Entity) -> String {
+        entity.age(database).as_ref().map_or(String::new(), |e| e.as_secs().to_string())
     }
 }
 
@@ -165,6 +177,13 @@ impl NumericalAttribute for Paths {
     }
 }
 
+impl NumericalAttribute for Age {
+    type Entity = Project;
+    fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> usize {
+        entity.age(database).as_ref().map_or(0usize, |e| e.as_secs() as usize)
+    }
+}
+
 impl Group<Project> for Id {
     type Key = ProjectId;
     fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
@@ -197,6 +216,13 @@ impl Group<Project> for BuggyIssues {
     type Key = AttributeValue<Self, usize>;
     fn select(&self, _: DataPtr, project: &Project) -> Self::Key {
         AttributeValue::new(self, project.buggy_issues_or_zero())
+    }
+}
+
+impl Group<Project> for Age {
+    type Key = AttributeValue<Self, Duration>;
+    fn select(&self, data: DataPtr, project: &Project) -> Self::Key {
+        AttributeValue::new(self, project.age(data).unwrap_or(Duration::from_secs(0)))
     }
 }
 
@@ -274,6 +300,13 @@ impl Sort<Project> for Paths {
     }
 }
 
+impl Sort<Project> for Age {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
+        vector.sort_by_key(|p| p.age(data.clone()));
+        vector
+    }
+}
+
 impl Select<Project> for Id {
     type Entity = AttributeValue<Id, ProjectId>;
     fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
@@ -317,9 +350,9 @@ impl Select<Project> for BuggyIssues {
 }
 
 impl Select<Project> for Heads {
-    type Entity = AttributeValue<Heads, usize>;
+    type Entity = AttributeValue<Heads, Vec<(String, CommitId)>>; // TODO maybe make Head object type
     fn select(&self, _: DataPtr, project: Project) -> Self::Entity {
-        AttributeValue::new(self, project.heads.len())
+        AttributeValue::new(self, project.heads.clone())
     }
 }
 
@@ -333,23 +366,30 @@ impl Select<Project> for Heads {
 // }
 
 impl Select<Project> for Commits {
-    type Entity = AttributeValue<Commits, usize>;
+    type Entity = Vec<Commit>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        AttributeValue::new(self, untangle_mut!(database).commit_count_from(&project.id))
+        untangle_mut!(database).commits_from(&project.id)
     }
 }
 
 impl Select<Project> for Users {
-    type Entity = AttributeValue<Users, usize>;
+    type Entity = Vec<User>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        AttributeValue::new(self, untangle_mut!(database).user_count_from(&project.id))
+        untangle_mut!(database).users_from(&project.id)
     }
 }
 
 impl Select<Project> for Paths {
-    type Entity = AttributeValue<Paths, usize>;
+    type Entity = Vec<Path>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
-        AttributeValue::new(self, untangle_mut!(database).path_count_from(&project.id))
+        untangle_mut!(database).paths_from(&project.id)
+    }
+}
+
+impl Select<Project> for Age {
+    type Entity = Duration;
+    fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
+        project.age(database).unwrap_or(Duration::from_secs(0))
     }
 }
 

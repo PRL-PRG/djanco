@@ -55,17 +55,18 @@ impl WithNames for objects::Path   {
     }
 }
 
-impl WithNames for project::Id          { fn names() -> Vec<&'static str> { vec!["project_id"]  } }
-impl WithNames for project::URL         { fn names() -> Vec<&'static str> { vec!["url"] } }
+impl WithNames for project::Id          { fn names() -> Vec<&'static str> { vec!["project_id"]   } }
+impl WithNames for project::URL         { fn names() -> Vec<&'static str> { vec!["url"]          } }
 impl WithNames for project::Language    { fn names() -> Vec<&'static str> { vec!["language"]     } }
 impl WithNames for project::Stars       { fn names() -> Vec<&'static str> { vec!["stars"]        } }
 impl WithNames for project::Issues      { fn names() -> Vec<&'static str> { vec!["issues"]       } }
 impl WithNames for project::BuggyIssues { fn names() -> Vec<&'static str> { vec!["buggy_issues"] } }
-//impl WithNames for project::Metadata    { fn names() -> Vec<&'static str> { vec![&self.0.]  } }
-impl WithNames for project::Heads       { fn names() -> Vec<&'static str> { vec!["heads"]   } }
-impl WithNames for project::Commits     { fn names() -> Vec<&'static str> { vec!["commits"] } }
-impl WithNames for project::Users       { fn names() -> Vec<&'static str> { vec!["users"]   } }
-impl WithNames for project::Paths       { fn names() -> Vec<&'static str> { vec!["paths"]   } }
+//impl WithNames for project::Metadata   { fn names() -> Vec<&'static str> { vec![&self.0.]       } }
+impl WithNames for project::Heads       { fn names() -> Vec<&'static str> { vec!["heads"]        } }
+impl WithNames for project::Commits     { fn names() -> Vec<&'static str> { vec!["commits"]      } }
+impl WithNames for project::Users       { fn names() -> Vec<&'static str> { vec!["users"]        } }
+impl WithNames for project::Paths       { fn names() -> Vec<&'static str> { vec!["paths"]        } }
+impl WithNames for project::Age         { fn names() -> Vec<&'static str> { vec!["age"]          } }
 
 macro_rules! join_vec { ($v1:expr, $v2:expr) => {{ $v1.extend($v2); $v1 }} }
 

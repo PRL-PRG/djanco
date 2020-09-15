@@ -7,6 +7,8 @@ use chrono::{Date, Utc, DateTime, TimeZone};
 use serde::{Serialize, Deserialize};
 
 use crate::meta::ProjectMeta;
+use crate::data::DataPtr;
+use std::time::Duration;
 
 /**== Time====== ================================================================================**/
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -168,11 +170,25 @@ pub struct Project {
     pub metadata: HashMap<String, String>, // FIXME remove
 }
 
+impl Project {
+    pub fn age(&self, data: DataPtr) -> Option<Duration> { untangle_mut!(data).age_of(&self.id) }
+
+    pub fn commits(&self, data: DataPtr) -> Vec<Commit> { untangle_mut!(data).commits_from(&self.id) }
+    pub fn paths(&self, data: DataPtr) -> Vec<Path> { untangle_mut!(data).paths_from(&self.id) }
+    pub fn users(&self, data: DataPtr) -> Vec<User> { untangle_mut!(data).users_from(&self.id) }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
     pub email: String,
     pub name: String,
+}
+
+impl User {
+    pub fn experience(&self, data: DataPtr) -> Option<Duration> { untangle_mut!(data).experience_of(&self.id) }
+    pub fn authored_commits(&self, data: DataPtr) -> Vec<Commit> { untangle_mut!(data).authored_commits_of(&self.id) }
+    pub fn committed_commits(&self, data: DataPtr) -> Vec<Commit> { untangle_mut!(data).committed_commits_of(&self.id) }
 }
 
 #[derive(Clone, Serialize, Deserialize)] // TODO implement by hand

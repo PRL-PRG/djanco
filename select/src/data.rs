@@ -16,6 +16,7 @@ use crate::log::*;
 use crate::objects::*;
 use crate::attrib::*;
 use crate::persistence::*;
+use crate::djanco::Spec;
 
 macro_rules! give_me { ($option:expr)  => { $option.as_ref().unwrap() } }
 
@@ -73,16 +74,28 @@ impl Data {
         Self::new_with_filters(warehouse, cache, timestamp, seed, log_level, None)
     }
 
+    pub fn from_warehouse(dcd: DCD, warehouse: &PathBuf, cache: &Option<PathBuf>,
+        timestamp: Month, seed: u128, log_level: LogLevel) -> DataPtr {
+        Self::from_warehouse_with_filters(dcd, warehouse, cache, timestamp, seed, log_level, None)
+    }
+
     pub fn new_with_filters(warehouse: &PathBuf, cache: &Option<PathBuf>,
                timestamp: Month, seed: u128, log_level: LogLevel,
                filters: Option<Vec<Box<dyn LoadFilter>>>) -> DataPtr {
+        //let spec = djanco::Spec::from_paths(warehouse.clone(), cache.clone(), seed, timestamp, log_level);
+        let dcd = DCD::new(warehouse.to_str().unwrap().to_string());
+        Self::from_warehouse_with_filters(dcd, warehouse, cache, timestamp, seed, log_level, filters)
+    }
 
-        let spec = djanco::Spec::from_paths(warehouse.clone(), cache.clone(), seed, timestamp, log_level);
-        let warehouse = DCD::new(spec.path_as_string());
+    pub fn from_warehouse_with_filters(dcd: DCD, warehouse: &PathBuf, cache: &Option<PathBuf>,
+                                       timestamp: Month, seed: u128, log_level: LogLevel,
+                                       filters: Option<Vec<Box<dyn LoadFilter>>>) -> DataPtr {
+
+        let spec = Spec::from_paths(warehouse.clone(), cache.clone(), seed, timestamp, log_level);
 
         let data = Data {
             spec,
-            warehouse,
+            warehouse: dcd,
 
             filters: filters.unwrap_or(vec![]),
 

@@ -106,6 +106,8 @@ impl<T> Iterator for QuincunxIter<T> where T: Quincunx {
 
 impl<T> /* Query for */ QuincunxIter<T> where T: Quincunx {
     pub fn group_by_attrib<K, G>(self, mut attrib: G) -> GroupIter<K, T> where G: Group<T, Key=K>, K: Hash + Eq {
+        //log_item!("Grouping by {}", attrib);
+
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source = attrib.execute(self.data.clone(), self.consume_source());

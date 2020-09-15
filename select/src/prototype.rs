@@ -1,11 +1,26 @@
-use crate::objects;
+use regex::Regex;
 
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+use crate::objects;
+use crate::data::DataPtr;
+
+#[derive(Clone)]
+pub enum Stringy { String(String), Regex(Regex) }
+
+impl Stringy {
+    pub fn eq(&self, other: &String) -> bool {
+        match self {
+            Stringy::String(string) => string.eq(other),
+            Stringy::Regex(regex) => regex.is_match(other),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Project {
     pub id:           Option<objects::ProjectId>,
-    pub url:          Option<String>,
+    pub url:          Option<Stringy>,
     pub last_update:  Option<i64>,
-    pub language:     Option<Option<String>>,
+    pub language:     Option<Option<Stringy>>,
     pub stars:        Option<Option<usize>>,
     pub issues:       Option<Option<usize>>,
     pub buggy_issues: Option<Option<usize>>,
@@ -23,8 +38,9 @@ impl Project {
 
 impl Project {
     pub fn with_id<N>(mut self, id: N) -> Project where N: Into<objects::ProjectId> { self.id = Some(id.into()); self }
+    pub fn with_url<S>(mut self, url: S) -> Project where S: Into<String> { self.url = Some(Stringy::String(url.into())); self }
     pub fn with_last_update(mut self, last_update: i64) -> Project { self.last_update = Some(last_update); self  }
-    pub fn with_language<S>(mut self, language: S) -> Project where S: Into<String> { self.language = Some(Some(language.into())); self }
+    pub fn with_language<S>(mut self, language: S) -> Project where S: Into<String> { self.language = Some(Some(Stringy::String(language.into()))); self }
     pub fn with_stars(mut self, stars: usize) -> Project { self.stars = Some(Some(stars)); self }
     pub fn with_issues(mut self, issues: usize) -> Project { self.issues = Some(Some(issues)); self }
     pub fn with_buggy_issues(mut self, buggy_issues: usize) -> Project { self.buggy_issues = Some(Some(buggy_issues)); self }
@@ -32,33 +48,60 @@ impl Project {
     pub fn with_unknown_stars(mut self) -> Project { self.stars = Some(None); self }
     pub fn with_unknown_issues(mut self) -> Project { self.issues = Some(None); self }
     pub fn with_unknown_buggy_issues(mut self) -> Project { self.buggy_issues = Some(None); self }
+
+    pub fn with_url_like<S>(mut self, url: S) -> Project where S: Into<String> {
+        self.url = Some(Stringy::Regex(Regex::new(url.into().as_str()).unwrap()));
+        self
+    }
+    pub fn with_language_like<S>(mut self, language: S) -> Project where S: Into<String> {
+        self.language = Some(Some(Stringy::Regex(Regex::new(language.into().as_str()).unwrap())));
+        self
+    }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone)]
 pub struct User {
     pub id: Option<objects::UserId>,
-    pub email: Option<String>,
-    pub name: Option<String>, // TODO maybe also regex option?
+    pub email: Option<Stringy>,
+    pub name: Option<Stringy>, // TODO maybe also regex option?
 }
 
 impl User {
     pub fn new() -> Self { User { id: None, email: None, name: None } }
-    pub fn with_id<N>(mut self, id: N) -> User where N: Into<objects::UserId> { self.id = Some(id.into()); self }
-    pub fn with_email<S>(mut self, email: S) -> User where S: Into<String> { self.email = Some(email.into()); self }
-    pub fn with_name<S>(mut self, name: S) -> User where S: Into<String> { self.name = Some(name.into()); self }
+
+    pub fn with_id<N>(mut self, id: N) -> User where N: Into<objects::UserId> {
+        self.id = Some(id.into());
+        self
+    }
+    pub fn with_email<S>(mut self, email: S) -> User where S: Into<String> {
+        self.email = Some(Stringy::String(email.into()));
+        self
+    }
+    pub fn with_name<S>(mut self, name: S) -> User where S: Into<String> {
+        self.name = Some(Stringy::String(name.into()));
+        self
+    }
+    pub fn with_email_like<S>(mut self, email: S) -> User where S: Into<String> {
+        self.email = Some(Stringy::Regex(Regex::new(email.into().as_str()).unwrap()));
+        self
+    }
+    pub fn with_name_like<S>(mut self, name: S) -> User where S: Into<String> {
+        self.name = Some(Stringy::Regex(Regex::new(name.into().as_str()).unwrap()));
+        self
+    }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone)]
 pub struct Commit {
     pub id: Option<objects::CommitId>,
-    pub hash: Option<String>,
+    pub hash: Option<Stringy>,
     pub author: Option<objects::UserId>,
     pub committer: Option<objects::UserId>,
     pub author_time: Option<i64>,
     pub committer_time: Option<i64>,
     pub additions: Option<Option<u64>>,
     pub deletions: Option<Option<u64>>,
-    pub message: Option<Option<String>>,
+    pub message: Option<Option<Stringy>>,
     pub parents: Option<Vec<objects::CommitId>>,
 }
 
@@ -76,7 +119,7 @@ impl Commit {
 
 impl Commit {
     pub fn with_id<N>(mut self, id: N) -> Commit where N: Into<objects::CommitId> { self.id = Some(id.into()); self }
-    pub fn with_hash<S>(mut self, hash: S) -> Commit where S: Into<String> { self.hash = Some(hash.into()); self }
+    pub fn with_hash<S>(mut self, hash: S) -> Commit where S: Into<String> { self.hash = Some(Stringy::String(hash.into())); self }
     pub fn with_author<N>(mut self, author: N) -> Commit where N: Into<objects::UserId> { self.author = Some(author.into()); self }
     pub fn with_committer<N>(mut self, committer: N) -> Commit where N: Into<objects::UserId> { self.committer = Some(committer.into()); self }
     pub fn with_author_time<N>(mut self, author_time: N) -> Commit where N: Into<i64> { self.author_time = Some(author_time.into()); self }
@@ -85,7 +128,7 @@ impl Commit {
     pub fn with_unknown_additions(mut self) -> Commit { self.additions = Some(None); self }
     pub fn with_deletions<N>(mut self, deletions: N) -> Commit where N: Into<u64> { self.deletions = Some(Some(deletions.into())); self }
     pub fn with_unknown_deletions(mut self) -> Commit { self.deletions = Some(None); self }
-    pub fn with_message<S>(mut self, message: S) -> Commit where S: Into<String> { self.message = Some(Some(message.into())); self }
+    pub fn with_message<S>(mut self, message: S) -> Commit where S: Into<String> { self.message = Some(Some(Stringy::String(message.into()))); self }
     pub fn with_unknown_message(mut self) -> Commit { self.message = Some(None); self }
     pub fn with_no_parents(mut self) -> Commit { self.parents = Some(Vec::new()); self }
     pub fn with_parent<N>(mut self, parent: N) -> Commit where N: Into<objects::CommitId> {
@@ -93,34 +136,46 @@ impl Commit {
         self.parents.as_mut().unwrap().push(parent.into());
         self
     }
+    pub fn with_hash_like<S>(mut self, hash: S) -> Commit where S: Into<String> {
+        self.hash = Some(Stringy::Regex(Regex::new(hash.into().as_str()).unwrap()));
+        self
+    }
+    pub fn with_message_like<S>(mut self, message: S) -> Commit where S: Into<String> {
+        self.message = Some(Some(Stringy::Regex(Regex::new(message.into().as_str()).unwrap())));
+        self
+    }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone)]
 pub struct Path {
     pub id: Option<objects::PathId>,
-    pub path: Option<String>,
+    pub path: Option<Stringy>,
 }
 
 impl Path {
     pub fn new() -> Self { Path { id: None, path: None } }
     pub fn with_id<N>(mut self, id: N) -> Path where N: Into<objects::PathId> { self.id = Some(id.into()); self }
-    pub fn with_path<S>(mut self, path: S) -> Path where S: Into<String> { self.path = Some(path.into()); self }
+    pub fn with_path<S>(mut self, path: S) -> Path where S: Into<String> { self.path = Some(Stringy::String(path.into())); self }
+    pub fn with_path_like<S>(mut self, path: S) -> Path where S: Into<String> {
+        self.path = Some(Stringy::Regex(Regex::new(path.into().as_str()).unwrap()));
+        self
+    }
 }
 
 pub trait Prototype<T> {
-    fn matches(self, object: &T) -> bool;
+    fn matches(&self, data: DataPtr, object: &T) -> bool;
 }
 
 macro_rules! try_to_reject {
     ($prototype:expr,$object:expr) => {
-        if let Some(v) = $prototype {
-            if $object != v { return false }
+        if let Some(v) = $prototype.as_ref() {
+            if v.eq(&$object) { return false }
         }
     }
 }
 
 impl Prototype<objects::Project> for Project {
-    fn matches(self, object: &objects::Project) -> bool {
+    fn matches(&self, _: DataPtr, object: &objects::Project) -> bool {
         try_to_reject!(self.id, object.id);
         try_to_reject!(self.url, object.url);
         try_to_reject!(self.last_update, object.last_update);
@@ -131,7 +186,7 @@ impl Prototype<objects::Project> for Project {
     }
 }
 impl Prototype<objects::Commit> for Commit  {
-    fn matches(self, object: &objects::Commit) -> bool {
+    fn matches(&self, data: DataPtr, object: &objects::Commit) -> bool {
         try_to_reject!(self.id, object.id);
         try_to_reject!(self.hash, object.hash);
         try_to_reject!(self.author, object.author);
@@ -140,9 +195,42 @@ impl Prototype<objects::Commit> for Commit  {
         try_to_reject!(self.committer_time, object.committer_time);
         try_to_reject!(self.additions, object.additions);
         try_to_reject!(self.deletions, object.deletions);
-        try_to_reject!(self.message, object.message);
 
-        if let Some(parents) = self.parents {
+        if let Some(message) = &self.message {
+            let object_message = untangle_mut!(data).message_of(&object.id);
+
+            match (&object_message, message) {
+                (Some(object), Some(Stringy::String(message))) => {
+                    let prototype = message.clone().into_bytes();
+                    if object.contents != prototype { return false } else { /*same*/ }
+                }
+                (Some(object), Some(Stringy::Regex(regex))) => {
+                    let string = String::from_utf8_lossy(object.contents.as_slice());
+                    if regex.is_match(string.as_ref()) { return false } else { /*same*/ }
+                }
+                (None, None) => { /*same*/ },
+                _ => return false,
+            }
+
+
+
+            // match message.as_ref() {
+            //     Stringy::String(message) => {
+            //         match (object_message, prototype_message) {
+            //             (Some(object), Some(prototype)) => {
+            //                 if object.contents != prototype { return false }
+            //             },
+            //             (None, None) => { /*same*/ },
+            //             _ => return false,
+            //         }
+            //     }
+            //     Stringy::Regex(regex) => {
+            //
+            //     }
+            // }
+        }
+
+        if let Some(parents) = self.parents.as_ref() {
             if parents.iter().any(|commit_id| !object.parents.contains(commit_id)) {
                 return false;
             }
@@ -153,14 +241,19 @@ impl Prototype<objects::Commit> for Commit  {
 }
 
 impl Prototype<objects::User> for User    {
-    fn matches(self, object: &objects::User) -> bool {
-        unimplemented!()
+    fn matches(&self, _: DataPtr, object: &objects::User) -> bool {
+        try_to_reject!(self.id, object.id);
+        try_to_reject!(self.email, object.email);
+        try_to_reject!(self.name, object.name);
+        return true;
     }
 }
 
 impl Prototype<objects::Path> for Path    {
-    fn matches(self, object: &objects::Path) -> bool {
-        unimplemented!()
+    fn matches(&self, _: DataPtr, object: &objects::Path) -> bool {
+        try_to_reject!(self.id, object.id);
+        try_to_reject!(self.path, object.path);
+        return true;
     }
 }
 

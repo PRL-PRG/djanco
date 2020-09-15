@@ -26,7 +26,7 @@ fn main() {
         //.filter_by_attrib(require::Same(project::Language, "Rust"))
         //.filter_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
         .sort_by_attrib(project::Stars)
-        .filter_by_attrib(require::Contains(project::Users, User::with_name("Konrad Siek"))
+        .filter_by_attrib(require::Contains::Item(project::Users, User::with_name("Konrad Siek")))
         .sample(sample::Top(1))
         .squash()
         //.select_attrib(project::Id)

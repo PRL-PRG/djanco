@@ -420,8 +420,8 @@ impl /* DataAccess for */ Data {
         lazy_age_from_project!(self).get(project).map(|(max, min)| Duration::from_secs(max - min))
     }
 
-    pub fn message_of(&mut self, commit: &CommitId) -> Option<&Message> {
-        lazy_message_from_commit!(self).get(commit)
+    pub fn message_of(&mut self, commit: &CommitId) -> Option<Message> {
+        lazy_message_from_commit!(self).get(commit).map(|msg| msg.clone())
     }
 
     pub fn experience_of(&mut self, user: &UserId) -> Option<Duration> {

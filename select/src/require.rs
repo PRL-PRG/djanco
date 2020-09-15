@@ -84,23 +84,23 @@ impl<S, T> LoadFilter for Matches<S> where S: raw::StringAttribute<Entity=T> + C
     All(C, Vec<E>),
 }
 
-impl<C,E,P,T> Filter<T> for Contains<C, P> where C: CollectionAttribute<Entity=T,Item=E>, E: Eq, P: Prototype<T> {
+impl<C,E,P,T> Filter<T> for Contains<C, P> where C: CollectionAttribute<Entity=T,Item=E>, E: Eq, P: Prototype<E> {
     fn filter(&self, data: DataPtr, element: &T) -> bool {
         match self {
             Contains::Item(collection_attribute, prototype) => {
-                let objects = collection_attribute.calculate(data, element);
-                objects.iter().any(|object| prototype.matches(object))
+                let objects = collection_attribute.calculate(data.clone(), element);
+                objects.iter().any(|object| prototype.matches(data.clone(), object))
             }
             Contains::Any(collection_attribute, prototypes) => {
-                let objects = collection_attribute.calculate(data, element);
+                let objects = collection_attribute.calculate(data.clone(), element);
                 prototypes.iter().any(|prototype| {
-                    objects.iter().any(|object| prototype.matches(object))
+                    objects.iter().any(|object| prototype.matches(data.clone(), object))
                 })
             }
             Contains::All(collection_attribute, prototypes) => {
-                let objects = collection_attribute.calculate(data, element);
+                let objects = collection_attribute.calculate(data.clone(), element);
                 prototypes.iter().all(|prototype| {
-                    objects.iter().any(|object| prototype.matches(object))
+                    objects.iter().any(|object| prototype.matches(data.clone(), object))
                 })
             }
         }

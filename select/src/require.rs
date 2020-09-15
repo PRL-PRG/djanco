@@ -2,6 +2,7 @@ use regex::Regex;
 use crate::attrib::{NumericalAttribute, StringAttribute, Filter, LoadFilter, raw, CollectionAttribute};
 use crate::data::DataPtr;
 use dcd::DCD;
+use crate::prototype::Prototype;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct AtLeast<N>(pub N, pub usize);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Exactly<N>(pub N, pub usize);
@@ -77,17 +78,37 @@ impl<S, T> LoadFilter for Matches<S> where S: raw::StringAttribute<Entity=T> + C
     fn clone_box(&self) -> Box<dyn LoadFilter> { Box::new(Matches(self.0.clone(), self.1.clone())) }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Contains<C,E> (pub C, pub E);
-#[derive(Clone,       Eq, PartialEq, Hash)] pub struct Intersects<C,E> (pub C, pub Vec<E>);
+#[derive(Clone, Eq, PartialEq, Hash)] pub enum Contains<C, E> {
+    Item(C, E),
+    Any(C, Vec<E>),
+    All(C, Vec<E>),
+}
 
-impl<C,E,T> Filter<T> for Contains<C, E> where C: CollectionAttribute<Entity=T,Item=E>, E: Eq {
+impl<C,E,P,T> Filter<T> for Contains<C, P> where C: CollectionAttribute<Entity=T,Item=E>, E: Eq, P: Prototype<T> {
     fn filter(&self, data: DataPtr, element: &T) -> bool {
-        self.0.calculate(data, element).contains(&self.1)
+        match self {
+            Contains::Item(collection_attribute, prototype) => {
+                let objects = collection_attribute.calculate(data, element);
+                objects.iter().any(|object| prototype.matches(object))
+            }
+            Contains::Any(collection_attribute, prototypes) => {
+                let objects = collection_attribute.calculate(data, element);
+                prototypes.iter().any(|prototype| {
+                    objects.iter().any(|object| prototype.matches(object))
+                })
+            }
+            Contains::All(collection_attribute, prototypes) => {
+                let objects = collection_attribute.calculate(data, element);
+                prototypes.iter().all(|prototype| {
+                    objects.iter().any(|object| prototype.matches(object))
+                })
+            }
+        }
     }
 }
 
-impl<C,E,T> Filter<T> for Intersects<C, E> where C: CollectionAttribute<Entity=T,Item=E>, E: Eq {
-    fn filter(&self, data: DataPtr, element: &T) -> bool {
-        self.1.iter().any(|e| { self.0.calculate(data.clone(), element).contains(e) })
-    }
-}
+// impl<C,E,T> Filter<T> for Intersects<C, E> where C: CollectionAttribute<Entity=T,Item=E>, E: Eq {
+//     fn filter(&self, data: DataPtr, element: &T) -> bool {
+//         self.1.iter().any(|e| { self.0.calculate(data.clone(), element).contains(e) })
+//     }
+// }

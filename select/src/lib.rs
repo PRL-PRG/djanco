@@ -2,6 +2,7 @@
 #[macro_use] pub mod log;
 #[macro_use] pub mod data;
 
+pub mod prototype;
 pub mod names;
 pub mod persistence;
 pub mod djanco;

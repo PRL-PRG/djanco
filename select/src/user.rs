@@ -290,3 +290,23 @@ impl Select<User> for Commits {
         }
     }
 }
+
+impl<F> Select<User> for CommitsWith<F> where F: Filter<Entity=Commit> {
+    type Entity = Vec<Commit>;
+    fn select(&self, database: DataPtr, user: User) -> Self::Entity {
+        match self {
+            CommitsWith::Authored(f) => {
+                user.authored_commits(database.clone())
+                    .into_iter()
+                    .filter(|c| f.filter(database.clone(), &c))
+                    .collect()
+            }
+            CommitsWith::Committed(f) => {
+                user.committed_commits(database.clone())
+                    .into_iter()
+                    .filter(|c| f.filter(database.clone(), &c))
+                    .collect()
+            }
+        }
+    }
+}

@@ -273,4 +273,374 @@ impl Group<Commit> for Message {
     }
 }
 
-// TODO sort select
+impl Sort<Commit> for Id {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.id);
+        vector
+    }
+}
+
+impl Sort<Commit> for Hash {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by(|c1, c2| c1.hash.cmp(&c2.hash));
+        vector
+    }
+}
+
+impl Sort<Commit> for Author {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.author);
+        vector
+    }
+}
+
+impl Sort<Commit> for Committer {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.committer);
+        vector
+    }
+}
+
+impl Sort<Commit> for AuthorTime {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.author_time);
+        vector
+    }
+}
+
+impl Sort<Commit> for CommitterTime {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.committer_time);
+        vector
+    }
+}
+
+impl Sort<Commit> for Additions {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.additions);
+        vector
+    }
+}
+
+impl Sort<Commit> for Deletions {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.deletions);
+        vector
+    }
+}
+
+impl Sort<Commit> for Message {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.message(data.clone()));
+        vector
+    }
+}
+
+impl Sort<Commit> for Users {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| (c.users().len(), c.users())); // Probably a bad idea
+        vector
+    }
+}
+
+impl Sort<Commit> for Parents {
+    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| (c.parents.len()));
+        vector
+    }
+}
+
+impl Sort<Commit> for Paths {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| c.path_count(data.clone()));
+        vector
+    }
+}
+
+impl<F> Sort<Commit> for UsersWith<F> where F: Filter<Entity=User> {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| {
+            let users: Vec<UserId> = c.users().into_iter()
+                .flat_map(|id| untangle_mut!(data).user(&id).map(|e| e.clone()))
+                .filter(|u| self.0.filter(data.clone(), u))
+                .map(|u| u.id.clone())
+                .collect();
+            (users.len(), users)
+        });
+        vector
+    }
+}
+
+impl<F> Sort<Commit> for ParentsWith<F> where F: Filter<Entity=Commit> {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| {
+            c.parents.iter()
+                .filter(|id| {
+                    untangle_mut!(data.clone()).commit(id).map_or(false, |c| {
+                        self.0.filter(data.clone(), c)
+                    })
+                })
+                .count()
+        });
+        vector
+    }
+}
+
+impl<F> Sort<Commit> for PathsWith<F> where F: Filter<Entity=Path> {
+    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
+        vector.sort_by_key(|c| {
+            c.paths(data.clone()).into_iter().filter(|p| {
+                self.0.filter(data.clone(), p)
+            })
+            .count()
+        });
+        vector
+    }
+}
+
+impl Select<Commit> for Id {
+    type Entity = CommitId;
+    fn select(&self, _: DataPtr, commit: Commit) -> Self::Entity {
+        commit.id.clone()
+    }
+}
+
+impl Select<Commit> for Hash {
+    type Entity = AttributeValue<Hash, String>;
+    fn select(&self, _: DataPtr, commit: Commit) -> Self::Entity {
+        AttributeValue::new(self, commit.hash.clone())
+    }
+}
+
+impl Select<Commit> for Author {
+    type Entity = AttributeValue<Author, Option<User>>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        AttributeValue::new(self,
+                            untangle_mut!(data).user(&commit.author).map(|c| c.clone()))
+    }
+}
+
+impl Select<Commit> for Committer {
+    type Entity = AttributeValue<Committer, Option<User>>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        AttributeValue::new(self,
+                            untangle_mut!(data).user(&commit.committer).map(|c| c.clone()))
+    }
+}
+
+impl Select<Commit> for AuthorTime {
+    type Entity = AttributeValue<AuthorTime, i64>;
+    fn select(&self, _: DataPtr, commit: Commit) -> Self::Entity {
+        AttributeValue::new(self, commit.author_time)
+    }
+}
+
+impl Select<Commit> for CommitterTime {
+    type Entity = AttributeValue<CommitterTime, i64>;
+    fn select(&self, _: DataPtr, commit: Commit) -> Self::Entity {
+        AttributeValue::new(self, commit.committer_time)
+    }
+}
+
+
+impl Select<Commit> for Additions {
+    type Entity = AttributeValue<Additions, Option<u64>>;
+    fn select(&self, _: DataPtr, commit: Commit) -> Self::Entity {
+        AttributeValue::new(self, commit.additions)
+    }
+}
+
+impl Select<Commit> for Deletions {
+    type Entity = AttributeValue<Deletions, Option<u64>>;
+    fn select(&self, _: DataPtr, commit: Commit) -> Self::Entity {
+        AttributeValue::new(self, commit.deletions)
+    }
+}
+
+impl Select<Commit> for Message {
+    type Entity = Option<objects::Message>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        commit.message(data)
+    }
+}
+
+impl Select<Commit> for Users {
+    type Entity = Vec<User>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        commit.users().iter()
+            .flat_map(|id| untangle_mut!(data).user(id).map(|c| c.clone()))
+            .collect()
+    }
+}
+
+impl<F> Select<Commit> for UsersWith<F> where F: Filter<Entity=User> {
+    type Entity = Vec<User>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        commit.users().iter()
+            .flat_map(|id| untangle_mut!(data).user(id).map(|c| c.clone()))
+            .filter(|u| self.0.filter(data.clone(), &u))
+            .collect()
+    }
+}
+
+impl Select<Commit> for Parents {
+    type Entity = Vec<Commit>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        commit.parents.iter()
+            .flat_map(|id| untangle_mut!(data).commit(id).map(|c| c.clone()))
+            .collect()
+    }
+}
+
+impl Select<Commit> for Paths {
+    type Entity = Vec<Path>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        commit.paths(data)
+    }
+}
+
+impl<F> Select<Commit> for ParentsWith<F> where F: Filter<Entity=Commit> {
+    type Entity = Vec<Commit>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        commit.parents.iter()
+            .flat_map(|id| {
+                untangle_mut!(data.clone()).commit(id).map(|c| c.clone())
+            })
+            .filter(|c| {
+                self.0.filter(data.clone(), &c)
+            })
+            .collect()
+    }
+}
+
+impl<F> Select<Commit> for PathsWith<F> where F: Filter<Entity=Path> {
+    type Entity = Vec<Path>;
+    fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
+        commit
+            .paths(data.clone()).into_iter()
+            .filter(|p| {
+                self.0.filter(data.clone(), p)
+            })
+            .collect()
+    }
+}
+
+impl CollectionAttribute for Users {
+    type Entity = Commit;
+    type Item = User;
+    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.users().iter()
+            .flat_map(|id| untangle_mut!(data).user(id).map(|u| u.clone()))
+            .collect()
+    }
+
+    fn len(&self, _: DataPtr, entity: &Self::Entity) -> usize {
+        entity.users().len()
+    }
+
+    fn parent_len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        self.len(data, entity)
+    }
+}
+
+impl CollectionAttribute for Paths {
+    type Entity = Commit;
+    type Item = Path;
+    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.paths(data)
+    }
+
+    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        entity.path_count(data)
+    }
+
+    fn parent_len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        self.len(data, entity)
+    }
+}
+
+impl CollectionAttribute for Parents {
+    type Entity = Commit;
+    type Item = Commit;
+    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.parents.iter()
+            .flat_map(|id| untangle_mut!(data).commit(id).map(|u| u.clone()))
+            .collect()
+    }
+
+    fn len(&self, _: DataPtr, entity: &Self::Entity) -> usize {
+        entity.parents.len()
+    }
+
+    fn parent_len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        self.len(data, entity)
+    }
+}
+
+impl<F> CollectionAttribute for UsersWith<F> where F: Filter<Entity=User> {
+    type Entity = Commit;
+    type Item = User;
+    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.users().iter()
+            .flat_map(|id| untangle_mut!(data).user(id).map(|c| c.clone()))
+            .filter(|u| self.0.filter(data.clone(), &u))
+            .collect()
+    }
+
+    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        entity.users().iter()
+            .flat_map(|id| untangle_mut!(data).user(id).map(|c| c.clone()))
+            .filter(|u| self.0.filter(data.clone(), &u))
+            .count()
+    }
+
+    fn parent_len(&self, _: DataPtr, entity: &Self::Entity) -> usize {
+        entity.users().len()
+    }
+}
+
+impl<F> CollectionAttribute for PathsWith<F> where F: Filter<Entity=Path> {
+    type Entity = Commit;
+    type Item = Path;
+    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.paths(data.clone()).into_iter()
+            .filter(|p| {
+                self.0.filter(data.clone(), p)
+            })
+            .collect()
+    }
+
+    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        entity.paths(data.clone()).into_iter()
+            .filter(|p| {
+                self.0.filter(data.clone(), p)
+            })
+            .count()
+    }
+
+    fn parent_len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        entity.path_count(data)
+    }
+}
+
+impl<F> CollectionAttribute for ParentsWith<F> where F: Filter<Entity=Commit> {
+    type Entity = Commit;
+    type Item = Commit;
+    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        entity.parents.iter()
+            .flat_map(|id| untangle_mut!(data).commit(id).map(|u| u.clone()))
+            .filter(|e| self.0.filter(data.clone(), &e))
+            .collect()
+    }
+
+    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        entity.parents.iter()
+            .flat_map(|id| untangle_mut!(data).commit(id).map(|u| u.clone()))
+            .filter(|e| self.0.filter(data.clone(), &e))
+            .count()
+    }
+
+    fn parent_len(&self, _: DataPtr, entity: &Self::Entity) -> usize {
+        entity.parents.len()
+    }
+}

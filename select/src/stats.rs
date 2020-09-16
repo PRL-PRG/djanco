@@ -1,4 +1,4 @@
-use crate::attrib::{NumericalAttribute, CollectionAttribute};
+use crate::attrib::{NumericalAttribute, CollectionAttribute, Sort};
 use crate::data::DataPtr;
 use itertools::Itertools;
 // use std::iter::Sum;
@@ -83,3 +83,11 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Ratio<C> where C: CollectionAttribute
         Some(self.0.len(database.clone(), entity) as f64 / self.0.parent_len(database, entity) as f64)
     }
 }
+
+// impl<C,I,T> Sort<T> for Median<C> where C: CollectionAttribute<Item=I, Entity=T> {
+//     fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T> {
+//         // vector.sort_by_key(|c| )
+//         // self.0.items(data, )
+//         unimplemented!()
+//     }
+// }

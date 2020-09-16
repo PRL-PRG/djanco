@@ -4,6 +4,7 @@ use select::csv::*;
 use select::stats;
 use select::project;
 use select::user;
+use select::commit;
 use select::sample;
 use select::require;
 //use select::dump::*;
@@ -11,7 +12,6 @@ use select::prototype::api::*;
 use select::time::{Month, Seconds};
 
 // TODO
-// * CommitsWhere, PathsWhere, UsersWhere, etc.
 // * snapshots
 // * keep and produce receipt snippets
 // * fix load filters, maybe base on git commit hash of query
@@ -29,12 +29,12 @@ fn _stars(path: &str) {
         .to_csv("/dejavuii/dejacode/examples/output/stars.csv").unwrap();
 }
 
-fn _touched_files(path: &str) { // FIXME
+fn _touched_files(path: &str) { //. FIXME
     Djanco::from(path, 0, Month::August(2020))
         .with_cache("/dejavuii/dejacode/examples/cache")
         .projects()
         .group_by_attrib(project::Language)
-        //.sort_by_attrib(stats::Median(projects::CommitsWhere(require::Exists(commits::Changes))))
+        //.sort_by_attrib(stats::Median(project::CommitsWith(require::Exists(commit::Paths))))
         .sample(sample::Top(50))
         .squash()
         .to_csv("/dejavuii/dejacode/examples/output/touched_files.csv").unwrap();
@@ -67,7 +67,7 @@ fn _fifty_percent_experienced(path: &str) {
         .to_csv("/dejavuii/dejacode/examples/output/50%_experienced.csv").unwrap();
 }
 
-fn _message_size(path: &str) { // FIXME
+fn _message_size(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
         .with_cache("/dejavuii/dejacode/examples/cache")
         .projects()

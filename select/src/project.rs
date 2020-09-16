@@ -661,6 +661,16 @@ impl Select<Project> for Commits {
     }
 }
 
+impl<F> Select<Project> for CommitsWith<F> where F: Filter<Entity=Commit> {
+    type Entity = Vec<Commit>;
+    fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
+        untangle_mut!(database).commits_from(&project.id)
+            .into_iter()
+            .filter(|c| self.0.filter(database.clone(), &c))
+            .collect()
+    }
+}
+
 impl Select<Project> for Users {
     type Entity = Vec<User>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
@@ -668,10 +678,30 @@ impl Select<Project> for Users {
     }
 }
 
+impl<F> Select<Project> for UsersWith<F> where F: Filter<Entity=User> {
+    type Entity = Vec<User>;
+    fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
+        untangle_mut!(database).users_from(&project.id)
+            .into_iter()
+            .filter(|u| self.0.filter(database.clone(), &u))
+            .collect()
+    }
+}
+
 impl Select<Project> for Paths {
     type Entity = Vec<Path>;
     fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
         untangle_mut!(database).paths_from(&project.id)
+    }
+}
+
+impl<F> Select<Project> for PathsWith<F> where F: Filter<Entity=Path> {
+    type Entity = Vec<Path>;
+    fn select(&self, database: DataPtr, project: Project) -> Self::Entity {
+        untangle_mut!(database).paths_from(&project.id)
+            .into_iter()
+            .filter(|p| self.0.filter(database.clone(), &p))
+            .collect()
     }
 }
 

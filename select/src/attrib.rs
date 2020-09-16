@@ -122,3 +122,9 @@ impl<C,E,T> ExistentialAttribute for C where C: CollectionAttribute<Entity=T,Ite
         self.len(database, entity) > 0
     }
 }
+
+// impl<A,T,N> Sort<N> for A where A: NumericalAttribute<Entity=T,Number=N> {
+//     fn execute(&mut self, data: DataPtr, vector: Vec<N>) -> Vec<N> {
+//         unimplemented!()
+//     }
+// }

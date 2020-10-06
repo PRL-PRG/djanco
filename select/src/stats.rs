@@ -1,6 +1,7 @@
 use crate::attrib::{NumericalAttribute, CollectionAttribute, Sort};
 use crate::data::DataPtr;
 use itertools::Itertools;
+use crate::helpers;
 // use std::iter::Sum;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Count<C>(pub C);
@@ -9,6 +10,22 @@ use itertools::Itertools;
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Mean<C>(pub C);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Median<C>(pub C);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Ratio<C>(pub C);
+
+pub struct Stat<N,T> {
+    object: T,
+    stat: N,
+}
+
+//TODO count etc
+impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Into<f64> + Copy {
+    fn execute(&mut self, data: DataPtr, vector: Vec<E>) -> Vec<E> {
+        vector.into_iter()
+            .map(|e| (self.calculate(data.clone(), &e), e))
+            .sorted_by(|a, b| helpers::option_f64_cmp(&a.0, &b.0))
+            .map(|(_, e)| e)
+            .collect()
+    }
+}
 
 impl<I,C,E> NumericalAttribute for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
     type Entity = E;

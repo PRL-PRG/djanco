@@ -170,6 +170,17 @@ impl Commit {
     pub fn path_count(&self, data: DataPtr) -> usize {
         untangle_mut!(data).path_count_of(&self.id)
     }
+    pub fn author(&self, data: DataPtr) -> Option<User> {
+        untangle_mut!(data).user(&self.author).map(|u| u.clone())
+    }
+    pub fn committer(&self, data: DataPtr) -> Option<User> {
+        untangle_mut!(data).user(&self.committer).map(|u| u.clone())
+    }
+    pub fn parents(&self, data: DataPtr) -> Vec<Commit> {
+        self.parents.iter().flat_map(|id| {
+            untangle_mut!(data.clone()).commit(id).map(|c| c.clone())
+        }).collect()
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)] // TODO implement by hand
@@ -446,35 +457,42 @@ impl Into<f64>    for Message  { fn into(self) -> f64   { self.contents.len() as
 impl Into<f64>    for &Message { fn into(self) -> f64   { self.contents.len() as f64 } }
 
 /** ==== Convenience functions for dealing with two different user types in commits ============ **/
-pub trait Roster { fn users(&self) -> Vec<UserId>; }
+pub trait Roster {
+    fn user_ids(&self) -> Vec<UserId>;
+    fn users(&self, data: DataPtr) -> Vec<User> {
+        self.user_ids().iter().flat_map(|e|
+            untangle_mut!(data).user(e).map(|u| u.clone())
+        ).collect()
+    }
+}
 
 impl Roster for Commit {
-    fn users(&self) -> Vec<UserId> {
+    fn user_ids(&self) -> Vec<UserId> {
         if self.author == self.committer { vec![self.author]                 }
         else                             { vec![self.author, self.committer] }
     }
 }
 
 impl Roster for Option<Commit> {
-    fn users(&self) -> Vec<UserId> {
+    fn user_ids(&self) -> Vec<UserId> {
         match self.as_ref() {
-            Some(commit) => commit.users(),
+            Some(commit) => commit.user_ids(),
             None => Default::default(),
         }
     }
 }
 
 impl Roster for Option<&Commit> {
-    fn users(&self) -> Vec<UserId> {
+    fn user_ids(&self) -> Vec<UserId> {
         match self {
-            &Some(commit) => commit.users(),
+            &Some(commit) => commit.user_ids(),
             &None => Default::default(),
         }
     }
 }
 
 impl Roster for dcd::Commit {
-    fn users(&self) -> Vec<UserId> {
+    fn user_ids(&self) -> Vec<UserId> {
         if self.author_id == self.committer_id { vec![UserId::from(self.author_id)]    }
         else                                   { vec![UserId::from(self.author_id),
                                                       UserId::from(self.committer_id)] }
@@ -482,18 +500,18 @@ impl Roster for dcd::Commit {
 }
 
 impl Roster for Option<dcd::Commit> {
-    fn users(&self) -> Vec<UserId> {
+    fn user_ids(&self) -> Vec<UserId> {
         match self.as_ref() {
-            Some(commit) => commit.users(),
+            Some(commit) => commit.user_ids(),
             None => Default::default(),
         }
     }
 }
 
 impl Roster for Option<&dcd::Commit> {
-    fn users(&self) -> Vec<UserId> {
+    fn user_ids(&self) -> Vec<UserId> {
         match self {
-            &Some(commit) => commit.users(),
+            &Some(commit) => commit.user_ids(),
             &None => Default::default(),
         }
     }

@@ -874,7 +874,7 @@ impl Data {
                     (*id,
                      commit_ids.into_iter()
                          .flat_map(|commit_id| commits.get(commit_id))
-                         .flat_map(|commit| commit.users())
+                         .flat_map(|commit| commit.user_ids())
                          .unique()
                          .collect()))
                 .collect();
@@ -1127,7 +1127,7 @@ impl Data {
         log_item!(self.spec.log_level, "loading user data");
         let users: BTreeMap<UserId, User> =
             commits.iter()
-                .flat_map(|(_, commit)| commit.users())
+                .flat_map(|(_, commit)| commit.user_ids())
                 .unique()
                 .flat_map(|user_id| self.warehouse.get_user(user_id.into()))
                 .map(|user| (UserId::from(user.id), User::from(user)))
@@ -1192,7 +1192,7 @@ impl Data {
                 .map(|(project_id, commit_ids)| {
                     (*project_id,
                      commit_ids.iter().flat_map(|commit_id| {
-                         commits.get(commit_id).users()
+                         commits.get(commit_id).user_ids()
                      })
                          .unique()
                          .map(|user_id| UserId::from(user_id))

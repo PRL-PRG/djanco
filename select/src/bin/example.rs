@@ -124,11 +124,13 @@ fn main() {
         //.filter_by_attrib(require::AtLeast(project::Users, 2))
         //.filter_by_attrib(require::Same(project::Language, "Rust"))
         //.filter_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
-        .sort_by_attrib(project::Age)
+        //.sort_by_attrib(project::Age)
+        .sort_by_attrib(stats::Median(retrieve::From(project::Commits, commit::Message)))
         .filter_by_attrib(require::Contains::Item(project::Users, User::with_name("Konrad Siek")))
         .sample(sample::Top(1))
         .squash()
-        .flat_map_to_attrib(project::Commits)
-        .to_csv("commits.csv").unwrap();
+        //.flat_map_to_attrib(project::Commits)
+        //.to_csv("commits.csv").unwrap();
+        .to_csv("projects.csv").unwrap();
         //.dump_all_info_to("dump").unwrap();
 }

@@ -1,4 +1,4 @@
-use crate::objects;
+use crate::{objects, retrieve, project, commit};
 use crate::objects::*;
 use crate::attrib::*;
 use crate::data::*;
@@ -108,7 +108,7 @@ impl NumericalAttribute for Users {
     type Entity = Commit;
     type Number = usize;
     fn calculate(&self, _database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        Some(entity.users().len())
+        Some(entity.user_ids().len())
     }
 }
 
@@ -140,8 +140,8 @@ impl<F> NumericalAttribute for UsersWith<F> where F: Filter<Entity=User> {
     type Entity = Commit;
     type Number = usize;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        Some(entity.users().iter()
-            .flat_map(|id| untangle_mut!(database).user(id).map(|u| u.clone()))
+        Some(entity.users(database.clone())
+            .iter()
             .filter(|user| self.0.filter(database.clone(), &user))
             .count())
     }
@@ -338,7 +338,7 @@ impl Sort<Commit> for Message {
 
 impl Sort<Commit> for Users {
     fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| (c.users().len(), c.users())); // Probably a bad idea
+        vector.sort_by_key(|c| (c.user_ids().len(), c.user_ids())); // Probably a bad idea
         vector
     }
 }
@@ -360,7 +360,7 @@ impl Sort<Commit> for Paths {
 impl<F> Sort<Commit> for UsersWith<F> where F: Filter<Entity=User> {
     fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
         vector.sort_by_key(|c| {
-            let users: Vec<UserId> = c.users().into_iter()
+            let users: Vec<UserId> = c.user_ids().into_iter()
                 .flat_map(|id| untangle_mut!(data).user(&id).map(|e| e.clone()))
                 .filter(|u| self.0.filter(data.clone(), u))
                 .map(|u| u.id.clone())
@@ -467,7 +467,7 @@ impl Select<Commit> for Message {
 impl Select<Commit> for Users {
     type Entity = Vec<User>;
     fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
-        commit.users().iter()
+        commit.user_ids().iter()
             .flat_map(|id| untangle_mut!(data).user(id).map(|c| c.clone()))
             .collect()
     }
@@ -476,8 +476,7 @@ impl Select<Commit> for Users {
 impl<F> Select<Commit> for UsersWith<F> where F: Filter<Entity=User> {
     type Entity = Vec<User>;
     fn select(&self, data: DataPtr, commit: Commit) -> Self::Entity {
-        commit.users().iter()
-            .flat_map(|id| untangle_mut!(data).user(id).map(|c| c.clone()))
+        commit.users(data.clone()).into_iter()
             .filter(|u| self.0.filter(data.clone(), &u))
             .collect()
     }
@@ -529,13 +528,11 @@ impl CollectionAttribute for Users {
     type Entity = Commit;
     type Item = User;
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
-        entity.users().iter()
-            .flat_map(|id| untangle_mut!(data).user(id).map(|u| u.clone()))
-            .collect()
+        entity.users(data)
     }
 
     fn len(&self, _: DataPtr, entity: &Self::Entity) -> usize {
-        entity.users().len()
+        entity.user_ids().len()
     }
 
     fn parent_len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
@@ -581,21 +578,19 @@ impl<F> CollectionAttribute for UsersWith<F> where F: Filter<Entity=User> {
     type Entity = Commit;
     type Item = User;
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
-        entity.users().iter()
-            .flat_map(|id| untangle_mut!(data).user(id).map(|c| c.clone()))
+        entity.users(data.clone()).into_iter()
             .filter(|u| self.0.filter(data.clone(), &u))
             .collect()
     }
 
     fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
-        entity.users().iter()
-            .flat_map(|id| untangle_mut!(data).user(id).map(|c| c.clone()))
+        entity.users(data.clone()).iter()
             .filter(|u| self.0.filter(data.clone(), &u))
             .count()
     }
 
     fn parent_len(&self, _: DataPtr, entity: &Self::Entity) -> usize {
-        entity.users().len()
+        entity.user_ids().len()
     }
 }
 
@@ -644,3 +639,6 @@ impl<F> CollectionAttribute for ParentsWith<F> where F: Filter<Entity=Commit> {
         entity.parents.len()
     }
 }
+
+
+

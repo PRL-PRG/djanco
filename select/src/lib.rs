@@ -1,3 +1,4 @@
+pub mod retrieve;
 mod helpers;
 #[macro_use] pub mod require;
 #[macro_use] pub mod log;

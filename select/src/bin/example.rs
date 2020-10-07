@@ -3,6 +3,8 @@ use select::objects::*;
 use select::csv::*;
 use select::stats;
 use select::project;
+//use select::attrib;
+use select::retrieve;
 use select::user;
 use select::commit;
 use select::sample;
@@ -34,7 +36,9 @@ fn _touched_files(path: &str) { //. FIXME
         .with_cache("/dejavuii/dejacode/examples/cache")
         .projects()
         .group_by_attrib(project::Language)
+
         //.sort_by_attrib(stats::Median(project::CommitsWith(require::Exists(commit::Paths))))
+
         .sample(sample::Top(50))
         .squash()
         .to_csv("/dejavuii/dejacode/examples/output/touched_files.csv").unwrap();
@@ -73,7 +77,7 @@ fn _message_size(path: &str) {
         .projects()
         .group_by_attrib(project::Language)
 
-        //.sort_by_attrib(stats::Median(commit::Message))
+        .sort_by_attrib(stats::Median(retrieve::From(project::Commits, commit::Message)))
 
         .sample(sample::Top(50))
         .squash()

@@ -94,7 +94,7 @@ pub trait CollectionAttribute {
     type Item;
     fn items(&self, database: DataPtr, entity: &Self::Entity) -> Vec<Self::Item>;
     fn len(&self, database: DataPtr, entity: &Self::Entity) -> usize;
-    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize;
+    fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize { self.len(database, entity) }
 }
 
 pub trait StringAttribute {

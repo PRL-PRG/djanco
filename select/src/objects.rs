@@ -436,6 +436,15 @@ impl From<&Vec<u8>> for Message {
     fn from(bytes: &Vec<u8>) -> Self { Message { contents: bytes.clone() } }
 }
 
+// Message as its length. FIXME
+//impl Into<String> for Message  { fn into(self) -> String { self.contents.to_string() } }
+impl Into<usize>  for Message  { fn into(self) -> usize { self.contents.len() } }
+impl Into<usize>  for &Message { fn into(self) -> usize { self.contents.len() } }
+impl Into<u64>    for Message  { fn into(self) -> u64   { self.contents.len() as u64 } }
+impl Into<u64>    for &Message { fn into(self) -> u64   { self.contents.len() as u64 } }
+impl Into<f64>    for Message  { fn into(self) -> f64   { self.contents.len() as f64 } }
+impl Into<f64>    for &Message { fn into(self) -> f64   { self.contents.len() as f64 } }
+
 /** ==== Convenience functions for dealing with two different user types in commits ============ **/
 pub trait Roster { fn users(&self) -> Vec<UserId>; }
 

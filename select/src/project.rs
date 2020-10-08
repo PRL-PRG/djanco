@@ -478,113 +478,109 @@ impl Group<Project> for Age {
 }
 
 impl Sort<Project> for Id {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.id);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p: &Project| p.id)
     }
 }
 
 impl Sort<Project> for URL {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by(|p1, p2| p1.url.cmp(&p2.url));
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by( |p1, p2| p1.url.cmp(&p2.url))
     }
 }
 
 impl Sort<Project> for Language {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.language.clone()); vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| p.language.clone())
     }
 }
 
 impl Sort<Project> for Stars {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.stars); vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| p.stars)
     }
 }
 
 impl Sort<Project> for Issues {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|f| f.issues); vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|f| f.issues)
     }
 }
 
 impl Sort<Project> for AllIssues {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|f| f.all_issues()); vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|f| f.all_issues())
     }
 }
 
 impl Sort<Project> for BuggyIssues {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.buggy_issues); vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| p.buggy_issues)
     }
 }
 
 impl Sort<Project> for Heads {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.heads.len()); vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| p.heads.len())
     }
 }
 
 impl Sort<Project> for Metadata {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by(|p1, p2| {
+    fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by( |p1, p2| {
             p1.metadata.get(&self.0).cmp(&p2.metadata.get(&self.0))
-        });
-        vector
+        })
     }
 }
 
 impl Sort<Project> for Commits {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| untangle_mut!(data).commit_count_from(&p.id));
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| untangle_mut!(data).commit_count_from(&p.id))
     }
 }
 
 impl Sort<Project> for Users {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| untangle_mut!(data).user_count_from(&p.id));
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| untangle_mut!(data).user_count_from(&p.id))
     }
 }
 
 impl Sort<Project> for Paths {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| untangle_mut!(data).path_count_from(&p.id));
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| untangle_mut!(data).path_count_from(&p.id))
     }
 }
 
 impl Sort<Project> for Age {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.age(data.clone()));
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| p.age(data.clone()))
     }
 }
 
 impl<F> Sort<Project> for CommitsWith<F> where F: Filter<Entity=Commit> {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.commits(data.clone())
-                    .iter().filter(|c|self.0.filter(data.clone(), c)).count());
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| {
+           p.commits(data.clone())
+               .iter().filter(|c| self.0.filter(data.clone(), c)).count()
+        })
     }
 }
 
 impl<F> Sort<Project> for UsersWith<F> where F: Filter<Entity=User> {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.users(data.clone())
-                    .iter().filter(|u|self.0.filter(data.clone(), u)).count());
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| {
+           p.users(data.clone())
+                   .iter().filter(|u|self.0.filter(data.clone(), u)).count()
+        })
     }
 }
 
 impl<F> Sort<Project> for PathsWith<F> where F: Filter<Entity=Path> {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Project>) -> Vec<Project> {
-        vector.sort_by_key(|p| p.paths(data.clone())
-                    .iter().filter(|p|self.0.filter(data.clone(), p)).count());
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| {
+           p.paths(data.clone())
+               .iter().filter(|p| self.0.filter(data.clone(), p)).count()
+        })
     }
 }
 

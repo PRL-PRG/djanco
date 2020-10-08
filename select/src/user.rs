@@ -194,61 +194,58 @@ impl Group<User> for Experience {
 }
 
 impl Sort<User> for Id {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<User>) -> Vec<User> {
-        vector.sort_by_key(|u| u.id);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<User>, direction: sort::Direction) -> Vec<User> {
+        sort::Sorter::from(vector, direction).sort_by_key(|u| u.id)
     }
 }
 
 impl Sort<User> for Email {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<User>) -> Vec<User> {
-        vector.sort_by_key(|u| u.email.clone()); vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<User>, direction: sort::Direction) -> Vec<User> {
+        sort::Sorter::from(vector, direction).sort_by_key(|u| u.email.clone())
     }
 }
 
 impl Sort<User> for Name {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<User>) -> Vec<User> {
-        vector.sort_by_key(|u| u.name.clone()); vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<User>, direction: sort::Direction) -> Vec<User> {
+        sort::Sorter::from(vector, direction).sort_by_key(|u| u.name.clone())
     }
 }
 
 impl Sort<User> for Experience {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<User>) -> Vec<User> {
-        vector.sort_by_key(|u| u.experience(data.clone()).clone()); vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<User>, direction: sort::Direction) -> Vec<User> {
+        sort::Sorter::from(vector, direction).sort_by_key(|u| u.experience(data.clone()).clone())
     }
 }
 
 impl Sort<User> for Commits {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<User>) -> Vec<User> {
+    fn execute(&mut self, data: DataPtr, vector: Vec<User>, direction: sort::Direction) -> Vec<User> {
         match self {
             Commits::Authored  => {
-                vector.sort_by_key(|u| u.authored_commits(data.clone()).len())
+                sort::Sorter::from(vector, direction).sort_by_key(|u| u.authored_commits(data.clone()).len())
             }
             Commits::Committed => {
-                vector.sort_by_key(|u| u.committed_commits(data.clone()).len())
+                sort::Sorter::from(vector, direction).sort_by_key(|u| u.committed_commits(data.clone()).len())
             }
-        };
-        vector
+        }
     }
 }
 
 impl<F> Sort<User> for CommitsWith<F> where F: Filter<Entity=Commit> {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<User>) -> Vec<User> {
+    fn execute(&mut self, data: DataPtr, vector: Vec<User>, direction: sort::Direction) -> Vec<User> {
         match self {
             CommitsWith::Authored(f) => {
-                vector.sort_by_key(|u| {
-                    u.authored_commits(data.clone()).iter()
-                        .filter(|c| f.filter(data.clone(), c)).count()
+                sort::Sorter::from(vector, direction).sort_by_key(|u| {
+                   u.authored_commits(data.clone()).iter()
+                       .filter(|c| f.filter(data.clone(), c)).count()
                 })
             }
             CommitsWith::Committed(f) => {
-                vector.sort_by_key(|u| {
-                    u.committed_commits(data.clone()).iter()
-                        .filter(|c| f.filter(data.clone(), c)).count()
+                sort::Sorter::from(vector, direction).sort_by_key(|u| {
+                   u.committed_commits(data.clone()).iter()
+                       .filter(|c| f.filter(data.clone(), c)).count()
                 })
             }
-        };
-        vector
+        }
     }
 }
 

@@ -274,106 +274,93 @@ impl Group<Commit> for Message {
 }
 
 impl Sort<Commit> for Id {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.id);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.id)
     }
 }
 
 impl Sort<Commit> for Hash {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by(|c1, c2| c1.hash.cmp(&c2.hash));
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by(|c1, c2| c1.hash.cmp(&c2.hash))
     }
 }
 
 impl Sort<Commit> for Author {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.author);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.author)
     }
 }
 
 impl Sort<Commit> for Committer {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.committer);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.committer)
     }
 }
 
 impl Sort<Commit> for AuthorTime {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.author_time);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.author_time)
     }
 }
 
 impl Sort<Commit> for CommitterTime {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.committer_time);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.committer_time)
     }
 }
 
 impl Sort<Commit> for Additions {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.additions);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.additions)
     }
 }
 
 impl Sort<Commit> for Deletions {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.deletions);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.deletions)
     }
 }
 
 impl Sort<Commit> for Message {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.message(data.clone()));
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.message(data.clone()))
     }
 }
 
 impl Sort<Commit> for Users {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| (c.user_ids().len(), c.user_ids())); // Probably a bad idea
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| (c.user_ids().len(), c.user_ids())) // Probably a bad idea
     }
 }
 
 impl Sort<Commit> for Parents {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| (c.parents.len()));
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| (c.parents.len()))
     }
 }
 
 impl Sort<Commit> for Paths {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| c.path_count(data.clone()));
-        vector
+    fn execute(&mut self, data: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| c.path_count(data.clone()))
     }
 }
 
 impl<F> Sort<Commit> for UsersWith<F> where F: Filter<Entity=User> {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| {
+    fn execute(&mut self, data: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| {
             let users: Vec<UserId> = c.user_ids().into_iter()
                 .flat_map(|id| untangle_mut!(data).user(&id).map(|e| e.clone()))
                 .filter(|u| self.0.filter(data.clone(), u))
                 .map(|u| u.id.clone())
                 .collect();
             (users.len(), users)
-        });
-        vector
+        })
     }
 }
 
 impl<F> Sort<Commit> for ParentsWith<F> where F: Filter<Entity=Commit> {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| {
+    fn execute(&mut self, data: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| {
             c.parents.iter()
                 .filter(|id| {
                     untangle_mut!(data.clone()).commit(id).map_or(false, |c| {
@@ -381,20 +368,18 @@ impl<F> Sort<Commit> for ParentsWith<F> where F: Filter<Entity=Commit> {
                     })
                 })
                 .count()
-        });
-        vector
+        })
     }
 }
 
 impl<F> Sort<Commit> for PathsWith<F> where F: Filter<Entity=Path> {
-    fn execute(&mut self, data: DataPtr, mut vector: Vec<Commit>) -> Vec<Commit> {
-        vector.sort_by_key(|c| {
+    fn execute(&mut self, data: DataPtr, vector: Vec<Commit>, direction: sort::Direction) -> Vec<Commit> {
+        sort::Sorter::from(vector, direction).sort_by_key(|c| {
             c.paths(data.clone()).into_iter().filter(|p| {
                 self.0.filter(data.clone(), p)
             })
             .count()
-        });
-        vector
+        })
     }
 }
 

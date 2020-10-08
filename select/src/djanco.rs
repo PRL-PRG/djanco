@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use crate::objects::*;
 use crate::data::*;
 use crate::log::LogLevel;
-use crate::attrib::{LoadFilter, Group, Filter, Sort, Sample, Select};
+use crate::attrib::{LoadFilter, Group, Filter, Sort, Sample, Select, sort};
 use std::hash::Hash;
 use crate::time::Month;
 
@@ -30,6 +30,7 @@ impl Spec {
 }
 
 /** Pre-load operations **/
+#[derive(Clone)]
 pub struct Lazy {
     pub spec: Spec,
     pub(crate) filters: Vec<Box<dyn LoadFilter + 'static>>,
@@ -122,10 +123,10 @@ impl<T> /* Query for */ QuincunxIter<T> where T: Quincunx {
         Iter { spec, data, source }
     }
 
-    pub fn sort_by_attrib<S>(self, mut attrib: S) -> Iter<T> where S: Sort<T> {
+    pub fn sort_by_attrib<S>(self, direction: sort::Direction, mut attrib: S) -> Iter<T> where S: Sort<T> {
         let data = self.data.clone();
         let spec = self.spec.clone();
-        let source = attrib.execute(self.data.clone(), self.consume_source());
+        let source = attrib.execute(self.data.clone(), self.consume_source(), direction);
         Iter { spec, data, source }
     }
 
@@ -193,8 +194,8 @@ impl<T> /* Query for */ Iter<T> {
         Iter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
-    pub fn sort_by_attrib<S>(self, mut attrib: S) -> Iter<T> where S: Sort<T> {
-        let source = attrib.execute(self.data.clone(), self.source);
+    pub fn sort_by_attrib<S>(self, direction: sort::Direction, mut attrib: S) -> Iter<T> where S: Sort<T> {
+        let source = attrib.execute(self.data.clone(), self.source, direction);
         Iter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
@@ -279,10 +280,10 @@ impl<K, T> /* Query for */ GroupIter<K, T> {
         GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
-    pub fn sort_by_attrib<S>(self, mut attrib: S) -> GroupIter<K, T> where S: Sort<T> {
+    pub fn sort_by_attrib<S>(self, direction: sort::Direction, mut attrib: S) -> GroupIter<K, T> where S: Sort<T> {
         let data = self.data.clone();
         let source = self.source.into_iter()
-            .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
+            .map(|(key, vector)| (key, attrib.execute(data.clone(), vector, direction)))
             .collect();
         GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
     }

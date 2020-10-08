@@ -60,23 +60,20 @@ impl Group<objects::Path> for Language {
 }
 
 impl Sort<objects::Path> for Id {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<objects::Path>) -> Vec<objects::Path> {
-        vector.sort_by_key(|p| p.id);
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<objects::Path>, direction: sort::Direction) -> Vec<objects::Path> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| p.id)
     }
 }
 
 impl Sort<objects::Path> for Path {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<objects::Path>) -> Vec<objects::Path> {
-        vector.sort_by_key(|p| p.path.clone());
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<objects::Path>, direction: sort::Direction) -> Vec<objects::Path> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| p.path.clone())
     }
 }
 
 impl Sort<objects::Path> for Language {
-    fn execute(&mut self, _: DataPtr, mut vector: Vec<objects::Path>) -> Vec<objects::Path> {
-        vector.sort_by_key(|p| p.language());
-        vector
+    fn execute(&mut self, _: DataPtr, vector: Vec<objects::Path>, direction: sort::Direction) -> Vec<objects::Path> {
+        sort::Sorter::from(vector, direction).sort_by_key(|p| p.language())
     }
 }
 

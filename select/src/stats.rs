@@ -44,12 +44,14 @@ impl Ord for OrdF64 {
 
 //TODO count etc
 impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric {
-    fn execute(&mut self, data: DataPtr, vector: Vec<E>) -> Vec<E> {
-        vector.into_iter()
+    fn execute(&mut self, data: DataPtr, vector: Vec<E>, direction: sort::Direction) -> Vec<E> {
+        let mut vector: Vec<E> = vector.into_iter()
             .map(|e| (self.calculate(data.clone(), &e), e))
             .sorted_by(|a, b| helpers::option_f64_cmp(&a.0, &b.0))
             .map(|(_, e)| e)
-            .collect()
+            .collect();
+        if direction.descending() { vector.reverse() }
+        vector
     }
 }
 
@@ -61,15 +63,15 @@ impl<I,C,E> NumericalAttribute for Count<C> where C: CollectionAttribute<Item=I,
     }
 }
 
-impl<I,C,E>/*baby*/ NumericalAttribute for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Into<usize> + Ord {
+impl<I,C,E>/*baby*/ NumericalAttribute for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
     type Entity = E;
-    type Number = usize;
+    type Number = I;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        self.0.items(database, entity).into_iter().min().map(|n| n.into())
+        self.0.items(database, entity).into_iter().min()
     }
 }
 
-impl<I,C,E> NumericalAttribute for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Into<usize> + Ord {
+impl<I,C,E> NumericalAttribute for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Into<usize> {
     type Entity = E;
     type Number = usize;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -77,15 +79,15 @@ impl<I,C,E> NumericalAttribute for Max<C> where C: CollectionAttribute<Item=I, E
     }
 }
 
-impl<I,C,E>/*baby*/ NumericalAttribute for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Into<usize> + Ord {
+impl<I,C,E>/*baby*/ NumericalAttribute for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        let items: Vec<usize> =
-            self.0.items(database, entity).into_iter().sorted().map(|n| n.into()).collect();
+        let items: Vec<f64> =
+            self.0.items(database, entity).into_iter().map(|n| n.as_f64()).collect();
 
         if items.len() == 0 { None }
-        else { Some(items.iter().sum::<usize>() as f64 / items.len() as f64) }
+        else { Some(items.iter().sum::<f64>() as f64 / items.len() as f64) }
     }
 }
 

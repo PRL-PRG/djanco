@@ -55,8 +55,40 @@ pub trait Filter {
     }
 }
 
+pub mod sort {
+    #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub enum Direction {
+        Descending,
+        Ascending
+    }
+    impl Direction {
+        pub fn descending(&self) -> bool { match self { Direction::Descending => true, _ => false } }
+        pub fn ascending(&self)  -> bool { match self { Direction::Ascending  => true, _ => false } }
+    }
+    pub struct Sorter<T> { vector: Vec<T>, reverse: bool }
+    impl<T> Sorter<T> {
+        pub fn from(vector: Vec<T>, direction: Direction) -> Self {
+            Sorter { vector, reverse: direction.descending() }
+        }
+        pub fn new(vector: Vec<T>, reverse: bool) -> Self {
+            Sorter { vector, reverse }
+        }
+        pub fn sort_by_key<F, O>(mut self, f: F) -> Vec<T> where F: FnMut(&T) -> O, O: Ord {
+            self.vector.sort_by_key(f);
+            if self.reverse { self.vector.reverse() }
+            self.vector
+        }
+        pub fn sort_by<F>(mut self, f: F) -> Vec<T> where F: FnMut(&T, &T) -> std::cmp::Ordering {
+            self.vector.sort_by(f);
+            if self.reverse { self.vector.reverse() }
+            self.vector
+        }
+    }
+}
+
 pub trait Sort<T> {
-    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T>;
+    fn execute(&mut self, data: DataPtr, vector: Vec<T>, direction: sort::Direction) -> Vec<T>;
+
+
 }
 
 pub trait Sample<T> {

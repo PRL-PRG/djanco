@@ -22,13 +22,13 @@ use select::dump::Dump;
 // * CSV output if not squashed
 // * logging everywhere
 
-macro_rules! with_elapsed_seconds {
-    ($thing:expr) => {{
-        let start = std::time::Instant::now();
-        let result = { $thing };
-        (result, start.elapsed().as_secs())
-    }}
-}
+// macro_rules! with_elapsed_seconds {
+//     ($thing:expr) => {{
+//         let start = std::time::Instant::now();
+//         let result = { $thing };
+//         (result, start.elapsed().as_secs())
+//     }}
+// }
 
 macro_rules! elapsed_seconds {
     ($thing:expr) => {{
@@ -40,7 +40,7 @@ macro_rules! elapsed_seconds {
 
 fn _stars(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
-        .with_cache("/dejavuii/dejacode/examples/cache")
+        .with_cache("examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
@@ -48,12 +48,12 @@ fn _stars(path: &str) {
 
         .sample(sample::Top(50))
         .squash()
-        .to_csv("/dejavuii/dejacode/examples/output/stars.csv").unwrap();
+        .to_csv("examples/output/stars.csv").unwrap();
 }
 
 fn _touched_files(path: &str) { //. FIXME
     Djanco::from(path, 0, Month::August(2020))
-        .with_cache("/dejavuii/dejacode/examples/cache")
+        .with_cache("examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
@@ -61,12 +61,12 @@ fn _touched_files(path: &str) { //. FIXME
 
         .sample(sample::Top(50))
         .squash()
-        .to_csv("/dejavuii/dejacode/examples/output/touched_files.csv").unwrap();
+        .to_csv("examples/output/touched_files.csv").unwrap();
 }
 
 fn _experienced_author(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
-        .with_cache("/dejavuii/dejacode/examples/cache")
+        .with_cache("examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
@@ -74,12 +74,12 @@ fn _experienced_author(path: &str) {
 
         .sample(sample::Random(50))
         .squash()
-        .to_csv("/dejavuii/dejacode/examples/output/experienced_author.csv").unwrap();
+        .to_csv("examples/output/experienced_author.csv").unwrap();
 }
 
 fn _fifty_percent_experienced(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
-        .with_cache("/dejavuii/dejacode/examples/cache")
+        .with_cache("examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
@@ -88,12 +88,12 @@ fn _fifty_percent_experienced(path: &str) {
 
         .sample(sample::Random(50))
         .squash()
-        .to_csv("/dejavuii/dejacode/examples/output/50%_experienced.csv").unwrap();
+        .to_csv("examples/output/50%_experienced.csv").unwrap();
 }
 
 fn _message_size(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
-        .with_cache("/dejavuii/dejacode/examples/cache")
+        .with_cache("examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
@@ -101,12 +101,12 @@ fn _message_size(path: &str) {
 
         .sample(sample::Top(50))
         .squash()
-        .to_csv("/dejavuii/dejacode/examples/output/message_size.csv").unwrap();
+        .to_csv("examples/output/message_size.csv").unwrap();
 }
 
 fn _number_of_commits(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
-        .with_cache("/dejavuii/dejacode/examples/cache")
+        .with_cache("examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
@@ -114,12 +114,12 @@ fn _number_of_commits(path: &str) {
 
         .sample(sample::Top(50))
         .squash()
-        .to_csv("/dejavuii/dejacode/examples/output/number_of_commits.csv").unwrap();
+        .to_csv("examples/output/number_of_commits.csv").unwrap();
 }
 
 fn _issues(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
-        .with_cache("/dejavuii/dejacode/examples/cache")
+        .with_cache("examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
@@ -127,19 +127,19 @@ fn _issues(path: &str) {
 
         .sample(sample::Top(50))
         .squash()
-        .to_csv("/dejavuii/dejacode/examples/output/issues.csv").unwrap();
+        .to_csv("examples/output/issues.csv").unwrap();
 }
 
 fn _dump_all(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
-        .with_cache("/dejavuii/dejacode/examples/cache")
+        .with_cache("examples/cache")
         .projects()
-        .dump_all_info_to("/dejavuii/dejacode/examples/output/data").unwrap();
+        .dump_all_info_to("examples/dump").unwrap();
 }
 
 // works with downloader from commit  146e55e34ca1f4cc5b826e0c909deac96afafc17
 fn main() {
-    let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020));
+    //let database = Djanco::from("/dejavuii/dejacode/dataset-tiny", 0, Month::August(2020));
 
     //.with_filter(require::AtLeast(project::Commits, 10));
 

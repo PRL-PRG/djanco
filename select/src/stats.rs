@@ -38,7 +38,7 @@ impl Ord for OrdF64 {
 }
 
 //TODO count etc
-impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric { // FIXME nix Clone
+impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric {
     fn execute(&mut self, data: DataPtr, vector: Vec<E>) -> Vec<E> {
         vector.into_iter()
             .map(|e| (self.calculate(data.clone(), &e), e))
@@ -89,34 +89,19 @@ impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        let mut items= self.0.items(database, entity);//.into_iter().map(|n| n.into()).collect();
+        let mut items= self.0.items(database, entity);
 
-        if items.is_empty() { return None }
-        if items.len() == 1 { return Some(f64::from(items[0].as_f64())) }
+        let length = items.len();
+        if length == 0 { return None }
+        if length == 1 { return Some(f64::from(items[0].as_f64())) }
 
         items.sort();
 
-        unimplemented!()
+        if length % 2 != 0usize { return Some(items[length / 2].as_f64()) }
 
-        // match items.len() {
-        //     0usize => None,
-        //     1usize => items.get(0).map(|e| e.clone().into()),
-        //
-        //     odd  if odd % 2 != 0usize => {
-        //         items.get(odd / 2).map(|e| e.clone().into())
-        //     }
-        //
-        //     even /* if even % 2 == 0usize */ => {
-        //         let left = items.get((even / 2) - 1);
-        //         let right = items.get(even / 2);
-        //         if left.is_none() || right.is_none() { None }
-        //         else {
-        //             let left = (left.unwrap()).clone().into();
-        //             let right = (right.unwrap()).clone().into();
-        //             Some(left + right / 2f64)
-        //         }
-        //     }
-        // }
+        let left = items[(length / 2) - 1].as_f64();
+        let right = items[(length / 2)].as_f64();
+        return Some(left + right / 2f64)
     }
 }
 

@@ -26,11 +26,11 @@ impl<I, T> CSV for I where I: Iterator<Item=T> + WithData, T: CSVItem + WithName
         let mut file = create_file!(location)?;
         let database = self.get_database_ptr();
         writeln!(file, "{}", T::csv_header())?;
-        let _: () = self.map(|e| println!("{}", e.to_csv(database.clone()))).collect();
-        // for element in self {
-        //     //println!("{}", element.to_csv(database.clone()));
-        //     writeln!(file, "{}", element.to_csv(database.clone()))?;
-        // }
+        //let _: () = self.map(|e| println!("{}", e.to_csv(database.clone()))).collect();
+        for element in self {
+            //println!("{}", element.to_csv(database.clone()));
+            writeln!(file, "{}", element.to_csv(database.clone()))?;
+        }
         Ok(())
     }
 }

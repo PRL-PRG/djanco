@@ -22,6 +22,22 @@ use select::dump::Dump;
 // * CSV output if not squashed
 // * logging everywhere
 
+macro_rules! with_elapsed_seconds {
+    ($thing:expr) => {{
+        let start = std::time::Instant::now();
+        let result = { $thing };
+        (result, start.elapsed().as_secs())
+    }}
+}
+
+macro_rules! elapsed_seconds {
+    ($thing:expr) => {{
+        let start = std::time::Instant::now();
+        { $thing };
+        start.elapsed().as_secs()
+    }}
+}
+
 fn _stars(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
         .with_cache("/dejavuii/dejacode/examples/cache")
@@ -127,10 +143,10 @@ fn main() {
 
     //.with_filter(require::AtLeast(project::Commits, 10));
 
-    database.clone().projects().for_each(|e| println!("{}", e.id));
-    database.clone().projects().to_csv("test0.csv").unwrap();
-    database.clone().projects().sort_by_attrib(Descending, project::Stars).to_csv("test1.csv").unwrap();
-    database.projects().sort_by_attrib(Descending, project::Stars).sample(sample::Top(10)).to_csv("test2.csv").unwrap();
+    // database.clone().projects().for_each(|e| println!("{}", e.id));
+    // database.clone().projects().to_csv("test0.csv").unwrap();
+    // database.clone().projects().sort_by_attrib(Descending, project::Stars).to_csv("test1.csv").unwrap();
+    // database.projects().sort_by_attrib(Descending, project::Stars).sample(sample::Top(10)).to_csv("test2.csv").unwrap();
 
     // database.projects()
     //     //.filter_by_attrib(require::AtLeast(project::Commits, 28))
@@ -150,12 +166,24 @@ fn main() {
     //     .to_csv("projects.csv").unwrap();
     //     //.dump_all_info_to("dump").unwrap();
 
-    // _stars("/dejavuii/dejacode/dataset-tiny");
-    // _touched_files("/dejavuii/dejacode/dataset-tiny");
-    // _experienced_author("/dejavuii/dejacode/dataset-tiny");
-    // _fifty_percent_experienced("/dejavuii/dejacode/dataset-tiny");
-    // _message_size("/dejavuii/dejacode/dataset-tiny");
-    // _number_of_commits("/dejavuii/dejacode/dataset-tiny");
-    // _issues("/dejavuii/dejacode/dataset-tiny");
-    // _dump_all("/dejavuii/dejacode/dataset-tiny")
+    let path = "/dejacode/dataset";
+
+    let stars                     = elapsed_seconds!(_stars(path));
+    let touched_files             = elapsed_seconds!(_touched_files(path));
+    let experienced_author        = elapsed_seconds!(_experienced_author(path));
+    let fifty_percent_experienced = elapsed_seconds!(_fifty_percent_experienced(path));
+    let message_size              = elapsed_seconds!(_message_size(path));
+    let number_of_commits         = elapsed_seconds!(_number_of_commits(path));
+    let issues                    = elapsed_seconds!(_issues(path));
+    //_dump_all(path)
+
+    eprintln!("Elapsed seconds");
+    eprintln!("  - stars:                     {:>8}", stars);
+    eprintln!("  - touched_files:             {:>8}", touched_files);
+    eprintln!("  - experienced_author:        {:>8}", experienced_author);
+    eprintln!("  - fifty_percent_experienced: {:>8}", fifty_percent_experienced);
+    eprintln!("  - message_size:              {:>8}", message_size);
+    eprintln!("  - number_of_commits:         {:>8}", number_of_commits);
+    eprintln!("  - issues:                    {:>8}", issues);
+
 }

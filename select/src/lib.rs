@@ -56,6 +56,13 @@ impl Djanco {
     }
 }
 
+pub mod message {
+    use crate::attrib::Attribute;
+
+    #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Length;
+    impl Attribute for Length   {}
+}
+
 //** Errors **//
 // pub struct Error { message: String }
 // impl Error {

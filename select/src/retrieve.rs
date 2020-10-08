@@ -2,9 +2,12 @@ use crate::project;
 use crate::commit;
 use crate::objects::*;
 use crate::attrib::*;
+use crate::message;
 use crate::data::DataPtr;
 
-pub struct From<E: Attribute, A: Attribute>(pub E, pub A);
+pub struct From<E, A: Attribute>(pub E, pub A);
+
+impl<E,A> Attribute for From<E, A> where A: Attribute {}
 
 impl<I,C,E,A> From<C, A> where C: Attribute + CollectionAttribute<Entity=E, Item=I>, A: Attribute {
     fn flat_map_items<F,U,T>(&self, data: DataPtr, entity: &E, f: F) -> Vec<T> where F: FnMut(I) -> U, U: IntoIterator<Item=T> {
@@ -19,7 +22,19 @@ impl<I,C,E,A> From<C, A> where C: Attribute + CollectionAttribute<Entity=E, Item
     fn count_items(&self, data: DataPtr, entity: &E) -> usize {
         self.0.len(data, entity)
     }
+}
 
+impl<C, E> CollectionAttribute for From<C, message::Length> where C: CollectionAttribute<Entity=E, Item=Message> {
+    type Entity = E;
+    type Item = usize;
+
+    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        self.0.items(data, entity).into_iter().map(|m| m.contents.len()).collect()
+    }
+
+    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        self.0.len(data, entity)
+    }
 }
 
 impl CollectionAttribute for From<project::Commits, commit::Message> {

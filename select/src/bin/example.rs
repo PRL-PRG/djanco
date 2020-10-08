@@ -9,6 +9,7 @@ use select::user;
 use select::commit;
 use select::sample;
 use select::require;
+use select::message;
 //use select::dump::*;
 use select::prototype::api::*;
 use select::time::{Month, Seconds};
@@ -71,13 +72,15 @@ fn _fifty_percent_experienced(path: &str) {
         .to_csv("/dejavuii/dejacode/examples/output/50%_experienced.csv").unwrap();
 }
 
+
+
 fn _message_size(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
         .with_cache("/dejavuii/dejacode/examples/cache")
         .projects()
         .group_by_attrib(project::Language)
 
-        .sort_by_attrib(stats::Median(retrieve::From(project::Commits, commit::Message)))
+        .sort_by_attrib(stats::Median(retrieve::From(retrieve::From(project::Commits, commit::Message), message::Length)))
 
         .sample(sample::Top(50))
         .squash()
@@ -125,7 +128,7 @@ fn main() {
         //.filter_by_attrib(require::Same(project::Language, "Rust"))
         //.filter_by_attrib(require::Matches(project::URL, regex!("^https://github.com/PRL-PRG/.*$")))
         //.sort_by_attrib(project::Age)
-        .sort_by_attrib(stats::Median(retrieve::From(project::Commits, commit::Message)))
+        //.sort_by_attrib(stats::Median(retrieve::From(project::Commits, commit::Message)))
         .filter_by_attrib(require::Contains::Item(project::Users, User::with_name("Konrad Siek")))
         .sample(sample::Top(1))
         .squash()

@@ -2,6 +2,8 @@ use crate::attrib::{NumericalAttribute, CollectionAttribute, Sort};
 use crate::data::DataPtr;
 use itertools::Itertools;
 use crate::helpers;
+use std::f64::NAN;
+
 // use std::iter::Sum;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Count<C>(pub C);
@@ -17,7 +19,7 @@ use crate::helpers;
 // }
 
 //TODO count etc
-impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Into<f64> + Clone { // FIXME nix Clone
+impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric /*Into<f64> + Clone*/ { // FIXME nix Clone
     fn execute(&mut self, data: DataPtr, vector: Vec<E>) -> Vec<E> {
         vector.into_iter()
             .map(|e| (self.calculate(data.clone(), &e), e))
@@ -63,33 +65,46 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Mean<C> where C: CollectionAttribute<
     }
 }
 
-impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Into<f64> + Clone {
+pub trait Numeric {
+    fn as_f64(&self) -> f64;
+}
+
+impl Numeric for usize { fn as_f64(&self) -> f64 { *self as f64 } }
+impl Numeric for Option<usize> { fn as_f64(&self) -> f64 { match self { Some(n) => *n as f64, None => NAN } } }
+
+// FIXME change Option<Self::Number> in result to Self::Number
+impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric /*Into<f64> + Clone*/ {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
         let mut items= self.0.items(database, entity);//.into_iter().map(|n| n.into()).collect();
 
+        if items.is_empty() { return None }
+        if items.len() == 1 { return Some(f64::from(items[0].as_f64())) }
+
         items.sort();
 
-        match items.len() {
-            0usize => None,
-            1usize => items.get(0).map(|e| e.clone().into()),
+        unimplemented!()
 
-            odd  if odd % 2 != 0usize => {
-                items.get(odd / 2).map(|e| e.clone().into())
-            }
-
-            even /* if even % 2 == 0usize */ => {
-                let left = items.get((even / 2) - 1);
-                let right = items.get(even / 2);
-                if left.is_none() || right.is_none() { None }
-                else {
-                    let left = (left.unwrap()).clone().into();
-                    let right = (right.unwrap()).clone().into();
-                    Some(left + right / 2f64)
-                }
-            }
-        }
+        // match items.len() {
+        //     0usize => None,
+        //     1usize => items.get(0).map(|e| e.clone().into()),
+        //
+        //     odd  if odd % 2 != 0usize => {
+        //         items.get(odd / 2).map(|e| e.clone().into())
+        //     }
+        //
+        //     even /* if even % 2 == 0usize */ => {
+        //         let left = items.get((even / 2) - 1);
+        //         let right = items.get(even / 2);
+        //         if left.is_none() || right.is_none() { None }
+        //         else {
+        //             let left = (left.unwrap()).clone().into();
+        //             let right = (right.unwrap()).clone().into();
+        //             Some(left + right / 2f64)
+        //         }
+        //     }
+        // }
     }
 }
 

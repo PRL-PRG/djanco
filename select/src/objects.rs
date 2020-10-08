@@ -523,3 +523,33 @@ impl Identifiable<ProjectId> for Project { fn id(&self) -> ProjectId { self.id }
 impl Identifiable<CommitId>  for Commit  { fn id(&self) -> CommitId  { self.id } }
 impl Identifiable<UserId>    for User    { fn id(&self) -> UserId    { self.id } }
 impl Identifiable<PathId>    for Path    { fn id(&self) -> PathId    { self.id } }
+
+/**== Object names ==============================================================================**/
+pub trait NamedEntity {
+    fn singular() -> &'static str;
+    fn plural()   -> &'static str;
+}
+impl NamedEntity for Project {
+    fn singular() -> &'static str { "project"  }
+    fn plural()   -> &'static str { "projects" }
+}
+impl NamedEntity for Commit {
+    fn singular() -> &'static str { "commit"  }
+    fn plural()   -> &'static str { "commits" }
+}
+impl NamedEntity for User {
+    fn singular() -> &'static str { "user"  }
+    fn plural()   -> &'static str { "users" }
+}
+impl NamedEntity for Path {
+    fn singular() -> &'static str { "path"  }
+    fn plural()   -> &'static str { "paths" }
+}
+impl NamedEntity for Message {
+    fn singular() -> &'static str { "message"  }
+    fn plural()   -> &'static str { "messages" }
+}
+// impl NamedEntity for Snapshot {
+//     fn singular() -> &'static str { "snapshot"  }
+//     fn plural()   -> &'static str { "snapshots" }
+// }

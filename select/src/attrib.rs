@@ -4,6 +4,8 @@ use crate::data::DataPtr;
 use itertools::Itertools;
 use std::hash::{Hash, Hasher};
 use crate::names::WithNames;
+use crate::objects::NamedEntity;
+use crate::log::*;
 
 pub trait Attribute {}
 
@@ -87,18 +89,17 @@ pub mod sort {
 
 pub trait Sort<T> {
     fn execute(&mut self, data: DataPtr, vector: Vec<T>, direction: sort::Direction) -> Vec<T>;
-
-
 }
 
 pub trait Sample<T> {
     fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T>;
 }
 
-pub trait Select<T>: WithNames {
+pub trait Select<T: NamedEntity>: WithNames {
     type Entity; // TODO rename
-    fn select(&self, data: DataPtr, project: T) -> Self::Entity;
+    fn select(&self, data: DataPtr, entity: T) -> Self::Entity;
     fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<Self::Entity> {
+
         vector.into_iter()
             .map(|e| self.select(data.clone(), e))
             .collect()

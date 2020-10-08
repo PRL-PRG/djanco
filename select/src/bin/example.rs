@@ -21,6 +21,7 @@ use select::dump::Dump;
 // * fix load filters, maybe base on git commit hash of query
 // * CSV output if not squashed
 // * logging everywhere
+// * look into replacing Vecs in Iterators with VecDeques to preserve order
 
 fn _stars(path: &str) {
     Djanco::from(path, 0, Month::August(2020))
@@ -127,9 +128,9 @@ fn main() {
 
     //.with_filter(require::AtLeast(project::Commits, 10));
 
-    database.clone().projects().for_each(|e| println!("{}", e.id));
-    database.clone().projects().to_csv("test0.csv").unwrap();
-    database.clone().projects().sort_by_attrib(Descending, project::Stars).to_csv("test1.csv").unwrap();
+    //database.clone().projects().for_each(|e| println!("{}", e.id));
+    //database.clone().projects().to_csv("test0.csv").unwrap();
+    //database.clone().projects().sort_by_attrib(Descending, project::Stars).to_csv("test1.csv").unwrap();
     database.projects().sort_by_attrib(Descending, project::Stars).sample(sample::Top(10)).to_csv("test2.csv").unwrap();
 
     // database.projects()

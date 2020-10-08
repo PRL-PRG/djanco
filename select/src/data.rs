@@ -123,6 +123,8 @@ impl Data {
     pub fn me(&self) -> DataPtr {
         give_me!(self.me).upgrade().unwrap()
     }
+
+    pub fn spec(&self) -> &Spec { &self.spec }
 }
 
 /**===== Data: lazy loading methods =============================================================**/
@@ -1503,7 +1505,7 @@ pub type DataPtr = Rc<RefCell<Data>>;
 #[macro_export] macro_rules! untangle_mut { ($dataptr:expr) => { $dataptr.as_ref().borrow_mut() } }
 
 /**===== DataPtr: quincunx data extraction methods ==============================================**/
-pub trait Quincunx {
+pub trait Quincunx: NamedEntity {
     fn stream_from(data: &DataPtr) -> Vec<Self> where Self: Sized;
 }
 impl Quincunx for Project {

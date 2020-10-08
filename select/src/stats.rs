@@ -3,6 +3,7 @@ use crate::data::DataPtr;
 use itertools::Itertools;
 use crate::helpers;
 use std::f64::NAN;
+use std::cmp::Ordering;
 
 // use std::iter::Sum;
 
@@ -13,13 +14,31 @@ use std::f64::NAN;
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Median<C>(pub C);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Ratio<C>(pub C);
 
-// pub struct Stat<N,T> {
-//     object: T,
-//     stat: N,
-// }
+pub trait Numeric {
+    fn as_f64(&self) -> f64;
+    fn as_ord_f64(&self) -> OrdF64 { OrdF64(self.as_f64()) }
+}
+
+impl Numeric for usize      { fn as_f64(&self) -> f64 { *self as f64 } }
+impl Numeric for u64        { fn as_f64(&self) -> f64 { *self as f64 } }
+impl Numeric for u32        { fn as_f64(&self) -> f64 { *self as f64 } }
+impl Numeric for u8         { fn as_f64(&self) -> f64 { *self as f64 } }
+impl Numeric for f32        { fn as_f64(&self) -> f64 { *self as f64 } }
+impl Numeric for f64        { fn as_f64(&self) -> f64 { *self        } }
+impl Numeric for OrdF64     { fn as_f64(&self) -> f64 { self.0       } }
+
+impl<N> Numeric for Option<N> where N: Numeric {
+    fn as_f64(&self) -> f64 { match self { Some(n) => n.as_f64(), None => NAN } }
+}
+
+#[derive(Clone, Copy, PartialEq, PartialOrd)] pub struct OrdF64(f64);
+impl Eq for OrdF64 {}
+impl Ord for OrdF64 {
+    fn cmp(&self, other: &Self) -> Ordering { helpers::f64_cmp(self.0, other.0) }
+}
 
 //TODO count etc
-impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric /*Into<f64> + Clone*/ { // FIXME nix Clone
+impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric { // FIXME nix Clone
     fn execute(&mut self, data: DataPtr, vector: Vec<E>) -> Vec<E> {
         vector.into_iter()
             .map(|e| (self.calculate(data.clone(), &e), e))
@@ -64,13 +83,6 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Mean<C> where C: CollectionAttribute<
         else { Some(items.iter().sum::<usize>() as f64 / items.len() as f64) }
     }
 }
-
-pub trait Numeric {
-    fn as_f64(&self) -> f64;
-}
-
-impl Numeric for usize { fn as_f64(&self) -> f64 { *self as f64 } }
-impl Numeric for Option<usize> { fn as_f64(&self) -> f64 { match self { Some(n) => *n as f64, None => NAN } } }
 
 // FIXME change Option<Self::Number> in result to Self::Number
 impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric /*Into<f64> + Clone*/ {

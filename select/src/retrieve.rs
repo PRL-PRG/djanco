@@ -9,7 +9,7 @@ pub struct From<E, A: Attribute>(pub E, pub A);
 
 impl<E,A> Attribute for From<E, A> where A: Attribute {}
 
-impl<I,C,E,A> From<C, A> where C: Attribute + CollectionAttribute<Entity=E, Item=I>, A: Attribute {
+impl<I,C,E,A> From<C, A> where C: CollectionAttribute<Entity=E, Item=I>, A: Attribute {
     fn flat_map_items<F,U,T>(&self, data: DataPtr, entity: &E, f: F) -> Vec<T> where F: FnMut(I) -> U, U: IntoIterator<Item=T> {
         self.0.items(data, entity).into_iter().flat_map(f).collect()
     }
@@ -37,25 +37,8 @@ impl<C, E> CollectionAttribute for From<C, message::Length> where C: CollectionA
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Message> {
-    type Entity = Project;
-    type Item = Message;
-
-    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
-        self.flat_map_items(data.clone(), entity, |c: Commit| c.message(data.clone()))
-    }
-
-    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
-        self.flat_count_items(data.clone(), entity, |c: Commit| c.message(data.clone()))
-    }
-
-    fn parent_len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
-        self.count_items(data, entity)
-    }
-}
-
-impl CollectionAttribute for From<project::Commits, commit::Id> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Id> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = CommitId;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -67,8 +50,8 @@ impl CollectionAttribute for From<project::Commits, commit::Id> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Hash> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Hash> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = String;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -80,8 +63,8 @@ impl CollectionAttribute for From<project::Commits, commit::Hash> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Author> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Author> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = User;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -97,8 +80,8 @@ impl CollectionAttribute for From<project::Commits, commit::Author> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Committer> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Committer> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = User;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -114,8 +97,8 @@ impl CollectionAttribute for From<project::Commits, commit::Committer> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::AuthorTime> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::AuthorTime> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = i64;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -127,8 +110,8 @@ impl CollectionAttribute for From<project::Commits, commit::AuthorTime> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::CommitterTime> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::CommitterTime> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = i64;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -140,8 +123,8 @@ impl CollectionAttribute for From<project::Commits, commit::CommitterTime> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Additions> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Additions> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = u64;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -157,8 +140,8 @@ impl CollectionAttribute for From<project::Commits, commit::Additions> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Deletions> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Deletions> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = u64;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -174,8 +157,25 @@ impl CollectionAttribute for From<project::Commits, commit::Deletions> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Users> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Message> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
+    type Item = Message;
+
+    fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        self.flat_map_items(data.clone(), entity, |c: Commit| c.message(data.clone()))
+    }
+
+    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        self.flat_count_items(data.clone(), entity, |c: Commit| c.message(data.clone()))
+    }
+
+    fn parent_len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+        self.count_items(data, entity)
+    }
+}
+
+impl<C,E> CollectionAttribute for From<C, commit::Users> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = Vec<User>;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -187,8 +187,8 @@ impl CollectionAttribute for From<project::Commits, commit::Users> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Parents> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Parents> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = Vec<Commit>;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -200,8 +200,8 @@ impl CollectionAttribute for From<project::Commits, commit::Parents> {
     }
 }
 
-impl CollectionAttribute for From<project::Commits, commit::Paths> {
-    type Entity = Project;
+impl<C,E> CollectionAttribute for From<C, commit::Paths> where C: CollectionAttribute<Entity=E, Item=Commit> {
+    type Entity = E;
     type Item = Vec<Path>;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {

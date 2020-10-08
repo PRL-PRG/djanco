@@ -127,8 +127,10 @@ fn main() {
 
     //.with_filter(require::AtLeast(project::Commits, 10));
 
-    database.clone().projects().sort_by_attrib(Descending, project::Stars).to_csv("test1").unwrap();
-    database.projects().sort_by_attrib(Descending, project::Stars).sample(sample::Top(10)).to_csv("test2").unwrap();
+    database.clone().projects().for_each(|e| println!("{}", e.id));
+    database.clone().projects().to_csv("test0.csv").unwrap();
+    database.clone().projects().sort_by_attrib(Descending, project::Stars).to_csv("test1.csv").unwrap();
+    database.projects().sort_by_attrib(Descending, project::Stars).sample(sample::Top(10)).to_csv("test2.csv").unwrap();
 
     // database.projects()
     //     //.filter_by_attrib(require::AtLeast(project::Commits, 28))

@@ -31,6 +31,11 @@ impl<N> Numeric for Option<N> where N: Numeric {
     fn as_f64(&self) -> f64 { match self { Some(n) => n.as_f64(), None => NAN } }
 }
 
+pub trait Collection { fn len(&self) -> usize; }
+impl<T> Collection for Vec<T> { fn len(&self) -> usize { self.len() } }
+impl<T> Collection for std::collections::VecDeque<T> { fn len(&self) -> usize { self.len() } }
+impl<C> Numeric for C where C: Collection { fn as_f64(&self) -> f64 { self.len() as f64 } }
+
 #[derive(Clone, Copy, PartialEq, PartialOrd)] pub struct OrdF64(f64);
 impl Eq for OrdF64 {}
 impl Ord for OrdF64 {

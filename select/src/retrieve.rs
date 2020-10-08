@@ -1,4 +1,3 @@
-use crate::project;
 use crate::commit;
 use crate::objects::*;
 use crate::attrib::*;
@@ -6,8 +5,24 @@ use crate::message;
 use crate::data::DataPtr;
 
 pub struct From<E, A: Attribute>(pub E, pub A);
+//pub struct Count;
 
 impl<E,A> Attribute for From<E, A> where A: Attribute {}
+//impl<A>   Attribute for Count      where A: Attribute {}
+
+//select::retrieve::Each<select::project::CommitsWith<select::require::Exists<select::commit::Paths>>>
+// impl<I,C,E> CollectionAttribute for Each<C> where C: Attribute + CollectionAttribute<Entity=E, Item=I> {
+//     type Entity = E;
+//     type Item = Vec<I>;
+//
+//     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+//         self.0.items(data, entity)
+//     }
+//
+//     fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
+//         unimplemented!()
+//     }
+// }
 
 impl<I,C,E,A> From<C, A> where C: CollectionAttribute<Entity=E, Item=I>, A: Attribute {
     fn flat_map_items<F,U,T>(&self, data: DataPtr, entity: &E, f: F) -> Vec<T> where F: FnMut(I) -> U, U: IntoIterator<Item=T> {
@@ -213,8 +228,8 @@ impl<C,E> CollectionAttribute for From<C, commit::Paths> where C: CollectionAttr
     }
 }
 
-impl<F> CollectionAttribute for From<project::Commits, commit::ParentsWith<F>> where F: Filter<Entity=Commit> {
-    type Entity = Project;
+impl<F,C,E> CollectionAttribute for From<C, commit::ParentsWith<F>> where C: CollectionAttribute<Entity=E, Item=Commit>, F: Filter<Entity=Commit> {
+    type Entity = E;
     type Item = Vec<Commit>;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -226,8 +241,8 @@ impl<F> CollectionAttribute for From<project::Commits, commit::ParentsWith<F>> w
     }
 }
 
-impl<F> CollectionAttribute for From<project::Commits, commit::UsersWith<F>> where F: Filter<Entity=User> {
-    type Entity = Project;
+impl<F,C,E> CollectionAttribute for From<C, commit::UsersWith<F>> where C: CollectionAttribute<Entity=E, Item=Commit>, F: Filter<Entity=User> {
+    type Entity = E;
     type Item = Vec<User>;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
@@ -239,8 +254,9 @@ impl<F> CollectionAttribute for From<project::Commits, commit::UsersWith<F>> whe
     }
 }
 
-impl<F> CollectionAttribute for From<project::Commits, commit::PathsWith<F>> where F: Filter<Entity=Path> {
-    type Entity = Project;
+impl<F,C,E> CollectionAttribute for From<C, commit::PathsWith<F>> where C: CollectionAttribute<Entity=E, Item=Commit>, F: Filter<Entity=Path> {
+//impl<F> CollectionAttribute for From<project::Commits, commit::PathsWith<F>> where F: Filter<Entity=Path> {
+    type Entity = E;
     type Item = Vec<Path>;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {

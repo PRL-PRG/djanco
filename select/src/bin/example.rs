@@ -38,7 +38,10 @@ fn _touched_files(path: &str) { //. FIXME
         .projects()
         .group_by_attrib(project::Language)
 
+        //.sort_by_attrib(project::CommitsWith(require::Exists(commit::Paths)))
         //.sort_by_attrib(stats::Median(project::CommitsWith(require::Exists(commit::Paths))))
+
+        .sort_by_attrib(stats::Median(retrieve::From(project::Commits, commit::Paths)))
 
         .sample(sample::Top(50))
         .squash()

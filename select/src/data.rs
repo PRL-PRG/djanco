@@ -1524,24 +1524,24 @@ impl Quincunx for User {
 
 /**===== DataPtr: conversions ===================================================================**/
 impl From<djanco::Spec> for DataPtr {
-    fn from(spec: djanco::Spec) -> Self {
+    fn from(spec: djanco::Spec) -> Self { // FIXME log
         Data::new(&spec.warehouse, &spec.database, spec.timestamp, spec.seed, spec.log_level)
     }
 }
 impl From<&djanco::Spec> for DataPtr {
-    fn from(spec: &djanco::Spec) -> Self {
+    fn from(spec: &djanco::Spec) -> Self { // FIXME log
         Data::new(&spec.warehouse, &spec.database, spec.timestamp, spec.seed, spec.log_level)
     }
 }
 impl From<djanco::Lazy> for DataPtr {
-    fn from(lazy: djanco::Lazy) -> Self {
+    fn from(lazy: djanco::Lazy) -> Self { // FIXME log
         let data_ptr = DataPtr::from(&lazy.spec);
         untangle_mut!(data_ptr).filters = lazy.filters;
         data_ptr
     }
 }
 impl From<&djanco::Lazy> for DataPtr {
-    fn from(lazy: &djanco::Lazy) -> Self {
+    fn from(lazy: &djanco::Lazy) -> Self { // FIXME log
         let data_ptr = DataPtr::from(&lazy.spec);
         let iter =
             lazy.filters.iter().map(|f| f.clone_box());

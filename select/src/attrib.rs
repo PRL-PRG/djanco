@@ -7,6 +7,7 @@ use crate::names::WithNames;
 
 pub trait Attribute {}
 
+#[derive(Clone)]
 pub struct AttributeValue<A: Attribute, T> {
     pub value: T,
     attribute_type: PhantomData<A>,
@@ -56,10 +57,8 @@ pub trait Filter {
 }
 
 pub mod sort {
-    #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)] pub enum Direction {
-        Descending,
-        Ascending
-    }
+    #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)]
+    pub enum Direction { Descending, Ascending }
     impl Direction {
         pub fn descending(&self) -> bool { match self { Direction::Descending => true, _ => false } }
         pub fn ascending(&self)  -> bool { match self { Direction::Ascending  => true, _ => false } }
@@ -87,8 +86,6 @@ pub mod sort {
 
 pub trait Sort<T> {
     fn execute(&mut self, data: DataPtr, vector: Vec<T>, direction: sort::Direction) -> Vec<T>;
-
-
 }
 
 pub trait Sample<T> {

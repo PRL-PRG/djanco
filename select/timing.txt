@@ -1,0 +1,8 @@
+Elapsed seconds                   first
+  - stars:                        17302
+  - touched_files:                22579
+  - experienced_author:            5981
+  - fifty_percent_experienced:     3439
+  - message_size:                 15038
+  - number_of_commits:             3834
+  - issues:                        3536

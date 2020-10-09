@@ -5,8 +5,9 @@ use crate::log::LogLevel;
 use crate::attrib::{LoadFilter, Group, Filter, Sort, Sample, Select, sort};
 use std::hash::Hash;
 use crate::time::Month;
+use crate::receipt::{Receipt, ReceiptHolder, Task};
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Spec {
     pub warehouse: PathBuf,
     pub database: Option<PathBuf>,
@@ -32,16 +33,31 @@ impl Spec {
 /** Pre-load operations **/
 #[derive(Clone)]
 pub struct Lazy {
-    pub spec: Spec,
+    pub spec: Spec, // TODO probably redundant
+    pub receipt: Receipt,
     pub(crate) filters: Vec<Box<dyn LoadFilter + 'static>>,
 }
 
+impl ReceiptHolder for Lazy {
+    fn get_receipt(&self) -> &Receipt {
+        &self.receipt
+    }
+}
+
 impl From<Spec> for Lazy {
-    fn from(spec: Spec) -> Self { Lazy { spec, filters: vec![] } }
+    fn from(spec: Spec) -> Self {
+        let mut receipt = Receipt::new();
+        receipt.instantaneous(Task::initial(&spec));
+        Lazy { filters: vec![], receipt, spec }
+    }
 }
 
 impl From<&Spec> for Lazy {
-    fn from(spec: &Spec) -> Self { Lazy { spec: spec.clone(), filters: vec![] } }
+    fn from(spec: &Spec) -> Self {
+        let mut receipt = Receipt::new();
+        receipt.instantaneous(Task::initial(&spec));
+        Lazy { filters: vec![], receipt, spec: spec.clone() }
+    }
 }
 
 impl /* LoadFiltering for */ Lazy {
@@ -72,8 +88,10 @@ impl /* Quincunx for */ Lazy {
 }
 
 /** A single strand out of the five main strands in the database **/
+#[derive(Clone)]
 pub struct QuincunxIter<T> {
-    spec: Spec,
+    spec: Spec,// TODO redundant?
+    receipt: Receipt,
     data: DataPtr,
     source_: Option<Vec<T>>, // Serves the iterator: None -> n elements -> ... -> 0 elements
 }
@@ -99,6 +117,12 @@ impl<T> WithData for QuincunxIter<T> {
     }
 }
 
+impl<T> ReceiptHolder for QuincunxIter<T> {
+    fn get_receipt(&self) -> &Receipt {
+        &self.receipt
+    }
+}
+
 impl<T> Iterator for QuincunxIter<T> where T: Quincunx {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
@@ -108,55 +132,96 @@ impl<T> Iterator for QuincunxIter<T> where T: Quincunx {
 
 impl<T> /* Query for */ QuincunxIter<T> where T: Quincunx {
     pub fn group_by_attrib<K, G>(self, mut attrib: G) -> GroupIter<K, T> where G: Group<T, Key=K>, K: Hash + Eq {
-        //log_item!("Grouping by {}", attrib);
+
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::grouping::<K,T>());
 
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source = attrib.execute(self.data.clone(), self.consume_source());
-        GroupIter { spec, data, source }
+
+        receipt.complete_processing(source.len());
+
+        // complete_task!(conv);
+        GroupIter { receipt, spec, data, source }
     }
 
     pub fn filter_by_attrib<F>(self, mut attrib: F) -> Iter<T> where F: Filter<Entity=T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::filtering::<T>());
+
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source: Vec<T> = attrib.execute(self.data.clone(), self.consume_source());
-        Iter { spec, data, source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec, data, source }
     }
 
     pub fn sort_by_attrib<S>(self, direction: sort::Direction, mut attrib: S) -> Iter<T> where S: Sort<T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::sorting::<T>());
+
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source = attrib.execute(self.data.clone(), self.consume_source(), direction);
-        Iter { spec, data, source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec, data, source }
     }
 
     pub fn map_to_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=R> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::mapping::<T,R>());
+
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source = attrib.execute(self.data.clone(), self.consume_source());
-        Iter { spec, data, source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec, data, source }
     }
 
     pub fn flat_map_to_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=Vec<R>> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::flat_mapping::<T,R>());
+
         let data = self.data.clone();
         let spec = self.spec.clone();
-        let source = attrib.execute(self.data.clone(), self.consume_source())
+        let source: Vec<R> = attrib.execute(self.data.clone(), self.consume_source())
             .into_iter().flat_map(|e| e).collect();
-        Iter { spec, data, source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec, data, source }
     }
 
     pub fn sample<S>(self, mut attrib: S) -> Iter<T> where S: Sample<T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::sampling::<T>());
+
         let data = self.data.clone();
         let spec = self.spec.clone();
         let source = attrib.execute(self.data.clone(), self.consume_source());
-        Iter { spec, data, source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec, data, source }
     }
 }
 
 impl<T> From<Lazy> for QuincunxIter<T> {
     fn from(lazy: Lazy) -> Self {
+        let mut receipt = lazy.receipt.clone();
+        receipt.start(Task::prefiltering());
+
         let data = DataPtr::from(&lazy);
-        QuincunxIter { spec: lazy.spec, data, source_: None }
+
+        receipt.complete(); // FIXME
+        QuincunxIter { receipt, spec: lazy.spec, data, source_: None }
     }
 }
 
@@ -164,8 +229,10 @@ impl<T> From<Lazy> for QuincunxIter<T> {
  * A general version of QuincunxITer that is already initialized, and therefore can contain any
  *  element type.
  **/
+#[derive(Clone)]
 pub struct Iter<T> {
-    spec: Spec,
+    spec: Spec,// TODO redundant
+    receipt: Receipt,
     data: DataPtr,
     source: Vec<T>,
 }
@@ -173,6 +240,12 @@ pub struct Iter<T> {
 impl<T> WithData for Iter<T> {
     fn get_database_ptr(&self) -> DataPtr {
         self.data.clone()
+    }
+}
+
+impl<T> ReceiptHolder for Iter<T> {
+    fn get_receipt(&self) -> &Receipt {
+        &self.receipt
     }
 }
 
@@ -185,34 +258,70 @@ impl<T> Iterator for Iter<T> {
 
 impl<T> /* Query for */ Iter<T> {
     pub fn group_by_attrib<K, G>(self, mut attrib: G) -> GroupIter<K, T> where G: Group<T, Key=K>, K: Hash + Eq {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::grouping::<K,T>());
+
         let source = attrib.execute(self.data.clone(), self.source);
-        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.len());
+
+        GroupIter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn filter_by_attrib<F>(self, mut attrib: F) -> Iter<T> where F: Filter<Entity=T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::filtering::<T>());
+
         let source = attrib.execute(self.data.clone(), self.source);
-        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn sort_by_attrib<S>(self, direction: sort::Direction, mut attrib: S) -> Iter<T> where S: Sort<T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::sorting::<T>());
+
         let source = attrib.execute(self.data.clone(), self.source, direction);
-        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn map_to_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=R> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::mapping::<T,R>());
+
         let source = attrib.execute(self.data.clone(), self.source);
-        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn flat_map_to_attrib<S, R>(self, mut attrib: S) -> Iter<R> where S: Select<T, Entity=Vec<R>> {
-        let source = attrib.execute(self.data.clone(), self.source)
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::flat_mapping::<T,R>());
+
+        let source: Vec<R> = attrib.execute(self.data.clone(), self.source)
                                 .into_iter().flat_map(|e| e).collect();
-        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn sample<S>(self, mut attrib: S) -> Iter<T> where S: Sample<T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::sampling::<T>());
+
         let source = attrib.execute(self.data.clone(), self.source);
-        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 }
 
@@ -235,8 +344,10 @@ impl<T> /* Query for */ Iter<T> {
 /**
  * Group iterator, probably the most used iterator we build.s
  */
+#[derive(Clone)]
 pub struct GroupIter<K, T> {
-    spec: Spec,
+    spec: Spec, // TODO redundant
+    receipt: Receipt,
     data: DataPtr,
     source: Vec<(K, Vec<T>)>
 }
@@ -244,6 +355,12 @@ pub struct GroupIter<K, T> {
 impl<K, T> WithData for GroupIter<K, T> {
     fn get_database_ptr(&self) -> DataPtr {
         self.data.clone()
+    }
+}
+
+impl<K,T> ReceiptHolder for GroupIter<K, T> {
+    fn get_receipt(&self) -> &Receipt {
+        &self.receipt
     }
 }
 
@@ -273,50 +390,86 @@ impl<K, T> /* Query for */ GroupIter<K, T> {
     // }
 
     pub fn filter_by_attrib<F>(self, mut attrib: F) -> GroupIter<K, T> where F: Filter<Entity=T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::filtering::<T>());
+
         let data = self.data.clone();
-        let source = self.source.into_iter()
+        let source: Vec<(K, Vec<T>)> = self.source.into_iter()
             .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
             .collect();
-        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.iter().map(|(_, v)| v.len()).sum());
+
+        GroupIter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn sort_by_attrib<S>(self, direction: sort::Direction, mut attrib: S) -> GroupIter<K, T> where S: Sort<T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::sorting::<T>());
+
         let data = self.data.clone();
-        let source = self.source.into_iter()
+        let source: Vec<(K, Vec<T>)> = self.source.into_iter()
             .map(|(key, vector)| (key, attrib.execute(data.clone(), vector, direction)))
             .collect();
-        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.iter().map(|(_, v)| v.len()).sum());
+
+        GroupIter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn map_to_attrib<S, R>(self, mut attrib: S) -> GroupIter<K, R> where S: Select<T, Entity=R> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::mapping::<T,R>());
+
         let data = self.data.clone();
-        let source = self.source.into_iter()
+        let source: Vec<(K, Vec<R>)> = self.source.into_iter()
             .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
             .collect();
-        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.iter().map(|(_, v)| v.len()).sum());
+
+        GroupIter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn flat_map_to_attrib<S, R>(self, mut attrib: S) -> GroupIter<K, R> where S: Select<T, Entity=R> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::flat_mapping::<T,R>());
+
         let data = self.data.clone();
-        let source = self.source.into_iter()
+        let source: Vec<(K, Vec<R>)> = self.source.into_iter()
             .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
             .collect();
-        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.iter().map(|(_, v)| v.len()).sum());
+
+        GroupIter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn sample<S>(self, mut attrib: S) -> GroupIter<K, T> where S: Sample<T> {
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::sampling::<T>());
+
         let data = self.data.clone();
-        let source = self.source.into_iter()
+        let source: Vec<(K, Vec<T>)> = self.source.into_iter()
             .map(|(key, vector)| (key, attrib.execute(data.clone(), vector)))
             .collect();
-        GroupIter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.iter().map(|(_, v)| v.len()).sum());
+
+        GroupIter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 
     pub fn squash(self) -> Iter<T> {
-        let source =
+        let mut receipt = self.receipt.clone();
+        receipt.start(Task::squashing::<K,T>());
+
+        let source: Vec<T> =
             self.source.into_iter()
                 .flat_map(|(_, entity)| entity)
                 .collect();
-        Iter { spec: self.spec.clone(), data: self.data.clone(), source }
+
+        receipt.complete_processing(source.len());
+
+        Iter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
     }
 }

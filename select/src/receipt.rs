@@ -3,7 +3,24 @@ use std::time::{Duration, Instant};
 
 pub fn name_of<T>() -> String {
     let name = std::any::type_name::<T>();
-    name.to_string()
+    macro_rules! __ { ($str:expr) => { $str.to_owned() } }
+    match name {
+        "select::objects::ProjectId"  => __!("project ids"),
+        "select::objects::CommitId"   => __!("commit ids"),
+        "select::objects::UserId"     => __!("user ids"),
+        "select::objects::PathId"     => __!("path ids"),
+        "select::objects::SnapshotId" => __!("snapshot ids"),
+
+        "select::objects::Project"    => __!("projects"),
+        "select::objects::Commit"     => __!("commits"),
+        "select::objects::User"       => __!("users"),
+        "select::objects::Path"       => __!("paths"),
+        "select::objects::Snapshot"   => __!("snapshots"),
+
+        "select::attrib::AttributeValue<select::project::Language, alloc::string::String>" => __!("languages"),
+
+        s => format!("{}s", s),
+    }.to_owned()
 }
 
 pub trait ReceiptHolder {
@@ -94,7 +111,7 @@ impl Task {
     pub fn get_message(&self) -> String {
         let event = self.event.get_message();
         let touched =
-            self.touched.as_ref().map_or(String::new(), |s| format!(" {} ", s));
+            self.touched.as_ref().map_or(String::new(), |s| format!(" {}", s));
         //let elapsed_time = self.elapsed.as_secs();
         format!("  Started {}{}...", event, touched)
     }
@@ -113,7 +130,7 @@ impl CompletedTask {
     pub fn get_message(&self) -> String {
         let event = self.event.get_message();
         let touched = self.touched.as_ref().
-            map_or(String::new(), |(n, items)| format!(" {} {} ", n, items));
+            map_or(String::new(), |(n, items)| format!(" {} {}", n, items));
         let elapsed_time = self.elapsed.as_secs();
         format!("  Finished {}{} in {}s", event, touched, elapsed_time)
     }

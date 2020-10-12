@@ -6,6 +6,7 @@ use crate::meta::*;
 use dcd::{DCD, Database};
 use itertools::Itertools;
 use crate::time::Seconds;
+use std::cmp::Ordering;
 
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;
@@ -497,7 +498,19 @@ impl Sort<Project> for Language {
 
 impl Sort<Project> for Stars {
     fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
-        sort::Sorter::from(vector, direction).sort_by_key(|p| p.stars)
+        //sort::Sorter::from(vector, direction).sort_by_key(|p| p.stars)
+        sort::Sorter::from(vector, direction).sort_by(|p1, p2| {
+            match (p1.stars, p2.stars) {
+                (Some(n1), Some(n2)) =>
+                         if n1 < n2 { Ordering::Less    }
+                    else if n1 > n2 { Ordering::Greater }
+                    else            { Ordering::Equal   },
+
+                (None, None) =>       Ordering::Equal,
+                (None,    _) =>       Ordering::Less,
+                (_,    None) =>       Ordering::Greater,
+            }
+        })
     }
 }
 

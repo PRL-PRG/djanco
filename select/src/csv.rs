@@ -134,3 +134,16 @@ impl<A,T> CSVItem for AttributeValue<A, T> where A: Attribute, T: CSVItem {
         self.value.to_csv(db)
     }
 }
+
+#[allow(non_snake_case)]
+pub trait IDs<T: Identifiable<I>, I: Identity> {
+    fn to_id_list(self, location: impl Into<String>) -> Result<(), std::io::Error>;
+}
+
+impl<I, C, T> IDs<T, I> for C where C: Iterator<Item=T> + WithData, T: Identifiable<I>, I: Identity  {
+    fn to_id_list(self, location: impl Into<String>) -> Result<(), std::io::Error> {
+        let mut file = create_file!(location)?;
+        for element in self { writeln!(file, "{}", element.id())?; }
+        Ok(())
+    }
+}

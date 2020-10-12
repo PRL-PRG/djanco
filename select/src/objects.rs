@@ -92,7 +92,7 @@ impl Display for SnapshotId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
 }
 
-pub trait Identity: Copy + Clone + Hash + Eq + PartialEq + Ord + PartialOrd {}
+pub trait Identity: Copy + Clone + Hash + Eq + PartialEq + Ord + PartialOrd + Display {}
 impl Identity for ProjectId  {}
 impl Identity for UserId     {}
 impl Identity for CommitId   {}

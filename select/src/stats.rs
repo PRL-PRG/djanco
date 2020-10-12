@@ -42,7 +42,48 @@ impl Ord for OrdF64 {
     fn cmp(&self, other: &Self) -> Ordering { helpers::f64_cmp(self.0, other.0) }
 }
 
-//TODO count etc
+impl<I,C,E> Sort<E> for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
+    fn execute(&mut self, data: DataPtr, vector: Vec<E>, direction: sort::Direction) -> Vec<E> {
+        let mut vector: Vec<E> = vector.into_iter()
+            .sorted_by_key(|e| self.calculate(data.clone(), &e))
+            .collect();
+        if direction.descending() { vector.reverse() }
+        vector
+    }
+}
+
+impl<I,C,E>/*baby*/ Sort<E> for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
+    fn execute(&mut self, data: DataPtr, vector: Vec<E>, direction: sort::Direction) -> Vec<E> {
+        let mut vector: Vec<E> = vector.into_iter()
+            .sorted_by_key(|e| self.calculate(data.clone(), &e))
+            .collect();
+        if direction.descending() { vector.reverse() }
+        vector
+    }
+}
+
+impl<I,C,E> Sort<E> for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
+    fn execute(&mut self, data: DataPtr, vector: Vec<E>, direction: sort::Direction) -> Vec<E> {
+        let mut vector: Vec<E> = vector.into_iter()
+            .sorted_by_key(|e| self.calculate(data.clone(), &e))
+            .collect();
+        if direction.descending() { vector.reverse() }
+        vector
+    }
+}
+
+impl<I,C,E>/*baby*/ Sort<E> for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
+    fn execute(&mut self, data: DataPtr, vector: Vec<E>, direction: sort::Direction) -> Vec<E> {
+        let mut vector: Vec<E> = vector.into_iter()
+            .map(|e| (self.calculate(data.clone(), &e), e))
+            .sorted_by(|a, b| helpers::option_f64_cmp(&a.0, &b.0))
+            .map(|(_, e)| e)
+            .collect();
+        if direction.descending() { vector.reverse() }
+        vector
+    }
+}
+
 impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric {
     fn execute(&mut self, data: DataPtr, vector: Vec<E>, direction: sort::Direction) -> Vec<E> {
         let mut vector: Vec<E> = vector.into_iter()
@@ -55,7 +96,7 @@ impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>
     }
 }
 
-impl<I,C,E> NumericalAttribute for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
+impl<I,C,E>/*baby*/ NumericalAttribute for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
     type Entity = E;
     type Number = usize;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -63,7 +104,7 @@ impl<I,C,E> NumericalAttribute for Count<C> where C: CollectionAttribute<Item=I,
     }
 }
 
-impl<I,C,E>/*baby*/ NumericalAttribute for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
+impl<I,C,E> NumericalAttribute for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
     type Entity = E;
     type Number = I;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -71,15 +112,15 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Min<C> where C: CollectionAttribute<I
     }
 }
 
-impl<I,C,E> NumericalAttribute for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Into<usize> {
+impl<I,C,E>/*baby*/ NumericalAttribute for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
     type Entity = E;
-    type Number = usize;
+    type Number = I;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        self.0.items(database, entity).into_iter().max().map(|n| n.into())
+        self.0.items(database, entity).into_iter().max()
     }
 }
 
-impl<I,C,E>/*baby*/ NumericalAttribute for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
+impl<I,C,E> NumericalAttribute for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -92,7 +133,7 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Mean<C> where C: CollectionAttribute<
 }
 
 // FIXME change Option<Self::Number> in result to Self::Number
-impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric /*Into<f64> + Clone*/ {
+impl<I,C,E>/*baby*/ NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric /*Into<f64> + Clone*/ {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -112,7 +153,7 @@ impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I
     }
 }
 
-impl<I,C,E>/*baby*/ NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E> {
+impl<I,C,E> NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E> {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {

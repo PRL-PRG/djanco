@@ -206,6 +206,10 @@ fn main() {
     let dump                        = elapsed_secs!("dump_all",                    dump_all                   (&config, projects));
 
     eprintln!("Summary:");
+    eprintln!("  dataset: `{}`", config.dataset_path.to_str().unwrap());
+    eprintln!("   output: `{}`", config.output_path.to_str().unwrap());
+    eprintln!("    cache: `{}`", config.cache_path.unwrap_or(PathBuf::new()).to_str().unwrap());
+    eprintln!("     dump: `{}`", config.dump_path.unwrap_or(PathBuf::new()).to_str().unwrap());
     eprintln!();
     eprintln!("+---------+-------------------------------+--------------------+-----------------+");
     eprintln!("| section | task                          | query in paper     | elapsed seconds |");

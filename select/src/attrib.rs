@@ -89,7 +89,10 @@ pub trait Sort<T> {
 }
 
 pub trait Sample<T> {
-    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T>;
+    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T> {
+        self.make_selection(data, vector.into_iter())
+    }
+    fn make_selection(&mut self, data: DataPtr, iter: impl Iterator<Item=T>) -> Vec<T>;
 }
 
 pub trait Select<T>: WithNames {

@@ -93,7 +93,7 @@ fn mean_changes_in_commits(config: &Configuration, groups: Groups) {
         .sort_by_attrib(Descending, stats::Mean(retrieve::From(project::Commits, commit::Paths)))
         .sample(sample::Top(50))
         .squash()
-        .to_id_list(format!("{}/median_changes_in_commits.csv", config.output_path.to_str().unwrap())).unwrap();
+        .to_id_list(format!("{}/mean_changes_in_commits.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
 fn median_changes_in_commits(config: &Configuration, groups: Groups) { // This is "touched files" in the paper

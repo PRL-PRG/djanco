@@ -1,10 +1,13 @@
 use crate::djanco;
+use crate::stats;
+use crate::attrib;
 use crate::objects;
 use crate::user;
 use crate::commit;
 use crate::project;
 use crate::path;
 use crate::attrib::*;
+use crate::objects::Identity;
 
 pub trait WithNames {
     fn names() -> Vec<&'static str>;
@@ -58,6 +61,11 @@ impl WithNames for objects::Path   {
         vec!["id","path"]
     }
 }
+
+impl WithNames for f64                   { fn names() -> Vec<&'static str> { vec!["n"] } }
+impl WithNames for usize                 { fn names() -> Vec<&'static str> { vec!["n"] } }
+impl WithNames for u64                   { fn names() -> Vec<&'static str> { vec!["n"] } }
+impl WithNames for i64                   { fn names() -> Vec<&'static str> { vec!["n"] } }
 
 impl WithNames for project::Id           { fn names() -> Vec<&'static str> { vec!["project_id"]  } }
 impl WithNames for project::URL          { fn names() -> Vec<&'static str> { vec!["url"]         } }
@@ -123,3 +131,22 @@ impl<K,T> WithNames for (K,T) where K: WithNames, T: WithNames {
 impl<A,T> WithNames for AttributeValue<A, T> where A: Attribute + WithNames {
     fn names() -> Vec<&'static str> { A::names() }
 }
+impl<T> WithNames for Option<T> where T: WithNames {
+    fn names() -> Vec<&'static str> { T::names() }
+}
+
+impl<C> WithNames for stats::Count<C>  { fn names() -> Vec<&'static str> { vec!["count"]  } }
+impl<C> WithNames for stats::Min<C>    { fn names() -> Vec<&'static str> { vec!["min"]    } }
+impl<C> WithNames for stats::Max<C>    { fn names() -> Vec<&'static str> { vec!["max"]    } }
+impl<C> WithNames for stats::Mean<C>   { fn names() -> Vec<&'static str> { vec!["mean"]   } }
+impl<C> WithNames for stats::Median<C> { fn names() -> Vec<&'static str> { vec!["median"] } }
+
+impl<A,I> WithNames for attrib::ID<I,A> where A: WithNames, I: Identity {
+    fn names() -> Vec<&'static str> { join_vec!(I::names(), A::names()) }
+}
+
+// impl WithNames for objects::ProjectId  { fn names() -> Vec<&'static str> { vec!["project_ids"] } }
+// impl WithNames for objects::CommitId   { fn names() -> Vec<&'static str> { vec!["commit_ids"] } }
+// impl WithNames for objects::UserId     { fn names() -> Vec<&'static str> { vec!["user_ids"] } }
+// impl WithNames for objects::PathId     { fn names() -> Vec<&'static str> { vec!["path_ids"] } }
+// impl WithNames for objects::SnapshotId { fn names() -> Vec<&'static str> { vec!["snapshot_ids"] } }

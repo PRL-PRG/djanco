@@ -160,3 +160,38 @@ impl<I,C,E> NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I,
         Some(self.0.len(database.clone(), entity) as f64 / self.0.parent_len(database, entity) as f64)
     }
 }
+
+impl<I,C,E>/*baby*/ Select<E> for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
+    type Entity = Option<usize>;
+    fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
+        self.calculate(data, &entity)
+    }
+}
+
+impl<I,C,E> Select<E> for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord  {
+    type Entity = Option<I>;
+    fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
+        self.calculate(data, &entity)
+    }
+}
+
+impl<I,C,E>/*baby*/ Select<E> for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
+    type Entity = Option<I>;
+    fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
+        self.calculate(data, &entity)
+    }
+}
+
+impl<I,C,E> Select<E> for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
+    type Entity = f64;
+    fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
+        self.calculate(data, &entity).unwrap_or(NAN)
+    }
+}
+
+impl<I,C,E>/*baby*/ Select<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric {
+    type Entity = f64;
+    fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
+        self.calculate(data, &entity).unwrap_or(NAN)
+    }
+}

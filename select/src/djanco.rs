@@ -255,6 +255,13 @@ impl<T> Iterator for Iter<T> {
         self.source.pop()
     }
 }
+//
+// impl<A,B> Iterator for Iter<(A,B)> {
+//     type Item = (A,B);
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.source.pop()
+//     }
+// }
 
 impl<T> /* Query for */ Iter<T> {
     pub fn group_by_attrib<K, G>(self, mut attrib: G) -> GroupIter<K, T> where G: Group<T, Key=K>, K: Hash + Eq {

@@ -22,7 +22,6 @@ use select::dump::Dump;
 // * snapshots aka file contents
 // * keep and produce receipt snippets
 // * fix load filters, maybe base on git commit hash of query
-// * CSV output if not squashed
 // * logging everywhere
 
 #[derive(StructOpt,Debug)]
@@ -180,6 +179,32 @@ fn issues(config: &Configuration, groups: Groups) {
         .to_id_list(format!("{}/issues.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
+fn debug_dump(config: &Configuration, projects: &Projects) {
+    projects.clone()
+        .map_to_attrib(attrib::ID::with(stats::Mean(retrieve::From(project::Commits, commit::Paths))))
+        .to_csv(format!("{}/mean_changes_in_commits.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+
+    projects.clone()
+        .map_to_attrib(attrib::ID::with(stats::Median(retrieve::From(project::Commits, commit::Paths))))
+        .to_csv(format!("{}/median_changes_in_commits.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+
+    projects.clone()
+        .map_to_attrib(attrib::ID::with(stats::Mean(retrieve::From(retrieve::From(project::Commits, commit::Message), message::Length))))
+        .to_csv(format!("{}/mean_commit_message_sizes.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+
+    projects.clone()
+        .map_to_attrib(attrib::ID::with(stats::Median(retrieve::From(retrieve::From(project::Commits, commit::Message), message::Length))))
+        .to_csv(format!("{}/median_commit_message_sizes.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+
+    projects.clone()
+        .map_to_attrib(attrib::ID::with(stats::Count(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2))))))
+        .to_csv(format!("{}/experienced_authors.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+
+    projects.clone()
+        .map_to_attrib(attrib::ID::with(stats::Count(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2))))))
+        .to_csv(format!("{}/experienced_authors_ratio.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+}
+
 #[allow(dead_code)]
 fn dump_all(config: &Configuration, projects: Projects) {
     match &config.dump_path {
@@ -214,6 +239,7 @@ fn main() {
     let all_issues                  = elapsed_secs!("all_issues",                  all_issues                 (&config, groups.clone()));
     let issues                      = elapsed_secs!("issues",                      issues                     (&config, groups.clone()));
     let buggy_issues                = elapsed_secs!("buggy_issues",                buggy_issues               (&config, groups.clone()));
+    let debug_dump                  = elapsed_secs!("debug_dump",                  debug_dump                 (&config, &projects));
     let dump                        = elapsed_secs!("dump_all",                    dump_all                   (&config, projects));
 
     eprintln!("Summary:");
@@ -240,6 +266,7 @@ fn main() {
     eprintln!("| queries | issues                        |                    | {:>15} |", issues);
     eprintln!("| queries | buggy_issues                  |                    | {:>15} |", buggy_issues);
     eprintln!("+---------+-------------------------------+--------------------+-----------------+");
+    eprintln!("| dump    | debug_dump                    |                    | {:>15} |", debug_dump);
     eprintln!("| dump    | dump_all                      |                    | {:>15} |", dump);
     eprintln!("+---------+-------------------------------+--------------------+-----------------+");
 }

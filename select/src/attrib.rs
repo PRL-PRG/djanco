@@ -4,6 +4,7 @@ use crate::data::DataPtr;
 use itertools::Itertools;
 use std::hash::{Hash, Hasher};
 use crate::names::WithNames;
+use crate::objects::{Identifiable, Identity};
 
 pub trait Attribute {}
 
@@ -160,3 +161,20 @@ impl<C,E,T> ExistentialAttribute for C where C: CollectionAttribute<Entity=T,Ite
 //         unimplemented!()
 //     }
 // }
+
+pub struct ID<I: Identity, A>{ attribute: A, id: PhantomData<I> }
+
+impl<I,A> ID<I,A> where I: Identity {
+    pub fn with(attribute: A) -> Self {
+        ID { attribute, id: PhantomData }
+    }
+}
+
+impl<I,A> Attribute for ID<I,A> where I: Identity {}
+
+impl<I,A,T,X> Select<T> for ID<I,A> where A: Select<T, Entity=X>, T: Identifiable<I>, I: Identity {
+    type Entity = (I, X);
+    fn select(&self, data: DataPtr, entity: T) -> Self::Entity {
+        (entity.id(), self.attribute.select(data, entity))
+    }
+}

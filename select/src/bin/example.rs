@@ -146,6 +146,7 @@ fn dump_all(config: &Configuration, projects: Projects) {
 }
 
 // works with downloader from commit  146e55e34ca1f4cc5b826e0c909deac96afafc17
+// cargo run --bin example --release -- -o /dejacode/query_results_old/artifact_testing/output -d /dejacode/dataset -c /dejacode/query_results_old/artifact_testing/cache --data-dump=/dejacode/query_results_old/artifact_testing/dump
 fn main() {
     // let dataset_path = "/dejacode/dataset";
     // let cache_path = "examples/cache";

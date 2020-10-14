@@ -7,38 +7,53 @@ use crate::attrib::*;
 use std::collections::BTreeSet;
 use std::hash::{Hash, Hasher};
 use itertools::Itertools;
+use std::iter::FromIterator;
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
-#[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Distinct<S, C>(S, C);
-#[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Random(pub usize);
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Distinct<S, C>(pub S, pub C);
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Random(pub usize);
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct IdenticalCommits;
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct IdenticalCommits;
 
-pub trait SimilarityCriterion<T>: Eq + Hash {
-    fn from(data: DataPtr, thing: &T) -> Self;
+pub trait SimilarityCriterion<T> {
+    type Item;
+    type Similarity: Similarity<Self::Item>;
+    fn from(&self, data: DataPtr, thing: &T) -> Self::Similarity;
 }
+pub trait Similarity<T>: Eq + Hash { }
 
-// impl SimilarityCriterion<objects::Project> for IdenticalCommits {
-//     fn from(data: DataPtr, thing: &objects::Project) -> Self {
-//
-//     }
-// }
-
-struct MinRatio<T> { min_ratio: f64, things: BTreeSet<T> }
-impl<T> Hash for MinRatio<T> { fn hash<H: Hasher>(&self, state: &mut H) { state.write_u64(42) } }   // Everything needs to be compared explicitly.
-impl<T> Eq for MinRatio<T> where T: Ord {}
-impl<T> PartialEq for MinRatio<T> where T: Ord {
+pub struct MinRatioObject<T> { min_ratio: f64, things: BTreeSet<T> }
+impl<T> Hash for MinRatioObject<T> {
+    // Everything needs to be compared explicitly.
+    fn hash<H: Hasher>(&self, state: &mut H) { state.write_u64(42) }
+}
+impl<T> Eq for MinRatioObject<T> where T: Ord {}
+impl<T> PartialEq for MinRatioObject<T> where T: Ord {
     fn eq(&self, other: &Self) -> bool {
         let mine: f64 = self.things.len() as f64;
         let same: f64 = self.things.intersection(&other.things).count() as f64;
         same / mine > self.min_ratio
     }
 }
+impl<T> Similarity<T> for MinRatioObject<T> where T: Ord {}
+
+#[derive(Debug, Clone, Copy)] pub struct MinRatio<A>(pub A, pub f64);
+impl<A,I,T> SimilarityCriterion<T> for MinRatio<A> where A: CollectionAttribute<Entity=T, Item=I>, I: Ord {
+    type Item = I;
+    type Similarity = MinRatioObject<Self::Item>;
+    fn from(&self, data: DataPtr, thing: &T) -> Self::Similarity {
+        let things = self.0.items(data, thing);
+        MinRatioObject { min_ratio: self.1, things: BTreeSet::from_iter(things.into_iter()) }
+    }
+}
 
 impl<S,T,C> Sample<T> for Distinct<S, C> where S: Sample<T>, C: SimilarityCriterion<T> {
     fn make_selection(&mut self, data: DataPtr, iter: impl Iterator<Item=T>) -> Vec<T> {
         let data_for_filtering = data.clone();
-        let filtered_iter= iter.unique_by(move |p| C::from(data_for_filtering.clone(), p));
+        let criterion = &self.1;
+        let filtered_iter= iter.unique_by(|p| {
+            criterion.from(data_for_filtering.clone(), p)
+        });
         self.0.make_selection(data, filtered_iter)
     }
 }

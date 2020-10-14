@@ -83,7 +83,8 @@ fn group_projects_by_languages(projects: Projects) -> Groups {
 fn stars(config: &Configuration, groups: Groups) {  // This is "stars" in the paper
     groups
         .sort_by_attrib(Descending, project::Stars)
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/stars.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -91,7 +92,8 @@ fn stars(config: &Configuration, groups: Groups) {  // This is "stars" in the pa
 fn mean_changes_in_commits(config: &Configuration, groups: Groups) {
     groups
         .sort_by_attrib(Descending, stats::Mean(retrieve::From(project::Commits, commit::Paths)))
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/mean_changes_in_commits.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -99,7 +101,8 @@ fn mean_changes_in_commits(config: &Configuration, groups: Groups) {
 fn median_changes_in_commits(config: &Configuration, groups: Groups) { // This is "touched files" in the paper
     groups
         .sort_by_attrib(Descending, stats::Median(retrieve::From(project::Commits, commit::Paths)))
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/median_changes_in_commits.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -107,7 +110,8 @@ fn median_changes_in_commits(config: &Configuration, groups: Groups) { // This i
 fn experienced_authors(config: &Configuration, groups: Groups) { // This is "experienced author" in the paper
     groups
         .filter_by_attrib(require::Exists(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2)))))
-        .sample(sample::Random(50))
+        //.sample(sample::Random(50))
+        .sample(sample::Distinct(sample::Random(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/experienced_authors.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -116,7 +120,8 @@ fn experienced_authors_ratio(config: &Configuration, groups: Groups) { // This i
     groups
         .filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
         .filter_by_attrib(require::AtLeast(stats::Ratio(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2)))), 0.5))
-        .sample(sample::Random(50))
+        //.sample(sample::Random(50))
+        .sample(sample::Distinct(sample::Random(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/experienced_authors_ratio.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -124,7 +129,8 @@ fn experienced_authors_ratio(config: &Configuration, groups: Groups) { // This i
 fn mean_commit_message_sizes(config: &Configuration, groups: Groups) {
     groups
         .sort_by_attrib(Descending, stats::Mean(retrieve::From(retrieve::From(project::Commits, commit::Message), message::Length)))
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/mean_commit_message_sizes.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -132,7 +138,8 @@ fn mean_commit_message_sizes(config: &Configuration, groups: Groups) {
 fn median_commit_message_sizes(config: &Configuration, groups: Groups) { // This is "message size" in the paper
     groups
         .sort_by_attrib(Descending, stats::Median(retrieve::From(retrieve::From(project::Commits, commit::Message), message::Length)))
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/median_commit_message_sizes.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -140,7 +147,8 @@ fn median_commit_message_sizes(config: &Configuration, groups: Groups) { // This
 fn commits(config: &Configuration, groups: Groups) { // This is "number of commits" in the paper
     groups
         .sort_by_attrib(Descending, project::Commits)
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/commits.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -148,7 +156,8 @@ fn commits(config: &Configuration, groups: Groups) { // This is "number of commi
 fn all_issues(config: &Configuration, groups: Groups) { // This is "issues" in the paper
     groups
         .sort_by_attrib(Descending, project::AllIssues)
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/all_issues.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -156,7 +165,8 @@ fn all_issues(config: &Configuration, groups: Groups) { // This is "issues" in t
 fn buggy_issues(config: &Configuration, groups: Groups) {
     groups
         .sort_by_attrib(Descending, project::BuggyIssues)
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/buggy_issues.csv", config.output_path.to_str().unwrap())).unwrap();
 }
@@ -164,7 +174,8 @@ fn buggy_issues(config: &Configuration, groups: Groups) {
 fn issues(config: &Configuration, groups: Groups) {
     groups
         .sort_by_attrib(Descending, project::Issues)
-        .sample(sample::Top(50))
+        //.sample(sample::Top(50))
+        .sample(sample::Distinct(sample::Top(50), sample::MinRatio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/issues.csv", config.output_path.to_str().unwrap())).unwrap();
 }

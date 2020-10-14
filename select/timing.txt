@@ -1,18 +1,23 @@
-+---------+-------------------------------+-----------------------------------+
-| section | task                          | elapsed seconds                   |
-+---------+-------------------------------+-----------------+-----------------+
-|         |                               | first run       | optimized loads |
-+---------+-------------------------------+-----------------+-----------------+
-| init    | load_projects                 |              NA |             851 |
-| init    | group_projects_by_language    |              NA |              76 |
-+---------+-------------------------------+-----------------+-----------------+
-| queries | stars                         |           17302 |            7486 |
-| queries | touched_files                 |           22579 |           11078 |
-| queries | experienced_author            |            5981 |             297 |
-| queries | fifty_percent_experienced     |            3439 |               6 |
-| queries | message_size                  |           15038 |            7706 |
-| queries | number_of_commits             |            3834 |               1 |
-| queries | issues                        |            3536 |               1 |
-+---------+-------------------------------+-----------------+-----------------+
-| dump    | dump_all                      |              NA |               0 |
-+---------+-------------------------------+-----------------+-----------------+
+
++---------+-------------------------------+--------------------+-----------------------------------------------------+
+| section | task                          | query in paper     | elapsed seconds                                     |
+|         |                               |                    +-----------------+-----------------+-----------------+
+|         |                               |                    | first run       | optimized loads |       preloaded |
++---------+-------------------------------+--------------------+-----------------+-----------------+-----------------+
+| init    | load_projects                 |                    |                 |             851 |             551 |
+| init    | group_projects_by_language    |                    |                 |              76 |              17 |
++---------+-------------------------------+--------------------+-----------------+-----------------+-----------------+
+| queries | stars                         | stars              |           17302 |            7486 |               0 |
+| queries | mean_changes_in_commits       |                    |                 |                 |            5648 |
+| queries | median_changes_in_commits     | touched files      |           22579 |           11078 |             553 |
+| queries | experienced_authors           | experienced author |            5981 |             297 |              42 |
+| queries | experienced_authors_ratio     | 50% experienced    |            3439 |               6 |               2 |
+| queries | mean_commit_message_sizes     |                    |                 |                 |            1943 |
+| queries | median_commit_message_sizes   | message size       |           15038 |            7706 |             126 |
+| queries | commits                       | number of commits  |            3834 |               1 |               1 |
+| queries | all_issues                    | issues             |            3536 |               1 |               0 |
+| queries | issues                        |                    |                 |                 |               0 |
+| queries | buggy_issues                  |                    |                 |                 |               0 |
++---------+-------------------------------+--------------------+-----------------+-----------------+-----------------+
+| dump    | dump_all                      |                    |               0 |               0 |               0 |
++---------+-------------------------------+--------------------+-----------------+-----------------+-----------------+

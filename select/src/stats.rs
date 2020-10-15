@@ -149,7 +149,7 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Median<C> where C: CollectionAttribut
 
         let left = items[(length / 2) - 1].as_f64();
         let right = items[(length / 2)].as_f64();
-        return Some(left + right / 2f64)
+        return Some((left + right) / 2f64)
     }
 }
 

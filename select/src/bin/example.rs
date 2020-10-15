@@ -248,7 +248,7 @@ fn main() {
     let config = Configuration::from_args();
 
     let (projects, load_projects) = with_elapsed_secs!("load_projects",
-        load_projects(&config, 0, Month::August(2020))
+        load_projects(&config, 42, Month::August(2020))
     );
     let (groups, group_projects_by_languages) = with_elapsed_secs!("group_projects_by_languages",
         group_projects_by_languages(projects.clone())

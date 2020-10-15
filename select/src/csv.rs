@@ -65,6 +65,7 @@ impl CSVItem for u64       { fn to_simple_csv(&self) -> String { self.to_string(
 impl CSVItem for i64       { fn to_simple_csv(&self) -> String { self.to_string() } }
 impl CSVItem for f64       { fn to_simple_csv(&self) -> String { self.to_string() } }
 impl CSVItem for usize     { fn to_simple_csv(&self) -> String { self.to_string() } }
+impl CSVItem for bool      { fn to_simple_csv(&self) -> String { self.to_string() } }
 
 impl CSVItem for ProjectId { fn to_simple_csv(&self) -> String { self.0.to_simple_csv() } }
 impl CSVItem for CommitId  { fn to_simple_csv(&self) -> String { self.0.to_simple_csv() } }
@@ -164,6 +165,17 @@ impl<A, B> CSVItem for (A, B) where A: CSVItem, B: CSVItem {
     }
     fn to_csv(&self, db: DataPtr) -> String {
         format!(r#"{},{}"#, self.0.to_csv(db.clone()), self.1.to_csv(db))
+    }
+}
+
+impl<A, B, C> CSVItem for (A, B, C) where A: CSVItem, B: CSVItem, C: CSVItem {
+    fn to_simple_csv(&self) -> String {
+        format!(r#"{},{},{}"#,
+                self.0.to_simple_csv(), self.1.to_simple_csv(), self.2.to_simple_csv())
+    }
+    fn to_csv(&self, db: DataPtr) -> String {
+        format!(r#"{},{},{}"#,
+                self.0.to_csv(db.clone()), self.1.to_csv(db.clone()), self.1.to_csv(db))
     }
 }
 

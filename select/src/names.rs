@@ -66,6 +66,7 @@ impl WithNames for f64                   { fn names() -> Vec<&'static str> { vec
 impl WithNames for usize                 { fn names() -> Vec<&'static str> { vec!["n"] } }
 impl WithNames for u64                   { fn names() -> Vec<&'static str> { vec!["n"] } }
 impl WithNames for i64                   { fn names() -> Vec<&'static str> { vec!["n"] } }
+impl WithNames for bool                  { fn names() -> Vec<&'static str> { vec!["condition"] } }
 
 impl WithNames for project::Id           { fn names() -> Vec<&'static str> { vec!["project_id"]  } }
 impl WithNames for project::URL          { fn names() -> Vec<&'static str> { vec!["url"]         } }
@@ -114,7 +115,7 @@ impl<F> WithNames for commit::PathsWith<F>   where F: Filter<Entity=objects::Pat
 impl<F> WithNames for commit::ParentsWith<F> where F: Filter<Entity=objects::Commit> { fn names() -> Vec<&'static str> { vec!["commit"]  } }
 impl<F> WithNames for commit::UsersWith<F>   where F: Filter<Entity=objects::User>   { fn names() -> Vec<&'static str> { vec!["user"]  } }
 
-macro_rules! join_vec { ($v1:expr, $v2:expr) => {{ $v1.extend($v2); $v1 }} }
+macro_rules! join_vec { ($v1:expr, $v2:expr) => {{ vec![$v1, $v2].into_iter().flatten().collect() }} }
 
 impl<T> WithNames for djanco::Iter<T> where T: WithNames {
     fn names() -> Vec<&'static str> { T::names() }
@@ -125,8 +126,11 @@ impl<T> WithNames for djanco::QuincunxIter<T> where T: WithNames {
 impl<K,T> WithNames for djanco::GroupIter<K,T> where K: WithNames, T: WithNames {
     fn names() -> Vec<&'static str> { join_vec!(K::names(), T::names()) }
 }
-impl<K,T> WithNames for (K,T) where K: WithNames, T: WithNames {
-    fn names() -> Vec<&'static str> { join_vec!(K::names(), T::names()) }
+impl<A,B> WithNames for (A,B) where A: WithNames, B: WithNames {
+    fn names() -> Vec<&'static str> { join_vec!(A::names(), B::names()) }
+}
+impl<A,B,C> WithNames for (A,B,C) where A: WithNames, B: WithNames, C: WithNames {
+    fn names() -> Vec<&'static str> { join_vec!(join_vec!(A::names(), B::names()), C::names()) }
 }
 impl<A,T> WithNames for AttributeValue<A, T> where A: Attribute + WithNames {
     fn names() -> Vec<&'static str> { A::names() }

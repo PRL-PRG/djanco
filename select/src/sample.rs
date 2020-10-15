@@ -22,28 +22,28 @@ pub trait SimilarityCriterion<T> {
 }
 pub trait Similarity<T>: Eq + Hash { }
 
-pub struct MinRatioObject<T> { min_ratio: f64, things: BTreeSet<T> }
-impl<T> Hash for MinRatioObject<T> {
+pub struct MinRatio<T> { min_ratio: f64, things: BTreeSet<T> }
+impl<T> Hash for MinRatio<T> {
     // Everything needs to be compared explicitly.
     fn hash<H: Hasher>(&self, state: &mut H) { state.write_u64(42) }
 }
-impl<T> Eq for MinRatioObject<T> where T: Ord {}
-impl<T> PartialEq for MinRatioObject<T> where T: Ord {
+impl<T> Eq for MinRatio<T> where T: Ord {}
+impl<T> PartialEq for MinRatio<T> where T: Ord {
     fn eq(&self, other: &Self) -> bool {
         let mine: f64 = self.things.len() as f64;
         let same: f64 = self.things.intersection(&other.things).count() as f64;
         same / mine > self.min_ratio
     }
 }
-impl<T> Similarity<T> for MinRatioObject<T> where T: Ord {}
+impl<T> Similarity<T> for MinRatio<T> where T: Ord {}
 
-#[derive(Debug, Clone, Copy)] pub struct MinRatio<A>(pub A, pub f64);
-impl<A,I,T> SimilarityCriterion<T> for MinRatio<A> where A: CollectionAttribute<Entity=T, Item=I>, I: Ord {
+#[derive(Debug, Clone, Copy)] pub struct Ratio<A>(pub A, pub f64);
+impl<A,I,T> SimilarityCriterion<T> for Ratio<A> where A: CollectionAttribute<Entity=T, Item=I>, I: Ord {
     type Item = I;
-    type Similarity = MinRatioObject<Self::Item>;
+    type Similarity = MinRatio<Self::Item>;
     fn from(&self, data: DataPtr, thing: &T) -> Self::Similarity {
         let things = self.0.items(data, thing);
-        MinRatioObject { min_ratio: self.1, things: BTreeSet::from_iter(things.into_iter()) }
+        MinRatio { min_ratio: self.1, things: BTreeSet::from_iter(things.into_iter()) }
     }
 }
 

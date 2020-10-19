@@ -211,6 +211,20 @@ impl<T> /* Query for */ QuincunxIter<T> where T: Quincunx {
 
         Iter { receipt, spec, data, source }
     }
+
+    pub fn map_with_db<F,R>(self, f: F) -> Iter<R> where F: Fn(DataPtr, T) -> R {
+        let mut receipt = self.receipt.clone();
+        //receipt.start(Task::sampling::<T>()); // TODO receipt
+
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+
+        let source = self.map(|e| f(data.clone(), e)).collect();
+
+        //receipt.complete_processing(source.len());
+
+        Iter { receipt, spec, data, source }
+    }
 }
 
 impl<T> From<Lazy> for QuincunxIter<T> {
@@ -329,6 +343,20 @@ impl<T> /* Query for */ Iter<T> {
         receipt.complete_processing(source.len());
 
         Iter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn map_with_db<F,R>(self, f: F) -> Iter<R> where F: Fn(DataPtr, T) -> R {
+        let mut receipt = self.receipt.clone();
+        //receipt.start(Task::sampling::<T>()); // TODO receipt
+
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+
+        let source = self.map(|e| f(data.clone(), e)).collect();
+
+        //receipt.complete_processing(source.len());
+
+        Iter { receipt, spec, data, source }
     }
 }
 
@@ -478,5 +506,19 @@ impl<K, T> /* Query for */ GroupIter<K, T> {
         receipt.complete_processing(source.len());
 
         Iter { receipt, spec: self.spec.clone(), data: self.data.clone(), source }
+    }
+
+    pub fn map_with_db<F,R>(self, f: F) -> GroupIter<K,R> where F: Fn(DataPtr, (K, Vec<T>)) -> (K, Vec<R>) {
+        let mut receipt = self.receipt.clone();
+        //receipt.start(Task::sampling::<T>()); // TODO receipt
+
+        let data = self.data.clone();
+        let spec = self.spec.clone();
+
+        let source = self.map(|e| f(data.clone(), e)).collect();
+
+        //receipt.complete_processing(source.len());
+
+        GroupIter { receipt, spec, data, source }
     }
 }

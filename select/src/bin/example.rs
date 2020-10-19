@@ -17,7 +17,7 @@ use select::objects;
 use select::attrib::sort::Direction::*;
 use select::time::{Month, Seconds};
 use select::dump::Dump;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::iter::FromIterator;
 use select::data::WithData;
 use itertools::Itertools;
@@ -208,27 +208,42 @@ fn debug_dump(config: &Configuration, projects: &Projects) {
         .map_to_attrib(attrib::ID::with(stats::Count(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2))))))
         .to_csv(format!("{}/experienced_authors_ratio.debug.csv", config.output_path.to_str().unwrap())).unwrap();
 
-    let everything = projects.clone();
-    let each: Vec<(objects::ProjectId, objects::ProjectId, bool)> =
-        projects.clone().flat_map(|p1| {
-        let t1 = BTreeSet::from_iter(p1.commits(everything.get_database_ptr().clone()).into_iter());
-        everything.clone()
-            .filter(|p2| p2.id != p1.id)
-            .map(|p2| {
-                let t2 = BTreeSet::from_iter(p2.commits(everything.clone().get_database_ptr().clone()).into_iter());
-                (p1.id, p2.id,  (t1.intersection(&t2).count() as f64) / (t2.len() as f64) > 0.9)
-            }).collect::<Vec<(objects::ProjectId, objects::ProjectId, bool)>>()
-    }).collect();
+    projects.clone().group_by_attrib(project::Language)
+        .map_with_db(|data, (language, projects)| {
+            (language, projects.clone().into_iter()
+                .cartesian_product(projects.into_iter())
+                .filter(|(p1, p2)| p1.id != p2.id)
+                .map(|(p1,p2)| {
+                    let p1c = p1.commits(data.clone());
+                    let c1: HashSet<u64> = HashSet::from_iter(p1c.iter().map(|c|c.id.0));
+                    let c2: HashSet<u64> = HashSet::from_iter(p2.commits(data.clone()).iter().map(|c|c.id.0));
 
-    each.iter()
-        .map(|(p1, _, b)| (*p1, *b))
-        .into_group_map().into_iter()
-        .map(|(p1, v): (objects::ProjectId, Vec<bool>)| (p1, v.iter().any(|b| *b)))//.collect();
-        .to_simple_csv(format!("{}/distinct_all.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+                    let common = c1.intersection(&c2).count();
+                    (p1.id, p2.id, common as f64 / p1c.len() as f64)
+                }).collect())
+        }).squash()
+        .to_simple_csv(format!("{}/distinct_commit_perc.debug.csv", config.output_path.to_str().unwrap())).unwrap();
 
-    each.into_iter()
-        .to_simple_csv(format!("{}/distinct_each.debug.csv", config.output_path.to_str().unwrap())).unwrap()
-
+    // let everything = projects.clone();
+    // let each: Vec<(objects::ProjectId, objects::ProjectId, bool)> =
+    //     projects.clone().flat_map(|p1| {
+    //     let t1 = BTreeSet::from_iter(p1.commits(everything.get_database_ptr().clone()).into_iter());
+    //     everything.clone()
+    //         .filter(|p2| p2.id != p1.id)
+    //         .map(|p2| {
+    //             let t2 = BTreeSet::from_iter(p2.commits(everything.clone().get_database_ptr().clone()).into_iter());
+    //             (p1.id, p2.id,  (t1.intersection(&t2).count() as f64) / (t2.len() as f64) > 0.9)
+    //         }).collect::<Vec<(objects::ProjectId, objects::ProjectId, bool)>>()
+    // }).collect();
+    //
+    // each.iter()
+    //     .map(|(p1, _, b)| (*p1, *b))
+    //     .into_group_map().into_iter()
+    //     .map(|(p1, v): (objects::ProjectId, Vec<bool>)| (p1, v.iter().any(|b| *b)))//.collect();
+    //     .to_simple_csv(format!("{}/distinct_all.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+    //
+    // each.into_iter()
+    //     .to_simple_csv(format!("{}/distinct_each.debug.csv", config.output_path.to_str().unwrap())).unwrap()
 }
 
 #[allow(dead_code)]

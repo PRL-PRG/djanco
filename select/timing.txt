@@ -1,24 +1,24 @@
 
-+---------+-----------------------------+--------------------+----------------------------------------------------+
-| section | task                        | query in paper     | elapsed seconds                                    |
-|         |                             |                    +-----------+-----------------+-----------+----------+
-|         |                             |                    | first run | optimized loads | preloaded | distinct |
-+---------+-----------------------------+--------------------+-----------+-----------------+-----------+----------+
-| init    | load_projects               |                    |           |             851 |       551 |      523 |
-| init    | group_projects_by_language  |                    |           |              76 |        17 |       17 |
-+---------+-----------------------------+--------------------+-----------+-----------------+-----------+----------+
-| queries | stars                       | stars              |     17302 |            7486 |         0 |     1299 | ok
-| queries | mean_changes_in_commits     |                    |           |                 |      5648 |     4316 |
-| queries | median_changes_in_commits   | touched files      |     22579 |           11078 |       553 |      530 |
-| queries | experienced_authors         | experienced author |      5981 |             297 |        42 |     4162 |
-| queries | experienced_authors_ratio   | 50% experienced    |      3439 |               6 |         2 |      764 |
-| queries | mean_commit_message_sizes   |                    |           |                 |      1943 |     1964 |
-| queries | median_commit_message_sizes | message size       |     15038 |            7706 |       126 |      128 |
-| queries | commits                     | number of commits  |      3834 |               1 |         1 |       90 |
-| queries | all_issues                  | issues             |      3536 |               1 |         0 |       15 | ok
-| queries | issues                      |                    |           |                 |         0 |       15 | ok
-| queries | buggy_issues                |                    |           |                 |         0 |        8 |
-+---------+-----------------------------+--------------------+-----------+-----------------+-----------+----------+
-| dump    | dump_debug                  |                    |           |                 |           |     1265 |
-| dump    | dump_all                    |                    |         0 |               0 |         0 |        0 |
-+---------+-----------------------------+--------------------+-----------+-----------------+-----------+----------+
++---------+-----------------------------+--------------------+----------------------------------------------------------------+
+| section | task                        | query in paper     | elapsed seconds                                                |
+|         |                             |                    +-----------+-----------------+-----------+----------------------+
+|         |                             |                    | first run | optimized loads | preloaded | distinct | reordered |
++---------+-----------------------------+--------------------+-----------+-----------------+-----------+----------+-----------+
+| init    | load_projects               |                    |           |             851 |       551 |      523 |       542 |
+| init    | group_projects_by_language  |                    |           |              76 |        17 |       17 |        17 |
++---------+-----------------------------+--------------------+-----------+-----------------+-----------+----------+-----------+
+| queries | stars                       | stars              |     17302 |            7486 |         0 |     1299 |      1298 |
+| queries | mean_changes_in_commits     |                    |           |                 |      5648 |     4316 |      4360 |
+| queries | median_changes_in_commits   | touched files      |     22579 |           11078 |       553 |      530 |       554 |
+| queries | experienced_authors         | experienced author |      5981 |             297 |        42 |     4162 |      4236 |
+| queries | experienced_authors_ratio   | 50% experienced    |      3439 |               6 |         2 |      764 |       884 |
+| queries | mean_commit_message_sizes   |                    |           |                 |      1943 |     1964 |      1954 |
+| queries | median_commit_message_sizes | message size       |     15038 |            7706 |       126 |      128 |       132 |
+| queries | commits                     | number of commits  |      3834 |               1 |         1 |       90 |        93 |
+| queries | all_issues                  | issues             |      3536 |               1 |         0 |       15 |        15 |
+| queries | issues                      |                    |           |                 |         0 |       15 |        15 |
+| queries | buggy_issues                |                    |           |                 |         0 |        8 |         8 |
++---------+-----------------------------+--------------------+-----------+-----------------+-----------+----------+-----------+
+| dump    | dump_debug                  |                    |           |                 |           |     1265 |      1252 |
+| dump    | dump_all                    |                    |         0 |               0 |         0 |        0 |         0 |
++---------+-----------------------------+--------------------+-----------+-----------------+-----------+----------+-----------+

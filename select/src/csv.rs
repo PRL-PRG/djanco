@@ -211,7 +211,7 @@ pub trait IDs<T: Identifiable<I>, I: Identity> {
 impl<I, C, T> IDs<T, I> for C where C: Iterator<Item=T> + WithData, T: Identifiable<I>, I: Identity  {
     fn to_id_list(self, location: impl Into<String>) -> Result<(), std::io::Error> {
         let mut file = create_file!(location)?;
-        for element in self { writeln!(file, "{}", element.id())?; }
+        for element in self.sorted_by_key(|p| p.id()) { writeln!(file, "{}", element.id())?; }
         Ok(())
     }
 }

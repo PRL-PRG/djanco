@@ -71,11 +71,11 @@ macro_rules! elapsed_secs {
     }}
 }
 
-type Projects = djanco::/*Quincunx*/Iter<objects::Project>;
+type Projects = djanco::QuincunxIter<objects::Project>;
 fn load_projects(config: &Configuration, seed: u128, timestamp: Month) -> Projects {
     let mut db = Djanco::from(config.dataset_path.to_str().unwrap(), seed, timestamp);
     if let Some(path) = &config.cache_path { db = db.with_cache(path.to_str().unwrap()) }
-    db.projects().filter_by_attrib(require::AtLeast(project::Commits, 28))
+    db.projects()//.filter_by_attrib(require::AtLeast(project::Commits, 28))
 }
 
 type Groups = djanco::GroupIter<attrib::AttributeValue<project::Language, String>, objects::Project>;

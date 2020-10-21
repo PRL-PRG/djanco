@@ -220,12 +220,11 @@ impl<C,E> CollectionAttribute for From<C, commit::Paths> where C: CollectionAttr
     type Item = Vec<Path>;
 
     fn items(&self, data: DataPtr, entity: &Self::Entity) -> Vec<Self::Item> {
+        eprintln!("From<Commit,Paths>.items -> Vec<Path>");
         self.map_items(data.clone(), entity, |e: Commit| e.paths(data.clone()))
     }
 
-    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
-        self.count_items(data, entity)
-    }
+    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize { eprintln!("From<Commit,Paths>.len -> usize"); self.count_items(data, entity) }
 }
 
 impl<F,C,E> CollectionAttribute for From<C, commit::ParentsWith<F>> where C: CollectionAttribute<Entity=E, Item=Commit>, F: Filter<Entity=Commit> {

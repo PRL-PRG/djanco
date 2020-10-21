@@ -135,12 +135,21 @@ fn experienced_authors_ratio_random(config: &Configuration, groups: Groups) { //
 
 fn experienced_authors_ratio_sorted(config: &Configuration, groups: Groups) { // This is "50% experienced" in the paper
     groups
+        .filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
+        .sort_by_attrib(Descending, stats::Ratio(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))))
+        .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
+        .squash()
+        .to_id_list(format!("{}/experienced_authors_ratio_sorted.csv", config.output_path.to_str().unwrap())).unwrap();
+}
+
+fn experienced_authors_ratio_sorted2(config: &Configuration, groups: Groups) { // This is "50% experienced" in the paper
+    groups
         //.filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
         .filter_by_attrib(require::AtLeast(stats::Ratio(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))), 0.5))
         .sort_by_attrib(Descending, project::Commits)
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .squash()
-        .to_id_list(format!("{}/experienced_authors_ratio_sorted.csv", config.output_path.to_str().unwrap())).unwrap();
+        .to_id_list(format!("{}/experienced_authors_ratio_sorted2.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
 fn mean_commit_message_sizes(config: &Configuration, groups: Groups) {
@@ -272,27 +281,27 @@ fn main() {
     eprintln!("    cache: `{}`", config.cache_path.unwrap_or(PathBuf::new()).to_str().unwrap());
     eprintln!("     dump: `{}`", config.dump_path.unwrap_or(PathBuf::new()).to_str().unwrap());
     eprintln!();
-    eprintln!("+---------+-------------------------------+--------------------+-----------------+");
-    eprintln!("| section | task                          | query in paper     | elapsed seconds |");
-    eprintln!("+---------+-------------------------------+--------------------+-----------------+");
-    eprintln!("| init    | load_projects                 |                    | {:>15} |", load_projects);
-    eprintln!("| init    | group_projects_by_language    |                    | {:>15} |", group_projects_by_languages);
-    eprintln!("+---------+-------------------------------+--------------------+-----------------+");
-    eprintln!("| queries | stars                         | stars              | {:>15} |", stars);
-    eprintln!("| queries | mean_changes_in_commits       |                    | {:>15} |", mean_changes_in_commits);
-    eprintln!("| queries | median_changes_in_commits     | touched files      | {:>15} |", median_changes_in_commits);
-    eprintln!("| queries | experienced_authors           | experienced author | {:>15} |", experienced_authors_random);
-    eprintln!("| queries | experienced_authors (S)       | experienced author?| {:>15} |", experienced_authors_sorted);
-    eprintln!("| queries | experienced_authors_ratio     | 50% experienced    | {:>15} |", experienced_authors_ratio_random);
-    eprintln!("| queries | experienced_authors_ratio (S) | 50% experienced ?  | {:>15} |", experienced_authors_ratio_sorted);
-    eprintln!("| queries | mean_commit_message_sizes     |                    | {:>15} |", mean_commit_message_sizes);
-    eprintln!("| queries | median_commit_message_sizes   | message size       | {:>15} |", median_commit_message_sizes);
-    eprintln!("| queries | commits                       | number of commits  | {:>15} |", commits);
-    eprintln!("| queries | all_issues                    | issues             | {:>15} |", all_issues);
-    eprintln!("| queries | issues                        |                    | {:>15} |", issues);
-    eprintln!("| queries | buggy_issues                  |                    | {:>15} |", buggy_issues);
-    eprintln!("+---------+-------------------------------+--------------------+-----------------+");
-    eprintln!("| dump    | debug_dump                    |                    | {:>15} |", debug_dump);
-    eprintln!("| dump    | dump_all                      |                    | {:>15} |", dump);
-    eprintln!("+---------+-------------------------------+--------------------+-----------------+");
+    eprintln!("+---------+----------------------------------+--------------------+-----------------+");
+    eprintln!("| section | task                             | query in paper     | elapsed seconds |");
+    eprintln!("+---------+----------------------------------+--------------------+-----------------+");
+    eprintln!("| init    | load_projects                    |                    | {:>15} |", load_projects);
+    eprintln!("| init    | group_projects_by_language       |                    | {:>15} |", group_projects_by_languages);
+    eprintln!("+---------+----------------------------------+--------------------+-----------------+");
+    eprintln!("| queries | stars                            | stars              | {:>15} |", stars);
+    eprintln!("| queries | mean_changes_in_commits          |                    | {:>15} |", mean_changes_in_commits);
+    eprintln!("| queries | median_changes_in_commits        | touched files      | {:>15} |", median_changes_in_commits);
+    eprintln!("| queries | experienced_authors              |                    | {:>15} |", experienced_authors_random);
+    eprintln!("| queries | experienced_authors_sorted       | experienced author | {:>15} |", experienced_authors_sorted);
+    eprintln!("| queries | experienced_authors_ratio        | 50% experienced    | {:>15} |", experienced_authors_ratio_random);
+    eprintln!("| queries | experienced_authors_ratio_sorted | 50% experienced ?  | {:>15} |", experienced_authors_ratio_sorted);
+    eprintln!("| queries | mean_commit_message_sizes        |                    | {:>15} |", mean_commit_message_sizes);
+    eprintln!("| queries | median_commit_message_sizes      | message size       | {:>15} |", median_commit_message_sizes);
+    eprintln!("| queries | commits                          | number of commits  | {:>15} |", commits);
+    eprintln!("| queries | all_issues                       | issues             | {:>15} |", all_issues);
+    eprintln!("| queries | issues                           |                    | {:>15} |", issues);
+    eprintln!("| queries | buggy_issues                     |                    | {:>15} |", buggy_issues);
+    eprintln!("+---------+----------------------------------+--------------------+-----------------+");
+    eprintln!("| dump    | debug_dump                       |                    | {:>15} |", debug_dump);
+    eprintln!("| dump    | dump_all                         |                    | {:>15} |", dump);
+    eprintln!("+---------+----------------------------------+--------------------+-----------------+");
 }

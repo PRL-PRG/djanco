@@ -6,6 +6,7 @@ use itertools::Itertools;
 use crate::attrib::*;
 use crate::data::DataPtr;
 use crate::helpers;
+use crate::attrib::sort::Direction;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Count<C>(pub C);
 #[derive(Clone, Copy, Eq, PartialEq, Hash)] pub struct Min<C>(pub C);
@@ -96,7 +97,19 @@ impl<I,C,E> Sort<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>
     }
 }
 
-impl<I,C,E>/*baby*/ NumericalAttribute for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
+impl<I,C,E>/*baby*/ Sort<E> for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E> {
+    fn execute(&mut self, data: DataPtr, vector: Vec<E>, direction: Direction) -> Vec<E> {
+        let mut vector: Vec<E> = vector.into_iter()
+            .map(|e| (self.calculate(data.clone(), &e), e))
+            .sorted_by(|a, b| helpers::option_f64_cmp(&a.0, &b.0))
+            .map(|(_, e)| e)
+            .collect();
+        if direction.descending() { vector.reverse() }
+        vector
+    }
+}
+
+impl<I,C,E> NumericalAttribute for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
     type Entity = E;
     type Number = usize;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -104,7 +117,7 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Count<C> where C: CollectionAttribute
     }
 }
 
-impl<I,C,E> NumericalAttribute for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
+impl<I,C,E>/*baby*/ NumericalAttribute for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
     type Entity = E;
     type Number = I;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -112,7 +125,7 @@ impl<I,C,E> NumericalAttribute for Min<C> where C: CollectionAttribute<Item=I, E
     }
 }
 
-impl<I,C,E>/*baby*/ NumericalAttribute for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
+impl<I,C,E> NumericalAttribute for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
     type Entity = E;
     type Number = I;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -120,7 +133,7 @@ impl<I,C,E>/*baby*/ NumericalAttribute for Max<C> where C: CollectionAttribute<I
     }
 }
 
-impl<I,C,E> NumericalAttribute for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
+impl<I,C,E>/*baby*/ NumericalAttribute for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -133,27 +146,27 @@ impl<I,C,E> NumericalAttribute for Mean<C> where C: CollectionAttribute<Item=I, 
 }
 
 // FIXME change Option<Self::Number> in result to Self::Number
-impl<I,C,E>/*baby*/ NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric /*Into<f64> + Clone*/ {
+impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric /*Into<f64> + Clone*/ {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        let mut items= self.0.items(database, entity);
+        let mut items: Vec<f64> = self.0.items(database, entity).iter().map(|e|e.as_ord_f64()).sorted().map(|e| e.0).collect();
 
         let length = items.len();
         if length == 0 { return None }
         if length == 1 { return Some(f64::from(items[0].as_f64())) }
 
-        items.sort();
-
-        if length % 2 != 0usize { return Some(items[length / 2].as_f64()) }
+        if length % 2 != 0usize {
+            return Some(items[length / 2].as_f64()) }
 
         let left = items[(length / 2) - 1].as_f64();
         let right = items[(length / 2)].as_f64();
+
         return Some((left + right) / 2f64)
     }
 }
 
-impl<I,C,E> NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E> {
+impl<I,C,E>/*baby*/ NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E> {
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
@@ -161,35 +174,42 @@ impl<I,C,E> NumericalAttribute for Ratio<C> where C: CollectionAttribute<Item=I,
     }
 }
 
-impl<I,C,E>/*baby*/ Select<E> for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
+impl<I,C,E> Select<E> for Count<C> where C: CollectionAttribute<Item=I, Entity=E> {
     type Entity = Option<usize>;
     fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
         self.calculate(data, &entity)
     }
 }
 
-impl<I,C,E> Select<E> for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord  {
+impl<I,C,E>/*baby*/ Select<E> for Min<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord  {
     type Entity = Option<I>;
     fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
         self.calculate(data, &entity)
     }
 }
 
-impl<I,C,E>/*baby*/ Select<E> for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
+impl<I,C,E> Select<E> for Max<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord {
     type Entity = Option<I>;
     fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
         self.calculate(data, &entity)
     }
 }
 
-impl<I,C,E> Select<E> for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
+impl<I,C,E>/*baby*/ Select<E> for Mean<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Numeric {
     type Entity = f64;
     fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
         self.calculate(data, &entity).unwrap_or(NAN)
     }
 }
 
-impl<I,C,E>/*baby*/ Select<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric {
+impl<I,C,E> Select<E> for Median<C> where C: CollectionAttribute<Item=I, Entity=E>, I: Ord + Numeric {
+    type Entity = f64;
+    fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
+        self.calculate(data, &entity).unwrap_or(NAN)
+    }
+}
+
+impl<I,C,E>/*baby*/ Select<E> for Ratio<C> where C: CollectionAttribute<Item=I, Entity=E> {
     type Entity = f64;
     fn select(&self, data: DataPtr, entity: E) -> Self::Entity {
         self.calculate(data, &entity).unwrap_or(NAN)

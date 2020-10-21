@@ -3,6 +3,8 @@ use crate::attrib::*;
 use crate::data::*;
 use crate::meta::*;
 
+use crate::helpers;
+
 use dcd::{DCD, Database};
 use itertools::Itertools;
 use crate::time::Seconds;
@@ -250,7 +252,7 @@ impl<F> CollectionAttribute for PathsWith<F> where F: Filter<Entity=Path> {
             .count()
     }
     fn parent_len(&self, database: DataPtr, entity: &Self::Entity) -> usize {
-        entity.user_count(database)
+        entity.path_count(database)
     }
 }
 
@@ -499,36 +501,28 @@ impl Sort<Project> for Language {
 impl Sort<Project> for Stars {
     fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
         //sort::Sorter::from(vector, direction).sort_by_key(|p| p.stars)
-        sort::Sorter::from(vector, direction).sort_by(|p1, p2| {
-            match (p1.stars, p2.stars) {
-                (Some(n1), Some(n2)) =>
-                         if n1 < n2 { Ordering::Less    }
-                    else if n1 > n2 { Ordering::Greater }
-                    else            { Ordering::Equal   },
-
-                (None, None) =>       Ordering::Equal,
-                (None,    _) =>       Ordering::Less,
-                (_,    None) =>       Ordering::Greater,
-            }
-        })
+        sort::Sorter::from(vector, direction).sort_by(|p1, p2| helpers::opt_cmp(p1.stars,p2.stars))
     }
 }
 
 impl Sort<Project> for Issues {
     fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
-        sort::Sorter::from(vector, direction).sort_by_key(|f| f.issues)
+        //sort::Sorter::from(vector, direction).sort_by_key(|f| f.issues)
+        sort::Sorter::from(vector, direction).sort_by(|p1, p2| helpers::opt_cmp(p1.issues,p2.issues))
     }
 }
 
 impl Sort<Project> for AllIssues {
     fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
-        sort::Sorter::from(vector, direction).sort_by_key(|f| f.all_issues())
+        //sort::Sorter::from(vector, direction).sort_by_key(|f| f.all_issues())
+        sort::Sorter::from(vector, direction).sort_by(|p1, p2| helpers::opt_cmp(p1.all_issues(),p2.all_issues()))
     }
 }
 
 impl Sort<Project> for BuggyIssues {
     fn execute(&mut self, _: DataPtr, vector: Vec<Project>, direction: sort::Direction) -> Vec<Project> {
-        sort::Sorter::from(vector, direction).sort_by_key(|p| p.buggy_issues)
+        //sort::Sorter::from(vector, direction).sort_by_key(|p| p.buggy_issues)
+        sort::Sorter::from(vector, direction).sort_by(|p1, p2| helpers::opt_cmp(p1.buggy_issues,p2.buggy_issues))
     }
 }
 

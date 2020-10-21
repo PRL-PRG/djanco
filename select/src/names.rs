@@ -144,6 +144,7 @@ impl<C> WithNames for stats::Min<C>    { fn names() -> Vec<&'static str> { vec![
 impl<C> WithNames for stats::Max<C>    { fn names() -> Vec<&'static str> { vec!["max"]    } }
 impl<C> WithNames for stats::Mean<C>   { fn names() -> Vec<&'static str> { vec!["mean"]   } }
 impl<C> WithNames for stats::Median<C> { fn names() -> Vec<&'static str> { vec!["median"] } }
+impl<C> WithNames for stats::Ratio<C>  { fn names() -> Vec<&'static str> { vec!["ratio"]  } }
 
 impl<A,I> WithNames for attrib::ID<I,A> where A: WithNames, I: Identity {
     fn names() -> Vec<&'static str> { join_vec!(I::names(), A::names()) }

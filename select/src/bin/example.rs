@@ -140,7 +140,7 @@ fn experienced_authors_ratio_sorted(config: &Configuration, groups: Groups) { //
         .sort_by_attrib(Descending, project::Commits)
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .squash()
-        .to_id_list(format!("{}/experienced_authors_ratio_random.csv", config.output_path.to_str().unwrap())).unwrap();
+        .to_id_list(format!("{}/experienced_authors_ratio_sorted.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
 fn mean_commit_message_sizes(config: &Configuration, groups: Groups) {

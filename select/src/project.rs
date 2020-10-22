@@ -8,7 +8,6 @@ use crate::helpers;
 use dcd::{DCD, Database};
 use itertools::Itertools;
 use crate::time::Seconds;
-use std::cmp::Ordering;
 
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Id;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct URL;

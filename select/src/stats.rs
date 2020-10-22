@@ -150,7 +150,7 @@ impl<I,C,E> NumericalAttribute for Median<C> where C: CollectionAttribute<Item=I
     type Entity = E;
     type Number = f64;
     fn calculate(&self, database: DataPtr, entity: &Self::Entity) -> Option<Self::Number> {
-        let mut items: Vec<f64> = self.0.items(database, entity).iter().map(|e|e.as_ord_f64()).sorted().map(|e| e.0).collect();
+        let items: Vec<f64> = self.0.items(database, entity).iter().map(|e|e.as_ord_f64()).sorted().map(|e| e.0).collect();
 
         let length = items.len();
         if length == 0 { return None }

@@ -17,10 +17,6 @@ use select::objects;
 use select::attrib::sort::Direction::*;
 use select::time::{Month, Seconds};
 use select::dump::Dump;
-use std::collections::{BTreeSet, HashSet};
-use std::iter::FromIterator;
-use select::data::WithData;
-use itertools::Itertools;
 
 // TODO
 // * snapshots aka file contents
@@ -107,6 +103,7 @@ fn median_changes_in_commits(config: &Configuration, groups: Groups) { // This i
         .to_id_list(format!("{}/median_changes_in_commits.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
+#[allow(dead_code)]
 fn experienced_authors_random(config: &Configuration, groups: Groups) { // This is "experienced author" in the paper
     groups
         .filter_by_attrib(require::Exists(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))))
@@ -115,6 +112,7 @@ fn experienced_authors_random(config: &Configuration, groups: Groups) { // This 
         .to_id_list(format!("{}/experienced_authors_random.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
+#[allow(dead_code)]
 fn experienced_authors_sorted(config: &Configuration, groups: Groups) { // This is "experienced author" in the paper
     groups
         .filter_by_attrib(require::Exists(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))))
@@ -133,6 +131,7 @@ fn experienced_authors_ratio_random(config: &Configuration, groups: Groups) { //
         .to_id_list(format!("{}/experienced_authors_ratio_random.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
+#[allow(dead_code)]
 fn experienced_authors_ratio_sorted(config: &Configuration, groups: Groups) { // This is "50% experienced" in the paper
     groups
         .filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
@@ -142,6 +141,7 @@ fn experienced_authors_ratio_sorted(config: &Configuration, groups: Groups) { //
         .to_id_list(format!("{}/experienced_authors_ratio_sorted.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
+#[allow(dead_code)]
 fn experienced_authors_ratio_sorted2(config: &Configuration, groups: Groups) { // This is "50% experienced" in the paper
     groups
         //.filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
@@ -155,7 +155,6 @@ fn experienced_authors_ratio_sorted2(config: &Configuration, groups: Groups) { /
 fn mean_commit_message_sizes(config: &Configuration, groups: Groups) {
     groups
         .sort_by_attrib(Descending, stats::Mean(retrieve::From(retrieve::From(project::Commits, commit::Message), message::Length)))
-        //.sample(sample::Top(50))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/mean_commit_message_sizes.csv", config.output_path.to_str().unwrap())).unwrap();
@@ -164,7 +163,6 @@ fn mean_commit_message_sizes(config: &Configuration, groups: Groups) {
 fn median_commit_message_sizes(config: &Configuration, groups: Groups) { // This is "message size" in the paper
     groups
         .sort_by_attrib(Descending, stats::Median(retrieve::From(retrieve::From(project::Commits, commit::Message), message::Length)))
-        //.sample(sample::Top(50))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/median_commit_message_sizes.csv", config.output_path.to_str().unwrap())).unwrap();
@@ -173,7 +171,6 @@ fn median_commit_message_sizes(config: &Configuration, groups: Groups) { // This
 fn commits(config: &Configuration, groups: Groups) { // This is "number of commits" in the paper
     groups
         .sort_by_attrib(Descending, project::Commits)
-        //.sample(sample::Top(50))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/commits.csv", config.output_path.to_str().unwrap())).unwrap();
@@ -182,7 +179,6 @@ fn commits(config: &Configuration, groups: Groups) { // This is "number of commi
 fn all_issues(config: &Configuration, groups: Groups) { // This is "issues" in the paper
     groups
         .sort_by_attrib(Descending, project::AllIssues)
-        //.sample(sample::Top(50))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .squash()
         .to_id_list(format!("{}/all_issues.csv", config.output_path.to_str().unwrap())).unwrap();
@@ -262,10 +258,10 @@ fn main() {
     let stars                       = elapsed_secs!("stars",                       stars                      (&config, groups.clone()));
     let mean_changes_in_commits     = elapsed_secs!("mean_changes_in_commits",     mean_changes_in_commits    (&config, groups.clone()));
     let median_changes_in_commits   = elapsed_secs!("median_changes_in_commits",   median_changes_in_commits  (&config, groups.clone()));
-    let experienced_authors_random         = elapsed_secs!("experienced_authors_random",         experienced_authors_random (&config, groups.clone()));
-    let experienced_authors_sorted         = elapsed_secs!("experienced_authors_sorted",         experienced_authors_sorted (&config, groups.clone()));
-    let experienced_authors_ratio_random   = elapsed_secs!("experienced_authors_ratio_random",   experienced_authors_ratio_random (&config, groups.clone()));
-    let experienced_authors_ratio_sorted   = elapsed_secs!("experienced_authors_ratio_sorted",   experienced_authors_ratio_sorted (&config, groups.clone()));
+    let experienced_authors         = elapsed_secs!("experienced_authors_random",         experienced_authors_random (&config, groups.clone()));
+    //let experienced_authors_sorted         = elapsed_secs!("experienced_authors_sorted",         experienced_authors_sorted (&config, groups.clone()));
+    let experienced_authors_ratio   = elapsed_secs!("experienced_authors_ratio_random",   experienced_authors_ratio_random (&config, groups.clone()));
+    //let experienced_authors_ratio_sorted   = elapsed_secs!("experienced_authors_ratio_sorted",   experienced_authors_ratio_sorted (&config, groups.clone()));
     let mean_commit_message_sizes   = elapsed_secs!("mean_commit_message_sizes",   mean_commit_message_sizes  (&config, groups.clone()));
     let median_commit_message_sizes = elapsed_secs!("median_commit_message_sizes", median_commit_message_sizes(&config, groups.clone()));
     let commits                     = elapsed_secs!("commits",                     commits                    (&config, groups.clone()));
@@ -290,10 +286,8 @@ fn main() {
     eprintln!("| queries | stars                            | stars              | {:>15} |", stars);
     eprintln!("| queries | mean_changes_in_commits          |                    | {:>15} |", mean_changes_in_commits);
     eprintln!("| queries | median_changes_in_commits        | touched files      | {:>15} |", median_changes_in_commits);
-    eprintln!("| queries | experienced_authors              |                    | {:>15} |", experienced_authors_random);
-    eprintln!("| queries | experienced_authors_sorted       | experienced author | {:>15} |", experienced_authors_sorted);
-    eprintln!("| queries | experienced_authors_ratio        | 50% experienced    | {:>15} |", experienced_authors_ratio_random);
-    eprintln!("| queries | experienced_authors_ratio_sorted | 50% experienced ?  | {:>15} |", experienced_authors_ratio_sorted);
+    eprintln!("| queries | experienced_authors              | experienced author | {:>15} |", experienced_authors);
+    eprintln!("| queries | experienced_authors_ratio        | 50% experienced    | {:>15} |", experienced_authors_ratio);
     eprintln!("| queries | mean_commit_message_sizes        |                    | {:>15} |", mean_commit_message_sizes);
     eprintln!("| queries | median_commit_message_sizes      | message size       | {:>15} |", median_commit_message_sizes);
     eprintln!("| queries | commits                          | number of commits  | {:>15} |", commits);

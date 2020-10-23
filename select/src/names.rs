@@ -1,10 +1,13 @@
 use crate::djanco;
+use crate::stats;
+use crate::attrib;
 use crate::objects;
 use crate::user;
 use crate::commit;
 use crate::project;
 use crate::path;
 use crate::attrib::*;
+use crate::objects::Identity;
 
 pub trait WithNames {
     fn names() -> Vec<&'static str>;
@@ -59,6 +62,12 @@ impl WithNames for objects::Path   {
     }
 }
 
+impl WithNames for f64                   { fn names() -> Vec<&'static str> { vec!["n"] } }
+impl WithNames for usize                 { fn names() -> Vec<&'static str> { vec!["n"] } }
+impl WithNames for u64                   { fn names() -> Vec<&'static str> { vec!["n"] } }
+impl WithNames for i64                   { fn names() -> Vec<&'static str> { vec!["n"] } }
+impl WithNames for bool                  { fn names() -> Vec<&'static str> { vec!["condition"] } }
+
 impl WithNames for project::Id           { fn names() -> Vec<&'static str> { vec!["project_id"]  } }
 impl WithNames for project::URL          { fn names() -> Vec<&'static str> { vec!["url"]         } }
 impl WithNames for project::Language     { fn names() -> Vec<&'static str> { vec!["language"]    } }
@@ -106,7 +115,7 @@ impl<F> WithNames for commit::PathsWith<F>   where F: Filter<Entity=objects::Pat
 impl<F> WithNames for commit::ParentsWith<F> where F: Filter<Entity=objects::Commit> { fn names() -> Vec<&'static str> { vec!["commit"]  } }
 impl<F> WithNames for commit::UsersWith<F>   where F: Filter<Entity=objects::User>   { fn names() -> Vec<&'static str> { vec!["user"]  } }
 
-macro_rules! join_vec { ($v1:expr, $v2:expr) => {{ $v1.extend($v2); $v1 }} }
+macro_rules! join_vec { ($v1:expr, $v2:expr) => {{ vec![$v1, $v2].into_iter().flatten().collect() }} }
 
 impl<T> WithNames for djanco::Iter<T> where T: WithNames {
     fn names() -> Vec<&'static str> { T::names() }
@@ -117,9 +126,32 @@ impl<T> WithNames for djanco::QuincunxIter<T> where T: WithNames {
 impl<K,T> WithNames for djanco::GroupIter<K,T> where K: WithNames, T: WithNames {
     fn names() -> Vec<&'static str> { join_vec!(K::names(), T::names()) }
 }
-impl<K,T> WithNames for (K,T) where K: WithNames, T: WithNames {
-    fn names() -> Vec<&'static str> { join_vec!(K::names(), T::names()) }
+impl<A,B> WithNames for (A,B) where A: WithNames, B: WithNames {
+    fn names() -> Vec<&'static str> { join_vec!(A::names(), B::names()) }
+}
+impl<A,B,C> WithNames for (A,B,C) where A: WithNames, B: WithNames, C: WithNames {
+    fn names() -> Vec<&'static str> { join_vec!(join_vec!(A::names(), B::names()), C::names()) }
 }
 impl<A,T> WithNames for AttributeValue<A, T> where A: Attribute + WithNames {
     fn names() -> Vec<&'static str> { A::names() }
 }
+impl<T> WithNames for Option<T> where T: WithNames {
+    fn names() -> Vec<&'static str> { T::names() }
+}
+
+impl<C> WithNames for stats::Count<C>  { fn names() -> Vec<&'static str> { vec!["count"]  } }
+impl<C> WithNames for stats::Min<C>    { fn names() -> Vec<&'static str> { vec!["min"]    } }
+impl<C> WithNames for stats::Max<C>    { fn names() -> Vec<&'static str> { vec!["max"]    } }
+impl<C> WithNames for stats::Mean<C>   { fn names() -> Vec<&'static str> { vec!["mean"]   } }
+impl<C> WithNames for stats::Median<C> { fn names() -> Vec<&'static str> { vec!["median"] } }
+impl<C> WithNames for stats::Ratio<C>  { fn names() -> Vec<&'static str> { vec!["ratio"]  } }
+
+impl<A,I> WithNames for attrib::ID<I,A> where A: WithNames, I: Identity {
+    fn names() -> Vec<&'static str> { join_vec!(I::names(), A::names()) }
+}
+
+// impl WithNames for objects::ProjectId  { fn names() -> Vec<&'static str> { vec!["project_ids"] } }
+// impl WithNames for objects::CommitId   { fn names() -> Vec<&'static str> { vec!["commit_ids"] } }
+// impl WithNames for objects::UserId     { fn names() -> Vec<&'static str> { vec!["user_ids"] } }
+// impl WithNames for objects::PathId     { fn names() -> Vec<&'static str> { vec!["path_ids"] } }
+// impl WithNames for objects::SnapshotId { fn names() -> Vec<&'static str> { vec!["snapshot_ids"] } }

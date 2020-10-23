@@ -29,7 +29,7 @@ impl Into<f64>   for Seconds { fn into(self) -> f64   { self.0 as f64   } }
 
 impl Display for Seconds {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}s", self.0)
+        write!(f, "{}", self.0)
     }
 }
 

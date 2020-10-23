@@ -1,6 +1,19 @@
 use std::f64::{INFINITY,NEG_INFINITY,NAN};
 use std::cmp::Ordering;
 
+pub fn opt_cmp<T>(opt1: Option<T>, opt2: Option<T>) -> Ordering where T: Ord {
+        match (opt1, opt2) {
+            (Some(n1), Some(n2)) =>
+                     if n1 < n2 { Ordering::Less    }
+                else if n1 > n2 { Ordering::Greater }
+                else            { Ordering::Equal   },
+
+                (None, None) =>       Ordering::Equal,
+                (None,    _) =>       Ordering::Less,
+                (_,    None) =>       Ordering::Greater,
+    }
+}
+
 pub fn f64_cmp(a: f64, b: f64) -> Ordering {
     // match (*a, *b) {
     //     (INFINITY, INFINITY) => Ordering::Equal,

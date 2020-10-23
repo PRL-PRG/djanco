@@ -223,9 +223,7 @@ impl<C,E> CollectionAttribute for From<C, commit::Paths> where C: CollectionAttr
         self.map_items(data.clone(), entity, |e: Commit| e.paths(data.clone()))
     }
 
-    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize {
-        self.count_items(data, entity)
-    }
+    fn len(&self, data: DataPtr, entity: &Self::Entity) -> usize { self.count_items(data, entity) }
 }
 
 impl<F,C,E> CollectionAttribute for From<C, commit::ParentsWith<F>> where C: CollectionAttribute<Entity=E, Item=Commit>, F: Filter<Entity=Commit> {

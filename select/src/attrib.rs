@@ -4,6 +4,7 @@ use crate::data::DataPtr;
 use itertools::Itertools;
 use std::hash::{Hash, Hasher};
 use crate::names::WithNames;
+use crate::objects::{Identifiable, Identity};
 
 pub trait Attribute {}
 
@@ -89,7 +90,10 @@ pub trait Sort<T> {
 }
 
 pub trait Sample<T> {
-    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T>;
+    fn execute(&mut self, data: DataPtr, vector: Vec<T>) -> Vec<T> {
+        self.make_selection(data, vector.into_iter())
+    }
+    fn make_selection(&mut self, data: DataPtr, iter: impl Iterator<Item=T>) -> Vec<T>;
 }
 
 pub trait Select<T>: WithNames {
@@ -157,3 +161,20 @@ impl<C,E,T> ExistentialAttribute for C where C: CollectionAttribute<Entity=T,Ite
 //         unimplemented!()
 //     }
 // }
+
+pub struct ID<I: Identity, A>{ attribute: A, id: PhantomData<I> }
+
+impl<I,A> ID<I,A> where I: Identity {
+    pub fn with(attribute: A) -> Self {
+        ID { attribute, id: PhantomData }
+    }
+}
+
+impl<I,A> Attribute for ID<I,A> where I: Identity {}
+
+impl<I,A,T,X> Select<T> for ID<I,A> where A: Select<T, Entity=X>, T: Identifiable<I>, I: Identity {
+    type Entity = (I, X);
+    fn select(&self, data: DataPtr, entity: T) -> Self::Entity {
+        (entity.id(), self.attribute.select(data, entity))
+    }
+}

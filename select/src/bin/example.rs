@@ -229,6 +229,10 @@ fn debug_dump(config: &Configuration, projects: &Projects) {
 
     projects.clone()
         .map_to_attrib(attrib::ID::with(stats::Count(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2))))))
+        .to_csv(format!("{}/experienced_authors_sum.debug.csv", config.output_path.to_str().unwrap())).unwrap();
+
+    projects.clone()
+        .map_to_attrib(attrib::ID::with(stats::Ratio(project::UsersWith(require::AtLeast(user::Experience, Seconds::from_years(2))))))
         .to_csv(format!("{}/experienced_authors_ratio.debug.csv", config.output_path.to_str().unwrap())).unwrap();
 }
 
@@ -270,6 +274,8 @@ fn main() {
     let buggy_issues                = elapsed_secs!("buggy_issues",                buggy_issues               (&config, groups.clone()));
     let debug_dump                  = elapsed_secs!("debug_dump",                  debug_dump                 (&config, &projects));
     let dump                        = elapsed_secs!("dump_all",                    dump_all                   (&config, projects));
+
+    let i64 = Instant::now().into();
 
     eprintln!("Summary:");
     eprintln!("  dataset: `{}`", config.dataset_path.to_str().unwrap());

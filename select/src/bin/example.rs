@@ -275,8 +275,6 @@ fn main() {
     let debug_dump                  = elapsed_secs!("debug_dump",                  debug_dump                 (&config, &projects));
     let dump                        = elapsed_secs!("dump_all",                    dump_all                   (&config, projects));
 
-    let i64 = Instant::now().into();
-
     eprintln!("Summary:");
     eprintln!("  dataset: `{}`", config.dataset_path.to_str().unwrap());
     eprintln!("   output: `{}`", config.output_path.to_str().unwrap());

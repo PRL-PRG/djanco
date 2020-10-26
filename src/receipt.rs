@@ -1,5 +1,5 @@
-use crate::djanco::Spec;
 use std::time::{Duration, Instant};
+use crate::spec::Spec;
 
 pub fn name_of<T>() -> String {
     let name = std::any::type_name::<T>();

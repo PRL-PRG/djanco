@@ -2,7 +2,6 @@ use structopt::StructOpt;
 use std::path::PathBuf;
 
 use djanco::objects;
-use std::rc::Rc;
 // TODO
 // * snapshots aka file contents
 // * keep and produce receipt snippets
@@ -52,33 +51,9 @@ pub struct Configuration {
 //     }}
 // }
 
-struct X {
-    x: usize
-}
-
-impl X {
-    fn inc(&mut self) -> usize {
-        let x = self.x;
-        self.x +=1;
-        return x
-    }
-}
-
-struct Y;
-
-impl Y {
-    fn f(&self, x: &mut X) -> usize {
-        x.inc()
-    }
-}
-
-
 
 // works with downloader from commit  146e55e34ca1f4cc5b826e0c909deac96afafc17
 // cargo run --bin example --release -- -o /dejacode/query_results_old/artifact_testing/output -d /dejacode/dataset -c /dejacode/query_results_old/artifact_testing/cache --data-dump=/dejacode/query_results_old/artifact_testing/dump
 fn main() {
-//    println!("hello world! {:?}", std::mem::size_of::<Rc<u32>>());
-    let mut x = X { x:0 };
-    let v = vec![Y, Y, Y];
-    //v.iter().map(|y| y.f(&mut x)).collect();
+
 }

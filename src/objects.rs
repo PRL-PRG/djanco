@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 
@@ -175,7 +174,23 @@ impl Hash for User {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Commit { id: CommitId, hash: String }
+pub struct Commit {
+    pub(crate) id: CommitId,
+    /*pub(crate) hash: String,*/
+    pub(crate) committer: UserId,
+    pub(crate) author: UserId,
+    pub(crate) parents: Vec<CommitId>
+}
+impl Commit {
+    // pub(crate) fn new(id: CommitId, /*hash: String,*/ committer: UserId, author: UserId, parents: Vec<CommitId>) -> Commit {
+    //
+    // }
+    //pub fn hash(&self) -> &str                          { self.hash.as_str()       }
+    pub fn committer(&self, db: &mut Data) -> User        { self.committer.reify(db) }
+    pub fn author   (&self, db: &mut Data) -> User        { self.author.reify(db)    }
+    pub fn parents  (&self, db: &mut Data) -> Vec<Commit> { self.parents.reify(db)   }
+}
+
 impl Identifiable<CommitId> for Commit { fn id(&self) -> CommitId { self.id } }
 impl Reifiable<Commit> for CommitId { fn reify(&self, db: &mut Data) -> Commit { db.commit(&self).unwrap() } }
 impl PartialEq for Commit {
@@ -190,6 +205,15 @@ impl Ord for Commit {
 }
 impl Hash for Commit {
     fn hash<H: Hasher>(&self, state: &mut H) { self.id.hash(state) }
+}
+impl Commit {
+    // pub committer : u64,
+    // pub committer_time : i64,
+    // pub author : u64,
+    // pub author_time : i64,
+    // pub parents : Vec<u64>,
+    // pub changes : HashMap<u64,u64>,
+    // pub message : String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

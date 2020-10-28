@@ -110,17 +110,16 @@ impl<I, T> Reifiable<Vec<T>> for Vec<I> where I: Reifiable<T> {
 }
 
 /**== Objects ===================================================================================**/
-#[derive(Clone, Debug, Serialize, Deserialize)] // TODO implement by hand
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Project {
     pub id: ProjectId,
     pub url: String,
-
-    last_update: Option<i64>,
-    language: Option<Option<String>>,
-    stars: Option<Option<usize>>,
-    issues: Option<Option<usize>>,
-    buggy_issues: Option<Option<usize>>,
-    heads: Option<Vec<(String, CommitId)>>,
+    // last_update: Option<i64>,
+    // language: Option<Option<String>>,
+    // stars: Option<Option<usize>>,
+    // issues: Option<Option<usize>>,
+    // buggy_issues: Option<Option<usize>>,
+    // heads: Option<Vec<(String, CommitId)>>,
 }
 
 impl PartialEq for Project {
@@ -141,7 +140,7 @@ impl Identifiable<ProjectId> for Project { fn id(&self) -> ProjectId { self.id }
 
 impl Project {
     pub fn url            (&self)                -> &str                    { self.url.as_str()                    }
-    pub fn timestamp      (&self, db: &mut Data) -> i64                     { db.project_timestamp      (&self.id) }
+    //pub fn timestamp      (&self, db: &mut Data) -> i64                     { db.project_timestamp      (&self.id) }
     pub fn language       (&self, db: &mut Data) -> Option<String>          { db.project_language       (&self.id) }
     pub fn stars          (&self, db: &mut Data) -> Option<usize>           { db.project_stars          (&self.id) }
     pub fn issues         (&self, db: &mut Data) -> Option<usize>           { db.project_issues         (&self.id) }
@@ -156,7 +155,11 @@ impl Project {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct User { id: UserId, name: String, email: String }
+pub struct User { pub(crate) id: UserId, /*pub(crate) name: String,*/ pub(crate) email: String }
+impl User {
+    pub fn new(id: UserId, email: String) -> Self { User { id, email } }
+    pub fn email(&self) -> &str { self.email.as_str() }
+}
 impl Identifiable<UserId> for User { fn id(&self) -> UserId { self.id } }
 impl Reifiable<User> for UserId { fn reify(&self, db: &mut Data) -> User { db.user(&self).unwrap() } }
 impl PartialEq for User {
@@ -179,7 +182,11 @@ pub struct Commit {
     /*pub(crate) hash: String,*/
     pub(crate) committer: UserId,
     pub(crate) author: UserId,
-    pub(crate) parents: Vec<CommitId>
+    pub(crate) parents: Vec<CommitId>,
+    // pub(crate) author_timestamp : i64,
+    // pub(crate) committer_timestamp : i64,
+    // pub changes : HashMap<u64,u64>,
+    // pub message : String,
 }
 impl Commit {
     // pub(crate) fn new(id: CommitId, /*hash: String,*/ committer: UserId, author: UserId, parents: Vec<CommitId>) -> Commit {
@@ -218,6 +225,9 @@ impl Commit {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Path { id: PathId, location: String }
+impl Path {
+    pub fn new(id: PathId, location: String) -> Self { Path { id, location } }
+}
 impl Identifiable<PathId> for Path { fn id(&self) -> PathId { self.id } }
 impl Reifiable<Path> for PathId { fn reify(&self, db: &mut Data) -> Path { db.path(&self).unwrap() } }
 impl PartialEq for Path {
@@ -238,6 +248,6 @@ impl Hash for Path {
 pub struct Contents {}
 //impl Identifiable<ContentsId> for Contents { fn id(&self) -> ContentsId { self.id } }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Message {}
+// #[derive(Clone, Debug, Serialize, Deserialize)]
+// pub struct Message {}
 //impl Identifiable<CommitId> for Message { fn id(&self) -> CommitId { self.id } }

@@ -2,6 +2,8 @@ use structopt::StructOpt;
 use std::path::PathBuf;
 
 use djanco::objects;
+use itertools::Itertools;
+use std::collections::BTreeMap;
 // TODO
 // * snapshots aka file contents
 // * keep and produce receipt snippets
@@ -55,5 +57,6 @@ pub struct Configuration {
 // works with downloader from commit  146e55e34ca1f4cc5b826e0c909deac96afafc17
 // cargo run --bin example --release -- -o /dejacode/query_results_old/artifact_testing/output -d /dejacode/dataset -c /dejacode/query_results_old/artifact_testing/cache --data-dump=/dejacode/query_results_old/artifact_testing/dump
 fn main() {
-
+    let m: BTreeMap<u32,u32> = vec![(1,1), (2,2), (1,2), (1,3)].into_iter().collect();
+    println!("{:?}", m)
 }

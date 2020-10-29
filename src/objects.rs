@@ -8,6 +8,7 @@ use serde::{Serialize, Deserialize};
 // use crate::data::DataPtr;
 use crate::time::Seconds;
 use crate::data::{DataPtr, Data};
+use std::ops::Deref;
 // use crate::names::WithNames;
 
 /**== Object IDs ================================================================================**/
@@ -99,6 +100,12 @@ impl Identity for UserId     {}
 impl Identity for CommitId   {}
 impl Identity for PathId     {}
 impl Identity for SnapshotId {}
+
+//impl Deref for ProjectId  { type Target = ProjectId; fn deref(&self) -> &Self::Target { &self.clone() } }
+// impl Deref for CommitId   { type Target = Self; fn deref(&self) -> &Self::Target { &self.clone() } }
+// impl Deref for UserId     { type Target = Self; fn deref(&self) -> &Self::Target { &self.clone() } }
+// impl Deref for PathId     { type Target = Self; fn deref(&self) -> &Self::Target { &self.clone() } }
+// impl Deref for SnapshotId { type Target = Self; fn deref(&self) -> &Self::Target { &self.clone() } }
 
 /** ==== Object-ID relationship indication ===================================================== **/
 pub trait Identifiable<T> where T: Identity { fn id(&self) -> T; }

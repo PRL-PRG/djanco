@@ -15,6 +15,7 @@ use serde_json::{Value, to_value};
 use serde::export::PhantomData;
 use serde_cbor;
 use serde_json::value::Value::Number;
+use itertools::Itertools;
 
 pub type DataPtr = Rc<RefCell<Data>>;
 
@@ -109,13 +110,15 @@ impl<K,V> PersistentSource<K,V>
     }
 }
 
-trait MetadataFieldExtractor<T> {
-    fn get(&self, value: &serde_json::Value) -> T;
+trait MetadataFieldExtractor {
+    type Value;
+    fn get(&self, value: &serde_json::Value) -> Self::Value;
 }
 
 struct BoolExtractor;
-impl MetadataFieldExtractor<bool> for BoolExtractor {
-    fn get(&self, value: &serde_json::Value) -> bool {
+impl MetadataFieldExtractor for BoolExtractor {
+    type Value = bool;
+    fn get(&self, value: &serde_json::Value) -> Self::Value {
         match value {
             serde_json::Value::Bool(b) => *b,
             value => panic!("Expected Bool, found {:?}", value),
@@ -124,8 +127,9 @@ impl MetadataFieldExtractor<bool> for BoolExtractor {
 }
 
 struct CountExtractor;
-impl MetadataFieldExtractor<usize> for CountExtractor {
-    fn get(&self, value: &serde_json::Value) -> usize {
+impl MetadataFieldExtractor for CountExtractor {
+    type Value = usize;
+    fn get(&self, value: &serde_json::Value) -> Self::Value {
         match value {
             serde_json::Value::Number(n) if n.is_u64() => n.as_u64().unwrap() as usize,
             serde_json::Value::Number(n) => panic!("Expected Number >= 0, found {:?}", value),
@@ -135,8 +139,9 @@ impl MetadataFieldExtractor<usize> for CountExtractor {
 }
 
 struct StringExtractor;
-impl MetadataFieldExtractor<String> for StringExtractor {
-    fn get(&self, value: &serde_json::Value) -> String {
+impl MetadataFieldExtractor for StringExtractor {
+    type Value = String;
+    fn get(&self, value: &serde_json::Value) -> Self::Value {
         match value {
             serde_json::Value::String(s) => s.clone(),
             value => panic!("Expected String, found {:?}", value),
@@ -144,21 +149,18 @@ impl MetadataFieldExtractor<String> for StringExtractor {
     }
 }
 
-struct FieldExtractor<T, M: MetadataFieldExtractor<T>>{
-    name: String,
-    extractor: M,
-    _type: PhantomData<T>
-}
-impl<T, M> FieldExtractor<T, M> where M: MetadataFieldExtractor<T> {
-    pub fn new<S>(name: S, extractor: M) -> Self where S: Into<String> {
-        FieldExtractor { name: name.into(), extractor, _type: PhantomData }
-    }
-}
-impl<T, M> MetadataFieldExtractor<T> for FieldExtractor<T, M> where M: MetadataFieldExtractor<T>{
-    fn get(&self, value: &serde_json::Value) -> T {
+struct FieldExtractor<M: MetadataFieldExtractor>(pub &'static str, pub M);
+// impl<T, M> FieldExtractor<M> where M: MetadataFieldExtractor<Value=T> {
+//     pub fn new<S>(name: S, extractor: M) -> Self where S: Into<String> {
+//         FieldExtractor { name: name.into(), extractor }
+//     }
+// }
+impl<T, M> MetadataFieldExtractor for FieldExtractor<M> where M: MetadataFieldExtractor<Value=T>{
+    type Value = T;
+    fn get(&self, value: &serde_json::Value) -> Self::Value {
         match value {
             serde_json::Value::Object(map) => {
-                self.extractor.get(&map.get(&self.name).unwrap())
+                self.1.get(&map.get(&self.0.to_owned()).unwrap())
             },
             value => panic!("Expected String, found {:?}", value),
         }
@@ -166,8 +168,9 @@ impl<T, M> MetadataFieldExtractor<T> for FieldExtractor<T, M> where M: MetadataF
 }
 
 struct NullableStringExtractor;
-impl MetadataFieldExtractor<Option<String>> for NullableStringExtractor {
-    fn get(&self, value: &serde_json::Value) -> Option<String> {
+impl MetadataFieldExtractor for NullableStringExtractor {
+    type Value = Option<String>;
+    fn get(&self, value: &serde_json::Value) -> Self::Value {
         match value {
             serde_json::Value::String(s) => Some(s.clone()),
             serde_json::Value::Null => None,
@@ -176,50 +179,92 @@ impl MetadataFieldExtractor<Option<String>> for NullableStringExtractor {
     }
 }
 
-
-struct MetadataVec<T, M: MetadataFieldExtractor<T>> {
+struct MetadataVec<M: MetadataFieldExtractor> {
     name: String,
     extractor: M,
-    _type: PhantomData<T>,
+    vector: Option<BTreeMap<ProjectId, M::Value>>,
 }
 
-impl<T, M> MetadataVec<T, M> where M: MetadataFieldExtractor<T> {
+impl<M> MetadataVec<M> where M: MetadataFieldExtractor {
     pub fn new<S> (name: S, extractor: M) -> Self where S: Into<String> {
-        Self { name: name.into(), extractor, _type: PhantomData }
+        Self { name: name.into(), extractor, vector: None }
     }
 
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
-    pub fn get(&self, metadata: &BTreeMap<ProjectId, serde_json::Map<String, serde_json::Value>>) {
-        //let prop = serde_json::Value::String(self.name.clone());
-        metadata.iter()
-            .map(|(id, properties)| {
-                let property = properties.get(&self.name).unwrap();
-                (id, self.extractor.get(property))
-            });
+    pub fn already_loaded(&self) -> bool {
+        self.vector.is_some()
+    }
+
+    pub fn load_from(&mut self, metadata: &HashMap<ProjectId, serde_json::Map<String, serde_json::Value>>) {
+        if !self.already_loaded() {
+            self.vector = Some(
+                metadata.iter()
+                    .map(|(id, properties)| {
+                        let property = properties.get(&self.name).unwrap();
+                        (id.clone(), self.extractor.get(property))
+                    }).collect()
+            )
+        }
     }
 }
 
 pub struct MetadataSource<'a> {
-    data_store:              &'a DatastoreView,
-
-    forks:        MetadataVec<bool,   BoolExtractor>,
-    archived:     MetadataVec<bool,   BoolExtractor>,
-    disabled:     MetadataVec<bool,   BoolExtractor>,
-    languages:    MetadataVec<String, StringExtractor>,
-    descriptions: MetadataVec<String, StringExtractor>,
-    star_gazers:  MetadataVec<usize,  CountExtractor>,
-    watchers:     MetadataVec<usize,  CountExtractor>,
-    size:         MetadataVec<usize,  CountExtractor>,
-    open_issues:  MetadataVec<usize,  CountExtractor>,
-    licenses:     MetadataVec<String, FieldExtractor<String, StringExtractor>>,
-    homepages:    MetadataVec<String, StringExtractor>,
+    data_store:   &'a DatastoreView,
+    forks:            MetadataVec<BoolExtractor>,
+    archived:         MetadataVec<BoolExtractor>,
+    disabled:         MetadataVec<BoolExtractor>,
+    star_gazers:      MetadataVec<CountExtractor>,
+    watchers:         MetadataVec<CountExtractor>,
+    size:             MetadataVec<CountExtractor>,
+    open_issues:      MetadataVec<CountExtractor>,
+    network:          MetadataVec<CountExtractor>,
+    subscribers:      MetadataVec<CountExtractor>,
+    licenses:         MetadataVec<FieldExtractor<StringExtractor>>,
+    languages:        MetadataVec<StringExtractor>,
+    descriptions:     MetadataVec<StringExtractor>,
+    homepages:        MetadataVec<StringExtractor>,
 }
 
 impl<'a> MetadataSource<'a> {
-    fn get_json_sources(&mut self) {
+    pub fn new(data_store: &'a DatastoreView) -> Self {
+        MetadataSource {
+            data_store,
+            forks:        MetadataVec::new("fork",              BoolExtractor),
+            archived:     MetadataVec::new("archived",          BoolExtractor),
+            disabled:     MetadataVec::new("disabled",          BoolExtractor),
+            star_gazers:  MetadataVec::new("star_gazers_count", CountExtractor),
+            watchers:     MetadataVec::new("watchers_count",    CountExtractor),
+            size:         MetadataVec::new("size",              CountExtractor),
+            open_issues:  MetadataVec::new("open_issues_count", CountExtractor),
+            network:      MetadataVec::new("network_count",     CountExtractor),
+            subscribers:  MetadataVec::new("subscribers_count", CountExtractor),
+            languages:    MetadataVec::new("language",          StringExtractor),
+            descriptions: MetadataVec::new("description",       StringExtractor),
+            homepages:    MetadataVec::new("homepage",          StringExtractor),
+            licenses:     MetadataVec::new("license",           FieldExtractor("name", StringExtractor)),
+        }
+    }
+
+    fn load_all_from(&mut self, metadata: &HashMap<ProjectId, serde_json::Map<String, Value>>) {
+        self.forks.load_from(metadata);
+        self.archived.load_from(metadata);
+        self.disabled.load_from(metadata);
+        self.star_gazers.load_from(metadata);
+        self.watchers.load_from(metadata);
+        self.size.load_from(metadata);
+        self.open_issues.load_from(metadata);
+        self.network.load_from(metadata);
+        self.subscribers.load_from(metadata);
+        self.licenses.load_from(metadata);
+        self.languages.load_from(metadata);
+        self.descriptions.load_from(metadata);
+        self.homepages.load_from(metadata);
+    }
+
+    fn load_metadata(&mut self) -> HashMap<ProjectId, serde_json::Map<String, Value>> {
         let project_content_ids: HashMap<u64, u64> =
             self.data_store.projects_metadata()
                 .filter(|(id, meta)| meta.key == "github_metadata")
@@ -231,8 +276,7 @@ impl<'a> MetadataSource<'a> {
                 .map(|(project_id, content_id)| (content_id, project_id))
                 .collect();
 
-        let metadata: HashMap<ProjectId, serde_json::Map<String, Value>> =
-            self.data_store.contents()
+        self.data_store.contents()
             .filter(|(content_id, _)| content_project_ids.contains_key(content_id))
             .map(|(content_id, contents)| {
                 let json: Value = serde_json::from_slice(contents.as_slice()).unwrap();
@@ -241,10 +285,12 @@ impl<'a> MetadataSource<'a> {
                     serde_json::Value::Object(map) => (ProjectId::from(project_id), map),
                     meta => panic!("Unexpected JSON value for metadata: {:?}", meta),
                 }
-            }).collect();
+            }).collect()
+    }
 
-        self.forks = MetadataVec::new("fork", BoolExtractor);
-        unimplemented!()
+    pub fn load_from_datastore(&mut self) {
+        let metadata = self.load_metadata();
+        self.load_all_from(&metadata)
     }
 }
 

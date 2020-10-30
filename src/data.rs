@@ -687,7 +687,6 @@ impl Data {
     pub fn project_author_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
     pub fn project_committer_count(&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
 
-    pub fn project_commits        (&mut self, id: &ProjectId) -> Vec<Commit>             { unimplemented!() }
     pub fn project_commit_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
 
     //pub fn project_timestamp      (&mut self, id: &ProjectId) -> i64                     { *self.project_timestamps.get(&self.store, id).unwrap()   } // Last update timestamps are obligatory
@@ -703,13 +702,17 @@ impl Data {
     // pub fn project_author_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
     // pub fn project_committer_count(&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
     //
-    // pub fn project_commits        (&mut self, id: &ProjectId) -> Vec<Commit>             { self.project_commits.pirate_with(&self.store, self.commits.data(&self.store), id).unwrap().reify(self) } // Obligatory
+
     // pub fn project_commit_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
 
     pub fn project_heads          (&mut self, id: &ProjectId) -> Vec<(String, CommitId)> { self.project_heads.get(&self.store,id).pirate().unwrap()  } // Heads are obligatory
 
     pub fn project_language       (&mut self, id: &ProjectId) -> Option<String>          { self.project_metadata.language_owned(&self.store,id) }
     pub fn project_stars          (&mut self, id: &ProjectId) -> Option<usize>           { self.project_metadata.star_gazer(&self.store,id)     }
+
+    pub fn project_commits        (&mut self, id: &ProjectId) -> Vec<Commit>             { let heads = self.project_heads.data(&self.store);
+                                                                                           let commits = self.commits.data(&self.store);
+                                                                                           self.project_commits.get2(heads, commits, id).unwrap().to_owned().reify(self) } // Obligatory
 
     pub fn project_users          (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!()      } // Obligatory, but can be 0 length
     pub fn project_authors        (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!()    } // Obligatory, but can be 0 length

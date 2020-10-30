@@ -117,7 +117,7 @@ impl MetadataFieldExtractor for CountExtractor {
     fn get(&self, value: &JSON) -> Self::Value {
         match value {
             JSON::Number(n) if n.is_u64() => n.as_u64().unwrap() as usize,
-            JSON::Number(n) => panic!("Expected Number >= 0, found {:?}", value),
+            JSON::Number(n) => panic!("Expected Number >= 0, found {:?}", n),
             value => panic!("Expected Number, found {:?}", value),
         }
     }
@@ -359,7 +359,7 @@ impl ProjectMetadataSource {
     fn load_metadata(&mut self, store: &DatastoreView) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
         let content_project_ids: HashMap<u64, u64> =
             store.projects_metadata()
-                .filter(|(id, meta)| meta.key == "github_metadata")
+                .filter(|(_, meta)| meta.key == "github_metadata")
                 .map(|(id, metadata)| (id, metadata.value.parse::<u64>().unwrap()))
                 .map(|(project_id, content_id)| (content_id, project_id))
                 .collect();

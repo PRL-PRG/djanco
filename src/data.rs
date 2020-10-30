@@ -452,7 +452,9 @@ impl StoreExtractor for UserExtractor {
     type Key = UserId;
     type Value = User;
     fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        store.users().map(|(id, email)| (UserId::from(id), User::new(UserId::from(id), email))).collect()
+        store.users().map(|(id, email)| {
+            (UserId::from(id), User::new(UserId::from(id), email))
+        }).collect()
     }
 }
 
@@ -461,7 +463,9 @@ impl StoreExtractor for PathExtractor {
     type Key = PathId;
     type Value = Path;
     fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        store.paths().map(|(id, location)| (PathId::from(id), Path::new(PathId::from(id), location))).collect()
+        store.paths().map(|(id, location)| {
+            (PathId::from(id), Path::new(PathId::from(id), location))
+        }).collect()
     }
 }
 
@@ -470,7 +474,9 @@ impl StoreExtractor for CommitExtractor {
     type Key = CommitId;
     type Value = Commit;
     fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        store.commits().map(|(id, commit)| { (CommitId::from(id), Commit::from((id, commit))) }).collect()
+        store.commits().map(|(id, commit)| {
+            (CommitId::from(id), Commit::from((id, commit)))
+        }).collect()
     }
 }
 
@@ -479,7 +485,9 @@ impl StoreExtractor for CommitMessageExtractor {
     type Key = CommitId;
     type Value = String;
     fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        store.commits().map(|(id, commit)| (CommitId::from(id), commit.message)).collect() // TODO maybe return iter?
+        store.commits().map(|(id, commit)| {
+            (CommitId::from(id), commit.message)
+        }).collect() // TODO maybe return iter?
     }
 }
 

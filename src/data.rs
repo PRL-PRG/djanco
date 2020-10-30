@@ -15,6 +15,7 @@ use crate::objects::*;
 use serde_json::Value as JSON;
 use serde_cbor;
 use serde::export::PhantomData;
+use crate::piracy::Piracy;
 
 pub type DataPtr = Rc<RefCell<Data>>;
 
@@ -22,13 +23,51 @@ static CACHE_EXTENSION: &str = ".cbor";
 trait Persistent: Serialize + DeserializeOwned {}
 impl<T> Persistent for T where T: Serialize + DeserializeOwned {}
 
-trait StoreExtractor {
-    type Key: Ord + Persistent;
+trait Extractor {
+    type Key:   Ord + Persistent;
     type Value: Clone + Persistent;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value>;
 }
 
-struct PersistentSource<E: StoreExtractor> {
+trait SingleExtractor: Extractor {
+    type A;
+    fn extract(a: &Self::A) -> BTreeMap<Self::Key, Self::Value>;
+}
+
+trait DoubleExtractor: Extractor {
+    type A; type B;
+    fn extract(a: &Self::A, b: &Self::B) -> BTreeMap<Self::Key, Self::Value>;
+}
+
+trait TripleExtractor: Extractor {
+    type A; type B; type C;
+    fn extract(a: &Self::A, b: &Self::B, c: &Self::C) -> BTreeMap<Self::Key, Self::Value>;
+}
+
+trait QuadrupleExtractor: Extractor {
+    type A; type B; type C; type D;
+    fn extract(a: &Self::A, b: &Self::B, c: &Self::C, d: &Self::D) -> BTreeMap<Self::Key, Self::Value>;
+}
+
+// struct Store<'a>(&'a DatastoreView);
+// impl<'a> ExtractorInput for Store<'a> {}
+//
+// struct HeadsAndCommits<'a>(&'a BTreeMap<ProjectId, Vec<(String, CommitId)>>, &'a BTreeMap<CommitId, Commit>);
+// impl<'a>  ExtractorInput for HeadsAndCommits<'a> {}
+
+
+// trait SecondaryExtractor: MapExtractor {
+//     type Primary;
+//     fn extract(store: &DatastoreView, primary: &Self::Primary) -> BTreeMap<Self::Key, Self::Value>;
+// }
+//
+// trait CompoundExtractor: MapExtractor {
+//     type A;
+//     type B;
+//     fn extract(a: &Self::A, b: &Self::B) -> BTreeMap<Self::Key, Self::Value>;
+// }
+
+
+struct PersistentSource<E: Extractor> {
     //name: String,
     cache_path: PathBuf,
     cache_dir: PathBuf,
@@ -36,7 +75,7 @@ struct PersistentSource<E: StoreExtractor> {
     extractor: PhantomData<E>,
 }
 
-impl<E> PersistentSource<E> where E: StoreExtractor {
+impl<E> PersistentSource<E> where E: Extractor {
     pub fn new<Sa,Sb>(name: Sa, dir: Sb) -> PersistentSource<E>
         where Sa: Into<String>, Sb: Into<String> {
 
@@ -53,14 +92,9 @@ impl<E> PersistentSource<E> where E: StoreExtractor {
 
         PersistentSource { /*name,*/ cache_path, cache_dir, map, extractor: PhantomData }
     }
-}
 
-impl<E> PersistentSource<E> where E: StoreExtractor{
     fn already_cached(&self) -> bool {
         self.cache_path.is_file()
-    }
-    fn load_from_store(&mut self, store: &DatastoreView) {
-        self.map = Some(E::extract(store));
     }
     fn load_from_cache(&mut self) -> Result<(), Box<dyn Error>> {
         let reader = File::open(&self.cache_path)?;
@@ -75,25 +109,104 @@ impl<E> PersistentSource<E> where E: StoreExtractor{
     }
 }
 
-impl<E> PersistentSource<E> where E: StoreExtractor {
-    pub fn data(&mut self, store: &DatastoreView) -> &BTreeMap<E::Key, E::Value> {
+impl<E> PersistentSource<E> where E: Extractor {
+    pub fn data_from_loader<F>(&mut self, mut load: F) -> &BTreeMap<E::Key, E::Value>
+        where F: FnMut() -> BTreeMap<E::Key, E::Value> {
+
         if self.map.is_none() {
             if self.already_cached() {
                 self.load_from_cache().unwrap()
             } else {
-                self.load_from_store(store);
+                self.map = Some(load());
                 self.store_to_cache().unwrap()
             }
         }
+
         self.map.as_ref().unwrap()
     }
-    pub fn get(&mut self, store: &DatastoreView, key: &E::Key) -> Option<&E::Value> {
-        self.data(store).get(key)
+}
+
+impl<E,A> PersistentSource<E> where E: SingleExtractor<A=A>{
+    pub fn data(&mut self, input: &A) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(input) })
     }
-    pub fn pirate(&mut self, store: &DatastoreView, key: &E::Key) -> Option<E::Value> { // get owned
-        self.get(store, key).map(|v| v.clone())
+    pub fn get(&mut self, input: &A, key: &E::Key) -> Option<&E::Value> {
+        self.data(input).get(key)
     }
 }
+
+impl<E,A,B> PersistentSource<E> where E: DoubleExtractor<A=A,B=B>{
+    pub fn data2(&mut self, input_a: &A, input_b: &B) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(input_a, input_b) })
+    }
+    pub fn get2(&mut self, input_a: &A, input_b: &B, key: &E::Key) -> Option<&E::Value> {
+        self.data2(input_a, input_b).get(key)
+    }
+}
+
+impl<E,A,B,C> PersistentSource<E> where E: TripleExtractor<A=A,B=B,C=C>{
+    pub fn data3(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
+    }
+    pub fn get3(&mut self, input_a: &A, input_b: &B, input_c: &C, key: &E::Key) -> Option<&E::Value> {
+        self.data3(input_a, input_b, input_c).get(key)
+    }
+}
+
+impl<E,A,B,C,D> PersistentSource<E> where E: QuadrupleExtractor<A=A,B=B,C=C,D=D>{
+    pub fn data4(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(input_a, input_b, input_c, input_d) })
+    }
+    pub fn get4(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D, key: &E::Key) -> Option<&E::Value> {
+        self.data4(input_a, input_b, input_c, input_d).get(key)
+    }
+}
+
+// impl<E> PersistentSource<E> where E: SecondaryExtractor {
+//     fn load_from_primary(&mut self, store: &DatastoreView, primary: &E::Primary) {
+//         self.map = Some(E::extract(store, primary));
+//     }
+//     pub fn data_with(&mut self, store: &DatastoreView, primary: &E::Primary) -> &BTreeMap<E::Key, E::Value> {
+//         if self.map.is_none() {
+//             if self.already_cached() {
+//                 self.load_from_cache().unwrap()
+//             } else {
+//                 self.load_from_primary(store, primary);
+//                 self.store_to_cache().unwrap()
+//             }
+//         }
+//         self.map.as_ref().unwrap()
+//     }
+//     pub fn get_with(&mut self, store: &DatastoreView, primary: &E::Primary, key: &E::Key) -> Option<&E::Value> {
+//         self.data_with(store, primary).get(key)
+//     }
+//     pub fn pirate_with(&mut self, store: &DatastoreView, primary: &E::Primary, key: &E::Key) -> Option<E::Value> { // get owned
+//         self.get_with(store, primary, key).map(|v| v.clone())
+//     }
+// }
+//
+// impl<E> PersistentSource<E> where E: CompoundExtractor {
+//     fn load_from_primary(&mut self, store: &DatastoreView, primary: &E::Primary) {
+//         self.map = Some(E::extract(store, primary));
+//     }
+//     pub fn data_compounded(&mut self, store: &DatastoreView, primary: &E::Primary) -> &BTreeMap<E::Key, E::Value> {
+//         if self.map.is_none() {
+//             if self.already_cached() {
+//                 self.load_from_cache().unwrap()
+//             } else {
+//                 self.load_from_primary(store, primary);
+//                 self.store_to_cache().unwrap()
+//             }
+//         }
+//         self.map.as_ref().unwrap()
+//     }
+//     pub fn get_compounded(&mut self, store: &DatastoreView, primary: &E::Primary, key: &E::Key) -> Option<&E::Value> {
+//         self.data_with(store, primary).get(key)
+//     }
+//     pub fn pirate_compounded(&mut self, store: &DatastoreView, primary: &E::Primary, key: &E::Key) -> Option<E::Value> { // get owned
+//         self.get_with(store, primary, key).map(|v| v.clone())
+//     }
+// }
 
 trait MetadataFieldExtractor {
     type Value: Persistent;
@@ -403,55 +516,91 @@ pub struct Data {
     commit_messages:         PersistentSource<CommitMessageExtractor>,
 }
 
-struct ProjectHeadsExtractor {}
-impl StoreExtractor for ProjectHeadsExtractor {
+struct ProjectHeadsExtractor;
+impl Extractor for ProjectHeadsExtractor {
     type Key = ProjectId;
     type Value = Vec<(String, CommitId)>;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()
+}
+impl SingleExtractor for ProjectHeadsExtractor {
+    type A = DatastoreView;
+    fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        store.project_heads().map(|(project_id, heads)| {
+            (ProjectId::from(project_id), heads.into_iter().map(|(name, commit_id)| {
+                (name, CommitId::from(commit_id))
+            }).collect())
+        }).collect()
     }
 }
+
 struct ProjectUsersExtractor {}
-impl StoreExtractor for ProjectUsersExtractor {
+impl Extractor for ProjectUsersExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()
-    }
 }
+//     fn extract<E>(store: &E) -> BTreeMap<Self::Key, Self::Value> where E: ExtractorInput {
+//         unimplemented!()
+//     }
+// }
 
 struct ProjectAuthorsExtractor {}
-impl StoreExtractor for ProjectAuthorsExtractor {
+impl Extractor for ProjectAuthorsExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()
-    }
+    //type E = Store<'a>;
+    // fn extract<E>(store: &E) -> BTreeMap<Self::Key, Self::Value> where E: ExtractorInput {
+    //     unimplemented!()
+    // }
 }
-
 struct ProjectCommittersExtractor {}
-impl StoreExtractor for ProjectCommittersExtractor {
+impl Extractor for ProjectCommittersExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()
-    }
+    //type E = Store<'a>;
+    // fn extract<E>(store: &E) -> BTreeMap<Self::Key, Self::Value> where E: ExtractorInput {
+    //     unimplemented!()
+    // }
 }
 
 struct ProjectCommitsExtractor {}
-impl StoreExtractor for ProjectCommitsExtractor {
+impl ProjectCommitsExtractor {
+    fn commits_from_head(commits: &BTreeMap<CommitId, Commit>, head: &CommitId) -> Vec<CommitId> {
+        let mut commits_in_head: Vec<CommitId> = vec![];
+        let mut stack = vec![head.clone()];
+        while !stack.is_empty() {
+            let commit_id = stack.pop().unwrap();
+            commits_in_head.push(commit_id);
+            let commit = commits.get(&commit_id).unwrap(); // Potentially explosive?
+            let parents = commit.parent_ids();
+            stack.extend(parents)
+        }
+        commits_in_head
+    }
+}
+impl Extractor for ProjectCommitsExtractor {
     type Key = ProjectId;
     type Value = Vec<CommitId>;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()
+}
+impl DoubleExtractor for ProjectCommitsExtractor {
+    type A = BTreeMap<ProjectId, Vec<(String, CommitId)>>;
+    type B = BTreeMap<CommitId, Commit>;
+    fn extract(heads: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        heads.iter().map(|(project_id, heads)| {
+            (project_id.clone(),
+             heads.iter().flat_map(|(_, commit_id)| {
+                 Self::commits_from_head(commits, commit_id)
+             }).collect::<Vec<CommitId>>())
+        }).collect()
     }
 }
 
 struct UserExtractor {}
-impl StoreExtractor for UserExtractor {
+impl Extractor for UserExtractor {
     type Key = UserId;
     type Value = User;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
+}
+impl SingleExtractor for UserExtractor {
+    type A = DatastoreView;
+    fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.users().map(|(id, email)| {
             (UserId::from(id), User::new(UserId::from(id), email))
         }).collect()
@@ -459,10 +608,13 @@ impl StoreExtractor for UserExtractor {
 }
 
 struct PathExtractor {}
-impl StoreExtractor for PathExtractor {
+impl Extractor for PathExtractor {
     type Key = PathId;
     type Value = Path;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
+}
+impl SingleExtractor for PathExtractor {
+    type A = DatastoreView;
+    fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.paths().map(|(id, location)| {
             (PathId::from(id), Path::new(PathId::from(id), location))
         }).collect()
@@ -470,10 +622,13 @@ impl StoreExtractor for PathExtractor {
 }
 
 struct CommitExtractor {}
-impl StoreExtractor for CommitExtractor {
+impl Extractor for CommitExtractor {
     type Key = CommitId;
     type Value = Commit;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
+}
+impl SingleExtractor for CommitExtractor {
+    type A = DatastoreView;
+    fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.commits().map(|(id, commit)| {
             (CommitId::from(id), Commit::from((id, commit)))
         }).collect()
@@ -481,10 +636,13 @@ impl StoreExtractor for CommitExtractor {
 }
 
 struct CommitMessageExtractor {}
-impl StoreExtractor for CommitMessageExtractor {
+impl Extractor for CommitMessageExtractor {
     type Key = CommitId;
     type Value = String;
-    fn extract(store: &DatastoreView) -> BTreeMap<Self::Key, Self::Value> {
+}
+impl SingleExtractor for CommitMessageExtractor {
+    type A = DatastoreView;
+    fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.commits().map(|(id, commit)| {
             (CommitId::from(id), commit.message)
         }).collect() // TODO maybe return iter?
@@ -522,27 +680,48 @@ impl Data {
 }
 
 impl Data {
-    //pub fn project_timestamp      (&mut self, id: &ProjectId) -> i64                     { *self.project_timestamps.get(&self.store, id).unwrap()   } // Last update timestamps are obligatory
-    pub fn project_language       (&mut self, id: &ProjectId) -> Option<String>          { self.project_metadata.language_owned(&self.store,id) }
-    pub fn project_stars          (&mut self, id: &ProjectId) -> Option<usize>           { self.project_metadata.star_gazer(&self.store,id)     }
     pub fn project_issues         (&mut self, id: &ProjectId) -> Option<usize>           { unimplemented!() }
     pub fn project_buggy_issues   (&mut self, id: &ProjectId) -> Option<usize>           { unimplemented!() }
-    pub fn project_heads          (&mut self, id: &ProjectId) -> Vec<(String, CommitId)> { self.project_heads.pirate(&self.store,id).unwrap()      } // Heads are obligatory
-
-    pub fn project_users          (&mut self, id: &ProjectId) -> Vec<User>               { self.project_users.pirate(&self.store,id).unwrap().reify(self)      } // Obligatory, but can be 0 length
-    pub fn project_authors        (&mut self, id: &ProjectId) -> Vec<User>               { self.project_authors.pirate(&self.store,id).unwrap().reify(self)    } // Obligatory, but can be 0 length
-    pub fn project_committers     (&mut self, id: &ProjectId) -> Vec<User>               { self.project_committers.pirate(&self.store,id).unwrap().reify(self) } // Obligatory, but can be 0 length
 
     pub fn project_user_count     (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
     pub fn project_author_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
     pub fn project_committer_count(&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
 
-    pub fn project_commits        (&mut self, id: &ProjectId) -> Vec<Commit>             { self.project_commits.pirate(&self.store, id).unwrap().reify(self) } // Obligatory
+    pub fn project_commits        (&mut self, id: &ProjectId) -> Vec<Commit>             { unimplemented!() }
     pub fn project_commit_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
 
-    pub fn user                   (&mut self, id: &UserId) -> Option<User>               { self.users.pirate(&self.store,id)                          }
-    pub fn path                   (&mut self, id: &PathId) -> Option<Path>               { self.paths.pirate(&self.store,id)                          }
+    //pub fn project_timestamp      (&mut self, id: &ProjectId) -> i64                     { *self.project_timestamps.get(&self.store, id).unwrap()   } // Last update timestamps are obligatory
 
-    pub fn commit                 (&mut self, id: &CommitId) -> Option<Commit>           { self.commits.pirate(&self.store,id)                        }
-    pub fn commit_message         (&mut self, id: &CommitId) -> Option<String>           { self.commit_messages.pirate(&self.store,id)                }
+
+    // pub fn project_issues         (&mut self, id: &ProjectId) -> Option<usize>           { unimplemented!() }
+    // pub fn project_buggy_issues   (&mut self, id: &ProjectId) -> Option<usize>           { unimplemented!() }
+    // pub fn project_heads          (&mut self, id: &ProjectId) -> Vec<(String, CommitId)> { self.project_heads.pirate(&self.store,id).unwrap()      } // Heads are obligatory
+    //
+
+    //
+    // pub fn project_user_count     (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
+    // pub fn project_author_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
+    // pub fn project_committer_count(&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
+    //
+    // pub fn project_commits        (&mut self, id: &ProjectId) -> Vec<Commit>             { self.project_commits.pirate_with(&self.store, self.commits.data(&self.store), id).unwrap().reify(self) } // Obligatory
+    // pub fn project_commit_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
+
+    pub fn project_heads          (&mut self, id: &ProjectId) -> Vec<(String, CommitId)> { self.project_heads.get(&self.store,id).pirate().unwrap()  } // Heads are obligatory
+
+    pub fn project_language       (&mut self, id: &ProjectId) -> Option<String>          { self.project_metadata.language_owned(&self.store,id) }
+    pub fn project_stars          (&mut self, id: &ProjectId) -> Option<usize>           { self.project_metadata.star_gazer(&self.store,id)     }
+
+    pub fn project_users          (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!()      } // Obligatory, but can be 0 length
+    pub fn project_authors        (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!()    } // Obligatory, but can be 0 length
+    pub fn project_committers     (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!() } // Obligatory, but can be 0 length
+
+    // pub fn project_users          (&mut self, id: &ProjectId) -> Vec<User>               { self.project_users.pirate(&self.store,id).unwrap().reify(self)      } // Obligatory, but can be 0 length
+    // pub fn project_authors        (&mut self, id: &ProjectId) -> Vec<User>               { self.project_authors.pirate(&self.store,id).unwrap().reify(self)    } // Obligatory, but can be 0 length
+    // pub fn project_committers     (&mut self, id: &ProjectId) -> Vec<User>               { self.project_committers.pirate(&self.store,id).unwrap().reify(self) } // Obligatory, but can be 0 length
+
+    pub fn user                   (&mut self, id: &UserId) -> Option<User>               { self.users.get(&self.store,id).pirate()                   }
+    pub fn path                   (&mut self, id: &PathId) -> Option<Path>               { self.paths.get(&self.store,id).pirate()                   }
+
+    pub fn commit                 (&mut self, id: &CommitId) -> Option<Commit>           { self.commits.get(&self.store,id).pirate()                 }
+    pub fn commit_message         (&mut self, id: &CommitId) -> Option<String>           { self.commit_messages.get(&self.store,id).pirate()         }
 }

@@ -200,13 +200,13 @@ impl Commit {
     // }
     //pub fn hash(&self) -> &str                          { self.hash.as_str()       }
 
-    pub fn committer    (&self, db: &mut Data) -> User           {  self.committer.reify(db) }
-    pub fn author       (&self, db: &mut Data) -> User           {  self.author.reify(db)    }
-    pub fn parents      (&self, db: &mut Data) -> Vec<Commit>    {  self.parents.reify(db)   }
+    pub fn committer   (&self, db: &mut Data) -> User           {  self.committer.reify(db) }
+    pub fn author      (&self, db: &mut Data) -> User           {  self.author.reify(db)    }
+    pub fn parents     (&self, db: &mut Data) -> Vec<Commit>    {  self.parents.reify(db)   }
 
-    pub fn committer_ids(&self)                -> UserId         {  self.committer           }
-    pub fn author_ids   (&self)                -> UserId         {  self.author              }
-    pub fn parent_ids   (&self)                -> &Vec<CommitId> { &self.parents             }
+    pub fn committer_id(&self)                -> UserId         {  self.committer           }
+    pub fn author_id   (&self)                -> UserId         {  self.author              }
+    pub fn parent_ids  (&self)                -> &Vec<CommitId> { &self.parents             }
 
 }
 

@@ -16,6 +16,7 @@ use serde_json::Value as JSON;
 use serde_cbor;
 use serde::export::PhantomData;
 use crate::piracy::Piracy;
+use itertools::Itertools;
 
 pub type DataPtr = Rc<RefCell<Data>>;
 
@@ -504,10 +505,10 @@ pub struct Data {
     project_committers:      PersistentSource<ProjectCommittersExtractor>,
     project_commits:         PersistentSource<ProjectCommitsExtractor>,
 
-    //project_users_count:     PersistentSource<ProjectId, usize>,
-    //project_author_count:    PersistentSource<ProjectId, usize>,
-    //project_committer_count: PersistentSource<ProjectId, usize>,
-    //project_commit_count:    PersistentSource<ProjectId, usize>,
+    project_commit_count:    PersistentSource<CountPerKeyExtractor<ProjectId, CommitId>>,
+    project_author_count:    PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
+    project_committer_count: PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
+    project_user_count:      PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
 
     users:                   PersistentSource<UserExtractor>,
     paths:                   PersistentSource<PathExtractor>,
@@ -537,28 +538,65 @@ impl Extractor for ProjectUsersExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
 }
-//     fn extract<E>(store: &E) -> BTreeMap<Self::Key, Self::Value> where E: ExtractorInput {
-//         unimplemented!()
-//     }
-// }
-
+impl DoubleExtractor for ProjectUsersExtractor {
+    type A = BTreeMap<ProjectId, Vec<UserId>>;
+    type B = BTreeMap<ProjectId, Vec<UserId>>;
+    fn extract(project_authors: &Self::A, project_committers: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_authors.iter().map(|(project_id, authors)| {
+            let mut users: Vec<UserId> = vec![];
+            let mut committers = project_committers.get(project_id);
+            if let Some(committers) = committers {
+                users.extend(committers.iter().map(|user_id| user_id.clone()));
+            }
+            users.extend(authors.iter().map(|user_id| user_id.clone()));
+            (project_id.clone(), users.into_iter().unique().collect())
+        }).collect()
+    }
+}
 struct ProjectAuthorsExtractor {}
 impl Extractor for ProjectAuthorsExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
-    //type E = Store<'a>;
-    // fn extract<E>(store: &E) -> BTreeMap<Self::Key, Self::Value> where E: ExtractorInput {
-    //     unimplemented!()
-    // }
+}
+impl DoubleExtractor for ProjectAuthorsExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Commit>;
+    fn extract(project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            (project_id.clone(), commit_ids.iter().flat_map(|commit_id| {
+                commits.get(commit_id).map(|c| c.author_id())
+            }).unique().collect())
+        }).collect()
+    }
 }
 struct ProjectCommittersExtractor {}
 impl Extractor for ProjectCommittersExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
-    //type E = Store<'a>;
-    // fn extract<E>(store: &E) -> BTreeMap<Self::Key, Self::Value> where E: ExtractorInput {
-    //     unimplemented!()
-    // }
+}
+impl DoubleExtractor for ProjectCommittersExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Commit>;
+    fn extract(project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            (project_id.clone(), commit_ids.iter().flat_map(|commit_id| {
+                commits.get(commit_id).map(|c| c.committer_id())
+            }).unique().collect())
+        }).collect()
+    }
+}
+
+struct CountPerKeyExtractor<K: Clone + Ord + Persistent, V>(PhantomData<(K, V)>);
+impl<K, V> Extractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent {
+    type Key = K;
+    type Value = usize;
+}
+impl<K, V> SingleExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent {
+    type A = BTreeMap<K, Vec<V>>;
+
+    fn extract(primary: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        primary.iter().map(|(key, value)| (key.clone(), value.len())).collect()
+    }
 }
 
 struct ProjectCommitsExtractor {}
@@ -665,16 +703,20 @@ impl Data {
         let dir = cache_dir.into();
         Data {
             store,
-            project_metadata: ProjectMetadataSource::new("project", dir.clone()),
-            project_heads: PersistentSource::new("project_heads", dir.clone()),
-            project_users: PersistentSource::new("project_users", dir.clone()),
-            project_authors: PersistentSource::new("project_authors", dir.clone(),),
-            project_committers: PersistentSource::new("project_committers", dir.clone()),
-            project_commits: PersistentSource::new("project_commits", dir.clone()),
-            users: PersistentSource::new("users", dir.clone()),
-            paths: PersistentSource::new("paths", dir.clone()),
-            commits: PersistentSource::new("commits", dir.clone()),
-            commit_messages: PersistentSource::new("commit_messages", dir.clone()),
+            project_metadata:        ProjectMetadataSource::new("project",            dir.clone()),
+            project_heads:           PersistentSource::new("project_heads",           dir.clone()),
+            project_users:           PersistentSource::new("project_users",           dir.clone()),
+            project_user_count:      PersistentSource::new("project_user_count",      dir.clone()),
+            project_authors:         PersistentSource::new("project_authors",         dir.clone(),),
+            project_author_count:    PersistentSource::new("project_author_count",    dir.clone()),
+            project_committers:      PersistentSource::new("project_committers",      dir.clone()),
+            project_committer_count: PersistentSource::new("project_committer_count", dir.clone()),
+            project_commits:         PersistentSource::new("project_commits",         dir.clone()),
+            project_commit_count:    PersistentSource::new("project_commit_count" ,   dir.clone()),
+            users:                   PersistentSource::new("users",                   dir.clone()),
+            paths:                   PersistentSource::new("paths",                   dir.clone()),
+            commits:                 PersistentSource::new("commits",                 dir.clone()),
+            commit_messages:         PersistentSource::new("commit_messages",         dir.clone()),
         }
     }
 }
@@ -683,43 +725,16 @@ impl Data {
     pub fn project_issues         (&mut self, id: &ProjectId) -> Option<usize>           { unimplemented!() }
     pub fn project_buggy_issues   (&mut self, id: &ProjectId) -> Option<usize>           { unimplemented!() }
 
-    pub fn project_user_count     (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
-    pub fn project_author_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
-    pub fn project_committer_count(&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
-
-    pub fn project_commit_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
-
-    //pub fn project_timestamp      (&mut self, id: &ProjectId) -> i64                     { *self.project_timestamps.get(&self.store, id).unwrap()   } // Last update timestamps are obligatory
-
-
-    // pub fn project_issues         (&mut self, id: &ProjectId) -> Option<usize>           { unimplemented!() }
-    // pub fn project_buggy_issues   (&mut self, id: &ProjectId) -> Option<usize>           { unimplemented!() }
-    // pub fn project_heads          (&mut self, id: &ProjectId) -> Vec<(String, CommitId)> { self.project_heads.pirate(&self.store,id).unwrap()      } // Heads are obligatory
-    //
-
-    //
-    // pub fn project_user_count     (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
-    // pub fn project_author_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
-    // pub fn project_committer_count(&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
-    //
-
-    // pub fn project_commit_count   (&mut self, id: &ProjectId) -> usize                   { unimplemented!() } // Obligatory
-
     pub fn project_heads          (&mut self, id: &ProjectId) -> Vec<(String, CommitId)> { self.project_heads.get(&self.store,id).pirate().unwrap()  } // Heads are obligatory
 
     pub fn project_language       (&mut self, id: &ProjectId) -> Option<String>          { self.project_metadata.language_owned(&self.store,id) }
     pub fn project_stars          (&mut self, id: &ProjectId) -> Option<usize>           { self.project_metadata.star_gazer(&self.store,id)     }
 
-    pub fn project_commits        (&mut self, id: &ProjectId) -> Vec<Commit>             { let heads = self.project_heads.data(&self.store);
-                                                                                           let commits = self.commits.data(&self.store);
-                                                                                           self.project_commits.get2(heads, commits, id).unwrap().to_owned().reify(self) } // Obligatory
-
-    pub fn project_users          (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!()      } // Obligatory, but can be 0 length
-    pub fn project_authors        (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!()    } // Obligatory, but can be 0 length
-    pub fn project_committers     (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!() } // Obligatory, but can be 0 length
+    //pub fn project_users          (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!()      } // Obligatory, but can be 0 length
+    //pub fn project_authors        (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!()    } // Obligatory, but can be 0 length
+    //pub fn project_committers     (&mut self, id: &ProjectId) -> Vec<User>               { unimplemented!() } // Obligatory, but can be 0 length
 
     // pub fn project_users          (&mut self, id: &ProjectId) -> Vec<User>               { self.project_users.pirate(&self.store,id).unwrap().reify(self)      } // Obligatory, but can be 0 length
-    // pub fn project_authors        (&mut self, id: &ProjectId) -> Vec<User>               { self.project_authors.pirate(&self.store,id).unwrap().reify(self)    } // Obligatory, but can be 0 length
     // pub fn project_committers     (&mut self, id: &ProjectId) -> Vec<User>               { self.project_committers.pirate(&self.store,id).unwrap().reify(self) } // Obligatory, but can be 0 length
 
     pub fn user                   (&mut self, id: &UserId) -> Option<User>               { self.users.get(&self.store,id).pirate()                   }
@@ -727,4 +742,82 @@ impl Data {
 
     pub fn commit                 (&mut self, id: &CommitId) -> Option<Commit>           { self.commits.get(&self.store,id).pirate()                 }
     pub fn commit_message         (&mut self, id: &CommitId) -> Option<String>           { self.commit_messages.get(&self.store,id).pirate()         }
+
+    pub fn project_commits(&mut self, id: &ProjectId) -> Vec<Commit> {
+        let heads = self.project_heads.data(&self.store);
+        let commits = self.commits.data(&self.store);
+        let project_commits = self.project_commits.data2(heads, commits);
+
+        project_commits.get(id).unwrap().to_owned().reify(self) // Obligatory
+    }
+
+    pub fn project_commit_count(&mut self, id: &ProjectId) -> usize {
+        let heads = self.project_heads.data(&self.store);
+        let commits = self.commits.data(&self.store);
+        let project_commits = self.project_commits.data2(heads, commits);
+        let project_commit_count = self.project_commit_count.data(project_commits);
+
+        *project_commit_count.get(id).unwrap()
+    }
+
+    pub fn project_authors(&mut self, id: &ProjectId) -> Vec<User> {
+        let heads = self.project_heads.data(&self.store);
+        let commits = self.commits.data(&self.store);
+        let project_commits = self.project_commits.data2(heads, commits);
+        let project_authors = self.project_authors.data2(project_commits, commits);
+
+        project_authors.get(id).unwrap().to_owned().reify(self)
+    } // Obligatory, but can be 0 length
+
+    pub fn project_author_count(&mut self, id: &ProjectId) -> usize {
+        let heads = self.project_heads.data(&self.store);
+        let commits = self.commits.data(&self.store);
+        let project_commits = self.project_commits.data2(heads, commits);
+        let project_authors = self.project_authors.data2(project_commits, commits);
+        let project_author_count = self.project_author_count.data(project_authors);
+
+        *project_author_count.get(id).unwrap()
+    } // Obligatory, but can be 0 length
+
+    pub fn project_committers(&mut self, id: &ProjectId) -> Vec<User> {
+        let heads = self.project_heads.data(&self.store);
+        let commits = self.commits.data(&self.store);
+        let project_commits = self.project_commits.data2(heads, commits);
+        let project_committers = self.project_committers.data2(project_commits, commits);
+
+        project_committers.get(id).unwrap().to_owned().reify(self)
+    } // Obligatory, but can be 0 length
+
+    pub fn project_committer_count(&mut self, id: &ProjectId) -> usize {
+        let heads = self.project_heads.data(&self.store);
+        let commits = self.commits.data(&self.store);
+        let project_commits = self.project_commits.data2(heads, commits);
+        let project_committers = self.project_committers.data2(project_commits, commits);
+        let project_committer_count = self.project_committer_count.data(project_committers);
+
+        *project_committer_count.get(id).unwrap()
+    }
+
+    pub fn project_users(&mut self, id: &ProjectId) -> Vec<User> {
+        let heads = self.project_heads.data(&self.store);
+        let commits = self.commits.data(&self.store);
+        let project_commits = self.project_commits.data2(heads, commits);
+        let project_authors = self.project_authors.data2(project_commits, commits);
+        let project_committers = self.project_committers.data2(project_commits, commits);
+        let project_users = self.project_users.data2(project_authors, project_committers);
+
+        project_users.get(id).unwrap().to_owned().reify(self)
+    } // Obligatory, but can be 0 length
+
+    pub fn project_user_count(&mut self, id: &ProjectId) -> usize {
+        let heads = self.project_heads.data(&self.store);
+        let commits = self.commits.data(&self.store);
+        let project_commits = self.project_commits.data2(heads, commits);
+        let project_authors = self.project_authors.data2(project_commits, commits);
+        let project_committers = self.project_committers.data2(project_commits, commits);
+        let project_users = self.project_users.data2(project_authors, project_committers);
+        let project_user_count = self.project_user_count.data(project_users);
+
+        *project_user_count.get(id).unwrap()
+    }
 }

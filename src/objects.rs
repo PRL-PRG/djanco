@@ -4,6 +4,93 @@ use std::cmp::Ordering;
 
 use serde::{Serialize, Deserialize};
 
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
+pub enum Language {
+    C, Cpp, ObjectiveC, Go, Java, CoffeeScript, JavaScript, TypeScript, Ruby, Rust,
+    PHP, Python, Perl, Clojure, Erlang, Haskell, Scala,
+}
+
+impl Language {
+    pub fn from_str(string: &str) -> Option<Self> {
+        match string.to_lowercase().as_str() {
+            "c"   => Some(Language::C),
+            "c++" => Some(Language::Cpp),
+            "objective-c" | "objective c" | "objectivec" => Some(Language::ObjectiveC),
+            "go" => Some(Language::Go),
+            "java" => Some(Language::Java),
+            "coffeescript" => Some(Language::CoffeeScript),
+            "javascript" => Some(Language::JavaScript),
+            "typescript" => Some(Language::TypeScript),
+            "ruby" => Some(Language::Ruby),
+            "rust" => Some(Language::Rust),
+            "php" => Some(Language::PHP),
+            "python" => Some(Language::Python),
+            "perl" => Some(Language::Perl),
+            "clojure" => Some(Language::Clojure),
+            "erlang" => Some(Language::Erlang),
+            "haskell" => Some(Language::Haskell),
+            "scala" => Some(Language::Scala),
+            _ => None,
+        }
+    }
+
+    fn from_path(path: &str) -> Option<Self> {
+        std::path::Path::new(path).extension().map(|extension| {
+            extension.to_str().map(|extension| Language::from_extension(extension))
+        }).flatten().flatten()
+    }
+
+    fn from_extension(extension: &str) -> Option<Self> {
+        match extension {
+            "c"                                                     => Some(Language::C),
+            "C" | ".cc" | "cpp" | "cxx" | "c++"                     => Some(Language::Cpp),
+            "m" | "mm" | "M"                                        => Some(Language::ObjectiveC),
+            "go"                                                    => Some(Language::Go),
+            "java"                                                  => Some(Language::Java),
+            "coffee" | "litcoffee"                                  => Some(Language::CoffeeScript),
+            "js" | "mjs"                                            => Some(Language::JavaScript),
+            "ts" | "tsx"                                            => Some(Language::TypeScript),
+            "rb"                                                    => Some(Language::Ruby),
+            "rs"                                                    => Some(Language::Rust),
+            "py" | "pyi" | "pyc" | "pyd" | "pyo" | "pyw" | "pyz"    => Some(Language::Python),
+            "plx" | "pl" | "pm" | "xs" | "t" | "pod"                => Some(Language::Perl),
+            "clj" | "cljs" | "cljc" | "edn"                         => Some(Language::Clojure),
+            "erl" | "hrl"                                           => Some(Language::Erlang),
+            "hs" | "lhs"                                            => Some(Language::Haskell),
+            "scala" | "sc"                                          => Some(Language::Scala),
+            "php" | "phtml" | "php3" | "php4" | "php5" |
+            "php7" | "phps" | "php-s" | "pht" | "phar"              => Some(Language::PHP),
+            _                                                       => None,
+        }
+    }
+}
+
+impl Display for Language {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            Language::C => "C",
+            Language::Cpp => "C++",
+            Language::ObjectiveC => "Objective-C",
+            Language::Go => "Go",
+            Language::Java => "Java",
+            Language::CoffeeScript => "CoffeeScript",
+            Language::JavaScript => "JavaScript",
+            Language::TypeScript => "TypeScript",
+            Language::Ruby => "Ruby",
+            Language::Rust => "Rust",
+            Language::PHP => "PHP",
+            Language::Python => "Python",
+            Language::Perl => "Perl",
+            Language::Clojure => "Clojure",
+            Language::Erlang => "Erlang",
+            Language::Haskell => "Haskell",
+            Language::Scala => "Scala",
+            //Language::Other(language) => language,
+        };
+        f.write_str(string)
+    }
+}
+
 // use crate::meta::ProjectMeta;
 // use crate::data::DataPtr;
 // use crate::time::Seconds;
@@ -72,10 +159,11 @@ impl From<u64>   for UserId     { fn from(n: u64) -> Self { UserId(n)     } }
 impl From<u64>   for PathId     { fn from(n: u64) -> Self { PathId(n)     } }
 impl From<u64>   for SnapshotId { fn from(n: u64) -> Self { SnapshotId(n) } }
 
-impl From<&u64>   for ProjectId { fn from(n: &u64) -> Self { ProjectId(*n) } }
-impl From<&u64>   for CommitId  { fn from(n: &u64) -> Self { CommitId(*n)  } }
-impl From<&u64>   for UserId    { fn from(n: &u64) -> Self { UserId(*n)    } }
-impl From<&u64>   for PathId    { fn from(n: &u64) -> Self { PathId(*n)    } }
+impl From<&u64>   for ProjectId  { fn from(n: &u64) -> Self { ProjectId(*n)  } }
+impl From<&u64>   for CommitId   { fn from(n: &u64) -> Self { CommitId(*n)   } }
+impl From<&u64>   for UserId     { fn from(n: &u64) -> Self { UserId(*n)     } }
+impl From<&u64>   for PathId     { fn from(n: &u64) -> Self { PathId(*n)     } }
+impl From<&u64>   for SnapshotId { fn from(n: &u64) -> Self { SnapshotId(*n) } }
 
 impl Display for ProjectId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
@@ -108,10 +196,15 @@ impl Identity for SnapshotId {}
 
 /** ==== Object-ID relationship indication ===================================================== **/
 pub trait Identifiable<T> where T: Identity { fn id(&self) -> T; }
-pub trait Reifiable<T> { fn reify(&self, db: &mut Data) -> T; }
+pub trait Reifiable<T> { fn reify(&self, store: &mut Data) -> T; }
 impl<I, T> Reifiable<Vec<T>> for Vec<I> where I: Reifiable<T> {
-    fn reify(&self, db: &mut Data) -> Vec<T> {
-        self.iter().map(|e| e.reify(db)).collect()
+    fn reify(&self, store: &mut Data) -> Vec<T> {
+        self.iter().map(|e| e.reify(store)).collect()
+    }
+}
+impl<Ia, Ib, Ta, Tb> Reifiable<(Ta, Tb)> for (Ia, Ib) where Ia: Reifiable<Ta>, Ib: Reifiable<Tb> {
+    fn reify(&self, store: &mut Data) -> (Ta, Tb) {
+        (self.0.reify(store), self.1.reify(store))
     }
 }
 
@@ -145,19 +238,19 @@ impl Hash for Project {
 impl Identifiable<ProjectId> for Project { fn id(&self) -> ProjectId { self.id } }
 
 impl Project {
-    pub fn url            (&self)                -> &str                    { self.url.as_str()                    }
-    //pub fn timestamp      (&self, db: &mut Data) -> i64                     { db.project_timestamp      (&self.id) }
-    pub fn language       (&self, db: &mut Data) -> Option<String>          { db.project_language       (&self.id) }
-    pub fn stars          (&self, db: &mut Data) -> Option<usize>           { db.project_stars          (&self.id) }
-    pub fn issues         (&self, db: &mut Data) -> Option<usize>           { db.project_issues         (&self.id) }
-    pub fn buggy_issues   (&self, db: &mut Data) -> Option<usize>           { db.project_buggy_issues   (&self.id) }
-    pub fn heads          (&self, db: &mut Data) -> Vec<(String, CommitId)> { db.project_heads          (&self.id) }
-    pub fn users          (&self, db: &mut Data) -> Vec<User>               { db.project_users          (&self.id) }
-    pub fn authors        (&self, db: &mut Data) -> Vec<User>               { db.project_authors        (&self.id) }
-    pub fn committers     (&self, db: &mut Data) -> Vec<User>               { db.project_committers     (&self.id) }
-    pub fn user_count     (&self, db: &mut Data) -> usize                   { db.project_user_count     (&self.id) }
-    pub fn author_count   (&self, db: &mut Data) -> usize                   { db.project_author_count   (&self.id) }
-    pub fn committer_count(&self, db: &mut Data) -> usize                   { db.project_committer_count(&self.id) }
+    pub fn url            (&self)                   -> &str                    { self.url.as_str()                       }
+    pub fn language       (&self, store: &mut Data) -> Option<Language>        { store.project_language       (&self.id) }
+    pub fn stars          (&self, store: &mut Data) -> Option<usize>           { store.project_stars          (&self.id) }
+    pub fn issues         (&self, store: &mut Data) -> Option<usize>           { store.project_issues         (&self.id) }
+    pub fn buggy_issues   (&self, store: &mut Data) -> Option<usize>           { store.project_buggy_issues   (&self.id) }
+    pub fn heads          (&self, store: &mut Data) -> Vec<(String, CommitId)> { store.project_heads          (&self.id) }
+    pub fn users          (&self, store: &mut Data) -> Vec<User>               { store.project_users          (&self.id) }
+    pub fn authors        (&self, store: &mut Data) -> Vec<User>               { store.project_authors        (&self.id) }
+    pub fn committers     (&self, store: &mut Data) -> Vec<User>               { store.project_committers     (&self.id) }
+    pub fn user_count     (&self, store: &mut Data) -> usize                   { store.project_user_count     (&self.id) }
+    pub fn author_count   (&self, store: &mut Data) -> usize                   { store.project_author_count   (&self.id) }
+    pub fn committer_count(&self, store: &mut Data) -> usize                   { store.project_committer_count(&self.id) }
+  //pub fn timestamp      (&self, store: &mut Data) -> i64                     { store.project_timestamp      (&self.id) }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -167,7 +260,7 @@ impl User {
     pub fn email(&self) -> &str { self.email.as_str() }
 }
 impl Identifiable<UserId> for User { fn id(&self) -> UserId { self.id } }
-impl Reifiable<User> for UserId { fn reify(&self, db: &mut Data) -> User { db.user(&self).unwrap() } }
+impl Reifiable<User> for UserId { fn reify(&self, store: &mut Data) -> User { store.user(&self).unwrap() } }
 impl PartialEq for User {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
@@ -189,59 +282,54 @@ pub struct Commit {
     pub(crate) committer: UserId,
     pub(crate) author: UserId,
     pub(crate) parents: Vec<CommitId>,
-    // pub(crate) author_timestamp : i64,
-    // pub(crate) committer_timestamp : i64,
-    // pub changes : HashMap<u64,u64>,
-    // pub message : String,
 }
 impl Commit {
-    // pub(crate) fn new(id: CommitId, /*hash: String,*/ committer: UserId, author: UserId, parents: Vec<CommitId>) -> Commit {
-    //
-    // }
-    //pub fn hash(&self) -> &str                          { self.hash.as_str()       }
+    pub fn committer   (&self, store: &mut Data) -> User           {  self.committer.reify(store)  }
+    pub fn author      (&self, store: &mut Data) -> User           {  self.author.reify(store)     }
+    pub fn parents     (&self, store: &mut Data) -> Vec<Commit>    {  self.parents.reify(store)    }
 
-    pub fn committer   (&self, db: &mut Data) -> User           {  self.committer.reify(db) }
-    pub fn author      (&self, db: &mut Data) -> User           {  self.author.reify(db)    }
-    pub fn parents     (&self, db: &mut Data) -> Vec<Commit>    {  self.parents.reify(db)   }
+    pub fn committer_id(&self)                   -> UserId         {  self.committer               }
+    pub fn author_id   (&self)                   -> UserId         {  self.author                  }
+    pub fn parent_ids  (&self)                   -> &Vec<CommitId> { &self.parents                 }
 
-    pub fn committer_id(&self)                -> UserId         {  self.committer           }
-    pub fn author_id   (&self)                -> UserId         {  self.author              }
-    pub fn parent_ids  (&self)                -> &Vec<CommitId> { &self.parents             }
+    pub fn message     (&self, store: &mut Data) -> Option<String> {  store.commit_message(&self.id)              }
 
+    pub fn author_timestamp   (&self, store: &mut Data) -> i64     {  store.commit_author_timestamp(&self.id)     }
+    pub fn committer_timestamp(&self, store: &mut Data) -> i64     {  store.commit_committer_timestamp(&self.id)  }
+
+    pub fn changes      (&self, store: &mut Data) -> Vec<(Path, Snapshot)> {  self.change_ids(store).reify(store) }
+    pub fn changed_paths      (&self, store: &mut Data) -> Vec<Path> {  self.changed_path_ids(store).reify(store) }
+    pub fn changed_snapshots  (&self, store: &mut Data) -> Vec<Snapshot> {  self.changed_snapshot_ids(store).reify(store) }
+
+    pub fn change_ids          (&self, store: &mut Data) -> Vec<(PathId, SnapshotId)> {  store.commit_changes(&self.id).clone() }
+    pub fn changed_path_ids    (&self, store: &mut Data) -> Vec<PathId> {  store.commit_changes(&self.id).iter().map(|(id, _)| id.clone()).collect() }
+    pub fn changed_snapshot_ids(&self, store: &mut Data) -> Vec<SnapshotId> {  store.commit_changes(&self.id).iter().map(|(_, id)| id.clone()).collect() }
 }
 
 impl Identifiable<CommitId> for Commit { fn id(&self) -> CommitId { self.id } }
-impl Reifiable<Commit> for CommitId { fn reify(&self, db: &mut Data) -> Commit { db.commit(&self).unwrap() } }
+impl Reifiable<Commit> for CommitId { fn reify(&self, store: &mut Data) -> Commit { store.commit(&self).unwrap() } }
 impl PartialEq for Commit {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
 impl PartialOrd for Commit {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering>{ self.id.partial_cmp(&other.id) }
 }
-impl Eq for Commit {  }
+impl Eq for Commit {}
 impl Ord for Commit {
     fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
 }
 impl Hash for Commit {
     fn hash<H: Hasher>(&self, state: &mut H) { self.id.hash(state) }
 }
-impl Commit {
-    // pub committer : u64,
-    // pub committer_time : i64,
-    // pub author : u64,
-    // pub author_time : i64,
-    // pub parents : Vec<u64>,
-    // pub changes : HashMap<u64,u64>,
-    // pub message : String,
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Path { id: PathId, location: String }
 impl Path {
     pub fn new(id: PathId, location: String) -> Self { Path { id, location } }
+    pub fn language(&self) -> Option<Language> { Language::from_path(self.location.as_str()) }
 }
 impl Identifiable<PathId> for Path { fn id(&self) -> PathId { self.id } }
-impl Reifiable<Path> for PathId { fn reify(&self, db: &mut Data) -> Path { db.path(&self).unwrap() } }
+impl Reifiable<Path> for PathId { fn reify(&self, store: &mut Data) -> Path { store.path(&self).unwrap() } }
 impl PartialEq for Path {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
@@ -257,8 +345,14 @@ impl Hash for Path {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Contents {}
-//impl Identifiable<ContentsId> for Contents { fn id(&self) -> ContentsId { self.id } }
+pub struct Snapshot { id: SnapshotId, contents: Vec<u8> }
+impl Snapshot {
+    pub fn new(id: SnapshotId, contents: Vec<u8>) -> Self { Snapshot { id, contents } }
+}
+impl Identifiable<SnapshotId> for Snapshot { fn id(&self) -> SnapshotId { self.id } }
+impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &mut Data) -> Snapshot { store.snapshot(&self).unwrap() } }
+// impl From<Vec<u8>>  for Snapshot { fn from(v: Vec<u8>)  -> Self { Snapshot(v)         } }
+// impl From<&Vec<u8>> for Snapshot { fn from(v: &Vec<u8>) -> Self { Snapshot(v.clone()) } }
 
 // #[derive(Clone, Debug, Serialize, Deserialize)]
 // pub struct Message {}

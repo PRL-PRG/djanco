@@ -2,7 +2,12 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 
+use std::time::Duration;
 use serde::{Serialize, Deserialize};
+
+use crate::tuples::Pick;
+use crate::data::Data;
+use crate::piracy::Piracy;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum Language {
@@ -90,12 +95,6 @@ impl Display for Language {
         f.write_str(string)
     }
 }
-
-// use crate::meta::ProjectMeta;
-// use crate::data::DataPtr;
-// use crate::time::Seconds;
-use crate::data::Data;
-// use crate::names::WithNames;
 
 /**== Object IDs ================================================================================**/
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)] pub struct ProjectId(pub u64);
@@ -207,18 +206,17 @@ impl<Ia, Ib, Ta, Tb> Reifiable<(Ta, Tb)> for (Ia, Ib) where Ia: Reifiable<Ta>, I
         (self.0.reify(store), self.1.reify(store))
     }
 }
+impl<I, T> Reifiable<Option<T>> for Option<I> where I: Reifiable<T> {
+    fn reify(&self, store: &mut Data) -> Option<T> {
+        self.as_ref().map(|e| e.reify(store))
+    }
+}
 
 /**== Objects ===================================================================================**/
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Project {
     pub id: ProjectId,
     pub url: String,
-    // last_update: Option<i64>,
-    // language: Option<Option<String>>,
-    // stars: Option<Option<usize>>,
-    // issues: Option<Option<usize>>,
-    // buggy_issues: Option<Option<usize>>,
-    // heads: Option<Vec<(String, CommitId)>>,
 }
 
 impl PartialEq for Project {
@@ -238,29 +236,59 @@ impl Hash for Project {
 impl Identifiable<ProjectId> for Project { fn id(&self) -> ProjectId { self.id } }
 
 impl Project {
-    pub fn url            (&self)                   -> &str                    { self.url.as_str()                       }
-    pub fn language       (&self, store: &mut Data) -> Option<Language>        { store.project_language       (&self.id) }
-    pub fn stars          (&self, store: &mut Data) -> Option<usize>           { store.project_stars          (&self.id) }
-    pub fn issues         (&self, store: &mut Data) -> Option<usize>           { store.project_issues         (&self.id) }
-    pub fn buggy_issues   (&self, store: &mut Data) -> Option<usize>           { store.project_buggy_issues   (&self.id) }
-    pub fn heads          (&self, store: &mut Data) -> Vec<(String, CommitId)> { store.project_heads          (&self.id) }
-    pub fn users          (&self, store: &mut Data) -> Vec<User>               { store.project_users          (&self.id) }
-    pub fn authors        (&self, store: &mut Data) -> Vec<User>               { store.project_authors        (&self.id) }
-    pub fn committers     (&self, store: &mut Data) -> Vec<User>               { store.project_committers     (&self.id) }
-    pub fn user_count     (&self, store: &mut Data) -> usize                   { store.project_user_count     (&self.id) }
-    pub fn author_count   (&self, store: &mut Data) -> usize                   { store.project_author_count   (&self.id) }
-    pub fn committer_count(&self, store: &mut Data) -> usize                   { store.project_committer_count(&self.id) }
-  //pub fn timestamp      (&self, store: &mut Data) -> i64                     { store.project_timestamp      (&self.id) }
+    pub fn url              (&self)                   -> &str                            { self.url.as_str()                              }
+
+    pub fn timestamp        (&self,     _: &mut Data) -> i64                             { unimplemented!()                               }
+    pub fn issue_count      (&self, store: &mut Data) -> Option<usize>                   { store.project_issues(&self.id)             }
+    pub fn buggy_issue_count(&self, store: &mut Data) -> Option<usize>                   { store.project_buggy_issues(&self.id)       }
+
+    pub fn is_fork          (&self, store: &mut Data) -> Option<bool>                    { store.project_is_fork(&self.id)                }
+    pub fn is_archived      (&self, store: &mut Data) -> Option<bool>                    { store.project_is_archived(&self.id)            }
+    pub fn is_disabled      (&self, store: &mut Data) -> Option<bool>                    { store.project_is_disabled(&self.id)            }
+    pub fn star_count       (&self, store: &mut Data) -> Option<usize>                   { store.project_star_gazer_count(&self.id)       }
+    pub fn watcher_count    (&self, store: &mut Data) -> Option<usize>                   { store.project_watcher_count(&self.id)          }
+    pub fn size             (&self, store: &mut Data) -> Option<usize>                   { store.project_size(&self.id)                   }
+    pub fn open_issue_count (&self, store: &mut Data) -> Option<usize>                   { store.project_open_issue_count(&self.id)       }
+    pub fn network_count    (&self, store: &mut Data) -> Option<usize>                   { store.project_network_count(&self.id)          }
+    pub fn subscriber_count (&self, store: &mut Data) -> Option<usize>                   { store.project_subscriber_count(&self.id)       }
+    pub fn license          (&self, store: &mut Data) -> Option<String>                  { store.project_license(&self.id).pirate()       }
+    pub fn language         (&self, store: &mut Data) -> Option<Language>                { store.project_language(&self.id)               }
+    pub fn description      (&self, store: &mut Data) -> Option<String>                  { store.project_description(&self.id).pirate()   }
+    pub fn homepage         (&self, store: &mut Data) -> Option<String>                  { store.project_homepages(&self.id).pirate()     }
+    pub fn head_ids         (&self, store: &mut Data) -> Option<Vec<(String, CommitId)>> { store.project_head_ids(&self.id)               }
+    pub fn heads            (&self, store: &mut Data) -> Option<Vec<(String, Commit)>>   { store.project_heads(&self.id)                  }
+    pub fn commit_ids       (&self, store: &mut Data) -> Option<Vec<CommitId>>           { store.project_commit_ids(&self.id).pirate()    }
+    pub fn commits          (&self, store: &mut Data) -> Option<Vec<Commit>>             { store.project_commits(&self.id)                }
+    pub fn commit_count     (&self, store: &mut Data) -> Option<usize>                   { store.project_commit_count(&self.id)           }
+    pub fn author_ids       (&self, store: &mut Data) -> Option<Vec<UserId>>             { store.project_author_ids(&self.id).pirate()    }
+    pub fn authors          (&self, store: &mut Data) -> Option<Vec<User>>               { store.project_authors(&self.id)                }
+    pub fn author_count     (&self, store: &mut Data) -> Option<usize>                   { store.project_author_count(&self.id)           }
+    pub fn committer_ids    (&self, store: &mut Data) -> Option<Vec<UserId>>             { store.project_committer_ids(&self.id).pirate() }
+    pub fn committers       (&self, store: &mut Data) -> Option<Vec<User>>               { store.project_committers(&self.id)             }
+    pub fn committer_count  (&self, store: &mut Data) -> Option<usize>                   { store.project_committer_count(&self.id)        }
+    pub fn user_ids         (&self, store: &mut Data) -> Option<Vec<UserId>>             { store.project_user_ids(&self.id).pirate()      }
+    pub fn users            (&self, store: &mut Data) -> Option<Vec<User>>               { store.project_users(&self.id)                  }
+    pub fn user_count       (&self, store: &mut Data) -> Option<usize>                   { store.project_user_count(&self.id)             }
+    pub fn lifetime         (&self, store: &mut Data) -> Option<Duration>                { store.project_lifetime(&self.id)               }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User { pub(crate) id: UserId, /*pub(crate) name: String,*/ pub(crate) email: String }
 impl User {
-    pub fn new(id: UserId, email: String) -> Self { User { id, email } }
-    pub fn email(&self) -> &str { self.email.as_str() }
+    pub fn new                   (id: UserId, email: String) -> Self                  { User { id, email }                                 }
+    pub fn email                 (&self)                     -> &str                  { self.email.as_str()                                }
+    pub fn authored_commit_ids   (&self, store: &mut Data)   -> Option<Vec<CommitId>> { store.user_authored_commit_ids(&self.id).pirate()  }
+    pub fn authored_commits      (&self, store: &mut Data)   -> Option<Vec<Commit>>   { store.user_authored_commits(&self.id)              }
+    pub fn authored_commit_count (&self, store: &mut Data)   -> Option<usize>         { store.user_authored_commit_count(&self.id)         }
+    pub fn committed_commit_ids  (&self, store: &mut Data)   -> Option<Vec<CommitId>> { store.user_committed_commit_ids(&self.id).pirate() }
+    pub fn committed_commits     (&self, store: &mut Data)   -> Option<Vec<Commit>>   { store.user_committed_commits(&self.id)             }
+    pub fn committed_commit_count(&self, store: &mut Data)   -> Option<usize>         { store.user_committed_commit_count(&self.id)        }
+    pub fn committed_experience  (&self, store: &mut Data)   -> Option<Duration>      { store.user_committed_experience(&self.id)          }
+    pub fn author_experience     (&self, store: &mut Data)   -> Option<Duration>      { store.user_author_experience(&self.id)             }
+    pub fn experience            (&self, store: &mut Data)   -> Option<Duration>      { store.user_experience(&self.id)                    }
 }
 impl Identifiable<UserId> for User { fn id(&self) -> UserId { self.id } }
-impl Reifiable<User> for UserId { fn reify(&self, store: &mut Data) -> User { store.user(&self).unwrap() } }
+impl Reifiable<User> for UserId { fn reify(&self, store: &mut Data) -> User { store.user(&self).unwrap().clone() } }
 impl PartialEq for User {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
@@ -284,30 +312,31 @@ pub struct Commit {
     pub(crate) parents: Vec<CommitId>,
 }
 impl Commit {
-    pub fn committer   (&self, store: &mut Data) -> User           {  self.committer.reify(store)  }
-    pub fn author      (&self, store: &mut Data) -> User           {  self.author.reify(store)     }
-    pub fn parents     (&self, store: &mut Data) -> Vec<Commit>    {  self.parents.reify(store)    }
+    pub fn committer_id       (&self)                   -> UserId                             {  self.committer               }
+    pub fn author_id          (&self)                   -> UserId                             {  self.author                  }
+    pub fn parent_ids         (&self)                   -> &Vec<CommitId>                     { &self.parents                 }
 
-    pub fn committer_id(&self)                   -> UserId         {  self.committer               }
-    pub fn author_id   (&self)                   -> UserId         {  self.author                  }
-    pub fn parent_ids  (&self)                   -> &Vec<CommitId> { &self.parents                 }
+    pub fn committer          (&self, store: &mut Data) -> User                               {  self.committer.reify(store)  }
+    pub fn author             (&self, store: &mut Data) -> User                               {  self.author.reify(store)     }
+    pub fn parents            (&self, store: &mut Data) -> Vec<Commit>                        {  self.parents.reify(store)    }
 
-    pub fn message     (&self, store: &mut Data) -> Option<String> {  store.commit_message(&self.id)              }
+    pub fn hash               (&self, store: &mut Data) -> Option<String>                     {  store.commit_hash(&self.id).pirate()               }
+    pub fn message            (&self, store: &mut Data) -> Option<String>                     {  store.commit_message(&self.id).pirate()            }
 
-    pub fn author_timestamp   (&self, store: &mut Data) -> i64     {  store.commit_author_timestamp(&self.id)     }
-    pub fn committer_timestamp(&self, store: &mut Data) -> i64     {  store.commit_committer_timestamp(&self.id)  }
+    pub fn author_timestamp   (&self, store: &mut Data) -> Option<i64>                        {  store.commit_author_timestamp(&self.id)            }
+    pub fn committer_timestamp(&self, store: &mut Data) -> Option<i64>                        {  store.commit_committer_timestamp(&self.id)         }
 
-    pub fn changes      (&self, store: &mut Data) -> Vec<(Path, Snapshot)> {  self.change_ids(store).reify(store) }
-    pub fn changed_paths      (&self, store: &mut Data) -> Vec<Path> {  self.changed_path_ids(store).reify(store) }
-    pub fn changed_snapshots  (&self, store: &mut Data) -> Vec<Snapshot> {  self.changed_snapshot_ids(store).reify(store) }
+    pub fn change_ids          (&self, store: &mut Data) -> Option<Vec<(PathId, SnapshotId)>> {  store.commit_change_ids(&self.id).pirate()         }
+    pub fn changed_path_ids    (&self, store: &mut Data) -> Option<Vec<PathId>>               {  store.commit_change_ids(&self.id).pirate().left()  }
+    pub fn changed_snapshot_ids(&self, store: &mut Data) -> Option<Vec<SnapshotId>>           {  store.commit_change_ids(&self.id).pirate().right() }
 
-    pub fn change_ids          (&self, store: &mut Data) -> Vec<(PathId, SnapshotId)> {  store.commit_changes(&self.id).clone() }
-    pub fn changed_path_ids    (&self, store: &mut Data) -> Vec<PathId> {  store.commit_changes(&self.id).iter().map(|(id, _)| id.clone()).collect() }
-    pub fn changed_snapshot_ids(&self, store: &mut Data) -> Vec<SnapshotId> {  store.commit_changes(&self.id).iter().map(|(_, id)| id.clone()).collect() }
+    pub fn changes             (&self, store: &mut Data) -> Option<Vec<(Path, Snapshot)>>     {  store.commit_changes(&self.id)                     }
+    pub fn changed_paths       (&self, store: &mut Data) -> Option<Vec<Path>>                 {  self.changed_path_ids(store).reify(store)          }
+    pub fn changed_snapshots   (&self, store: &mut Data) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
 }
 
 impl Identifiable<CommitId> for Commit { fn id(&self) -> CommitId { self.id } }
-impl Reifiable<Commit> for CommitId { fn reify(&self, store: &mut Data) -> Commit { store.commit(&self).unwrap() } }
+impl Reifiable<Commit> for CommitId { fn reify(&self, store: &mut Data) -> Commit { store.commit(&self).unwrap().clone() } }
 impl PartialEq for Commit {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
@@ -329,7 +358,7 @@ impl Path {
     pub fn language(&self) -> Option<Language> { Language::from_path(self.location.as_str()) }
 }
 impl Identifiable<PathId> for Path { fn id(&self) -> PathId { self.id } }
-impl Reifiable<Path> for PathId { fn reify(&self, store: &mut Data) -> Path { store.path(&self).unwrap() } }
+impl Reifiable<Path> for PathId { fn reify(&self, store: &mut Data) -> Path { store.path(&self).unwrap().clone() } }
 impl PartialEq for Path {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
@@ -350,7 +379,7 @@ impl Snapshot {
     pub fn new(id: SnapshotId, contents: Vec<u8>) -> Self { Snapshot { id, contents } }
 }
 impl Identifiable<SnapshotId> for Snapshot { fn id(&self) -> SnapshotId { self.id } }
-impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &mut Data) -> Snapshot { store.snapshot(&self).unwrap() } }
+impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &mut Data) -> Snapshot { store.snapshot(&self).unwrap().clone() } }
 // impl From<Vec<u8>>  for Snapshot { fn from(v: Vec<u8>)  -> Self { Snapshot(v)         } }
 // impl From<&Vec<u8>> for Snapshot { fn from(v: &Vec<u8>) -> Self { Snapshot(v.clone()) } }
 

@@ -16,7 +16,8 @@ use serde_json::Value as JSON;
 use serde_cbor;
 use serde::export::PhantomData;
 use crate::piracy::Piracy;
-use itertools::Itertools;
+use itertools::{Itertools, MinMaxResult};
+use std::time::Duration;
 
 pub type DataPtr = Rc<RefCell<Data>>;
 
@@ -75,19 +76,29 @@ impl<E> PersistentSource<E> where E: Extractor {
         PersistentSource { /*name,*/ cache_path, cache_dir, map, extractor: PhantomData }
     }
 
+    fn is_loaded(&self) -> bool {
+        self.map.is_some()
+    }
+
     fn already_cached(&self) -> bool {
         self.cache_path.is_file()
     }
+
     fn load_from_cache(&mut self) -> Result<(), Box<dyn Error>> {
         let reader = File::open(&self.cache_path)?;
         self.map = Some(serde_cbor::from_reader(reader)?);
         Ok(())
     }
+
     fn store_to_cache(&mut self) -> Result<(), Box<dyn Error>> {
         create_dir_all(&self.cache_dir)?;
         let writer = File::create(&self.cache_path)?;
         serde_cbor::to_writer(writer, &self.map)?;
         Ok(())
+    }
+
+    fn grab(&mut self) -> &BTreeMap<E::Key, E::Value> {
+        self.map.as_ref().unwrap()
     }
 }
 
@@ -108,39 +119,27 @@ impl<E> PersistentSource<E> where E: Extractor {
     }
 }
 
-impl<E,A> PersistentSource<E> where E: SingleExtractor<A=A>{
-    pub fn data(&mut self, input: &A) -> &BTreeMap<E::Key, E::Value> {
+impl<E,A> PersistentSource<E> where E: SingleExtractor<A=A> {
+    pub fn load_from_one(&mut self, input: &A) -> &BTreeMap<E::Key, E::Value> {
         self.data_from_loader(|| { E::extract(input) })
     }
-    pub fn get(&mut self, input: &A, key: &E::Key) -> Option<&E::Value> {
-        self.data(input).get(key)
-    }
 }
 
-impl<E,A,B> PersistentSource<E> where E: DoubleExtractor<A=A,B=B>{
-    pub fn data2(&mut self, input_a: &A, input_b: &B) -> &BTreeMap<E::Key, E::Value> {
+impl<E,A,B> PersistentSource<E> where E: DoubleExtractor<A=A,B=B> {
+    pub fn load_from_two(&mut self, input_a: &A, input_b: &B) -> &BTreeMap<E::Key, E::Value> {
         self.data_from_loader(|| { E::extract(input_a, input_b) })
     }
-    #[allow(dead_code)] pub fn get2(&mut self, input_a: &A, input_b: &B, key: &E::Key) -> Option<&E::Value> {
-        self.data2(input_a, input_b).get(key)
-    }
 }
 
-impl<E,A,B,C> PersistentSource<E> where E: TripleExtractor<A=A,B=B,C=C>{
-    pub fn data3(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &BTreeMap<E::Key, E::Value> {
+impl<E,A,B,C> PersistentSource<E> where E: TripleExtractor<A=A,B=B,C=C> {
+    pub fn load_from_three(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &BTreeMap<E::Key, E::Value> {
         self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
-    }
-    #[allow(dead_code)] pub fn get3(&mut self, input_a: &A, input_b: &B, input_c: &C, key: &E::Key) -> Option<&E::Value> {
-        self.data3(input_a, input_b, input_c).get(key)
     }
 }
 
 impl<E,A,B,C,D> PersistentSource<E> where E: QuadrupleExtractor<A=A,B=B,C=C,D=D>{
-    #[allow(dead_code)] pub fn data4(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D) -> &BTreeMap<E::Key, E::Value> {
+    #[allow(dead_code)] pub fn load_from_four(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D) -> &BTreeMap<E::Key, E::Value> {
         self.data_from_loader(|| { E::extract(input_a, input_b, input_c, input_d) })
-    }
-    #[allow(dead_code)] pub fn get4(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D, key: &E::Key) -> Option<&E::Value> {
-        self.data4(input_a, input_b, input_c, input_d).get(key)
     }
 }
 
@@ -353,7 +352,6 @@ macro_rules! gimme {
     }}
 }
 
-//fn(outcomes: Vec<Result<(), dyn Error>>) -> Result<(), Vec<Box<dyn Error>>>
 macro_rules! run_and_consolidate_errors {
     ($($statements:block),*) => {{
         let mut outcomes = vec![];
@@ -368,7 +366,6 @@ macro_rules! run_and_consolidate_errors {
 }
 
 pub struct ProjectMetadataSource {
-    //store:   &'a DatastoreView,
     loaded:           bool,
     forks:            MetadataVec<BoolExtractor>,
     archived:         MetadataVec<BoolExtractor>,
@@ -389,20 +386,20 @@ impl ProjectMetadataSource {
     pub fn new<Sa, Sb>(name: Sa, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
         let dir = Self::prepare_dir(name, dir);
         ProjectMetadataSource {
-            forks: MetadataVec::new("fork", dir.as_str(), BoolExtractor),
-            archived: MetadataVec::new("archived", dir.as_str(), BoolExtractor),
-            disabled: MetadataVec::new("disabled", dir.as_str(), BoolExtractor),
-            star_gazers: MetadataVec::new("star_gazers_count", dir.as_str(), CountExtractor),
-            watchers: MetadataVec::new("watchers_count", dir.as_str(), CountExtractor),
-            size: MetadataVec::new("size", dir.as_str(), CountExtractor),
-            open_issues: MetadataVec::new("open_issues_count", dir.as_str(), CountExtractor),
-            network: MetadataVec::new("network_count", dir.as_str(), CountExtractor),
-            subscribers: MetadataVec::new("subscribers_count", dir.as_str(), CountExtractor),
-            languages: MetadataVec::new("language", dir.as_str(), LanguageExtractor),
-            descriptions: MetadataVec::new("description", dir.as_str(), StringExtractor),
-            homepages: MetadataVec::new("homepage", dir.as_str(), StringExtractor),
-            licenses: MetadataVec::new("license", dir.as_str(), FieldExtractor("name", StringExtractor)),
-            loaded: false,
+            forks:        MetadataVec::new("fork",              dir.as_str(), BoolExtractor),
+            archived:     MetadataVec::new("archived",          dir.as_str(), BoolExtractor),
+            disabled:     MetadataVec::new("disabled",          dir.as_str(), BoolExtractor),
+            star_gazers:  MetadataVec::new("star_gazers_count", dir.as_str(), CountExtractor),
+            watchers:     MetadataVec::new("watchers_count",    dir.as_str(), CountExtractor),
+            size:         MetadataVec::new("size",              dir.as_str(), CountExtractor),
+            open_issues:  MetadataVec::new("open_issues_count", dir.as_str(), CountExtractor),
+            network:      MetadataVec::new("network_count",     dir.as_str(), CountExtractor),
+            subscribers:  MetadataVec::new("subscribers_count", dir.as_str(), CountExtractor),
+            languages:    MetadataVec::new("language",          dir.as_str(), LanguageExtractor),
+            descriptions: MetadataVec::new("description",       dir.as_str(), StringExtractor),
+            homepages:    MetadataVec::new("homepage",          dir.as_str(), StringExtractor),
+            licenses:     MetadataVec::new("license",           dir.as_str(), FieldExtractor("name", StringExtractor)),
+            loaded:       false,
         }
     }
 }
@@ -412,12 +409,12 @@ impl ProjectMetadataSource {
     pub fn archived         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, archived,     store, pirate, key) }
     pub fn disabled         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, disabled,     store, pirate, key) }
 
-    pub fn star_gazer       (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, star_gazers,  store, pirate, key) }
-    pub fn watcher          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, watchers,     store, pirate, key) }
+    pub fn star_gazers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, star_gazers,  store, pirate, key) }
+    pub fn watchers         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, watchers,     store, pirate, key) }
     pub fn size             (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, size,         store, pirate, key) }
-    pub fn open_issue       (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,  store, pirate, key) }
+    pub fn open_issues      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,  store, pirate, key) }
     pub fn network          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, network,      store, pirate, key) }
-    pub fn subscriber       (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,  store, pirate, key) }
+    pub fn subscribers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,  store, pirate, key) }
 
     pub fn license_owned    (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,     store, pirate, key) }
     pub fn description_owned(&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions, store, pirate, key) }
@@ -585,11 +582,30 @@ impl Extractor for ProjectLifetimesExtractor {
     type Key = ProjectId;
     type Value = u64;
 }
-impl DoubleExtractor for ProjectLifetimesExtractor {
+impl TripleExtractor for ProjectLifetimesExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, Commit>;
-    fn extract(project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()
+    type B = BTreeMap<CommitId, i64>;
+    type C = BTreeMap<CommitId, i64>;
+    fn extract(project_commits: &Self::A, authored_timestamps: &Self::B, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+       project_commits.iter().flat_map(|(project_id, commit_ids)| {
+           let min_max =
+               commit_ids.iter()
+                   .flat_map(|commit_id: &CommitId| {
+                       let mut timestamps: Vec<i64> = Vec::new();
+                       let author_timestamp = authored_timestamps.get(commit_id);
+                       let committer_timestamp = committed_timestamps.get(commit_id);
+                       if let Some(timestamp) = author_timestamp { timestamps.push(*timestamp) }
+                       if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) }
+                       timestamps
+                   })
+                   .minmax();
+
+           match min_max {
+               MinMaxResult::NoElements => { None }
+               MinMaxResult::OneElement(_) => { Some((project_id.clone(), 0)) }
+               MinMaxResult::MinMax(min, max) => { Some((project_id.clone(), (max - min) as u64)) }
+           }
+       }).collect()
     }
 }
 
@@ -624,31 +640,61 @@ impl SingleExtractor for UserAuthoredCommitsExtractor {
     }
 }
 
-struct UserAuthorExperienceExtractor {}
-impl Extractor for UserAuthorExperienceExtractor {
+struct UserExperienceExtractor {}
+impl Extractor for UserExperienceExtractor {
     type Key = UserId;
     type Value = u64;
 }
-impl TripleExtractor for UserAuthorExperienceExtractor  {
-    type A = BTreeMap<UserId, User>;
-    type B = BTreeMap<UserId, Vec<CommitId>>;
-    type C = BTreeMap<CommitId, Commit>;
-    fn extract(users: &Self::A, user_commits: &Self::B, commits: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!() // FIXME
+impl DoubleExtractor for UserExperienceExtractor  {
+    type A = BTreeMap<UserId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    fn extract(user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        user_commits.iter()
+        .flat_map(|(user_id, commit_ids)| {
+            let min_max = commit_ids.iter()
+                .flat_map(|commit_id| {
+                    timestamps.get(commit_id).pirate()
+                })
+                .minmax();
+
+            match min_max {
+                MinMaxResult::NoElements => None,
+                MinMaxResult::OneElement(_) => Some((user_id.clone(), 0)),
+                MinMaxResult::MinMax(min, max) => Some((user_id.clone(), (max - min) as u64)),
+            }
+        }).collect()
     }
 }
 
-struct UserCommitterExperienceExtractor {}
-impl Extractor for UserCommitterExperienceExtractor {
+struct CombinedUserExperienceExtractor {}
+impl Extractor for CombinedUserExperienceExtractor {
     type Key = UserId;
     type Value = u64;
 }
-impl TripleExtractor for UserCommitterExperienceExtractor  {
-    type A = BTreeMap<UserId, User>;
-    type B = BTreeMap<UserId, Vec<CommitId>>;
-    type C = BTreeMap<CommitId, Commit>;
-    fn extract(users: &Self::A, user_commits: &Self::B, commits: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!() // FIXME
+impl TripleExtractor for CombinedUserExperienceExtractor  {
+    type A = BTreeMap<UserId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    type C = BTreeMap<CommitId, i64>;
+    fn extract(user_commits: &Self::A, authored_timestamps: &Self::B, committed_timestamps: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        user_commits.iter()
+            .flat_map(|(user_id, commit_ids)| {
+                let min_max = commit_ids.iter()
+                    .flat_map(|commit_id| {
+                        let mut timestamps: Vec<i64> = Vec::new();
+                        let authored_timestamp = authored_timestamps.get(commit_id).pirate();
+                        let committed_timestamp = committed_timestamps.get(commit_id).pirate();
+                        if let Some(timestamp) = authored_timestamp { timestamps.push(timestamp) }
+                        if let Some(timestamp) = committed_timestamp { timestamps.push(timestamp) }
+                        timestamps
+                    })
+                    .minmax();
+
+                match min_max {
+                    MinMaxResult::NoElements => None,
+                    MinMaxResult::OneElement(_) => Some((user_id.clone(), 0)),
+                    MinMaxResult::MinMax(min, max) => Some((user_id.clone(), (max - min) as u64)),
+                }
+            }).collect()
     }
 }
 
@@ -665,21 +711,6 @@ impl SingleExtractor for PathExtractor {
         }).collect()
     }
 }
-
-// struct PathLanguageExtractor {}
-// impl Extractor for PathLanguageExtractor {
-//     type Key = PathId;
-//     type Value = Language;
-// }
-// impl SingleExtractor for PathLanguageExtractor {
-//     type A = BTreeMap<PathId, Path>;
-//     fn extract(paths: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-//         paths.iter()
-//             .map(|(id, path)| {
-//                 (PathId::from(id), Language::from_extension())
-//             }).collect()
-//     }
-// }
 
 struct SnapshotExtractor {}
 impl Extractor for SnapshotExtractor {
@@ -794,8 +825,6 @@ impl From<(u64, dcd::Commit)> for Commit {
 pub struct Data {
     store:                   DatastoreView,
 
-    // TODO languages
-
     project_metadata:            ProjectMetadataSource,
     project_heads:               PersistentSource<ProjectHeadsExtractor>,
     project_users:               PersistentSource<ProjectUsersExtractor>,
@@ -804,16 +833,20 @@ pub struct Data {
     project_commits:             PersistentSource<ProjectCommitsExtractor>,
     project_lifetimes:           PersistentSource<ProjectLifetimesExtractor>,
 
-    project_commit_count:        PersistentSource<CountPerKeyExtractor<ProjectId, CommitId>>,
+    project_user_count:          PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
     project_author_count:        PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
     project_committer_count:     PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
-    project_user_count:          PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
+    project_commit_count:        PersistentSource<CountPerKeyExtractor<ProjectId, CommitId>>,
 
     users:                       PersistentSource<UserExtractor>,
     user_authored_commits:       PersistentSource<UserAuthoredCommitsExtractor>,
     user_committed_commits:      PersistentSource<UserAuthoredCommitsExtractor>,
-    user_author_experience:      PersistentSource<UserAuthorExperienceExtractor>,
-    user_committer_experience:   PersistentSource<UserCommitterExperienceExtractor>,
+    user_author_experience:      PersistentSource<UserExperienceExtractor>,
+    user_committer_experience:   PersistentSource<UserExperienceExtractor>,
+    user_experience:             PersistentSource<CombinedUserExperienceExtractor>,
+
+    user_authored_commit_count:  PersistentSource<CountPerKeyExtractor<UserId, CommitId>>,
+    user_committed_commit_count: PersistentSource<CountPerKeyExtractor<UserId, CommitId>>,
 
     paths:                       PersistentSource<PathExtractor>,
     snapshots:                   PersistentSource<SnapshotExtractor>,
@@ -852,6 +885,10 @@ impl Data {
             user_committed_commits:      PersistentSource::new("user_committed_commits",     dir.clone()),
             user_author_experience:      PersistentSource::new("user_author_experience",     dir.clone()),
             user_committer_experience:   PersistentSource::new("user_committer_experience",  dir.clone()),
+            user_experience:             PersistentSource::new("user_experience",            dir.clone()),
+
+            user_authored_commit_count:  PersistentSource::new("user_authored_commit_count", dir.clone()),
+            user_committed_commit_count: PersistentSource::new("user_committed_commit_count",dir.clone()),
 
             paths:                       PersistentSource::new("paths",                      dir.clone()),
             snapshots:                   PersistentSource::new("snapshots",                  dir.clone()),
@@ -870,108 +907,330 @@ impl Data {
 impl Data {
     // TODO streams
 
-    pub fn project_issues            (&mut self, _id: &ProjectId) -> Option<usize>           {  unimplemented!() }
-    pub fn project_buggy_issues      (&mut self, _id: &ProjectId) -> Option<usize>           {  unimplemented!() }
+    pub fn project_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }         // FIXME
+    pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }
 
-    pub fn project_heads             (&mut self, id: &ProjectId) -> Vec<(String, CommitId)>  {  self.project_heads.get(&self.store,id).pirate().unwrap()      } // Heads are obligatory
-
-    pub fn project_language          (&mut self, id: &ProjectId) -> Option<Language>         {  self.project_metadata.language(&self.store,id)                      }
-    pub fn project_stars             (&mut self, id: &ProjectId) -> Option<usize>            {  self.project_metadata.star_gazer(&self.store,id)                    }
-
-    pub fn user                      (&mut self, id: &UserId) -> Option<User>                {  self.users.get(&self.store,id).pirate()                       }
-
-    pub fn path                      (&mut self, id: &PathId) -> Option<Path>                {  self.paths.get(&self.store,id).pirate()                       }
-    pub fn snapshot                  (&mut self, id: &SnapshotId) -> Option<Snapshot>        {  self.snapshots.get(&self.store, id).pirate()                  }
-
-    pub fn commit                    (&mut self, id: &CommitId) -> Option<Commit>            {  self.commits.get(&self.store,id).pirate()                     }
-    pub fn commit_hash               (&mut self, id: &CommitId) -> Option<String>            {  self.commit_hashes.get(&self.store,id).pirate()               }
-    pub fn commit_message            (&mut self, id: &CommitId) -> Option<String>            {  self.commit_messages.get(&self.store,id).pirate()             }
-    pub fn commit_author_timestamp   (&mut self, id: &CommitId) -> i64                       { *self.commit_author_timestamps.get(&self.store,id).unwrap()    }
-    pub fn commit_committer_timestamp(&mut self, id: &CommitId) -> i64                       { *self.commit_committer_timestamps.get(&self.store,id).unwrap() }
-    pub fn commit_changes            (&mut self, id: &CommitId) -> &Vec<(PathId, SnapshotId)> {  self.commit_changes.get(&self.store, id).unwrap()            }
-
-    pub fn project_commits(&mut self, id: &ProjectId) -> Vec<Commit> {
-        let heads = self.project_heads.data(&self.store);
-        let commits = self.commits.data(&self.store);
-        let project_commits = self.project_commits.data2(heads, commits);
-
-        project_commits.get(id).unwrap().to_owned().reify(self) // Obligatory
+    pub fn project_is_fork(&mut self, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.fork(&self.store, id)
+    }
+    pub fn project_is_archived(&mut self, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.archived(&self.store, id)
+    }
+    pub fn project_is_disabled(&mut self, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.disabled(&self.store, id)
+    }
+    pub fn project_star_gazer_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.star_gazers(&self.store, id)
+    }
+    pub fn project_watcher_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.watchers(&self.store, id)
+    }
+    pub fn project_size(&mut self, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.size(&self.store, id)
+    }
+    pub fn project_open_issue_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.open_issues(&self.store, id)
+    }
+    pub fn project_network_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.network(&self.store, id)
+    }
+    pub fn project_subscriber_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.subscribers(&self.store, id)
+    }
+    pub fn project_license(&mut self, id: &ProjectId) -> Option<&String> {
+        self.project_metadata.license(&self.store, id)
+    }
+    pub fn project_language(&mut self, id: &ProjectId) -> Option<Language> {
+        self.project_metadata.language(&self.store, id)
+    }
+    pub fn project_description(&mut self, id: &ProjectId) -> Option<&String> {
+        self.project_metadata.description(&self.store, id)
+    }
+    pub fn project_homepages(&mut self, id: &ProjectId) -> Option<&String> {
+        self.project_metadata.homepage(&self.store, id)
     }
 
-    pub fn project_commit_count(&mut self, id: &ProjectId) -> usize {
-        let heads = self.project_heads.data(&self.store);
-        let commits = self.commits.data(&self.store);
-        let project_commits = self.project_commits.data2(heads, commits);
-        let project_commit_count = self.project_commit_count.data(project_commits);
-
-        *project_commit_count.get(id).unwrap()
+    pub fn project_head_ids(&mut self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
+        self.smart_load_project_heads().get(id).pirate()
     }
 
-    pub fn project_authors(&mut self, id: &ProjectId) -> Vec<User> {
-        let heads = self.project_heads.data(&self.store);
-        let commits = self.commits.data(&self.store);
-        let project_commits = self.project_commits.data2(heads, commits);
-        let project_authors = self.project_authors.data2(project_commits, commits);
-
-        project_authors.get(id).unwrap().to_owned().reify(self)
-    } // Obligatory, but can be 0 length
-
-    pub fn project_author_count(&mut self, id: &ProjectId) -> usize {
-        let heads = self.project_heads.data(&self.store);
-        let commits = self.commits.data(&self.store);
-        let project_commits = self.project_commits.data2(heads, commits);
-        let project_authors = self.project_authors.data2(project_commits, commits);
-        let project_author_count = self.project_author_count.data(project_authors);
-
-        *project_author_count.get(id).unwrap()
-    } // Obligatory, but can be 0 length
-
-    pub fn project_committers(&mut self, id: &ProjectId) -> Vec<User> {
-        let heads = self.project_heads.data(&self.store);
-        let commits = self.commits.data(&self.store);
-        let project_commits = self.project_commits.data2(heads, commits);
-        let project_committers = self.project_committers.data2(project_commits, commits);
-
-        project_committers.get(id).unwrap().to_owned().reify(self)
-    } // Obligatory, but can be 0 length
-
-    pub fn project_committer_count(&mut self, id: &ProjectId) -> usize {
-        let heads = self.project_heads.data(&self.store);
-        let commits = self.commits.data(&self.store);
-        let project_commits = self.project_commits.data2(heads, commits);
-        let project_committers = self.project_committers.data2(project_commits, commits);
-        let project_committer_count = self.project_committer_count.data(project_committers);
-
-        *project_committer_count.get(id).unwrap()
+    pub fn project_heads(&mut self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
+        self.smart_load_project_heads().get(id).pirate().map(|v| {
+            v.into_iter().map(|(name, commit_id)| {
+                (name, commit_id.reify(self))
+            }).collect()
+        })
     }
 
-    pub fn project_users(&mut self, id: &ProjectId) -> Vec<User> {
-        let heads = self.project_heads.data(&self.store);
-        let commits = self.commits.data(&self.store);
-        let project_commits = self.project_commits.data2(heads, commits);
-        let project_authors = self.project_authors.data2(project_commits, commits);
-        let project_committers = self.project_committers.data2(project_commits, commits);
-        let project_users = self.project_users.data2(project_authors, project_committers);
-
-        project_users.get(id).unwrap().to_owned().reify(self)
-    } // Obligatory, but can be 0 length
-
-    pub fn project_user_count(&mut self, id: &ProjectId) -> usize {
-        let heads = self.project_heads.data(&self.store);
-        let commits = self.commits.data(&self.store);
-        let project_commits = self.project_commits.data2(heads, commits);
-        let project_authors = self.project_authors.data2(project_commits, commits);
-        let project_committers = self.project_committers.data2(project_commits, commits);
-        let project_users = self.project_users.data2(project_authors, project_committers);
-        let project_user_count = self.project_user_count.data(project_users);
-
-        *project_user_count.get(id).unwrap()
+    pub fn project_commit_ids(&mut self, id: &ProjectId) -> Option<&Vec<CommitId>> {
+        self.smart_load_project_commits().get(id)
     }
 
-    pub fn commit_change_count(&mut self, id: &CommitId) -> usize {
-        let commit_changes = self.commit_changes.data(&self.store);
-        let commit_change_count = self.commit_change_count.data(commit_changes);
+    pub fn project_commits(&mut self, id: &ProjectId) -> Option<Vec<Commit>> {
+        self.smart_load_project_commits().get(id).pirate().reify(self)
+    }
 
-        *commit_change_count.get(id).unwrap()
+    pub fn project_commit_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_commit_count().get(id).pirate()
+    }
+
+    pub fn project_author_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
+        self.smart_load_project_authors().get(id)
+    }
+
+    pub fn project_authors(&mut self, id: &ProjectId) -> Option<Vec<User>> {
+        self.smart_load_project_authors().get(id).pirate().reify(self)
+    }
+
+    pub fn project_author_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_author_count().get(id).pirate()
+    }
+
+    pub fn project_committer_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
+        self.smart_load_project_committers().get(id)
+    }
+
+    pub fn project_committers(&mut self, id: &ProjectId) -> Option<Vec<User>> {
+        self.smart_load_project_committers().get(id).pirate().reify(self)
+    }
+
+    pub fn project_committer_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_committer_count().get(id).pirate()
+    }
+
+    pub fn project_user_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
+        self.smart_load_project_users().get(id)
+    }
+
+    pub fn project_users(&mut self, id: &ProjectId) -> Option<Vec<User>> {
+        self.smart_load_project_users().get(id).pirate().reify(self)
+    }
+
+    pub fn project_user_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_user_count().get(id).pirate()
+    }
+
+    pub fn project_lifetime(&mut self, id: &ProjectId) -> Option<Duration> {
+        self.smart_load_project_lifetimes().get(id)
+            .pirate()
+            .map(|seconds| Duration::from_secs(seconds))
+    }
+
+    pub fn user(&mut self, id: &UserId) -> Option<&User> {
+        self.smart_load_users().get(id)
+    }
+
+    pub fn path(&mut self, id: &PathId) -> Option<&Path> {
+        self.smart_load_paths().get(id)
+    }
+    pub fn snapshot(&mut self, id: &SnapshotId) -> Option<&Snapshot> {
+        self.smart_load_snapshots().get(id)
+    }
+
+    pub fn commit(&mut self, id: &CommitId) -> Option<&Commit> {
+        self.smart_load_commits().get(id)
+    }
+    pub fn commit_hash(&mut self, id: &CommitId) -> Option<&String> {
+        self.smart_load_commit_hashes().get(id)
+    }
+    pub fn commit_message(&mut self, id: &CommitId) -> Option<&String> {
+        self.smart_load_commit_messages().get(id)
+    }
+    pub fn commit_author_timestamp(&mut self, id: &CommitId) -> Option<i64> {
+        self.smart_load_commit_author_timestamps().get(id).pirate()
+    }
+    pub fn commit_committer_timestamp(&mut self, id: &CommitId) -> Option<i64> {
+        self.smart_load_commit_committer_timestamps().get(id).pirate()
+    }
+    pub fn commit_change_ids(&mut self, id: &CommitId) -> Option<&Vec<(PathId, SnapshotId)>> {
+        self.smart_load_commit_changes().get(id)
+    }
+    pub fn commit_changes(&mut self, id: &CommitId) -> Option<Vec<(Path, Snapshot)>> {
+        self.smart_load_commit_changes().get(id).pirate().reify(self)
+    }
+
+    pub fn commit_change_count(&mut self, id: &CommitId) -> Option<usize> {
+        self.smart_load_commit_change_count().get(id).pirate()
+    }
+
+    pub fn user_committed_commit_ids(&mut self, id: &UserId) -> Option<&Vec<CommitId>> {
+        self.smart_load_user_committed_commits().get(id)
+    }
+
+    pub fn user_authored_commits(&mut self, id: &UserId) -> Option<Vec<Commit>> {
+        self.smart_load_user_authored_commits().get(id).pirate().reify(self)
+    }
+
+    pub fn user_authored_commit_ids(&mut self, id: &UserId) -> Option<&Vec<CommitId>> {
+        self.smart_load_user_authored_commits().get(id)
+    }
+
+    pub fn user_committed_experience(&mut self, id: &UserId) -> Option<Duration> {
+        self.smart_load_user_committer_experience()
+            .get(id)
+            .map(|seconds| Duration::from_secs(*seconds))
+    }
+
+    pub fn user_author_experience(&mut self, id: &UserId) -> Option<Duration> {
+        self.smart_load_user_author_experience()
+            .get(id)
+            .map(|seconds| Duration::from_secs(*seconds))
+    }
+
+    pub fn user_experience(&mut self, id: &UserId) -> Option<Duration> {
+        self.smart_load_user_experience()
+            .get(id)
+            .map(|seconds| Duration::from_secs(*seconds))
+    }
+
+    pub fn user_committed_commit_count(&mut self, id: &UserId) -> Option<usize> {
+        self.smart_load_user_committed_commit_count().get(id).pirate()
+    }
+
+    pub fn user_authored_commit_count(&mut self, id: &UserId) -> Option<usize> {
+        self.smart_load_user_authored_commit_count().get(id).pirate()
+    }
+
+    pub fn user_committed_commits(&mut self, id: &UserId) -> Option<Vec<Commit>> {
+        self.smart_load_user_committed_commits().get(id).pirate().reify(self)
+    }
+}
+
+macro_rules! load_from_store {
+    ($self:ident, $vector:ident)  => {{
+        if !$self.$vector.is_loaded() {
+            $self.$vector.load_from_one(&$self.store);
+        }
+        $self.$vector.grab()
+    }}
+}
+
+macro_rules! load_with_prerequisites {
+    ($self:ident, $vector:ident, $n:ident, $($prereq:ident),*)  => {{
+        mashup! {
+            $( m["smart_load" $prereq] = smart_load_$prereq; )*
+               m["load"] = load_from_$n;
+        }
+        if !$self.$vector.is_loaded() {
+            m! { $(  $self."smart_load" $prereq(); )*              }
+            m! { $self.$vector."load"($($self.$prereq.grab()), *); }
+        }
+        $self.$vector.grab()
+    }}
+}
+
+impl Data {
+    fn smart_load_project_heads(&mut self) -> &BTreeMap<ProjectId, Vec<(String, CommitId)>> {
+        load_from_store!(self, project_heads)
+    }
+
+    fn smart_load_project_users(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
+        load_with_prerequisites!(self, project_users, two, project_authors, project_committers)
+    }
+
+    fn smart_load_project_authors(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
+        load_with_prerequisites!(self, project_authors, two, project_commits, commits)
+    }
+
+    fn smart_load_project_committers(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
+        load_with_prerequisites!(self, project_committers, two, project_commits, commits)
+    }
+
+    fn smart_load_project_commits(&mut self) -> &BTreeMap<ProjectId, Vec<CommitId>> {
+        load_with_prerequisites!(self, project_commits, two, project_heads, commits)
+    }
+
+    fn smart_load_project_user_count(&mut self) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_user_count, one, project_users)
+    }
+
+    fn smart_load_project_author_count(&mut self) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_author_count, one, project_authors)
+    }
+
+    fn smart_load_project_committer_count(&mut self) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_committer_count, one, project_committers)
+    }
+
+    fn smart_load_project_commit_count(&mut self) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_commit_count, one, project_commits)
+    }
+
+    fn smart_load_project_lifetimes(&mut self) -> &BTreeMap<ProjectId, u64> {
+        load_with_prerequisites!(self, project_lifetimes, three, project_commits,
+                                                                 commit_author_timestamps,
+                                                                 commit_committer_timestamps)
+    }
+
+    fn smart_load_users(&mut self) -> &BTreeMap<UserId, User> {
+        load_from_store!(self, users)
+    }
+
+    fn smart_load_user_authored_commits(&mut self) -> &BTreeMap<UserId, Vec<CommitId>> {
+        load_with_prerequisites!(self, user_authored_commits, one, commits)
+    }
+
+    fn smart_load_user_committed_commits(&mut self) -> &BTreeMap<UserId, Vec<CommitId>> {
+        load_with_prerequisites!(self, user_committed_commits, one, commits)
+    }
+
+    fn smart_load_user_author_experience(&mut self) -> &BTreeMap<UserId, u64> {
+        load_with_prerequisites!(self, user_author_experience, two, user_authored_commits,
+                                                                    commit_author_timestamps)
+    }
+
+    fn smart_load_user_committer_experience(&mut self) -> &BTreeMap<UserId, u64> {
+        load_with_prerequisites!(self, user_committer_experience, two, user_committed_commits,
+                                                                       commit_committer_timestamps)
+    }
+
+    fn smart_load_user_experience(&mut self) -> &BTreeMap<UserId, u64> {
+        load_with_prerequisites!(self, user_experience, three, user_committed_commits,
+                                                               commit_author_timestamps,
+                                                               commit_committer_timestamps)
+    }
+
+    fn smart_load_user_committed_commit_count(&mut self) -> &BTreeMap<UserId, usize> {
+        load_with_prerequisites!(self, user_committed_commit_count, one, user_committed_commits)
+    }
+
+    fn smart_load_user_authored_commit_count(&mut self) -> &BTreeMap<UserId, usize> {
+        load_with_prerequisites!(self, user_authored_commit_count, one, user_authored_commits)
+    }
+
+    fn smart_load_paths(&mut self) -> &BTreeMap<PathId, Path> {
+        load_from_store!(self, paths)
+    }
+
+    fn smart_load_snapshots(&mut self) -> &BTreeMap<SnapshotId, Snapshot> {
+        load_from_store!(self, snapshots)
+    }
+
+    fn smart_load_commits(&mut self) -> &BTreeMap<CommitId, Commit> {
+        load_from_store!(self, commits)
+    }
+
+    fn smart_load_commit_hashes(&mut self) -> &BTreeMap<CommitId, String> {
+        load_from_store!(self, commit_hashes)
+    }
+
+    fn smart_load_commit_messages(&mut self) -> &BTreeMap<CommitId, String> {
+        load_from_store!(self, commit_messages)
+    }
+
+    fn smart_load_commit_committer_timestamps(&mut self) -> &BTreeMap<CommitId, i64> {
+        load_from_store!(self, commit_committer_timestamps)
+    }
+
+    fn smart_load_commit_author_timestamps(&mut self) -> &BTreeMap<CommitId, i64> {
+        load_from_store!(self, commit_author_timestamps)
+    }
+
+    fn smart_load_commit_changes(&mut self) -> &BTreeMap<CommitId, Vec<(PathId, SnapshotId)>> {
+        load_from_store!(self, commit_changes)
+    }
+
+    fn smart_load_commit_change_count(&mut self) -> &BTreeMap<CommitId, usize> {
+        load_with_prerequisites!(self, commit_change_count, one, commit_changes)
     }
 }

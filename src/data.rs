@@ -425,16 +425,13 @@ impl ProjectMetadataSource {
             descriptions:  MetadataVec::new("description",       dir.as_str(), StringExtractor),
             homepages:     MetadataVec::new("homepage",          dir.as_str(), StringExtractor),
             licenses:      MetadataVec::new("license",           dir.as_str(), FieldExtractor("name", StringExtractor)),
-
             has_issues:    MetadataVec::new("has_issues",        dir.as_str(), BoolExtractor),
             has_downloads: MetadataVec::new("has_downloads",     dir.as_str(), BoolExtractor),
             has_wiki:      MetadataVec::new("has_wiki",          dir.as_str(), BoolExtractor),
             has_pages:     MetadataVec::new("has_pages",         dir.as_str(), BoolExtractor),
-
             created:       MetadataVec::new("created_at",        dir.as_str(), TimestampExtractor),
             updated:       MetadataVec::new("updated_at",        dir.as_str(), TimestampExtractor),
             pushed:        MetadataVec::new("pushed_at",         dir.as_str(), TimestampExtractor),
-
             master:        MetadataVec::new("default_branch",    dir.as_str(), StringExtractor),
 
             loaded:        false,

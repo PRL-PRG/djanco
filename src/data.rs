@@ -18,6 +18,7 @@ use serde::export::PhantomData;
 use crate::piracy::Piracy;
 use itertools::{Itertools, MinMaxResult};
 use std::time::Duration;
+use chrono::DateTime;
 
 pub type DataPtr = Rc<RefCell<Data>>;
 
@@ -177,6 +178,20 @@ impl MetadataFieldExtractor for StringExtractor {
     fn get(&self, value: &JSON) -> Self::Value {
         match value {
             JSON::String(s) => s.clone(),
+            value => panic!("Expected String, found {:?}", value),
+        }
+    }
+}
+
+struct TimestampExtractor;
+impl MetadataFieldExtractor for TimestampExtractor {
+    type Value = i64;
+    fn get(&self, value: &JSON) -> Self::Value {
+        match value {
+            JSON::String(s) => {
+                let date = DateTime::parse_from_rfc3339(s).unwrap(); // Should be there, right?
+                date.timestamp()
+            }
             value => panic!("Expected String, found {:?}", value),
         }
     }
@@ -367,76 +382,111 @@ macro_rules! run_and_consolidate_errors {
 
 pub struct ProjectMetadataSource {
     loaded:           bool,
-    forks:            MetadataVec<BoolExtractor>,
-    archived:         MetadataVec<BoolExtractor>,
-    disabled:         MetadataVec<BoolExtractor>,
+    are_forks:        MetadataVec<BoolExtractor>,
+    are_archived:     MetadataVec<BoolExtractor>,
+    are_disabled:     MetadataVec<BoolExtractor>,
     star_gazers:      MetadataVec<CountExtractor>,
     watchers:         MetadataVec<CountExtractor>,
     size:             MetadataVec<CountExtractor>,
     open_issues:      MetadataVec<CountExtractor>,
-    network:          MetadataVec<CountExtractor>,
+    forks:            MetadataVec<CountExtractor>,
     subscribers:      MetadataVec<CountExtractor>,
     licenses:         MetadataVec<FieldExtractor<StringExtractor>>,
     languages:        MetadataVec<LanguageExtractor>,
     descriptions:     MetadataVec<StringExtractor>,
     homepages:        MetadataVec<StringExtractor>,
+
+    has_issues:       MetadataVec<BoolExtractor>,
+    has_downloads:    MetadataVec<BoolExtractor>,
+    has_wiki:         MetadataVec<BoolExtractor>,
+    has_pages:        MetadataVec<BoolExtractor>,
+
+    created:          MetadataVec<TimestampExtractor>,
+    updated:          MetadataVec<TimestampExtractor>,
+    pushed:           MetadataVec<TimestampExtractor>,
+
+    master:           MetadataVec<StringExtractor>,
 }
 
 impl ProjectMetadataSource {
     pub fn new<Sa, Sb>(name: Sa, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
         let dir = Self::prepare_dir(name, dir);
         ProjectMetadataSource {
-            forks:        MetadataVec::new("fork",              dir.as_str(), BoolExtractor),
-            archived:     MetadataVec::new("archived",          dir.as_str(), BoolExtractor),
-            disabled:     MetadataVec::new("disabled",          dir.as_str(), BoolExtractor),
-            star_gazers:  MetadataVec::new("star_gazers_count", dir.as_str(), CountExtractor),
-            watchers:     MetadataVec::new("watchers_count",    dir.as_str(), CountExtractor),
-            size:         MetadataVec::new("size",              dir.as_str(), CountExtractor),
-            open_issues:  MetadataVec::new("open_issues_count", dir.as_str(), CountExtractor),
-            network:      MetadataVec::new("network_count",     dir.as_str(), CountExtractor),
-            subscribers:  MetadataVec::new("subscribers_count", dir.as_str(), CountExtractor),
-            languages:    MetadataVec::new("language",          dir.as_str(), LanguageExtractor),
-            descriptions: MetadataVec::new("description",       dir.as_str(), StringExtractor),
-            homepages:    MetadataVec::new("homepage",          dir.as_str(), StringExtractor),
-            licenses:     MetadataVec::new("license",           dir.as_str(), FieldExtractor("name", StringExtractor)),
-            loaded:       false,
+            are_forks:     MetadataVec::new("fork",              dir.as_str(), BoolExtractor),
+            are_archived:  MetadataVec::new("archived",          dir.as_str(), BoolExtractor),
+            are_disabled:  MetadataVec::new("disabled",          dir.as_str(), BoolExtractor),
+            star_gazers:   MetadataVec::new("star_gazers_count", dir.as_str(), CountExtractor),
+            watchers:      MetadataVec::new("watchers_count",    dir.as_str(), CountExtractor),
+            size:          MetadataVec::new("size",              dir.as_str(), CountExtractor),
+            open_issues:   MetadataVec::new("open_issues_count", dir.as_str(), CountExtractor),
+            forks:         MetadataVec::new("forks",             dir.as_str(), CountExtractor),
+            subscribers:   MetadataVec::new("subscribers_count", dir.as_str(), CountExtractor),
+            languages:     MetadataVec::new("language",          dir.as_str(), LanguageExtractor),
+            descriptions:  MetadataVec::new("description",       dir.as_str(), StringExtractor),
+            homepages:     MetadataVec::new("homepage",          dir.as_str(), StringExtractor),
+            licenses:      MetadataVec::new("license",           dir.as_str(), FieldExtractor("name", StringExtractor)),
+
+            has_issues:    MetadataVec::new("has_issues",        dir.as_str(), BoolExtractor),
+            has_downloads: MetadataVec::new("has_downloads",     dir.as_str(), BoolExtractor),
+            has_wiki:      MetadataVec::new("has_wiki",          dir.as_str(), BoolExtractor),
+            has_pages:     MetadataVec::new("has_pages",         dir.as_str(), BoolExtractor),
+
+            created:       MetadataVec::new("created_at",        dir.as_str(), TimestampExtractor),
+            updated:       MetadataVec::new("updated_at",        dir.as_str(), TimestampExtractor),
+            pushed:        MetadataVec::new("pushed_at",         dir.as_str(), TimestampExtractor),
+
+            master:        MetadataVec::new("default_branch",    dir.as_str(), StringExtractor),
+
+            loaded:        false,
         }
     }
 }
 
 impl ProjectMetadataSource {
-    pub fn fork             (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, forks,        store, pirate, key) }
-    pub fn archived         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, archived,     store, pirate, key) }
-    pub fn disabled         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, disabled,     store, pirate, key) }
+    pub fn is_fork          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_forks,     store, pirate, key) }
+    pub fn is_archived      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_archived,  store, pirate, key) }
+    pub fn is_disabled      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_disabled,  store, pirate, key) }
 
-    pub fn star_gazers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, star_gazers,  store, pirate, key) }
-    pub fn watchers         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, watchers,     store, pirate, key) }
-    pub fn size             (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, size,         store, pirate, key) }
-    pub fn open_issues      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,  store, pirate, key) }
-    pub fn network          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, network,      store, pirate, key) }
-    pub fn subscribers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,  store, pirate, key) }
+    pub fn star_gazers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, star_gazers,   store, pirate, key)           }
+    pub fn watchers         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, watchers,      store, pirate, key)           }
+    pub fn size             (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, size,          store, pirate, key)           }
+    pub fn open_issues      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,   store, pirate, key)           }
+    pub fn forks            (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, forks,         store, pirate, key)           }
+    pub fn subscribers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,   store, pirate, key)           }
 
-    pub fn license_owned    (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,     store, pirate, key) }
-    pub fn description_owned(&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions, store, pirate, key) }
-    pub fn homepage_owned   (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,    store, pirate, key) }
+    pub fn license_owned    (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,      store, pirate, key)           }
+    pub fn description_owned(&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions,  store, pirate, key)           }
+    pub fn homepage_owned   (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
 
-    pub fn license          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, licenses,     store, get,    key) }
-    pub fn description      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, descriptions, store, get,    key) }
-    pub fn homepage         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, homepages,    store, get,    key) }
+    pub fn license          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, licenses,      store, get,    key)           }
+    pub fn description      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, descriptions,  store, get,    key)           }
+    pub fn homepage         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, homepages,     store, get,    key)           }
 
-    pub fn language         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<Language> { gimme!(self, languages,    store, pirate, key).flatten() }
+    pub fn language         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<Language> { gimme!(self, languages,     store, pirate, key).flatten() }
+
+    pub fn has_issues       (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_issues,    store, pirate, key)           }
+    pub fn has_downloads    (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_downloads, store, pirate, key)           }
+    pub fn has_wiki         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_wiki,      store, pirate, key)           }
+    pub fn has_pages        (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_pages,     store, pirate, key)           }
+
+    pub fn created          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, created,       store, pirate, key)           }
+    pub fn updated          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
+    pub fn pushed           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
+
+    pub fn master           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, homepages,     store, get,    key)           }
+    pub fn master_owned     (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
 }
 
 impl MetadataSource for ProjectMetadataSource {
     fn load_all_from(&mut self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) {
-        self.forks.load_from_store(metadata);
-        self.archived.load_from_store(metadata);
-        self.disabled.load_from_store(metadata);
+        self.are_forks.load_from_store(metadata);
+        self.are_archived.load_from_store(metadata);
+        self.are_disabled.load_from_store(metadata);
         self.star_gazers.load_from_store(metadata);
         self.watchers.load_from_store(metadata);
         self.size.load_from_store(metadata);
         self.open_issues.load_from_store(metadata);
-        self.network.load_from_store(metadata);
+        self.forks.load_from_store(metadata);
         self.subscribers.load_from_store(metadata);
         self.licenses.load_from_store(metadata);
         self.languages.load_from_store(metadata);
@@ -446,20 +496,27 @@ impl MetadataSource for ProjectMetadataSource {
 
     fn store_all_to_cache(&mut self) -> Result<(), Vec<Box<dyn Error>>> {
         run_and_consolidate_errors!(
-            { self.forks.store_to_cache()        },
-            { self.archived.store_to_cache()     },
-            { self.disabled.store_to_cache()     },
-            { self.star_gazers.store_to_cache()  },
-            { self.watchers.store_to_cache()     },
-            { self.size.store_to_cache()         },
-            { self.open_issues.store_to_cache()  },
-            { self.network.store_to_cache()      },
-            { self.subscribers.store_to_cache()  },
-            { self.licenses.store_to_cache()     },
-            { self.languages.store_to_cache()    },
-            { self.descriptions.store_to_cache() },
-            { self.homepages.store_to_cache()    }
-        )
+            { self.are_forks.store_to_cache()     },
+            { self.are_archived.store_to_cache()  },
+            { self.are_disabled.store_to_cache()  },
+            { self.star_gazers.store_to_cache()   },
+            { self.watchers.store_to_cache()      },
+            { self.size.store_to_cache()          },
+            { self.open_issues.store_to_cache()   },
+            { self.forks.store_to_cache()         },
+            { self.subscribers.store_to_cache()   },
+            { self.licenses.store_to_cache()      },
+            { self.languages.store_to_cache()     },
+            { self.descriptions.store_to_cache()  },
+            { self.homepages.store_to_cache()     },
+            { self.has_issues.store_to_cache()    },
+            { self.has_downloads.store_to_cache() },
+            { self.has_wiki.store_to_cache()      },
+            { self.has_pages.store_to_cache()     },
+            { self.created.store_to_cache()       },
+            { self.updated.store_to_cache()       },
+            { self.pushed.store_to_cache()        },
+            { self.master.store_to_cache()        })
     }
 }
 
@@ -823,7 +880,7 @@ impl From<(u64, dcd::Commit)> for Commit {
 }
 
 pub struct Data {
-    store:                   DatastoreView,
+    store:                       DatastoreView,
 
     project_metadata:            ProjectMetadataSource,
     project_heads:               PersistentSource<ProjectHeadsExtractor>,
@@ -860,6 +917,7 @@ pub struct Data {
 
     commit_change_count:         PersistentSource<CountPerKeyExtractor<CommitId, (PathId, SnapshotId)>>,
 
+    // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
 }
 
@@ -911,13 +969,13 @@ impl Data {
     pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }
 
     pub fn project_is_fork(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.fork(&self.store, id)
+        self.project_metadata.is_fork(&self.store, id)
     }
     pub fn project_is_archived(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.archived(&self.store, id)
+        self.project_metadata.is_archived(&self.store, id)
     }
     pub fn project_is_disabled(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.disabled(&self.store, id)
+        self.project_metadata.is_disabled(&self.store, id)
     }
     pub fn project_star_gazer_count(&mut self, id: &ProjectId) -> Option<usize> {
         self.project_metadata.star_gazers(&self.store, id)
@@ -931,8 +989,8 @@ impl Data {
     pub fn project_open_issue_count(&mut self, id: &ProjectId) -> Option<usize> {
         self.project_metadata.open_issues(&self.store, id)
     }
-    pub fn project_network_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.network(&self.store, id)
+    pub fn project_fork_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.forks(&self.store, id)
     }
     pub fn project_subscriber_count(&mut self, id: &ProjectId) -> Option<usize> {
         self.project_metadata.subscribers(&self.store, id)
@@ -948,6 +1006,30 @@ impl Data {
     }
     pub fn project_homepages(&mut self, id: &ProjectId) -> Option<&String> {
         self.project_metadata.homepage(&self.store, id)
+    }
+    pub fn project_has_issues(&mut self, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.has_issues(&self.store, id)
+    }
+    pub fn project_has_downloads(&mut self, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.has_downloads(&self.store, id)
+    }
+    pub fn project_has_wiki(&mut self, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.has_wiki(&self.store, id)
+    }
+    pub fn project_has_pages(&mut self, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.has_pages(&self.store, id)
+    }
+    pub fn project_created(&mut self, id: &ProjectId) -> Option<i64> {
+        self.project_metadata.created(&self.store, id)
+    }
+    pub fn project_updated(&mut self, id: &ProjectId) -> Option<i64> {
+        self.project_metadata.updated(&self.store, id)
+    }
+    pub fn project_pushed(&mut self, id: &ProjectId) -> Option<i64> {
+        self.project_metadata.pushed(&self.store, id)
+    }
+    pub fn project_master(&mut self, id: &ProjectId) -> Option<&String> {
+        self.project_metadata.master(&self.store, id)
     }
 
     pub fn project_head_ids(&mut self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {

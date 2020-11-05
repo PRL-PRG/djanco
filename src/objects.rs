@@ -249,7 +249,7 @@ impl Project {
     pub fn watcher_count    (&self, store: &mut Data) -> Option<usize>                   { store.project_watcher_count(&self.id)          }
     pub fn size             (&self, store: &mut Data) -> Option<usize>                   { store.project_size(&self.id)                   }
     pub fn open_issue_count (&self, store: &mut Data) -> Option<usize>                   { store.project_open_issue_count(&self.id)       }
-    pub fn network_count    (&self, store: &mut Data) -> Option<usize>                   { store.project_network_count(&self.id)          }
+    pub fn network_count    (&self, store: &mut Data) -> Option<usize>                   { store.project_fork_count(&self.id)             }
     pub fn subscriber_count (&self, store: &mut Data) -> Option<usize>                   { store.project_subscriber_count(&self.id)       }
     pub fn license          (&self, store: &mut Data) -> Option<String>                  { store.project_license(&self.id).pirate()       }
     pub fn language         (&self, store: &mut Data) -> Option<Language>                { store.project_language(&self.id)               }
@@ -270,6 +270,17 @@ impl Project {
     pub fn users            (&self, store: &mut Data) -> Option<Vec<User>>               { store.project_users(&self.id)                  }
     pub fn user_count       (&self, store: &mut Data) -> Option<usize>                   { store.project_user_count(&self.id)             }
     pub fn lifetime         (&self, store: &mut Data) -> Option<Duration>                { store.project_lifetime(&self.id)               }
+
+    pub fn has_issues       (&self, store: &mut Data) -> Option<bool>                    { store.project_has_issues(&self.id)             }
+    pub fn has_downloads    (&self, store: &mut Data) -> Option<bool>                    { store.project_has_downloads(&self.id)          }
+    pub fn has_wiki         (&self, store: &mut Data) -> Option<bool>                    { store.project_has_wiki(&self.id)               }
+    pub fn has_pages        (&self, store: &mut Data) -> Option<bool>                    { store.project_has_pages(&self.id)              }
+
+    pub fn created          (&self, store: &mut Data) -> Option<i64>                     { store.project_created(&self.id)                }
+    pub fn updated          (&self, store: &mut Data) -> Option<i64>                     { store.project_updated(&self.id)                }
+    pub fn pushed           (&self, store: &mut Data) -> Option<i64>                     { store.project_pushed(&self.id)                 }
+
+    pub fn master_branch    (&self, store: &mut Data) -> Option<String>                  { store.project_master(&self.id).pirate()        }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -311,6 +322,7 @@ pub struct Commit {
     pub(crate) author: UserId,
     pub(crate) parents: Vec<CommitId>,
 }
+
 impl Commit {
     pub fn committer_id       (&self)                   -> UserId                             {  self.committer               }
     pub fn author_id          (&self)                   -> UserId                             {  self.author                  }
@@ -380,9 +392,3 @@ impl Snapshot {
 }
 impl Identifiable<SnapshotId> for Snapshot { fn id(&self) -> SnapshotId { self.id } }
 impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &mut Data) -> Snapshot { store.snapshot(&self).unwrap().clone() } }
-// impl From<Vec<u8>>  for Snapshot { fn from(v: Vec<u8>)  -> Self { Snapshot(v)         } }
-// impl From<&Vec<u8>> for Snapshot { fn from(v: &Vec<u8>) -> Self { Snapshot(v.clone()) } }
-
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// pub struct Message {}
-//impl Identifiable<CommitId> for Message { fn id(&self) -> CommitId { self.id } }

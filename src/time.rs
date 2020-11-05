@@ -3,6 +3,8 @@ use std::fmt::{Display, Formatter};
 use chrono::{Date, Utc, DateTime, TimeZone};
 use serde::{Serialize, Deserialize};
 
+pub fn now() -> i64 { Utc::now().timestamp() }
+
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Seconds(pub u64);
 

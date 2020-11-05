@@ -395,16 +395,13 @@ pub struct ProjectMetadataSource {
     languages:        MetadataVec<LanguageExtractor>,
     descriptions:     MetadataVec<StringExtractor>,
     homepages:        MetadataVec<StringExtractor>,
-
     has_issues:       MetadataVec<BoolExtractor>,
     has_downloads:    MetadataVec<BoolExtractor>,
     has_wiki:         MetadataVec<BoolExtractor>,
     has_pages:        MetadataVec<BoolExtractor>,
-
     created:          MetadataVec<TimestampExtractor>,
     updated:          MetadataVec<TimestampExtractor>,
     pushed:           MetadataVec<TimestampExtractor>,
-
     master:           MetadataVec<StringExtractor>,
 }
 
@@ -514,6 +511,20 @@ impl MetadataSource for ProjectMetadataSource {
             { self.updated.store_to_cache()       },
             { self.pushed.store_to_cache()        },
             { self.master.store_to_cache()        })
+    }
+}
+
+struct ProjectUrlExtractor;
+impl Extractor for ProjectUrlExtractor {
+    type Key = ProjectId;
+    type Value = String;
+}
+impl SingleExtractor for ProjectUrlExtractor {
+    type A = DatastoreView;
+    fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        store.project_urls().map(|(project_id, url)| {
+            (ProjectId::from(project_id), url)
+        }).collect()
     }
 }
 
@@ -880,6 +891,7 @@ pub struct Data {
     store:                       DatastoreView,
 
     project_metadata:            ProjectMetadataSource,
+    project_urls:                PersistentSource<ProjectUrlExtractor>,
     project_heads:               PersistentSource<ProjectHeadsExtractor>,
     project_users:               PersistentSource<ProjectUsersExtractor>,
     project_authors:             PersistentSource<ProjectAuthorsExtractor>,
@@ -923,7 +935,8 @@ impl Data {
         let dir = cache_dir.into();
         Data {
             store,
-            project_metadata:            ProjectMetadataSource::new("project",               dir.clone()),
+
+            project_urls:                PersistentSource::new("project_urls",               dir.clone()),
             project_heads:               PersistentSource::new("project_heads",              dir.clone()),
             project_users:               PersistentSource::new("project_users",              dir.clone()),
             project_user_count:          PersistentSource::new("project_user_count",         dir.clone()),
@@ -934,6 +947,8 @@ impl Data {
             project_commits:             PersistentSource::new("project_commits",            dir.clone()),
             project_commit_count:        PersistentSource::new("project_commit_count",       dir.clone()),
             project_lifetimes:           PersistentSource::new("project_lifetimes",          dir.clone()),
+
+            project_metadata:            ProjectMetadataSource::new("project",               dir.clone()),
 
             users:                       PersistentSource::new("users",                      dir.clone()),
             user_authored_commits:       PersistentSource::new("user_authored_commits",      dir.clone()),
@@ -959,9 +974,31 @@ impl Data {
     }
 }
 
-impl Data {
-    // TODO streams
+impl Data { // Quincunx
+    pub fn projects<'a>(&'a mut self) -> impl Iterator<Item=Project> + 'a {
+        self.smart_load_project_urls().iter().map(|(id, url)| {
+            Project::new(id.clone(), url.clone())
+        })
+    }
 
+    pub fn users<'a>(&'a mut self) -> impl Iterator<Item=&'a User> + 'a {
+        self.smart_load_users().iter().map(|(_, user)| user)
+    }
+
+    pub fn paths<'a>(&'a mut self) -> impl Iterator<Item=&'a Path> + 'a {
+        self.smart_load_paths().iter().map(|(_, path)| path)
+    }
+
+    pub fn snapshots<'a>(&'a mut self) -> impl Iterator<Item=&'a Snapshot> + 'a {
+        self.smart_load_snapshots().iter().map(|(_, snapshot)| snapshot)
+    }
+
+    pub fn commits<'a>(&'a mut self) -> impl Iterator<Item=&'a Commit> + 'a {
+        self.smart_load_commits().iter().map(|(_, commit)| commit)
+    }
+}
+
+impl Data {
     pub fn project_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }         // FIXME
     pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }
 
@@ -1027,6 +1064,10 @@ impl Data {
     }
     pub fn project_master(&mut self, id: &ProjectId) -> Option<&String> {
         self.project_metadata.master(&self.store, id)
+    }
+
+    pub fn project_url(&mut self, id: &ProjectId) -> Option<String> {
+        self.smart_load_project_urls().get(id).pirate()
     }
 
     pub fn project_head_ids(&mut self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
@@ -1199,6 +1240,10 @@ macro_rules! load_with_prerequisites {
 }
 
 impl Data {
+    fn smart_load_project_urls(&mut self) -> &BTreeMap<ProjectId, String> {
+        load_from_store!(self, project_urls)
+    }
+
     fn smart_load_project_heads(&mut self) -> &BTreeMap<ProjectId, Vec<(String, CommitId)>> {
         load_from_store!(self, project_heads)
     }

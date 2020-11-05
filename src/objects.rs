@@ -236,51 +236,51 @@ impl Hash for Project {
 impl Identifiable<ProjectId> for Project { fn id(&self) -> ProjectId { self.id } }
 
 impl Project {
-    pub fn url              (&self)                   -> &str                            { self.url.as_str()                              }
+    pub fn new              (id: ProjectId, url: String) -> Self                            { Project { id, url }                            }
+    pub fn url              (&self)                      -> &str                            { self.url.as_str()                              }
 
-    pub fn timestamp        (&self,     _: &mut Data) -> i64                             { unimplemented!()                               }
-    pub fn issue_count      (&self, store: &mut Data) -> Option<usize>                   { store.project_issues(&self.id)             }
-    pub fn buggy_issue_count(&self, store: &mut Data) -> Option<usize>                   { store.project_buggy_issues(&self.id)       }
+    pub fn timestamp        (&self,     _: &mut Data)    -> i64                             { unimplemented!()                               }
+    pub fn issue_count      (&self, store: &mut Data)    -> Option<usize>                   { store.project_issues(&self.id)             }
+    pub fn buggy_issue_count(&self, store: &mut Data)    -> Option<usize>                   { store.project_buggy_issues(&self.id)       }
 
-    pub fn is_fork          (&self, store: &mut Data) -> Option<bool>                    { store.project_is_fork(&self.id)                }
-    pub fn is_archived      (&self, store: &mut Data) -> Option<bool>                    { store.project_is_archived(&self.id)            }
-    pub fn is_disabled      (&self, store: &mut Data) -> Option<bool>                    { store.project_is_disabled(&self.id)            }
-    pub fn star_count       (&self, store: &mut Data) -> Option<usize>                   { store.project_star_gazer_count(&self.id)       }
-    pub fn watcher_count    (&self, store: &mut Data) -> Option<usize>                   { store.project_watcher_count(&self.id)          }
-    pub fn size             (&self, store: &mut Data) -> Option<usize>                   { store.project_size(&self.id)                   }
-    pub fn open_issue_count (&self, store: &mut Data) -> Option<usize>                   { store.project_open_issue_count(&self.id)       }
-    pub fn network_count    (&self, store: &mut Data) -> Option<usize>                   { store.project_fork_count(&self.id)             }
-    pub fn subscriber_count (&self, store: &mut Data) -> Option<usize>                   { store.project_subscriber_count(&self.id)       }
-    pub fn license          (&self, store: &mut Data) -> Option<String>                  { store.project_license(&self.id).pirate()       }
-    pub fn language         (&self, store: &mut Data) -> Option<Language>                { store.project_language(&self.id)               }
-    pub fn description      (&self, store: &mut Data) -> Option<String>                  { store.project_description(&self.id).pirate()   }
-    pub fn homepage         (&self, store: &mut Data) -> Option<String>                  { store.project_homepages(&self.id).pirate()     }
-    pub fn head_ids         (&self, store: &mut Data) -> Option<Vec<(String, CommitId)>> { store.project_head_ids(&self.id)               }
-    pub fn heads            (&self, store: &mut Data) -> Option<Vec<(String, Commit)>>   { store.project_heads(&self.id)                  }
-    pub fn commit_ids       (&self, store: &mut Data) -> Option<Vec<CommitId>>           { store.project_commit_ids(&self.id).pirate()    }
-    pub fn commits          (&self, store: &mut Data) -> Option<Vec<Commit>>             { store.project_commits(&self.id)                }
-    pub fn commit_count     (&self, store: &mut Data) -> Option<usize>                   { store.project_commit_count(&self.id)           }
-    pub fn author_ids       (&self, store: &mut Data) -> Option<Vec<UserId>>             { store.project_author_ids(&self.id).pirate()    }
-    pub fn authors          (&self, store: &mut Data) -> Option<Vec<User>>               { store.project_authors(&self.id)                }
-    pub fn author_count     (&self, store: &mut Data) -> Option<usize>                   { store.project_author_count(&self.id)           }
-    pub fn committer_ids    (&self, store: &mut Data) -> Option<Vec<UserId>>             { store.project_committer_ids(&self.id).pirate() }
-    pub fn committers       (&self, store: &mut Data) -> Option<Vec<User>>               { store.project_committers(&self.id)             }
-    pub fn committer_count  (&self, store: &mut Data) -> Option<usize>                   { store.project_committer_count(&self.id)        }
-    pub fn user_ids         (&self, store: &mut Data) -> Option<Vec<UserId>>             { store.project_user_ids(&self.id).pirate()      }
-    pub fn users            (&self, store: &mut Data) -> Option<Vec<User>>               { store.project_users(&self.id)                  }
-    pub fn user_count       (&self, store: &mut Data) -> Option<usize>                   { store.project_user_count(&self.id)             }
-    pub fn lifetime         (&self, store: &mut Data) -> Option<Duration>                { store.project_lifetime(&self.id)               }
+    pub fn is_fork          (&self, store: &mut Data)    -> Option<bool>                    { store.project_is_fork(&self.id)                }
+    pub fn is_archived      (&self, store: &mut Data)    -> Option<bool>                    { store.project_is_archived(&self.id)            }
+    pub fn is_disabled      (&self, store: &mut Data)    -> Option<bool>                    { store.project_is_disabled(&self.id)            }
+    pub fn star_count       (&self, store: &mut Data)    -> Option<usize>                   { store.project_star_gazer_count(&self.id)       }
+    pub fn watcher_count    (&self, store: &mut Data)    -> Option<usize>                   { store.project_watcher_count(&self.id)          }
+    pub fn size             (&self, store: &mut Data)    -> Option<usize>                   { store.project_size(&self.id)                   }
+    pub fn open_issue_count (&self, store: &mut Data)    -> Option<usize>                   { store.project_open_issue_count(&self.id)       }
+    pub fn network_count    (&self, store: &mut Data)    -> Option<usize>                   { store.project_fork_count(&self.id)             }
+    pub fn subscriber_count (&self, store: &mut Data)    -> Option<usize>                   { store.project_subscriber_count(&self.id)       }
+    pub fn license          (&self, store: &mut Data)    -> Option<String>                  { store.project_license(&self.id).pirate()       }
+    pub fn language         (&self, store: &mut Data)    -> Option<Language>                { store.project_language(&self.id)               }
+    pub fn description      (&self, store: &mut Data)    -> Option<String>                  { store.project_description(&self.id).pirate()   }
+    pub fn homepage         (&self, store: &mut Data)    -> Option<String>                  { store.project_homepages(&self.id).pirate()     }
+    pub fn head_ids         (&self, store: &mut Data)    -> Option<Vec<(String, CommitId)>> { store.project_head_ids(&self.id)               }
+    pub fn heads            (&self, store: &mut Data)    -> Option<Vec<(String, Commit)>>   { store.project_heads(&self.id)                  }
+    pub fn commit_ids       (&self, store: &mut Data)    -> Option<Vec<CommitId>>           { store.project_commit_ids(&self.id).pirate()    }
+    pub fn commits          (&self, store: &mut Data)    -> Option<Vec<Commit>>             { store.project_commits(&self.id)                }
+    pub fn commit_count     (&self, store: &mut Data)    -> Option<usize>                   { store.project_commit_count(&self.id)           }
+    pub fn author_ids       (&self, store: &mut Data)    -> Option<Vec<UserId>>             { store.project_author_ids(&self.id).pirate()    }
+    pub fn authors          (&self, store: &mut Data)    -> Option<Vec<User>>               { store.project_authors(&self.id)                }
+    pub fn author_count     (&self, store: &mut Data)    -> Option<usize>                   { store.project_author_count(&self.id)           }
+    pub fn committer_ids    (&self, store: &mut Data)    -> Option<Vec<UserId>>             { store.project_committer_ids(&self.id).pirate() }
+    pub fn committers       (&self, store: &mut Data)    -> Option<Vec<User>>               { store.project_committers(&self.id)             }
+    pub fn committer_count  (&self, store: &mut Data)    -> Option<usize>                   { store.project_committer_count(&self.id)        }
+    pub fn user_ids         (&self, store: &mut Data)    -> Option<Vec<UserId>>             { store.project_user_ids(&self.id).pirate()      }
+    pub fn users            (&self, store: &mut Data)    -> Option<Vec<User>>               { store.project_users(&self.id)                  }
+    pub fn user_count       (&self, store: &mut Data)    -> Option<usize>                   { store.project_user_count(&self.id)             }
+    pub fn lifetime         (&self, store: &mut Data)    -> Option<Duration>                { store.project_lifetime(&self.id)               }
+    pub fn has_issues       (&self, store: &mut Data)    -> Option<bool>                    { store.project_has_issues(&self.id)             }
+    pub fn has_downloads    (&self, store: &mut Data)    -> Option<bool>                    { store.project_has_downloads(&self.id)          }
+    pub fn has_wiki         (&self, store: &mut Data)    -> Option<bool>                    { store.project_has_wiki(&self.id)               }
+    pub fn has_pages        (&self, store: &mut Data)    -> Option<bool>                    { store.project_has_pages(&self.id)              }
+    pub fn created          (&self, store: &mut Data)    -> Option<i64>                     { store.project_created(&self.id)                }
+    pub fn updated          (&self, store: &mut Data)    -> Option<i64>                     { store.project_updated(&self.id)                }
+    pub fn pushed           (&self, store: &mut Data)    -> Option<i64>                     { store.project_pushed(&self.id)                 }
+    pub fn master_branch    (&self, store: &mut Data)    -> Option<String>                  { store.project_master(&self.id).pirate()        }
 
-    pub fn has_issues       (&self, store: &mut Data) -> Option<bool>                    { store.project_has_issues(&self.id)             }
-    pub fn has_downloads    (&self, store: &mut Data) -> Option<bool>                    { store.project_has_downloads(&self.id)          }
-    pub fn has_wiki         (&self, store: &mut Data) -> Option<bool>                    { store.project_has_wiki(&self.id)               }
-    pub fn has_pages        (&self, store: &mut Data) -> Option<bool>                    { store.project_has_pages(&self.id)              }
-
-    pub fn created          (&self, store: &mut Data) -> Option<i64>                     { store.project_created(&self.id)                }
-    pub fn updated          (&self, store: &mut Data) -> Option<i64>                     { store.project_updated(&self.id)                }
-    pub fn pushed           (&self, store: &mut Data) -> Option<i64>                     { store.project_pushed(&self.id)                 }
-
-    pub fn master_branch    (&self, store: &mut Data) -> Option<String>                  { store.project_master(&self.id).pirate()        }
+    // TODO project commit frequency
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

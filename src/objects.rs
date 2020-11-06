@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::tuples::Pick;
 use crate::data::Data;
-use crate::piracy::Piracy;
+use crate::piracy::*;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum Language {
@@ -180,7 +180,7 @@ impl Display for SnapshotId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
 }
 
-pub trait Identity: Copy + Clone + Hash + Eq + PartialEq + Ord + PartialOrd + Display /*+ WithNames*/ {}
+pub trait Identity: Copy + Clone + Hash + Eq + PartialEq + Ord + PartialOrd + Display + Serialize /*+ WithNames*/ {}
 impl Identity for ProjectId  {}
 impl Identity for UserId     {}
 impl Identity for CommitId   {}
@@ -255,7 +255,7 @@ impl Project {
     pub fn license          (&self, store: &mut Data)    -> Option<String>                  { store.project_license(&self.id).pirate()       }
     pub fn language         (&self, store: &mut Data)    -> Option<Language>                { store.project_language(&self.id)               }
     pub fn description      (&self, store: &mut Data)    -> Option<String>                  { store.project_description(&self.id).pirate()   }
-    pub fn homepage         (&self, store: &mut Data)    -> Option<String>                  { store.project_homepages(&self.id).pirate()     }
+    pub fn homepage         (&self, store: &mut Data)    -> Option<String>                  { store.project_homepage(&self.id).pirate()      }
     pub fn head_ids         (&self, store: &mut Data)    -> Option<Vec<(String, CommitId)>> { store.project_head_ids(&self.id)               }
     pub fn heads            (&self, store: &mut Data)    -> Option<Vec<(String, Commit)>>   { store.project_heads(&self.id)                  }
     pub fn commit_ids       (&self, store: &mut Data)    -> Option<Vec<CommitId>>           { store.project_commit_ids(&self.id).pirate()    }

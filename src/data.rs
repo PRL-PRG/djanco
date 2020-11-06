@@ -1,7 +1,5 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::path::PathBuf;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::error::Error;
 use std::fs::{File, create_dir_all};
 
@@ -15,43 +13,163 @@ use crate::objects::*;
 use serde_json::Value as JSON;
 use serde_cbor;
 use serde::export::PhantomData;
-use crate::piracy::Piracy;
 use itertools::{Itertools, MinMaxResult};
 use std::time::Duration;
 use chrono::DateTime;
-
-pub type DataPtr = Rc<RefCell<Data>>;
+use crate::iterators::{IterWithData, DataPtr, ItemWithData};
+use std::rc::Rc;
+use std::cell::{RefCell, RefMut};
+use crate::tuples::*;
+use crate::piracy::*;
+use std::borrow::BorrowMut;
 
 static CACHE_EXTENSION: &str = ".cbor";
 trait Persistent: Serialize + DeserializeOwned {}
 impl<T> Persistent for T where T: Serialize + DeserializeOwned {}
 
-trait Extractor {
+trait VectorExtractor {
+    type Value: Clone + Persistent;
+}
+
+trait SingleVectorExtractor: VectorExtractor {
+    type A;
+    fn extract(a: &Self::A) -> Vec<Self::Value>;
+}
+
+trait DoubleVectorExtractor: VectorExtractor {
+    type A; type B;
+    fn extract(a: &Self::A, b: &Self::B) -> Vec<Self::Value>;
+}
+
+trait TripleVectorExtractor: VectorExtractor {
+    type A; type B; type C;
+    fn extract(a: &Self::A, b: &Self::B, c: &Self::C) -> Vec<Self::Value>;
+}
+
+trait MapExtractor {
     type Key:   Ord + Persistent;
     type Value: Clone + Persistent;
 }
 
-trait SingleExtractor: Extractor {
+trait SingleMapExtractor: MapExtractor {
     type A;
     fn extract(a: &Self::A) -> BTreeMap<Self::Key, Self::Value>;
 }
 
-trait DoubleExtractor: Extractor {
+trait DoubleMapExtractor: MapExtractor {
     type A; type B;
     fn extract(a: &Self::A, b: &Self::B) -> BTreeMap<Self::Key, Self::Value>;
 }
 
-trait TripleExtractor: Extractor {
+trait TripleMapExtractor: MapExtractor {
     type A; type B; type C;
     fn extract(a: &Self::A, b: &Self::B, c: &Self::C) -> BTreeMap<Self::Key, Self::Value>;
 }
 
-trait QuadrupleExtractor: Extractor {
-    type A; type B; type C; type D;
-    fn extract(a: &Self::A, b: &Self::B, c: &Self::C, d: &Self::D) -> BTreeMap<Self::Key, Self::Value>;
+// trait QuadrupleMapExtractor: MapExtractor {
+//     type A; type B; type C; type D;
+//     fn extract(a: &Self::A, b: &Self::B, c: &Self::C, d: &Self::D) -> BTreeMap<Self::Key, Self::Value>;
+// }
+
+trait PersistentCollection {
+    type Collection: Persistent;
+
+    fn setup_files<Sa,Sb>(name: Sa, dir: Sb) -> (PathBuf, PathBuf)
+        where Sa: Into<String>, Sb: Into<String>  {
+
+        let mut cache_dir = PathBuf::new();
+        cache_dir.push(std::path::Path::new(dir.into().as_str()));
+
+        let mut cache_path = cache_dir.clone();
+        cache_path.push(std::path::Path::new(name.into().as_str()));
+        cache_path.set_extension(CACHE_EXTENSION);
+
+        (cache_dir, cache_path)
+    }
+
+    fn cache_path(&self) -> &PathBuf;
+    fn cache_dir(&self) -> &PathBuf;
+    fn collection(&self) -> &Option<Self::Collection>;
+    fn set_collection(&mut self, collection: Self::Collection);
+
+    fn grab_collection(&mut self) -> &Self::Collection {
+        self.collection().as_ref().unwrap()
+    }
+    fn is_loaded(&self) -> bool {
+        self.collection().is_some()
+    }
+    fn already_cached(&self) -> bool {
+        self.cache_path().is_file()
+    }
+
+    fn load_from_cache(&mut self) -> Result<(), Box<dyn Error>> {
+        let reader = File::open(&self.cache_path())?;
+        self.set_collection(serde_cbor::from_reader(reader)?);
+        Ok(())
+    }
+    fn store_to_cache(&mut self) -> Result<(), Box<dyn Error>> {
+        create_dir_all(&self.cache_dir())?;
+        let writer = File::create(&self.cache_path())?;
+        serde_cbor::to_writer(writer, &self.grab_collection())?;
+        Ok(())
+    }
+    fn data_from_loader<F>(&mut self, mut load: F) -> &Self::Collection
+        where F: FnMut() -> Self::Collection {
+
+        if self.collection().is_none() {
+            if self.already_cached() {
+                self.load_from_cache().unwrap()
+            } else {
+                self.set_collection(load());
+                self.store_to_cache().unwrap()
+            }
+        }
+        self.grab_collection()
+    }
 }
 
-struct PersistentSource<E: Extractor> {
+struct PersistentVector<E: VectorExtractor> {
+    //name: String,
+    cache_path: PathBuf,
+    cache_dir: PathBuf,
+    vector: Option<Vec<E::Value>>,
+    extractor: PhantomData<E>,
+}
+
+impl<E> PersistentCollection for PersistentVector<E> where E: VectorExtractor {
+    type Collection = Vec<E::Value>;
+    fn cache_path(&self) -> &PathBuf { &self.cache_path }
+    fn cache_dir(&self) -> &PathBuf { &self.cache_dir }
+    fn collection(&self) -> &Option<Self::Collection> { &self.vector }
+    fn set_collection(&mut self, vector: Self::Collection) { self.vector = Some(vector) }
+}
+
+impl<E> PersistentVector<E> where E: VectorExtractor {
+    pub fn new<Sa, Sb>(name: Sa, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
+        let (cache_dir, cache_path) = Self::setup_files(name, dir);
+        PersistentVector { /*name,*/ cache_path, cache_dir, vector: None, extractor: PhantomData }
+    }
+}
+
+impl<E,A> PersistentVector<E> where E: SingleVectorExtractor<A=A> {
+    pub fn load_from_one(&mut self, input: &A) -> &Vec<E::Value> {
+        self.data_from_loader(|| { E::extract(input) })
+    }
+}
+
+impl<E,A,B> PersistentVector<E> where E: DoubleVectorExtractor<A=A, B=B> {
+    pub fn load_from_two(&mut self, input_a: &A, input_b: &B) -> &Vec<E::Value> {
+        self.data_from_loader(|| { E::extract(input_a, input_b) })
+    }
+}
+
+impl<E,A,B,C> PersistentVector<E> where E: TripleVectorExtractor<A=A, B=B, C=C> {
+    pub fn load_from_three(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &Vec<E::Value> {
+        self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
+    }
+}
+
+struct PersistentMap<E: MapExtractor> {
     //name: String,
     cache_path: PathBuf,
     cache_dir: PathBuf,
@@ -59,90 +177,44 @@ struct PersistentSource<E: Extractor> {
     extractor: PhantomData<E>,
 }
 
-impl<E> PersistentSource<E> where E: Extractor {
-    pub fn new<Sa,Sb>(name: Sa, dir: Sb) -> PersistentSource<E>
-        where Sa: Into<String>, Sb: Into<String> {
+impl<E> PersistentCollection for PersistentMap<E> where E: MapExtractor {
+    type Collection = BTreeMap<E::Key, E::Value>;
+    fn cache_path(&self) -> &PathBuf { &self.cache_path }
+    fn cache_dir(&self) -> &PathBuf { &self.cache_dir }
+    fn collection(&self) -> &Option<Self::Collection> { &self.map }
+    fn set_collection(&mut self, map: Self::Collection) { self.map = Some(map) }
+}
 
-        let name: String = name.into();
-
-        let mut cache_dir = PathBuf::new();
-        cache_dir.push(std::path::Path::new(dir.into().as_str()));
-
-        let mut cache_path = cache_dir.clone();
-        cache_path.push(std::path::Path::new(name.as_str()));
-        cache_path.set_extension(CACHE_EXTENSION);
-
-        let map = None; // Lazy.
-
-        PersistentSource { /*name,*/ cache_path, cache_dir, map, extractor: PhantomData }
-    }
-
-    fn is_loaded(&self) -> bool {
-        self.map.is_some()
-    }
-
-    fn already_cached(&self) -> bool {
-        self.cache_path.is_file()
-    }
-
-    fn load_from_cache(&mut self) -> Result<(), Box<dyn Error>> {
-        let reader = File::open(&self.cache_path)?;
-        self.map = Some(serde_cbor::from_reader(reader)?);
-        Ok(())
-    }
-
-    fn store_to_cache(&mut self) -> Result<(), Box<dyn Error>> {
-        create_dir_all(&self.cache_dir)?;
-        let writer = File::create(&self.cache_path)?;
-        serde_cbor::to_writer(writer, &self.map)?;
-        Ok(())
-    }
-
-    fn grab(&mut self) -> &BTreeMap<E::Key, E::Value> {
-        self.map.as_ref().unwrap()
+impl<E> PersistentMap<E> where E: MapExtractor {
+    pub fn new<Sa, Sb>(name: Sa, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
+        let (cache_dir, cache_path) = Self::setup_files(name, dir);
+        PersistentMap { /*name,*/ cache_path, cache_dir, map: None, extractor: PhantomData }
     }
 }
 
-impl<E> PersistentSource<E> where E: Extractor {
-    pub fn data_from_loader<F>(&mut self, mut load: F) -> &BTreeMap<E::Key, E::Value>
-        where F: FnMut() -> BTreeMap<E::Key, E::Value> {
-
-        if self.map.is_none() {
-            if self.already_cached() {
-                self.load_from_cache().unwrap()
-            } else {
-                self.map = Some(load());
-                self.store_to_cache().unwrap()
-            }
-        }
-
-        self.map.as_ref().unwrap()
-    }
-}
-
-impl<E,A> PersistentSource<E> where E: SingleExtractor<A=A> {
+impl<E,A> PersistentMap<E> where E: SingleMapExtractor<A=A> {
     pub fn load_from_one(&mut self, input: &A) -> &BTreeMap<E::Key, E::Value> {
         self.data_from_loader(|| { E::extract(input) })
     }
 }
 
-impl<E,A,B> PersistentSource<E> where E: DoubleExtractor<A=A,B=B> {
+impl<E,A,B> PersistentMap<E> where E: DoubleMapExtractor<A=A,B=B> {
     pub fn load_from_two(&mut self, input_a: &A, input_b: &B) -> &BTreeMap<E::Key, E::Value> {
         self.data_from_loader(|| { E::extract(input_a, input_b) })
     }
 }
 
-impl<E,A,B,C> PersistentSource<E> where E: TripleExtractor<A=A,B=B,C=C> {
+impl<E,A,B,C> PersistentMap<E> where E: TripleMapExtractor<A=A,B=B,C=C> {
     pub fn load_from_three(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &BTreeMap<E::Key, E::Value> {
         self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
     }
 }
 
-impl<E,A,B,C,D> PersistentSource<E> where E: QuadrupleExtractor<A=A,B=B,C=C,D=D>{
-    #[allow(dead_code)] pub fn load_from_four(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D) -> &BTreeMap<E::Key, E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b, input_c, input_d) })
-    }
-}
+// impl<E,A,B,C,D> PersistentMap<E> where E: QuadrupleExtractor<A=A,B=B,C=C,D=D>{
+//     #[allow(dead_code)] pub fn load_from_four(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D) -> &BTreeMap<E::Key, E::Value> {
+//         self.data_from_loader(|| { E::extract(input_a, input_b, input_c, input_d) })
+//     }
+// }
 
 trait MetadataFieldExtractor {
     type Value: Persistent;
@@ -514,12 +586,28 @@ impl MetadataSource for ProjectMetadataSource {
     }
 }
 
+struct IdExtractor<Id: Identity + Persistent> { _type: PhantomData<Id> }
+impl<Id> IdExtractor<Id> where Id: Identity + Persistent {
+    pub fn new() -> IdExtractor<Id> {
+        IdExtractor { _type: PhantomData }
+    }
+}
+impl<Id> VectorExtractor for IdExtractor<Id> where Id: Identity + Persistent {
+    type Value = Id;
+}
+impl<Id> SingleVectorExtractor for IdExtractor<Id> where Id: Identity + Persistent  {
+    type A = BTreeMap<Id, String>;
+    fn extract(whatever: &Self::A) -> Vec<Self::Value> {
+        whatever.keys().collect::<Vec<&Id>>().pirate()
+    }
+}
+
 struct ProjectUrlExtractor;
-impl Extractor for ProjectUrlExtractor {
+impl MapExtractor for ProjectUrlExtractor {
     type Key = ProjectId;
     type Value = String;
 }
-impl SingleExtractor for ProjectUrlExtractor {
+impl SingleMapExtractor for ProjectUrlExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.project_urls().map(|(project_id, url)| {
@@ -529,11 +617,11 @@ impl SingleExtractor for ProjectUrlExtractor {
 }
 
 struct ProjectHeadsExtractor;
-impl Extractor for ProjectHeadsExtractor {
+impl MapExtractor for ProjectHeadsExtractor {
     type Key = ProjectId;
     type Value = Vec<(String, CommitId)>;
 }
-impl SingleExtractor for ProjectHeadsExtractor {
+impl SingleMapExtractor for ProjectHeadsExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.project_heads().map(|(project_id, heads)| {
@@ -545,11 +633,11 @@ impl SingleExtractor for ProjectHeadsExtractor {
 }
 
 struct ProjectUsersExtractor {}
-impl Extractor for ProjectUsersExtractor {
+impl MapExtractor for ProjectUsersExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
 }
-impl DoubleExtractor for ProjectUsersExtractor {
+impl DoubleMapExtractor for ProjectUsersExtractor {
     type A = BTreeMap<ProjectId, Vec<UserId>>;
     type B = BTreeMap<ProjectId, Vec<UserId>>;
     fn extract(project_authors: &Self::A, project_committers: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
@@ -565,11 +653,11 @@ impl DoubleExtractor for ProjectUsersExtractor {
     }
 }
 struct ProjectAuthorsExtractor {}
-impl Extractor for ProjectAuthorsExtractor {
+impl MapExtractor for ProjectAuthorsExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
 }
-impl DoubleExtractor for ProjectAuthorsExtractor {
+impl DoubleMapExtractor for ProjectAuthorsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Commit>;
     fn extract(project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
@@ -581,11 +669,11 @@ impl DoubleExtractor for ProjectAuthorsExtractor {
     }
 }
 struct ProjectCommittersExtractor {}
-impl Extractor for ProjectCommittersExtractor {
+impl MapExtractor for ProjectCommittersExtractor {
     type Key = ProjectId;
     type Value = Vec<UserId>;
 }
-impl DoubleExtractor for ProjectCommittersExtractor {
+impl DoubleMapExtractor for ProjectCommittersExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Commit>;
     fn extract(project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
@@ -598,11 +686,11 @@ impl DoubleExtractor for ProjectCommittersExtractor {
 }
 
 struct CountPerKeyExtractor<K: Clone + Ord + Persistent, V>(PhantomData<(K, V)>);
-impl<K, V> Extractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent {
+impl<K, V> MapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent {
     type Key = K;
     type Value = usize;
 }
-impl<K, V> SingleExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent {
+impl<K, V> SingleMapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent {
     type A = BTreeMap<K, Vec<V>>;
 
     fn extract(primary: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
@@ -625,11 +713,11 @@ impl ProjectCommitsExtractor {
         commits_in_head
     }
 }
-impl Extractor for ProjectCommitsExtractor {
+impl MapExtractor for ProjectCommitsExtractor {
     type Key = ProjectId;
     type Value = Vec<CommitId>;
 }
-impl DoubleExtractor for ProjectCommitsExtractor {
+impl DoubleMapExtractor for ProjectCommitsExtractor {
     type A = BTreeMap<ProjectId, Vec<(String, CommitId)>>;
     type B = BTreeMap<CommitId, Commit>;
     fn extract(heads: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
@@ -643,11 +731,11 @@ impl DoubleExtractor for ProjectCommitsExtractor {
 }
 
 struct ProjectLifetimesExtractor {}
-impl Extractor for ProjectLifetimesExtractor {
+impl MapExtractor for ProjectLifetimesExtractor {
     type Key = ProjectId;
     type Value = u64;
 }
-impl TripleExtractor for ProjectLifetimesExtractor {
+impl TripleMapExtractor for ProjectLifetimesExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     type C = BTreeMap<CommitId, i64>;
@@ -675,11 +763,11 @@ impl TripleExtractor for ProjectLifetimesExtractor {
 }
 
 struct UserExtractor {}
-impl Extractor for UserExtractor {
+impl MapExtractor for UserExtractor {
     type Key = UserId;
     type Value = User;
 }
-impl SingleExtractor for UserExtractor {
+impl SingleMapExtractor for UserExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.users().map(|(id, email)| {
@@ -689,11 +777,11 @@ impl SingleExtractor for UserExtractor {
 }
 
 struct UserAuthoredCommitsExtractor {}
-impl Extractor for UserAuthoredCommitsExtractor {
+impl MapExtractor for UserAuthoredCommitsExtractor {
     type Key = UserId;
     type Value = Vec<CommitId>;
 }
-impl SingleExtractor for UserAuthoredCommitsExtractor {
+impl SingleMapExtractor for UserAuthoredCommitsExtractor {
     type A = BTreeMap<CommitId, Commit>;
     fn extract(commits: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         commits.iter()
@@ -706,11 +794,11 @@ impl SingleExtractor for UserAuthoredCommitsExtractor {
 }
 
 struct UserExperienceExtractor {}
-impl Extractor for UserExperienceExtractor {
+impl MapExtractor for UserExperienceExtractor {
     type Key = UserId;
     type Value = u64;
 }
-impl DoubleExtractor for UserExperienceExtractor  {
+impl DoubleMapExtractor for UserExperienceExtractor  {
     type A = BTreeMap<UserId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     fn extract(user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
@@ -732,11 +820,11 @@ impl DoubleExtractor for UserExperienceExtractor  {
 }
 
 struct CombinedUserExperienceExtractor {}
-impl Extractor for CombinedUserExperienceExtractor {
+impl MapExtractor for CombinedUserExperienceExtractor {
     type Key = UserId;
     type Value = u64;
 }
-impl TripleExtractor for CombinedUserExperienceExtractor  {
+impl TripleMapExtractor for CombinedUserExperienceExtractor  {
     type A = BTreeMap<UserId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     type C = BTreeMap<CommitId, i64>;
@@ -764,11 +852,11 @@ impl TripleExtractor for CombinedUserExperienceExtractor  {
 }
 
 struct PathExtractor {}
-impl Extractor for PathExtractor {
+impl MapExtractor for PathExtractor {
     type Key = PathId;
     type Value = Path;
 }
-impl SingleExtractor for PathExtractor {
+impl SingleMapExtractor for PathExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.paths().map(|(id, location)| {
@@ -778,11 +866,11 @@ impl SingleExtractor for PathExtractor {
 }
 
 struct SnapshotExtractor {}
-impl Extractor for SnapshotExtractor {
+impl MapExtractor for SnapshotExtractor {
     type Key = SnapshotId;
     type Value = Snapshot;
 }
-impl SingleExtractor for SnapshotExtractor {
+impl SingleMapExtractor for SnapshotExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.contents().map(|(id, contents)| {
@@ -792,11 +880,11 @@ impl SingleExtractor for SnapshotExtractor {
 }
 
 struct CommitExtractor {}
-impl Extractor for CommitExtractor {
+impl MapExtractor for CommitExtractor {
     type Key = CommitId;
     type Value = Commit;
 }
-impl SingleExtractor for CommitExtractor {
+impl SingleMapExtractor for CommitExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.commits().map(|(id, commit)| {
@@ -806,11 +894,11 @@ impl SingleExtractor for CommitExtractor {
 }
 
 struct CommitHashExtractor {}
-impl Extractor for CommitHashExtractor {
+impl MapExtractor for CommitHashExtractor {
     type Key = CommitId;
     type Value = String;
 }
-impl SingleExtractor for CommitHashExtractor {
+impl SingleMapExtractor for CommitHashExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.commits().map(|(id, commit)| {
@@ -820,11 +908,11 @@ impl SingleExtractor for CommitHashExtractor {
 }
 
 struct CommitMessageExtractor {}
-impl Extractor for CommitMessageExtractor {
+impl MapExtractor for CommitMessageExtractor {
     type Key = CommitId;
     type Value = String;
 }
-impl SingleExtractor for CommitMessageExtractor {
+impl SingleMapExtractor for CommitMessageExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.commits().map(|(id, commit)| {
@@ -834,11 +922,11 @@ impl SingleExtractor for CommitMessageExtractor {
 }
 
 struct CommitterTimestampExtractor {}
-impl Extractor for CommitterTimestampExtractor {
+impl MapExtractor for CommitterTimestampExtractor {
     type Key = CommitId;
     type Value = i64;
 }
-impl SingleExtractor for CommitterTimestampExtractor {
+impl SingleMapExtractor for CommitterTimestampExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.commits().map(|(id, commit)| {
@@ -848,11 +936,11 @@ impl SingleExtractor for CommitterTimestampExtractor {
 }
 
 struct CommitChangesExtractor {}
-impl Extractor for CommitChangesExtractor {
+impl MapExtractor for CommitChangesExtractor {
     type Key = CommitId;
     type Value = Vec<(PathId, SnapshotId)>;
 }
-impl SingleExtractor for CommitChangesExtractor {
+impl SingleMapExtractor for CommitChangesExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.commits().map(|(id, commit)| {
@@ -863,11 +951,11 @@ impl SingleExtractor for CommitChangesExtractor {
 }
 
 struct AuthorTimestampExtractor {}
-impl Extractor for AuthorTimestampExtractor {
+impl MapExtractor for AuthorTimestampExtractor {
     type Key = CommitId;
     type Value = i64;
 }
-impl SingleExtractor for AuthorTimestampExtractor {
+impl SingleMapExtractor for AuthorTimestampExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.commits().map(|(id, commit)| {
@@ -890,41 +978,43 @@ impl From<(u64, dcd::Commit)> for Commit {
 pub struct Data {
     store:                       DatastoreView,
 
+    project_ids:                 PersistentVector<IdExtractor<ProjectId>>,
+
     project_metadata:            ProjectMetadataSource,
-    project_urls:                PersistentSource<ProjectUrlExtractor>,
-    project_heads:               PersistentSource<ProjectHeadsExtractor>,
-    project_users:               PersistentSource<ProjectUsersExtractor>,
-    project_authors:             PersistentSource<ProjectAuthorsExtractor>,
-    project_committers:          PersistentSource<ProjectCommittersExtractor>,
-    project_commits:             PersistentSource<ProjectCommitsExtractor>,
-    project_lifetimes:           PersistentSource<ProjectLifetimesExtractor>,
+    project_urls:                PersistentMap<ProjectUrlExtractor>,
+    project_heads:               PersistentMap<ProjectHeadsExtractor>,
+    project_users:               PersistentMap<ProjectUsersExtractor>,
+    project_authors:             PersistentMap<ProjectAuthorsExtractor>,
+    project_committers:          PersistentMap<ProjectCommittersExtractor>,
+    project_commits:             PersistentMap<ProjectCommitsExtractor>,
+    project_lifetimes:           PersistentMap<ProjectLifetimesExtractor>,
 
-    project_user_count:          PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
-    project_author_count:        PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
-    project_committer_count:     PersistentSource<CountPerKeyExtractor<ProjectId, UserId>>,
-    project_commit_count:        PersistentSource<CountPerKeyExtractor<ProjectId, CommitId>>,
+    project_user_count:          PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
+    project_author_count:        PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
+    project_committer_count:     PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
+    project_commit_count:        PersistentMap<CountPerKeyExtractor<ProjectId, CommitId>>,
 
-    users:                       PersistentSource<UserExtractor>,
-    user_authored_commits:       PersistentSource<UserAuthoredCommitsExtractor>,
-    user_committed_commits:      PersistentSource<UserAuthoredCommitsExtractor>,
-    user_author_experience:      PersistentSource<UserExperienceExtractor>,
-    user_committer_experience:   PersistentSource<UserExperienceExtractor>,
-    user_experience:             PersistentSource<CombinedUserExperienceExtractor>,
+    users:                       PersistentMap<UserExtractor>,
+    user_authored_commits:       PersistentMap<UserAuthoredCommitsExtractor>,
+    user_committed_commits:      PersistentMap<UserAuthoredCommitsExtractor>,
+    user_author_experience:      PersistentMap<UserExperienceExtractor>,
+    user_committer_experience:   PersistentMap<UserExperienceExtractor>,
+    user_experience:             PersistentMap<CombinedUserExperienceExtractor>,
 
-    user_authored_commit_count:  PersistentSource<CountPerKeyExtractor<UserId, CommitId>>,
-    user_committed_commit_count: PersistentSource<CountPerKeyExtractor<UserId, CommitId>>,
+    user_authored_commit_count:  PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
+    user_committed_commit_count: PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
 
-    paths:                       PersistentSource<PathExtractor>,
-    snapshots:                   PersistentSource<SnapshotExtractor>,
+    paths:                       PersistentMap<PathExtractor>,
+    snapshots:                   PersistentMap<SnapshotExtractor>,
 
-    commits:                     PersistentSource<CommitExtractor>,
-    commit_hashes:               PersistentSource<CommitHashExtractor>,
-    commit_messages:             PersistentSource<CommitMessageExtractor>,
-    commit_author_timestamps:    PersistentSource<AuthorTimestampExtractor>,
-    commit_committer_timestamps: PersistentSource<CommitterTimestampExtractor>,
-    commit_changes:              PersistentSource<CommitChangesExtractor>,
+    commits:                     PersistentMap<CommitExtractor>,
+    commit_hashes:               PersistentMap<CommitHashExtractor>,
+    commit_messages:             PersistentMap<CommitMessageExtractor>,
+    commit_author_timestamps:    PersistentMap<AuthorTimestampExtractor>,
+    commit_committer_timestamps: PersistentMap<CommitterTimestampExtractor>,
+    commit_changes:              PersistentMap<CommitChangesExtractor>,
 
-    commit_change_count:         PersistentSource<CountPerKeyExtractor<CommitId, (PathId, SnapshotId)>>,
+    commit_change_count:         PersistentMap<CountPerKeyExtractor<CommitId, (PathId, SnapshotId)>>,
 
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
@@ -936,42 +1026,52 @@ impl Data {
         Data {
             store,
 
-            project_urls:                PersistentSource::new("project_urls",               dir.clone()),
-            project_heads:               PersistentSource::new("project_heads",              dir.clone()),
-            project_users:               PersistentSource::new("project_users",              dir.clone()),
-            project_user_count:          PersistentSource::new("project_user_count",         dir.clone()),
-            project_authors:             PersistentSource::new("project_authors",            dir.clone(),),
-            project_author_count:        PersistentSource::new("project_author_count",       dir.clone()),
-            project_committers:          PersistentSource::new("project_committers",         dir.clone()),
-            project_committer_count:     PersistentSource::new("project_committer_count",    dir.clone()),
-            project_commits:             PersistentSource::new("project_commits",            dir.clone()),
-            project_commit_count:        PersistentSource::new("project_commit_count",       dir.clone()),
-            project_lifetimes:           PersistentSource::new("project_lifetimes",          dir.clone()),
+            project_ids:                 PersistentVector::new("project_ids", dir.clone()),
+
+            project_urls:                PersistentMap::new("project_urls", dir.clone()),
+            project_heads:               PersistentMap::new("project_heads", dir.clone()),
+            project_users:               PersistentMap::new("project_users", dir.clone()),
+            project_user_count:          PersistentMap::new("project_user_count", dir.clone()),
+            project_authors:             PersistentMap::new("project_authors", dir.clone(),),
+            project_author_count:        PersistentMap::new("project_author_count", dir.clone()),
+            project_committers:          PersistentMap::new("project_committers", dir.clone()),
+            project_committer_count:     PersistentMap::new("project_committer_count", dir.clone()),
+            project_commits:             PersistentMap::new("project_commits", dir.clone()),
+            project_commit_count:        PersistentMap::new("project_commit_count", dir.clone()),
+            project_lifetimes:           PersistentMap::new("project_lifetimes", dir.clone()),
 
             project_metadata:            ProjectMetadataSource::new("project",               dir.clone()),
 
-            users:                       PersistentSource::new("users",                      dir.clone()),
-            user_authored_commits:       PersistentSource::new("user_authored_commits",      dir.clone()),
-            user_committed_commits:      PersistentSource::new("user_committed_commits",     dir.clone()),
-            user_author_experience:      PersistentSource::new("user_author_experience",     dir.clone()),
-            user_committer_experience:   PersistentSource::new("user_committer_experience",  dir.clone()),
-            user_experience:             PersistentSource::new("user_experience",            dir.clone()),
+            users:                       PersistentMap::new("users", dir.clone()),
+            user_authored_commits:       PersistentMap::new("user_authored_commits", dir.clone()),
+            user_committed_commits:      PersistentMap::new("user_committed_commits", dir.clone()),
+            user_author_experience:      PersistentMap::new("user_author_experience", dir.clone()),
+            user_committer_experience:   PersistentMap::new("user_committer_experience", dir.clone()),
+            user_experience:             PersistentMap::new("user_experience", dir.clone()),
 
-            user_authored_commit_count:  PersistentSource::new("user_authored_commit_count", dir.clone()),
-            user_committed_commit_count: PersistentSource::new("user_committed_commit_count",dir.clone()),
+            user_authored_commit_count:  PersistentMap::new("user_authored_commit_count", dir.clone()),
+            user_committed_commit_count: PersistentMap::new("user_committed_commit_count", dir.clone()),
 
-            paths:                       PersistentSource::new("paths",                      dir.clone()),
-            snapshots:                   PersistentSource::new("snapshots",                  dir.clone()),
+            paths:                       PersistentMap::new("paths", dir.clone()),
+            snapshots:                   PersistentMap::new("snapshots", dir.clone()),
 
-            commits:                     PersistentSource::new("commits",                    dir.clone()),
-            commit_hashes:               PersistentSource::new("commit_hashes",              dir.clone()),
-            commit_messages:             PersistentSource::new("commit_messages",            dir.clone()),
-            commit_author_timestamps:    PersistentSource::new("commit_author_timestamps",   dir.clone()),
-            commit_committer_timestamps: PersistentSource::new("commit_committer_timestamps",dir.clone()),
-            commit_changes:              PersistentSource::new("commit_changes",             dir.clone()),
-            commit_change_count:         PersistentSource::new("commit_change_count",        dir.clone()),
+            commits:                     PersistentMap::new("commits", dir.clone()),
+            commit_hashes:               PersistentMap::new("commit_hashes", dir.clone()),
+            commit_messages:             PersistentMap::new("commit_messages", dir.clone()),
+            commit_author_timestamps:    PersistentMap::new("commit_author_timestamps", dir.clone()),
+            commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", dir.clone()),
+            commit_changes:              PersistentMap::new("commit_changes", dir.clone()),
+            commit_change_count:         PersistentMap::new("commit_change_count", dir.clone()),
         }
     }
+}
+
+impl Data { // Prequincunx
+    pub fn all_project_ids(&mut self) -> Vec<ProjectId> { self.smart_load_project_urls().keys().collect::<Vec<&ProjectId>>().pirate() }
+    pub fn all_user_ids(&mut self) -> Vec<UserId> { self.smart_load_users().keys().collect::<Vec<&UserId>>().pirate() }
+    pub fn all_path_ids(&mut self) -> Vec<PathId> { self.smart_load_paths().keys().collect::<Vec<&PathId>>().pirate() }
+    pub fn all_snapshot_ids(&mut self) -> Vec<SnapshotId> { self.smart_load_snapshots().keys().collect::<Vec<&SnapshotId>>().pirate() }
+    pub fn all_commit_ids(&mut self) -> Vec<CommitId> { self.smart_load_commits().keys().collect::<Vec<&CommitId>>().pirate() }
 }
 
 impl Data { // Quincunx
@@ -999,6 +1099,11 @@ impl Data { // Quincunx
 }
 
 impl Data {
+    pub fn project(&mut self, id: &ProjectId) -> Option<Project> {
+        self.smart_load_project_urls().get(id)
+            .map(|url| Project::new(id.clone(), url.clone()))
+    }
+
     pub fn project_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }         // FIXME
     pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }
 
@@ -1038,7 +1143,7 @@ impl Data {
     pub fn project_description(&mut self, id: &ProjectId) -> Option<&String> {
         self.project_metadata.description(&self.store, id)
     }
-    pub fn project_homepages(&mut self, id: &ProjectId) -> Option<&String> {
+    pub fn project_homepage(&mut self, id: &ProjectId) -> Option<&String> {
         self.project_metadata.homepage(&self.store, id)
     }
     pub fn project_has_issues(&mut self, id: &ProjectId) -> Option<bool> {
@@ -1221,7 +1326,7 @@ macro_rules! load_from_store {
         if !$self.$vector.is_loaded() {
             $self.$vector.load_from_one(&$self.store);
         }
-        $self.$vector.grab()
+        $self.$vector.grab_collection()
     }}
 }
 
@@ -1233,13 +1338,17 @@ macro_rules! load_with_prerequisites {
         }
         if !$self.$vector.is_loaded() {
             m! { $(  $self."smart_load" $prereq(); )*              }
-            m! { $self.$vector."load"($($self.$prereq.grab()), *); }
+            m! { $self.$vector."load"($($self.$prereq.grab_collection()), *); }
         }
-        $self.$vector.grab()
+        $self.$vector.grab_collection()
     }}
 }
 
 impl Data {
+    fn smart_load_project_ids(&mut self) -> &Vec<ProjectId> {
+        load_with_prerequisites!(self, project_ids, one, project_urls)
+    }
+
     fn smart_load_project_urls(&mut self) -> &BTreeMap<ProjectId, String> {
         load_from_store!(self, project_urls)
     }
@@ -1356,5 +1465,261 @@ impl Data {
 
     fn smart_load_commit_change_count(&mut self) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, one, commit_changes)
+    }
+}
+
+trait WithData { fn get_data(&mut self) -> &mut Data; }
+
+// Internally Mutable Data?
+pub struct Datax {
+    data: RefCell<Data>,
+}
+
+// struct ProjectIter<'a> {
+//     data: &'a Datax, //RefMut<'a, Data>,
+//     iter: Option<Box<dyn Iterator<Item=Project> + 'a>>,
+// }
+//
+// impl<'a> ProjectIter<'a> {
+//     pub fn new(data: &'a Datax) -> Self {
+//         //let mut data = data.borrow_mut();
+//         ProjectIter {
+//             //iter: Some(Box::new(data.projects())),
+//             data, iter: None
+//         }
+//     }
+// }
+//
+// impl<'a> Iterator for ProjectIter<'a>  {
+//     type Item = ItemWithData<'a, Project>;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.iter.is_none() {
+//             self.iter = Some(Box::new(self.data.data.borrow_mut().projects()))
+//         }
+//         self.iter.unwrap().next().map(|e| ItemWithData::new(self.data,e))
+//     }
+// }
+
+// Prequincunx
+impl Datax {
+    pub fn all_project_ids(&self) -> Vec<ProjectId> { self.data.borrow_mut().all_project_ids() }
+    pub fn all_user_ids(&self) -> Vec<UserId> { self.data.borrow_mut().all_user_ids() }
+    pub fn all_path_ids(&self) -> Vec<PathId> { self.data.borrow_mut().all_path_ids() }
+    pub fn all_snapshot_ids(&self) -> Vec<SnapshotId> { self.data.borrow_mut().all_snapshot_ids() }
+    pub fn all_commit_ids(&self) -> Vec<CommitId> { self.data.borrow_mut().all_commit_ids() }
+}
+
+impl Datax {
+    // pub fn projects<'a>(&'a self) -> impl Iterator<Item=ItemWithData<'a, Project>> + 'a {
+    //     let mut x = self.data.borrow_mut();
+    //     let y = x.projects();
+    //
+    //     //let generator = |datax: &'a Datax| { datax.data.borrow_mut().projects() };
+    //     IterWithData::new(self, y)
+    // }
+    pub fn project(&self, id: &ProjectId) -> Option<Project> { self.data.borrow_mut().project(id) }
+
+    pub fn project_issues(&self, id: &ProjectId) -> Option<usize> { self.data.borrow_mut().project_issues(id) }
+    pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize> { self.data.borrow_mut().project_buggy_issues(id) }
+
+    pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_is_fork(id)
+    }
+    pub fn project_is_archived(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_is_archived(id)
+    }
+    pub fn project_is_disabled(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_is_disabled(id)
+    }
+    pub fn project_star_gazer_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_star_gazer_count(id)
+    }
+    pub fn project_watcher_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_watcher_count(id)
+    }
+    pub fn project_size(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_size(id)
+    }
+    pub fn project_open_issue_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_open_issue_count(id)
+    }
+    pub fn project_fork_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_fork_count(id)
+    }
+    pub fn project_subscriber_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_subscriber_count(id)
+    }
+    pub fn project_license(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_license(id).pirate()
+    }
+    pub fn project_language(&self, id: &ProjectId) -> Option<Language> {
+        self.data.borrow_mut().project_language(id)
+    }
+    pub fn project_description(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_description(id).pirate()
+    }
+    pub fn project_homepage(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_homepage(id).pirate()
+    }
+    pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_has_issues(id)
+    }
+    pub fn project_has_downloads(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_has_downloads(id)
+    }
+    pub fn project_has_wiki(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_has_wiki(id)
+    }
+    pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_has_pages(id)
+    }
+    pub fn project_created(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().project_created(id)
+    }
+    pub fn project_updated(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().project_updated(id)
+    }
+    pub fn project_pushed(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().project_pushed(id)
+    }
+    pub fn project_master(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_master(id).pirate()
+    }
+
+    pub fn project_url(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_url(id)
+    }
+
+    pub fn project_head_ids(&self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
+        self.data.borrow_mut().project_head_ids(id)
+    }
+
+    pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
+        self.data.borrow_mut().project_heads(id)
+    }
+
+    pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>> {
+        self.data.borrow_mut().project_commit_ids(id).pirate()
+    }
+
+    pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>> {
+        self.data.borrow_mut().project_commits(id)
+    }
+
+    pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_committer_count(id)
+    }
+
+    pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
+        self.data.borrow_mut().project_author_ids(id).pirate()
+    }
+
+    pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>> {
+        self.data.borrow_mut().project_authors(id)
+    }
+
+    pub fn project_author_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_author_count(id)
+    }
+
+    pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
+        self.data.borrow_mut().project_committer_ids(id).pirate()
+    }
+
+    pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>> {
+        self.data.borrow_mut().project_committers(id)
+    }
+
+    pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_committer_count(id)
+    }
+
+    pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
+        self.data.borrow_mut().project_user_ids(id).pirate()
+    }
+
+    pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>> {
+        self.data.borrow_mut().project_users(id)
+    }
+
+    pub fn project_user_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_user_count(id)
+    }
+
+    pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration> {
+        self.data.borrow_mut().project_lifetime(id)
+    }
+
+    pub fn user(&self, id: &UserId) -> Option<User> {
+        self.data.borrow_mut().user(id).pirate()
+    }
+
+    pub fn path(&self, id: &PathId) -> Option<Path> {
+        self.data.borrow_mut().path(id).pirate()
+    }
+    pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
+        self.data.borrow_mut().snapshot(id).pirate()
+    }
+
+    pub fn commit(&self, id: &CommitId) -> Option<Commit> {
+        self.data.borrow_mut().commit(id).pirate()
+    }
+    pub fn commit_hash(&self, id: &CommitId) -> Option<String> {
+        self.data.borrow_mut().commit_hash(id).pirate()
+    }
+    pub fn commit_message(&self, id: &CommitId) -> Option<String> {
+        self.data.borrow_mut().commit_message(id).pirate()
+    }
+    pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<i64> {
+        self.data.borrow_mut().commit_author_timestamp(id)
+    }
+    pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<i64> {
+        self.data.borrow_mut().commit_committer_timestamp(id)
+    }
+    pub fn commit_change_ids(&self, id: &CommitId) -> Option<Vec<(PathId, SnapshotId)>> {
+        self.data.borrow_mut().commit_change_ids(id).pirate()
+    }
+    pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<(Path, Snapshot)>> {
+        self.data.borrow_mut().commit_changes(id)
+    }
+
+    pub fn commit_change_count(&self, id: &CommitId) -> Option<usize> {
+        self.data.borrow_mut().commit_change_count(id)
+    }
+
+    pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
+        self.data.borrow_mut().user_committed_commit_ids(id).pirate()
+    }
+
+    pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
+        self.data.borrow_mut().user_authored_commits(id)
+    }
+
+    pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
+        self.data.borrow_mut().user_authored_commit_ids(id).pirate()
+    }
+
+    pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration> {
+        self.data.borrow_mut().user_committed_experience(id)
+    }
+
+    pub fn user_author_experience(&self, id: &UserId) -> Option<Duration> {
+        self.data.borrow_mut().user_author_experience(id)
+    }
+
+    pub fn user_experience(&self, id: &UserId) -> Option<Duration> {
+        self.data.borrow_mut().user_experience(id)
+    }
+
+    pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize> {
+        self.data.borrow_mut().user_committed_commit_count(id)
+    }
+
+    pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize> {
+        self.data.borrow_mut().user_authored_commit_count(id)
+    }
+
+    pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
+        self.data.borrow_mut().user_committed_commits(id)
     }
 }

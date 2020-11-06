@@ -1,13 +1,10 @@
 use structopt::StructOpt;
 use std::path::PathBuf;
 
-use std::collections::BTreeMap;
 use djanco::data::Data;
 use dcd::DatastoreView;
-use std::time::SystemTime;
 use djanco::time;
 
-use chrono::Utc;
 // TODO
 // * snapshots aka file contents
 // * keep and produce receipt snippets
@@ -67,7 +64,7 @@ macro_rules! with_elapsed_secs {
 // }
 
 // works with downloader from commit  146e55e34ca1f4cc5b826e0c909deac96afafc17
-// cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump
+// `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let now = time::now();
     let config = Configuration::from_args();
@@ -81,7 +78,7 @@ fn main() {
     });
 
     let (count_projects, count_projects_secs) = with_elapsed_secs!("count projects", {
-        data.projects().count()
+        data.projects()//.count()
     });
 
     eprintln!("Summary");

@@ -118,82 +118,63 @@ impl Database {
     pub fn project_master(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_master(id).pirate()
     }
-
     pub fn project_url(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_url(id)
     }
-
     pub fn project_head_ids(&self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
         self.data.borrow_mut().project_head_ids(id)
     }
-
     pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
         self.data.borrow_mut().project_heads(id)
     }
-
     pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>> {
         self.data.borrow_mut().project_commit_ids(id).pirate()
     }
-
     pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>> {
         self.data.borrow_mut().project_commits(id)
     }
-
     pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_commit_count(id)
     }
-
     pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
         self.data.borrow_mut().project_author_ids(id).pirate()
     }
-
     pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>> {
         self.data.borrow_mut().project_authors(id)
     }
-
     pub fn project_author_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_author_count(id)
     }
-
     pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
         self.data.borrow_mut().project_committer_ids(id).pirate()
     }
-
     pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>> {
         self.data.borrow_mut().project_committers(id)
     }
-
     pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_committer_count(id)
     }
-
     pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
         self.data.borrow_mut().project_user_ids(id).pirate()
     }
-
     pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>> {
         self.data.borrow_mut().project_users(id)
     }
-
     pub fn project_user_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_user_count(id)
     }
-
     pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration> {
         self.data.borrow_mut().project_lifetime(id)
     }
-
     pub fn user(&self, id: &UserId) -> Option<User> {
         self.data.borrow_mut().user(id).pirate()
     }
-
     pub fn path(&self, id: &PathId) -> Option<Path> {
         self.data.borrow_mut().path(id).pirate()
     }
     pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
         self.data.borrow_mut().snapshot(id).pirate()
     }
-
     pub fn commit(&self, id: &CommitId) -> Option<Commit> {
         self.data.borrow_mut().commit(id).pirate()
     }
@@ -215,48 +196,37 @@ impl Database {
     pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<(Path, Snapshot)>> {
         self.data.borrow_mut().commit_changes(id)
     }
-
     pub fn commit_change_count(&self, id: &CommitId) -> Option<usize> {
         self.data.borrow_mut().commit_change_count(id)
     }
-
     pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
         self.data.borrow_mut().user_committed_commit_ids(id).pirate()
     }
-
     pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
         self.data.borrow_mut().user_authored_commits(id)
     }
-
     pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
         self.data.borrow_mut().user_authored_commit_ids(id).pirate()
     }
-
     pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration> {
         self.data.borrow_mut().user_committed_experience(id)
     }
-
     pub fn user_author_experience(&self, id: &UserId) -> Option<Duration> {
         self.data.borrow_mut().user_author_experience(id)
     }
-
     pub fn user_experience(&self, id: &UserId) -> Option<Duration> {
         self.data.borrow_mut().user_experience(id)
     }
-
     pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize> {
         self.data.borrow_mut().user_committed_commit_count(id)
     }
-
     pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize> {
         self.data.borrow_mut().user_authored_commit_count(id)
     }
-
     pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
         self.data.borrow_mut().user_committed_commits(id)
     }
 }
-
 
 trait MetadataFieldExtractor {
     type Value: Persistent;
@@ -377,7 +347,6 @@ impl<M> MetadataVec<M> where M: MetadataFieldExtractor {
         Self { name, extractor, vector: None, cache_dir, cache_path }
     }
 
-    //pub fn name(&self) -> &str { self.name.as_str() }
     pub fn already_loaded(&self) -> bool { self.vector.is_some() }
     pub fn already_cached(&self) -> bool { self.cache_path.is_file() }
 
@@ -551,36 +520,29 @@ impl ProjectMetadataSource {
 }
 
 impl ProjectMetadataSource {
-    pub fn is_fork          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_forks,     store, pirate, key) }
-    pub fn is_archived      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_archived,  store, pirate, key) }
-    pub fn is_disabled      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_disabled,  store, pirate, key) }
-
+    pub fn is_fork          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_forks,     store, pirate, key)           }
+    pub fn is_archived      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_archived,  store, pirate, key)           }
+    pub fn is_disabled      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_disabled,  store, pirate, key)           }
     pub fn star_gazers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, star_gazers,   store, pirate, key)           }
     pub fn watchers         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, watchers,      store, pirate, key)           }
     pub fn size             (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, size,          store, pirate, key)           }
     pub fn open_issues      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,   store, pirate, key)           }
     pub fn forks            (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, forks,         store, pirate, key)           }
     pub fn subscribers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,   store, pirate, key)           }
-
     pub fn license_owned    (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,      store, pirate, key)           }
     pub fn description_owned(&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions,  store, pirate, key)           }
     pub fn homepage_owned   (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
-
     pub fn license          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, licenses,      store, get,    key)           }
     pub fn description      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, descriptions,  store, get,    key)           }
     pub fn homepage         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, homepages,     store, get,    key)           }
-
     pub fn language         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<Language> { gimme!(self, languages,     store, pirate, key).flatten() }
-
     pub fn has_issues       (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_issues,    store, pirate, key)           }
     pub fn has_downloads    (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_downloads, store, pirate, key)           }
     pub fn has_wiki         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_wiki,      store, pirate, key)           }
     pub fn has_pages        (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_pages,     store, pirate, key)           }
-
     pub fn created          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, created,       store, pirate, key)           }
     pub fn updated          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
     pub fn pushed           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
-
     pub fn master           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<&String>  { gimme!(self, homepages,     store, get,    key)           }
     pub fn master_owned     (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
 }
@@ -1020,8 +982,6 @@ impl From<(u64, dcd::Commit)> for Commit {
 struct Data {
     store:                       DatastoreView,
 
-    //project_ids:                 PersistentVector<IdExtractor<ProjectId>>,
-
     project_metadata:            ProjectMetadataSource,
     project_urls:                PersistentMap<ProjectUrlExtractor>,
     project_heads:               PersistentMap<ProjectHeadsExtractor>,
@@ -1068,42 +1028,40 @@ impl Data {
         Data {
             store,
 
-            //project_ids:                 PersistentVector::new("project_ids", dir.clone()),
+            project_urls:                PersistentMap::new("project_urls",                dir.clone()),
+            project_heads:               PersistentMap::new("project_heads",               dir.clone()),
+            project_users:               PersistentMap::new("project_users",               dir.clone()),
+            project_user_count:          PersistentMap::new("project_user_count",          dir.clone()),
+            project_authors:             PersistentMap::new("project_authors",             dir.clone(),),
+            project_author_count:        PersistentMap::new("project_author_count",        dir.clone()),
+            project_committers:          PersistentMap::new("project_committers",          dir.clone()),
+            project_committer_count:     PersistentMap::new("project_committer_count",     dir.clone()),
+            project_commits:             PersistentMap::new("project_commits",             dir.clone()),
+            project_commit_count:        PersistentMap::new("project_commit_count",        dir.clone()),
+            project_lifetimes:           PersistentMap::new("project_lifetimes",           dir.clone()),
 
-            project_urls:                PersistentMap::new("project_urls", dir.clone()),
-            project_heads:               PersistentMap::new("project_heads", dir.clone()),
-            project_users:               PersistentMap::new("project_users", dir.clone()),
-            project_user_count:          PersistentMap::new("project_user_count", dir.clone()),
-            project_authors:             PersistentMap::new("project_authors", dir.clone(),),
-            project_author_count:        PersistentMap::new("project_author_count", dir.clone()),
-            project_committers:          PersistentMap::new("project_committers", dir.clone()),
-            project_committer_count:     PersistentMap::new("project_committer_count", dir.clone()),
-            project_commits:             PersistentMap::new("project_commits", dir.clone()),
-            project_commit_count:        PersistentMap::new("project_commit_count", dir.clone()),
-            project_lifetimes:           PersistentMap::new("project_lifetimes", dir.clone()),
+            project_metadata:            ProjectMetadataSource::new("project",             dir.clone()),
 
-            project_metadata:            ProjectMetadataSource::new("project",               dir.clone()),
+            users:                       PersistentMap::new("users",                       dir.clone()),
+            user_authored_commits:       PersistentMap::new("user_authored_commits",       dir.clone()),
+            user_committed_commits:      PersistentMap::new("user_committed_commits",      dir.clone()),
+            user_author_experience:      PersistentMap::new("user_author_experience",      dir.clone()),
+            user_committer_experience:   PersistentMap::new("user_committer_experience",   dir.clone()),
+            user_experience:             PersistentMap::new("user_experience",             dir.clone()),
 
-            users:                       PersistentMap::new("users", dir.clone()),
-            user_authored_commits:       PersistentMap::new("user_authored_commits", dir.clone()),
-            user_committed_commits:      PersistentMap::new("user_committed_commits", dir.clone()),
-            user_author_experience:      PersistentMap::new("user_author_experience", dir.clone()),
-            user_committer_experience:   PersistentMap::new("user_committer_experience", dir.clone()),
-            user_experience:             PersistentMap::new("user_experience", dir.clone()),
-
-            user_authored_commit_count:  PersistentMap::new("user_authored_commit_count", dir.clone()),
+            user_authored_commit_count:  PersistentMap::new("user_authored_commit_count",  dir.clone()),
             user_committed_commit_count: PersistentMap::new("user_committed_commit_count", dir.clone()),
 
-            paths:                       PersistentMap::new("paths", dir.clone()),
-            snapshots:                   PersistentMap::new("snapshots", dir.clone()),
+            paths:                       PersistentMap::new("paths",                       dir.clone()),
+            snapshots:                   PersistentMap::new("snapshots",                   dir.clone()),
 
-            commits:                     PersistentMap::new("commits", dir.clone()),
-            commit_hashes:               PersistentMap::new("commit_hashes", dir.clone()),
-            commit_messages:             PersistentMap::new("commit_messages", dir.clone()),
-            commit_author_timestamps:    PersistentMap::new("commit_author_timestamps", dir.clone()),
+            commits:                     PersistentMap::new("commits",                     dir.clone()),
+            commit_hashes:               PersistentMap::new("commit_hashes",               dir.clone()),
+            commit_messages:             PersistentMap::new("commit_messages",             dir.clone()),
+            commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    dir.clone()),
             commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", dir.clone()),
-            commit_changes:              PersistentMap::new("commit_changes", dir.clone()),
-            commit_change_count:         PersistentMap::new("commit_change_count", dir.clone()),
+            commit_changes:              PersistentMap::new("commit_changes",              dir.clone()),
+            commit_change_count:         PersistentMap::new("commit_change_count",         dir.clone()),
         }
     }
 }

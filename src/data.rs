@@ -288,6 +288,7 @@ impl DoubleMapExtractor for ProjectUsersExtractor {
         }).collect()
     }
 }
+
 struct ProjectAuthorsExtractor {}
 impl MapExtractor for ProjectAuthorsExtractor {
     type Key = ProjectId;
@@ -304,6 +305,7 @@ impl DoubleMapExtractor for ProjectAuthorsExtractor {
         }).collect()
     }
 }
+
 struct ProjectCommittersExtractor {}
 impl MapExtractor for ProjectCommittersExtractor {
     type Key = ProjectId;
@@ -745,10 +747,12 @@ impl Data {
         self.smart_load_project_urls().get(id)
             .map(|url| Project::new(id.clone(), url.clone()))
     }
-
-    pub fn project_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }         // FIXME
-    pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }   // FIXME
-
+    pub fn project_issues(&mut self, _id: &ProjectId) -> Option<usize> {
+        unimplemented!()
+    }         // FIXME
+    pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> {
+        unimplemented!()
+    }   // FIXME
     pub fn project_is_fork(&mut self, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_fork(&self.store, id)
     }
@@ -812,15 +816,12 @@ impl Data {
     pub fn project_master(&mut self, id: &ProjectId) -> Option<&String> {
         self.project_metadata.master(&self.store, id)
     }
-
     pub fn project_url(&mut self, id: &ProjectId) -> Option<String> {
         self.smart_load_project_urls().get(id).pirate()
     }
-
     pub fn project_head_ids(&mut self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
         self.smart_load_project_heads().get(id).pirate()
     }
-
     pub fn project_heads(&mut self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
         self.smart_load_project_heads().get(id).pirate().map(|v| {
             v.into_iter().flat_map(|(name, commit_id)| {
@@ -830,82 +831,65 @@ impl Data {
             }).collect()
         })
     }
-
     pub fn project_commit_ids(&mut self, id: &ProjectId) -> Option<&Vec<CommitId>> {
         self.smart_load_project_commits().get(id)
     }
-
     pub fn project_commits(&mut self, id: &ProjectId) -> Option<Vec<Commit>> {
         self.smart_load_project_commits().get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
             // FIXME issue warnings in situations like these (when self.commit(id) fails etc.)
         })
     }
-
     pub fn project_commit_count(&mut self, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_commit_count().get(id).pirate()
     }
-
     pub fn project_author_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
         self.smart_load_project_authors().get(id)
     }
-
     pub fn project_authors(&mut self, id: &ProjectId) -> Option<Vec<User>> {
         self.smart_load_project_authors().get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(id).pirate()).collect()
         })
-
     }
-
     pub fn project_author_count(&mut self, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_author_count().get(id).pirate()
     }
-
     pub fn project_committer_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
         self.smart_load_project_committers().get(id)
     }
-
     pub fn project_committers(&mut self, id: &ProjectId) -> Option<Vec<User>> {
         self.smart_load_project_committers().get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(id).pirate()).collect()
         })
     }
-
     pub fn project_committer_count(&mut self, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_committer_count().get(id).pirate()
     }
-
     pub fn project_user_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
         self.smart_load_project_users().get(id)
     }
-
     pub fn project_users(&mut self, id: &ProjectId) -> Option<Vec<User>> {
         self.smart_load_project_users().get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(id).pirate()).collect()
         })
     }
-
     pub fn project_user_count(&mut self, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_user_count().get(id).pirate()
     }
-
     pub fn project_lifetime(&mut self, id: &ProjectId) -> Option<Duration> {
         self.smart_load_project_lifetimes().get(id)
             .pirate()
             .map(|seconds| Duration::from_secs(seconds))
     }
-
     pub fn user(&mut self, id: &UserId) -> Option<&User> {
         self.smart_load_users().get(id)
     }
-
     pub fn path(&mut self, id: &PathId) -> Option<&Path> {
         self.smart_load_paths().get(id)
     }
     pub fn snapshot(&mut self, id: &SnapshotId) -> Option<&Snapshot> {
         self.smart_load_snapshots().get(id)
     }
-
     pub fn commit(&mut self, id: &CommitId) -> Option<&Commit> {
         self.smart_load_commits().get(id)
     }
@@ -934,51 +918,41 @@ impl Data {
             }).collect()
         })
     }
-
     pub fn commit_change_count(&mut self, id: &CommitId) -> Option<usize> {
         self.smart_load_commit_change_count().get(id).pirate()
     }
-
     pub fn user_committed_commit_ids(&mut self, id: &UserId) -> Option<&Vec<CommitId>> {
         self.smart_load_user_committed_commits().get(id)
     }
-
     pub fn user_authored_commits(&mut self, id: &UserId) -> Option<Vec<Commit>> {
         self.smart_load_user_authored_commits().get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
         })
     }
-
     pub fn user_authored_commit_ids(&mut self, id: &UserId) -> Option<&Vec<CommitId>> {
         self.smart_load_user_authored_commits().get(id)
     }
-
     pub fn user_committed_experience(&mut self, id: &UserId) -> Option<Duration> {
         self.smart_load_user_committer_experience()
             .get(id)
             .map(|seconds| Duration::from_secs(*seconds))
     }
-
     pub fn user_author_experience(&mut self, id: &UserId) -> Option<Duration> {
         self.smart_load_user_author_experience()
             .get(id)
             .map(|seconds| Duration::from_secs(*seconds))
     }
-
     pub fn user_experience(&mut self, id: &UserId) -> Option<Duration> {
         self.smart_load_user_experience()
             .get(id)
             .map(|seconds| Duration::from_secs(*seconds))
     }
-
     pub fn user_committed_commit_count(&mut self, id: &UserId) -> Option<usize> {
         self.smart_load_user_committed_commit_count().get(id).pirate()
     }
-
     pub fn user_authored_commit_count(&mut self, id: &UserId) -> Option<usize> {
         self.smart_load_user_authored_commit_count().get(id).pirate()
     }
-
     pub fn user_committed_commits(&mut self, id: &UserId) -> Option<Vec<Commit>> {
         self.smart_load_user_committed_commits().get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
@@ -1013,117 +987,90 @@ impl Data {
     fn smart_load_project_urls(&mut self) -> &BTreeMap<ProjectId, String> {
         load_from_store!(self, project_urls)
     }
-
     fn smart_load_project_heads(&mut self) -> &BTreeMap<ProjectId, Vec<(String, CommitId)>> {
         load_from_store!(self, project_heads)
     }
-
     fn smart_load_project_users(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
         load_with_prerequisites!(self, project_users, two, project_authors, project_committers)
     }
-
     fn smart_load_project_authors(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
         load_with_prerequisites!(self, project_authors, two, project_commits, commits)
     }
-
     fn smart_load_project_committers(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
         load_with_prerequisites!(self, project_committers, two, project_commits, commits)
     }
-
     fn smart_load_project_commits(&mut self) -> &BTreeMap<ProjectId, Vec<CommitId>> {
         load_with_prerequisites!(self, project_commits, two, project_heads, commits)
     }
-
     fn smart_load_project_user_count(&mut self) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_user_count, one, project_users)
     }
-
     fn smart_load_project_author_count(&mut self) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_author_count, one, project_authors)
     }
-
     fn smart_load_project_committer_count(&mut self) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_committer_count, one, project_committers)
     }
-
     fn smart_load_project_commit_count(&mut self) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_commit_count, one, project_commits)
     }
-
     fn smart_load_project_lifetimes(&mut self) -> &BTreeMap<ProjectId, u64> {
         load_with_prerequisites!(self, project_lifetimes, three, project_commits,
                                                                  commit_author_timestamps,
                                                                  commit_committer_timestamps)
     }
-
     fn smart_load_users(&mut self) -> &BTreeMap<UserId, User> {
         load_from_store!(self, users)
     }
-
     fn smart_load_user_authored_commits(&mut self) -> &BTreeMap<UserId, Vec<CommitId>> {
         load_with_prerequisites!(self, user_authored_commits, one, commits)
     }
-
     fn smart_load_user_committed_commits(&mut self) -> &BTreeMap<UserId, Vec<CommitId>> {
         load_with_prerequisites!(self, user_committed_commits, one, commits)
     }
-
     fn smart_load_user_author_experience(&mut self) -> &BTreeMap<UserId, u64> {
         load_with_prerequisites!(self, user_author_experience, two, user_authored_commits,
                                                                     commit_author_timestamps)
     }
-
     fn smart_load_user_committer_experience(&mut self) -> &BTreeMap<UserId, u64> {
         load_with_prerequisites!(self, user_committer_experience, two, user_committed_commits,
                                                                        commit_committer_timestamps)
     }
-
     fn smart_load_user_experience(&mut self) -> &BTreeMap<UserId, u64> {
         load_with_prerequisites!(self, user_experience, three, user_committed_commits,
                                                                commit_author_timestamps,
                                                                commit_committer_timestamps)
     }
-
     fn smart_load_user_committed_commit_count(&mut self) -> &BTreeMap<UserId, usize> {
         load_with_prerequisites!(self, user_committed_commit_count, one, user_committed_commits)
     }
-
     fn smart_load_user_authored_commit_count(&mut self) -> &BTreeMap<UserId, usize> {
         load_with_prerequisites!(self, user_authored_commit_count, one, user_authored_commits)
     }
-
     fn smart_load_paths(&mut self) -> &BTreeMap<PathId, Path> {
         load_from_store!(self, paths)
     }
-
     fn smart_load_snapshots(&mut self) -> &BTreeMap<SnapshotId, Snapshot> {
         load_from_store!(self, snapshots)
     }
-
     fn smart_load_commits(&mut self) -> &BTreeMap<CommitId, Commit> {
         load_from_store!(self, commits)
     }
-
     fn smart_load_commit_hashes(&mut self) -> &BTreeMap<CommitId, String> {
         load_from_store!(self, commit_hashes)
     }
-
     fn smart_load_commit_messages(&mut self) -> &BTreeMap<CommitId, String> {
         load_from_store!(self, commit_messages)
     }
-
     fn smart_load_commit_committer_timestamps(&mut self) -> &BTreeMap<CommitId, i64> {
         load_from_store!(self, commit_committer_timestamps)
     }
-
     fn smart_load_commit_author_timestamps(&mut self) -> &BTreeMap<CommitId, i64> {
         load_from_store!(self, commit_author_timestamps)
     }
-
     fn smart_load_commit_changes(&mut self) -> &BTreeMap<CommitId, Vec<(PathId, SnapshotId)>> {
         load_from_store!(self, commit_changes)
     }
-
     fn smart_load_commit_change_count(&mut self) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, one, commit_changes)
     }

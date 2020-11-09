@@ -1,220 +1,262 @@
 use std::path::PathBuf;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
+use std::time::Duration;
+use std::cell::RefCell;
 use std::fs::{File, create_dir_all};
 
-use serde::Serialize;
-use serde::de::DeserializeOwned;
+use itertools::{Itertools, MinMaxResult};
+use chrono::DateTime;
+use serde_json::Value as JSON;
+use serde_cbor;
+use serde::export::PhantomData;
 
 use dcd::DatastoreView;
 
 use crate::objects::*;
-
-use serde_json::Value as JSON;
-use serde_cbor;
-use serde::export::PhantomData;
-use itertools::{Itertools, MinMaxResult};
-use std::time::Duration;
-use chrono::DateTime;
-use crate::iterators::{IterWithData, DataPtr, ItemWithData};
-use std::rc::Rc;
-use std::cell::{RefCell, RefMut};
-use crate::tuples::*;
 use crate::piracy::*;
-use std::borrow::BorrowMut;
+use crate::persistent::*;
+use crate::iterators::*;
+//use std::borrow::BorrowMut;
 
-static CACHE_EXTENSION: &str = ".cbor";
-trait Persistent: Serialize + DeserializeOwned {}
-impl<T> Persistent for T where T: Serialize + DeserializeOwned {}
+// Internally Mutable Data
+pub struct Database { data: RefCell<Data> }
 
-trait VectorExtractor {
-    type Value: Clone + Persistent;
-}
-
-trait SingleVectorExtractor: VectorExtractor {
-    type A;
-    fn extract(a: &Self::A) -> Vec<Self::Value>;
-}
-
-trait DoubleVectorExtractor: VectorExtractor {
-    type A; type B;
-    fn extract(a: &Self::A, b: &Self::B) -> Vec<Self::Value>;
-}
-
-trait TripleVectorExtractor: VectorExtractor {
-    type A; type B; type C;
-    fn extract(a: &Self::A, b: &Self::B, c: &Self::C) -> Vec<Self::Value>;
-}
-
-trait MapExtractor {
-    type Key:   Ord + Persistent;
-    type Value: Clone + Persistent;
-}
-
-trait SingleMapExtractor: MapExtractor {
-    type A;
-    fn extract(a: &Self::A) -> BTreeMap<Self::Key, Self::Value>;
-}
-
-trait DoubleMapExtractor: MapExtractor {
-    type A; type B;
-    fn extract(a: &Self::A, b: &Self::B) -> BTreeMap<Self::Key, Self::Value>;
-}
-
-trait TripleMapExtractor: MapExtractor {
-    type A; type B; type C;
-    fn extract(a: &Self::A, b: &Self::B, c: &Self::C) -> BTreeMap<Self::Key, Self::Value>;
-}
-
-// trait QuadrupleMapExtractor: MapExtractor {
-//     type A; type B; type C; type D;
-//     fn extract(a: &Self::A, b: &Self::B, c: &Self::C, d: &Self::D) -> BTreeMap<Self::Key, Self::Value>;
-// }
-
-trait PersistentCollection {
-    type Collection: Persistent;
-
-    fn setup_files<Sa,Sb>(name: Sa, dir: Sb) -> (PathBuf, PathBuf)
-        where Sa: Into<String>, Sb: Into<String>  {
-
-        let mut cache_dir = PathBuf::new();
-        cache_dir.push(std::path::Path::new(dir.into().as_str()));
-
-        let mut cache_path = cache_dir.clone();
-        cache_path.push(std::path::Path::new(name.into().as_str()));
-        cache_path.set_extension(CACHE_EXTENSION);
-
-        (cache_dir, cache_path)
-    }
-
-    fn cache_path(&self) -> &PathBuf;
-    fn cache_dir(&self) -> &PathBuf;
-    fn collection(&self) -> &Option<Self::Collection>;
-    fn set_collection(&mut self, collection: Self::Collection);
-
-    fn grab_collection(&mut self) -> &Self::Collection {
-        self.collection().as_ref().unwrap()
-    }
-    fn is_loaded(&self) -> bool {
-        self.collection().is_some()
-    }
-    fn already_cached(&self) -> bool {
-        self.cache_path().is_file()
-    }
-
-    fn load_from_cache(&mut self) -> Result<(), Box<dyn Error>> {
-        let reader = File::open(&self.cache_path())?;
-        self.set_collection(serde_cbor::from_reader(reader)?);
-        Ok(())
-    }
-    fn store_to_cache(&mut self) -> Result<(), Box<dyn Error>> {
-        create_dir_all(&self.cache_dir())?;
-        let writer = File::create(&self.cache_path())?;
-        serde_cbor::to_writer(writer, &self.grab_collection())?;
-        Ok(())
-    }
-    fn data_from_loader<F>(&mut self, mut load: F) -> &Self::Collection
-        where F: FnMut() -> Self::Collection {
-
-        if self.collection().is_none() {
-            if self.already_cached() {
-                self.load_from_cache().unwrap()
-            } else {
-                self.set_collection(load());
-                self.store_to_cache().unwrap()
-            }
-        }
-        self.grab_collection()
+// Constructors
+impl Database {
+    pub fn from_store<S>(store: DatastoreView, cache_dir: S) -> Database where S: Into<String> {
+        Database { data: RefCell::new(Data::from_store(store, cache_dir)) }
     }
 }
 
-struct PersistentVector<E: VectorExtractor> {
-    //name: String,
-    cache_path: PathBuf,
-    cache_dir: PathBuf,
-    vector: Option<Vec<E::Value>>,
-    extractor: PhantomData<E>,
+// Prequincunx
+impl Database {
+    pub fn all_project_ids(&self)  -> Vec<ProjectId>  { self.data.borrow_mut().all_project_ids()  }
+    pub fn all_user_ids(&self)     -> Vec<UserId>     { self.data.borrow_mut().all_user_ids()     }
+    pub fn all_path_ids(&self)     -> Vec<PathId>     { self.data.borrow_mut().all_path_ids()     }
+    pub fn all_snapshot_ids(&self) -> Vec<SnapshotId> { self.data.borrow_mut().all_snapshot_ids() }
+    pub fn all_commit_ids(&self)   -> Vec<CommitId>   { self.data.borrow_mut().all_commit_ids()   }
 }
 
-impl<E> PersistentCollection for PersistentVector<E> where E: VectorExtractor {
-    type Collection = Vec<E::Value>;
-    fn cache_path(&self) -> &PathBuf { &self.cache_path }
-    fn cache_dir(&self) -> &PathBuf { &self.cache_dir }
-    fn collection(&self) -> &Option<Self::Collection> { &self.vector }
-    fn set_collection(&mut self, vector: Self::Collection) { self.vector = Some(vector) }
-}
-
-impl<E> PersistentVector<E> where E: VectorExtractor {
-    pub fn new<Sa, Sb>(name: Sa, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
-        let (cache_dir, cache_path) = Self::setup_files(name, dir);
-        PersistentVector { /*name,*/ cache_path, cache_dir, vector: None, extractor: PhantomData }
+// Quincunx
+impl Database {
+    pub fn projects(&self) -> QuincunxIter<Project> {
+        QuincunxIter::<Project>::new(&self)
     }
 }
 
-impl<E,A> PersistentVector<E> where E: SingleVectorExtractor<A=A> {
-    pub fn load_from_one(&mut self, input: &A) -> &Vec<E::Value> {
-        self.data_from_loader(|| { E::extract(input) })
+impl Database {
+    pub fn project(&self, id: &ProjectId) -> Option<Project> {
+        self.data.borrow_mut().project(id)
+    }
+    pub fn project_issues(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_issues(id)
+    }
+    pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_buggy_issues(id)
+    }
+    pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_is_fork(id)
+    }
+    pub fn project_is_archived(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_is_archived(id)
+    }
+    pub fn project_is_disabled(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_is_disabled(id)
+    }
+    pub fn project_star_gazer_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_star_gazer_count(id)
+    }
+    pub fn project_watcher_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_watcher_count(id)
+    }
+    pub fn project_size(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_size(id)
+    }
+    pub fn project_open_issue_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_open_issue_count(id)
+    }
+    pub fn project_fork_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_fork_count(id)
+    }
+    pub fn project_subscriber_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_subscriber_count(id)
+    }
+    pub fn project_license(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_license(id).pirate()
+    }
+    pub fn project_language(&self, id: &ProjectId) -> Option<Language> {
+        self.data.borrow_mut().project_language(id)
+    }
+    pub fn project_description(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_description(id).pirate()
+    }
+    pub fn project_homepage(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_homepage(id).pirate()
+    }
+    pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_has_issues(id)
+    }
+    pub fn project_has_downloads(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_has_downloads(id)
+    }
+    pub fn project_has_wiki(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_has_wiki(id)
+    }
+    pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_has_pages(id)
+    }
+    pub fn project_created(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().project_created(id)
+    }
+    pub fn project_updated(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().project_updated(id)
+    }
+    pub fn project_pushed(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().project_pushed(id)
+    }
+    pub fn project_master(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_master(id).pirate()
+    }
+
+    pub fn project_url(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_url(id)
+    }
+
+    pub fn project_head_ids(&self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
+        self.data.borrow_mut().project_head_ids(id)
+    }
+
+    pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
+        self.data.borrow_mut().project_heads(id)
+    }
+
+    pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>> {
+        self.data.borrow_mut().project_commit_ids(id).pirate()
+    }
+
+    pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>> {
+        self.data.borrow_mut().project_commits(id)
+    }
+
+    pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_commit_count(id)
+    }
+
+    pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
+        self.data.borrow_mut().project_author_ids(id).pirate()
+    }
+
+    pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>> {
+        self.data.borrow_mut().project_authors(id)
+    }
+
+    pub fn project_author_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_author_count(id)
+    }
+
+    pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
+        self.data.borrow_mut().project_committer_ids(id).pirate()
+    }
+
+    pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>> {
+        self.data.borrow_mut().project_committers(id)
+    }
+
+    pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_committer_count(id)
+    }
+
+    pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
+        self.data.borrow_mut().project_user_ids(id).pirate()
+    }
+
+    pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>> {
+        self.data.borrow_mut().project_users(id)
+    }
+
+    pub fn project_user_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_user_count(id)
+    }
+
+    pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration> {
+        self.data.borrow_mut().project_lifetime(id)
+    }
+
+    pub fn user(&self, id: &UserId) -> Option<User> {
+        self.data.borrow_mut().user(id).pirate()
+    }
+
+    pub fn path(&self, id: &PathId) -> Option<Path> {
+        self.data.borrow_mut().path(id).pirate()
+    }
+    pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
+        self.data.borrow_mut().snapshot(id).pirate()
+    }
+
+    pub fn commit(&self, id: &CommitId) -> Option<Commit> {
+        self.data.borrow_mut().commit(id).pirate()
+    }
+    pub fn commit_hash(&self, id: &CommitId) -> Option<String> {
+        self.data.borrow_mut().commit_hash(id).pirate()
+    }
+    pub fn commit_message(&self, id: &CommitId) -> Option<String> {
+        self.data.borrow_mut().commit_message(id).pirate()
+    }
+    pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<i64> {
+        self.data.borrow_mut().commit_author_timestamp(id)
+    }
+    pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<i64> {
+        self.data.borrow_mut().commit_committer_timestamp(id)
+    }
+    pub fn commit_change_ids(&self, id: &CommitId) -> Option<Vec<(PathId, SnapshotId)>> {
+        self.data.borrow_mut().commit_change_ids(id).pirate()
+    }
+    pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<(Path, Snapshot)>> {
+        self.data.borrow_mut().commit_changes(id)
+    }
+
+    pub fn commit_change_count(&self, id: &CommitId) -> Option<usize> {
+        self.data.borrow_mut().commit_change_count(id)
+    }
+
+    pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
+        self.data.borrow_mut().user_committed_commit_ids(id).pirate()
+    }
+
+    pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
+        self.data.borrow_mut().user_authored_commits(id)
+    }
+
+    pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
+        self.data.borrow_mut().user_authored_commit_ids(id).pirate()
+    }
+
+    pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration> {
+        self.data.borrow_mut().user_committed_experience(id)
+    }
+
+    pub fn user_author_experience(&self, id: &UserId) -> Option<Duration> {
+        self.data.borrow_mut().user_author_experience(id)
+    }
+
+    pub fn user_experience(&self, id: &UserId) -> Option<Duration> {
+        self.data.borrow_mut().user_experience(id)
+    }
+
+    pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize> {
+        self.data.borrow_mut().user_committed_commit_count(id)
+    }
+
+    pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize> {
+        self.data.borrow_mut().user_authored_commit_count(id)
+    }
+
+    pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
+        self.data.borrow_mut().user_committed_commits(id)
     }
 }
 
-impl<E,A,B> PersistentVector<E> where E: DoubleVectorExtractor<A=A, B=B> {
-    pub fn load_from_two(&mut self, input_a: &A, input_b: &B) -> &Vec<E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b) })
-    }
-}
-
-impl<E,A,B,C> PersistentVector<E> where E: TripleVectorExtractor<A=A, B=B, C=C> {
-    pub fn load_from_three(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &Vec<E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
-    }
-}
-
-struct PersistentMap<E: MapExtractor> {
-    //name: String,
-    cache_path: PathBuf,
-    cache_dir: PathBuf,
-    map: Option<BTreeMap<E::Key, E::Value>>,
-    extractor: PhantomData<E>,
-}
-
-impl<E> PersistentCollection for PersistentMap<E> where E: MapExtractor {
-    type Collection = BTreeMap<E::Key, E::Value>;
-    fn cache_path(&self) -> &PathBuf { &self.cache_path }
-    fn cache_dir(&self) -> &PathBuf { &self.cache_dir }
-    fn collection(&self) -> &Option<Self::Collection> { &self.map }
-    fn set_collection(&mut self, map: Self::Collection) { self.map = Some(map) }
-}
-
-impl<E> PersistentMap<E> where E: MapExtractor {
-    pub fn new<Sa, Sb>(name: Sa, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
-        let (cache_dir, cache_path) = Self::setup_files(name, dir);
-        PersistentMap { /*name,*/ cache_path, cache_dir, map: None, extractor: PhantomData }
-    }
-}
-
-impl<E,A> PersistentMap<E> where E: SingleMapExtractor<A=A> {
-    pub fn load_from_one(&mut self, input: &A) -> &BTreeMap<E::Key, E::Value> {
-        self.data_from_loader(|| { E::extract(input) })
-    }
-}
-
-impl<E,A,B> PersistentMap<E> where E: DoubleMapExtractor<A=A,B=B> {
-    pub fn load_from_two(&mut self, input_a: &A, input_b: &B) -> &BTreeMap<E::Key, E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b) })
-    }
-}
-
-impl<E,A,B,C> PersistentMap<E> where E: TripleMapExtractor<A=A,B=B,C=C> {
-    pub fn load_from_three(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &BTreeMap<E::Key, E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
-    }
-}
-
-// impl<E,A,B,C,D> PersistentMap<E> where E: QuadrupleExtractor<A=A,B=B,C=C,D=D>{
-//     #[allow(dead_code)] pub fn load_from_four(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D) -> &BTreeMap<E::Key, E::Value> {
-//         self.data_from_loader(|| { E::extract(input_a, input_b, input_c, input_d) })
-//     }
-// }
 
 trait MetadataFieldExtractor {
     type Value: Persistent;
@@ -330,7 +372,7 @@ impl<M> MetadataVec<M> where M: MetadataFieldExtractor {
 
         let mut cache_path = cache_dir.clone();
         cache_path.push(std::path::Path::new(name.as_str()));
-        cache_path.set_extension(CACHE_EXTENSION);
+        cache_path.set_extension(PERSISTENT_EXTENSION);
 
         Self { name, extractor, vector: None, cache_dir, cache_path }
     }
@@ -418,7 +460,7 @@ trait MetadataSource {
             let mut cache_subdir = PathBuf::new();
             cache_subdir.push(std::path::Path::new(dir.into().as_str()));
             cache_subdir.push(std::path::Path::new(name.as_str()));
-            cache_subdir.set_extension(CACHE_EXTENSION);
+            cache_subdir.set_extension(PERSISTENT_EXTENSION);
             cache_subdir.to_str().unwrap().to_owned()
         };
         dir
@@ -588,7 +630,7 @@ impl MetadataSource for ProjectMetadataSource {
 
 struct IdExtractor<Id: Identity + Persistent> { _type: PhantomData<Id> }
 impl<Id> IdExtractor<Id> where Id: Identity + Persistent {
-    pub fn new() -> IdExtractor<Id> {
+    pub fn _new() -> IdExtractor<Id> {
         IdExtractor { _type: PhantomData }
     }
 }
@@ -975,10 +1017,10 @@ impl From<(u64, dcd::Commit)> for Commit {
     }
 }
 
-pub struct Data {
+struct Data {
     store:                       DatastoreView,
 
-    project_ids:                 PersistentVector<IdExtractor<ProjectId>>,
+    //project_ids:                 PersistentVector<IdExtractor<ProjectId>>,
 
     project_metadata:            ProjectMetadataSource,
     project_urls:                PersistentMap<ProjectUrlExtractor>,
@@ -1026,7 +1068,7 @@ impl Data {
         Data {
             store,
 
-            project_ids:                 PersistentVector::new("project_ids", dir.clone()),
+            //project_ids:                 PersistentVector::new("project_ids", dir.clone()),
 
             project_urls:                PersistentMap::new("project_urls", dir.clone()),
             project_heads:               PersistentMap::new("project_heads", dir.clone()),
@@ -1067,11 +1109,21 @@ impl Data {
 }
 
 impl Data { // Prequincunx
-    pub fn all_project_ids(&mut self) -> Vec<ProjectId> { self.smart_load_project_urls().keys().collect::<Vec<&ProjectId>>().pirate() }
-    pub fn all_user_ids(&mut self) -> Vec<UserId> { self.smart_load_users().keys().collect::<Vec<&UserId>>().pirate() }
-    pub fn all_path_ids(&mut self) -> Vec<PathId> { self.smart_load_paths().keys().collect::<Vec<&PathId>>().pirate() }
-    pub fn all_snapshot_ids(&mut self) -> Vec<SnapshotId> { self.smart_load_snapshots().keys().collect::<Vec<&SnapshotId>>().pirate() }
-    pub fn all_commit_ids(&mut self) -> Vec<CommitId> { self.smart_load_commits().keys().collect::<Vec<&CommitId>>().pirate() }
+    pub fn all_project_ids(&mut self) -> Vec<ProjectId> {
+        self.smart_load_project_urls().keys().collect::<Vec<&ProjectId>>().pirate()
+    }
+    pub fn all_user_ids(&mut self) -> Vec<UserId> {
+        self.smart_load_users().keys().collect::<Vec<&UserId>>().pirate()
+    }
+    pub fn all_path_ids(&mut self) -> Vec<PathId> {
+        self.smart_load_paths().keys().collect::<Vec<&PathId>>().pirate()
+    }
+    pub fn all_snapshot_ids(&mut self) -> Vec<SnapshotId> {
+        self.smart_load_snapshots().keys().collect::<Vec<&SnapshotId>>().pirate()
+    }
+    pub fn all_commit_ids(&mut self) -> Vec<CommitId> {
+        self.smart_load_commits().keys().collect::<Vec<&CommitId>>().pirate()
+    }
 }
 
 impl Data { // Quincunx
@@ -1105,7 +1157,7 @@ impl Data {
     }
 
     pub fn project_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }         // FIXME
-    pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }
+    pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> { unimplemented!() }   // FIXME
 
     pub fn project_is_fork(&mut self, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_fork(&self.store, id)
@@ -1181,8 +1233,10 @@ impl Data {
 
     pub fn project_heads(&mut self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
         self.smart_load_project_heads().get(id).pirate().map(|v| {
-            v.into_iter().map(|(name, commit_id)| {
-                (name, commit_id.reify(self))
+            v.into_iter().flat_map(|(name, commit_id)| {
+                self.commit(&commit_id).map(|commit| {
+                    (name, commit.clone())
+                })
             }).collect()
         })
     }
@@ -1192,7 +1246,10 @@ impl Data {
     }
 
     pub fn project_commits(&mut self, id: &ProjectId) -> Option<Vec<Commit>> {
-        self.smart_load_project_commits().get(id).pirate().reify(self)
+        self.smart_load_project_commits().get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
+            // FIXME issue warnings in situations like these (when self.commit(id) fails etc.)
+        })
     }
 
     pub fn project_commit_count(&mut self, id: &ProjectId) -> Option<usize> {
@@ -1204,7 +1261,10 @@ impl Data {
     }
 
     pub fn project_authors(&mut self, id: &ProjectId) -> Option<Vec<User>> {
-        self.smart_load_project_authors().get(id).pirate().reify(self)
+        self.smart_load_project_authors().get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.user(id).pirate()).collect()
+        })
+
     }
 
     pub fn project_author_count(&mut self, id: &ProjectId) -> Option<usize> {
@@ -1216,7 +1276,9 @@ impl Data {
     }
 
     pub fn project_committers(&mut self, id: &ProjectId) -> Option<Vec<User>> {
-        self.smart_load_project_committers().get(id).pirate().reify(self)
+        self.smart_load_project_committers().get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.user(id).pirate()).collect()
+        })
     }
 
     pub fn project_committer_count(&mut self, id: &ProjectId) -> Option<usize> {
@@ -1228,7 +1290,9 @@ impl Data {
     }
 
     pub fn project_users(&mut self, id: &ProjectId) -> Option<Vec<User>> {
-        self.smart_load_project_users().get(id).pirate().reify(self)
+        self.smart_load_project_users().get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.user(id).pirate()).collect()
+        })
     }
 
     pub fn project_user_count(&mut self, id: &ProjectId) -> Option<usize> {
@@ -1271,7 +1335,14 @@ impl Data {
         self.smart_load_commit_changes().get(id)
     }
     pub fn commit_changes(&mut self, id: &CommitId) -> Option<Vec<(Path, Snapshot)>> {
-        self.smart_load_commit_changes().get(id).pirate().reify(self)
+        self.smart_load_commit_changes().get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|(path_id, snapshot_id)| {
+                match (self.path(path_id).pirate(), self.snapshot(snapshot_id).pirate()) {
+                    (Some(path), Some(snapshot)) => Some((path, snapshot)),
+                    _ => None
+                }
+            }).collect()
+        })
     }
 
     pub fn commit_change_count(&mut self, id: &CommitId) -> Option<usize> {
@@ -1283,7 +1354,9 @@ impl Data {
     }
 
     pub fn user_authored_commits(&mut self, id: &UserId) -> Option<Vec<Commit>> {
-        self.smart_load_user_authored_commits().get(id).pirate().reify(self)
+        self.smart_load_user_authored_commits().get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
+        })
     }
 
     pub fn user_authored_commit_ids(&mut self, id: &UserId) -> Option<&Vec<CommitId>> {
@@ -1317,7 +1390,9 @@ impl Data {
     }
 
     pub fn user_committed_commits(&mut self, id: &UserId) -> Option<Vec<Commit>> {
-        self.smart_load_user_committed_commits().get(id).pirate().reify(self)
+        self.smart_load_user_committed_commits().get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
+        })
     }
 }
 
@@ -1345,10 +1420,6 @@ macro_rules! load_with_prerequisites {
 }
 
 impl Data {
-    fn smart_load_project_ids(&mut self) -> &Vec<ProjectId> {
-        load_with_prerequisites!(self, project_ids, one, project_urls)
-    }
-
     fn smart_load_project_urls(&mut self) -> &BTreeMap<ProjectId, String> {
         load_from_store!(self, project_urls)
     }
@@ -1465,261 +1536,5 @@ impl Data {
 
     fn smart_load_commit_change_count(&mut self) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, one, commit_changes)
-    }
-}
-
-trait WithData { fn get_data(&mut self) -> &mut Data; }
-
-// Internally Mutable Data?
-pub struct Datax {
-    data: RefCell<Data>,
-}
-
-// struct ProjectIter<'a> {
-//     data: &'a Datax, //RefMut<'a, Data>,
-//     iter: Option<Box<dyn Iterator<Item=Project> + 'a>>,
-// }
-//
-// impl<'a> ProjectIter<'a> {
-//     pub fn new(data: &'a Datax) -> Self {
-//         //let mut data = data.borrow_mut();
-//         ProjectIter {
-//             //iter: Some(Box::new(data.projects())),
-//             data, iter: None
-//         }
-//     }
-// }
-//
-// impl<'a> Iterator for ProjectIter<'a>  {
-//     type Item = ItemWithData<'a, Project>;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.iter.is_none() {
-//             self.iter = Some(Box::new(self.data.data.borrow_mut().projects()))
-//         }
-//         self.iter.unwrap().next().map(|e| ItemWithData::new(self.data,e))
-//     }
-// }
-
-// Prequincunx
-impl Datax {
-    pub fn all_project_ids(&self) -> Vec<ProjectId> { self.data.borrow_mut().all_project_ids() }
-    pub fn all_user_ids(&self) -> Vec<UserId> { self.data.borrow_mut().all_user_ids() }
-    pub fn all_path_ids(&self) -> Vec<PathId> { self.data.borrow_mut().all_path_ids() }
-    pub fn all_snapshot_ids(&self) -> Vec<SnapshotId> { self.data.borrow_mut().all_snapshot_ids() }
-    pub fn all_commit_ids(&self) -> Vec<CommitId> { self.data.borrow_mut().all_commit_ids() }
-}
-
-impl Datax {
-    // pub fn projects<'a>(&'a self) -> impl Iterator<Item=ItemWithData<'a, Project>> + 'a {
-    //     let mut x = self.data.borrow_mut();
-    //     let y = x.projects();
-    //
-    //     //let generator = |datax: &'a Datax| { datax.data.borrow_mut().projects() };
-    //     IterWithData::new(self, y)
-    // }
-    pub fn project(&self, id: &ProjectId) -> Option<Project> { self.data.borrow_mut().project(id) }
-
-    pub fn project_issues(&self, id: &ProjectId) -> Option<usize> { self.data.borrow_mut().project_issues(id) }
-    pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize> { self.data.borrow_mut().project_buggy_issues(id) }
-
-    pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_fork(id)
-    }
-    pub fn project_is_archived(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_archived(id)
-    }
-    pub fn project_is_disabled(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_disabled(id)
-    }
-    pub fn project_star_gazer_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_star_gazer_count(id)
-    }
-    pub fn project_watcher_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_watcher_count(id)
-    }
-    pub fn project_size(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_size(id)
-    }
-    pub fn project_open_issue_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_open_issue_count(id)
-    }
-    pub fn project_fork_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_fork_count(id)
-    }
-    pub fn project_subscriber_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_subscriber_count(id)
-    }
-    pub fn project_license(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_license(id).pirate()
-    }
-    pub fn project_language(&self, id: &ProjectId) -> Option<Language> {
-        self.data.borrow_mut().project_language(id)
-    }
-    pub fn project_description(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_description(id).pirate()
-    }
-    pub fn project_homepage(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_homepage(id).pirate()
-    }
-    pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_issues(id)
-    }
-    pub fn project_has_downloads(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_downloads(id)
-    }
-    pub fn project_has_wiki(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_wiki(id)
-    }
-    pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_pages(id)
-    }
-    pub fn project_created(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().project_created(id)
-    }
-    pub fn project_updated(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().project_updated(id)
-    }
-    pub fn project_pushed(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().project_pushed(id)
-    }
-    pub fn project_master(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_master(id).pirate()
-    }
-
-    pub fn project_url(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_url(id)
-    }
-
-    pub fn project_head_ids(&self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
-        self.data.borrow_mut().project_head_ids(id)
-    }
-
-    pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
-        self.data.borrow_mut().project_heads(id)
-    }
-
-    pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().project_commit_ids(id).pirate()
-    }
-
-    pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().project_commits(id)
-    }
-
-    pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_committer_count(id)
-    }
-
-    pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_author_ids(id).pirate()
-    }
-
-    pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_authors(id)
-    }
-
-    pub fn project_author_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_author_count(id)
-    }
-
-    pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_committer_ids(id).pirate()
-    }
-
-    pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_committers(id)
-    }
-
-    pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_committer_count(id)
-    }
-
-    pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_user_ids(id).pirate()
-    }
-
-    pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_users(id)
-    }
-
-    pub fn project_user_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_user_count(id)
-    }
-
-    pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration> {
-        self.data.borrow_mut().project_lifetime(id)
-    }
-
-    pub fn user(&self, id: &UserId) -> Option<User> {
-        self.data.borrow_mut().user(id).pirate()
-    }
-
-    pub fn path(&self, id: &PathId) -> Option<Path> {
-        self.data.borrow_mut().path(id).pirate()
-    }
-    pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
-        self.data.borrow_mut().snapshot(id).pirate()
-    }
-
-    pub fn commit(&self, id: &CommitId) -> Option<Commit> {
-        self.data.borrow_mut().commit(id).pirate()
-    }
-    pub fn commit_hash(&self, id: &CommitId) -> Option<String> {
-        self.data.borrow_mut().commit_hash(id).pirate()
-    }
-    pub fn commit_message(&self, id: &CommitId) -> Option<String> {
-        self.data.borrow_mut().commit_message(id).pirate()
-    }
-    pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<i64> {
-        self.data.borrow_mut().commit_author_timestamp(id)
-    }
-    pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<i64> {
-        self.data.borrow_mut().commit_committer_timestamp(id)
-    }
-    pub fn commit_change_ids(&self, id: &CommitId) -> Option<Vec<(PathId, SnapshotId)>> {
-        self.data.borrow_mut().commit_change_ids(id).pirate()
-    }
-    pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<(Path, Snapshot)>> {
-        self.data.borrow_mut().commit_changes(id)
-    }
-
-    pub fn commit_change_count(&self, id: &CommitId) -> Option<usize> {
-        self.data.borrow_mut().commit_change_count(id)
-    }
-
-    pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().user_committed_commit_ids(id).pirate()
-    }
-
-    pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().user_authored_commits(id)
-    }
-
-    pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().user_authored_commit_ids(id).pirate()
-    }
-
-    pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_committed_experience(id)
-    }
-
-    pub fn user_author_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_author_experience(id)
-    }
-
-    pub fn user_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_experience(id)
-    }
-
-    pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize> {
-        self.data.borrow_mut().user_committed_commit_count(id)
-    }
-
-    pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize> {
-        self.data.borrow_mut().user_authored_commit_count(id)
-    }
-
-    pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().user_committed_commits(id)
     }
 }

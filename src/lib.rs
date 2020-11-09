@@ -1,3 +1,4 @@
+pub mod persistent;
 pub mod iterators;
 //pub mod csv;
 pub mod tuples;

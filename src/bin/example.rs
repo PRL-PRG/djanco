@@ -1,9 +1,11 @@
 use structopt::StructOpt;
 use std::path::PathBuf;
 
-use djanco::data::Data;
 use dcd::DatastoreView;
+use djanco::data::*;
 use djanco::time;
+//use djanco::objects::*;
+//use djanco::iterators::*;
 
 // TODO
 // * snapshots aka file contents
@@ -52,16 +54,16 @@ macro_rules! with_elapsed_secs {
     }}
 }
 
-// macro_rules! elapsed_secs {
-//     ($name:expr,$thing:expr) => {{
-//         eprintln!("Starting task {}...", $name);
-//         let start = std::time::Instant::now();
-//         { $thing };
-//         let secs = start.elapsed().as_secs();
-//         eprintln!("Finished task {} in {}s.", $name, secs);
-//         secs
-//     }}
-// }
+macro_rules! elapsed_secs {
+    ($name:expr,$thing:expr) => {{
+        eprintln!("Starting task {}...", $name);
+        let start = std::time::Instant::now();
+        { $thing };
+        let secs = start.elapsed().as_secs();
+        eprintln!("Finished task {} in {}s.", $name, secs);
+        secs
+    }}
+}
 
 // works with downloader from commit  146e55e34ca1f4cc5b826e0c909deac96afafc17
 // `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
@@ -73,16 +75,16 @@ fn main() {
         DatastoreView::new(config.dataset_path(), now)
     });
 
-    let (mut data, data_secs) = with_elapsed_secs!("open database", {
-        Data::from_store(store, config.cache_path())
+    let (database, database_secs) = with_elapsed_secs!("open database", {
+        Database::from_store(store, config.cache_path())
     });
 
-    let (count_projects, count_projects_secs) = with_elapsed_secs!("count projects", {
-        data.projects()//.count()
+    let count_projects_secs = elapsed_secs!("count projects", {
+        database.projects()//.drop_key()//.collect::<Vec<(ProjectId, Project)>>()
     });
 
     eprintln!("Summary");
     eprintln!("   open data store:       {}s", store_secs);
-    eprintln!("   open database:         {}s", data_secs);
+    eprintln!("   open database:         {}s", database_secs);
     eprintln!("   count projects:        {}s", count_projects_secs);
 }

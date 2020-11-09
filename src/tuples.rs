@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 pub trait Pick {
     type Ta;
@@ -26,4 +26,18 @@ impl<T, Ta, Tb> Pick for Option<T> where T: Pick<Ta=Ta, Tb=Tb> {
     type Tb = Option<T::Tb>;
     fn left(self)  -> Self::Ta { self.map(|e| e.left())  }
     fn right(self) -> Self::Tb { self.map(|e| e.right()) }
+}
+
+impl<Ta, Tb> Pick for HashMap<Ta, Tb> {
+    type Ta = Vec<Ta>;
+    type Tb = Vec<Tb>;
+    fn left(self)  -> Self::Ta { self.into_iter().map(|e| e.left()).collect()  }
+    fn right(self) -> Self::Tb { self.into_iter().map(|e| e.right()).collect() }
+}
+
+impl<Ta, Tb> Pick for BTreeMap<Ta, Tb> {
+    type Ta = Vec<Ta>;
+    type Tb = Vec<Tb>;
+    fn left(self)  -> Self::Ta { self.into_iter().map(|e| e.left()).collect()  }
+    fn right(self) -> Self::Tb { self.into_iter().map(|e| e.right()).collect() }
 }

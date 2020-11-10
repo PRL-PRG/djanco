@@ -254,7 +254,7 @@ impl Project {
     pub fn watcher_count    (&self, store: &Database)    -> Option<usize>                   { store.project_watcher_count(&self.id)          }
     pub fn size             (&self, store: &Database)    -> Option<usize>                   { store.project_size(&self.id)                   }
     pub fn open_issue_count (&self, store: &Database)    -> Option<usize>                   { store.project_open_issue_count(&self.id)       }
-    pub fn network_count    (&self, store: &Database)    -> Option<usize>                   { store.project_fork_count(&self.id)             }
+    pub fn fork_count       (&self, store: &Database)    -> Option<usize>                   { store.project_fork_count(&self.id)             }
     pub fn subscriber_count (&self, store: &Database)    -> Option<usize>                   { store.project_subscriber_count(&self.id)       }
     pub fn license          (&self, store: &Database)    -> Option<String>                  { store.project_license(&self.id)                }
     pub fn language         (&self, store: &Database)    -> Option<Language>                { store.project_language(&self.id)               }
@@ -262,12 +262,15 @@ impl Project {
     pub fn homepage         (&self, store: &Database)    -> Option<String>                  { store.project_homepage(&self.id)               }
     pub fn head_ids         (&self, store: &Database)    -> Option<Vec<(String, CommitId)>> { store.project_head_ids(&self.id)               }
     pub fn heads            (&self, store: &Database)    -> Option<Vec<(String, Commit)>>   { store.project_heads(&self.id)                  }
+    pub fn head_count       (&self, store: &Database)    -> Option<usize>                   { self.heads(store).map(|v| v.len())             }
     pub fn commit_ids       (&self, store: &Database)    -> Option<Vec<CommitId>>           { store.project_commit_ids(&self.id)             }
     pub fn commits          (&self, store: &Database)    -> Option<Vec<Commit>>             { store.project_commits(&self.id)                }
     pub fn commit_count     (&self, store: &Database)    -> Option<usize>                   { store.project_commit_count(&self.id)           }
     pub fn author_ids       (&self, store: &Database)    -> Option<Vec<UserId>>             { store.project_author_ids(&self.id)             }
     pub fn authors          (&self, store: &Database)    -> Option<Vec<User>>               { store.project_authors(&self.id)                }
     pub fn author_count     (&self, store: &Database)    -> Option<usize>                   { store.project_author_count(&self.id)           }
+    pub fn paths            (&self, store: &Database)    -> Option<Vec<Path>>               { store.project_paths(&self.id)                  }
+    pub fn path_count       (&self, store: &Database)    -> Option<usize>                   { store.project_path_count(&self.id)             }
     pub fn committer_ids    (&self, store: &Database)    -> Option<Vec<UserId>>             { store.project_committer_ids(&self.id)          }
     pub fn committers       (&self, store: &Database)    -> Option<Vec<User>>               { store.project_committers(&self.id)             }
     pub fn committer_count  (&self, store: &Database)    -> Option<usize>                   { store.project_committer_count(&self.id)        }

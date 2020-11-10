@@ -139,6 +139,12 @@ impl Database {
     pub fn project_author_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_author_count(id)
     }
+    pub fn project_paths(&self, id: &ProjectId) -> Option<Vec<Path>> {
+        self.data.borrow_mut().project_paths(id)
+    }
+    pub fn project_path_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_path_count(id)
+    }
     pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
         self.data.borrow_mut().project_committer_ids(id).pirate()
     }
@@ -264,6 +270,34 @@ impl SingleMapExtractor for ProjectHeadsExtractor {
             (ProjectId::from(project_id), heads.into_iter().map(|(name, commit_id)| {
                 (name, CommitId::from(commit_id))
             }).collect())
+        }).collect()
+    }
+}
+
+struct ProjectPathsExtractor {}
+impl MapExtractor for ProjectPathsExtractor {
+    type Key = ProjectId;
+    type Value = Vec<PathId>;
+}
+impl DoubleMapExtractor for ProjectPathsExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<(PathId, SnapshotId)>>;
+
+    fn extract(project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_commit_ids.iter().map(|(project_id, commit_ids)| {
+            let path_ids /* Iterator equivalent of Vec<Vec<PathId>>*/ =
+                commit_ids.iter().flat_map(|commit_id| {
+                    let path_ids_option =
+                        commit_change_ids.get(commit_id).map(|changes| {
+                            let vector: Vec<PathId> =
+                                changes.iter().map(|(path_id, snapshot_id)| {
+                                    path_id.clone()
+                                }).collect();
+                            vector
+                        });
+                    path_ids_option
+                });
+            (project_id.clone(), path_ids.flatten().unique().collect())
         }).collect()
     }
 }
@@ -619,12 +653,14 @@ struct Data {
     project_metadata:            ProjectMetadataSource,
     project_urls:                PersistentMap<ProjectUrlExtractor>,
     project_heads:               PersistentMap<ProjectHeadsExtractor>,
+    project_paths:               PersistentMap<ProjectPathsExtractor>,
     project_users:               PersistentMap<ProjectUsersExtractor>,
     project_authors:             PersistentMap<ProjectAuthorsExtractor>,
     project_committers:          PersistentMap<ProjectCommittersExtractor>,
     project_commits:             PersistentMap<ProjectCommitsExtractor>,
     project_lifetimes:           PersistentMap<ProjectLifetimesExtractor>,
 
+    project_path_count:          PersistentMap<CountPerKeyExtractor<ProjectId, PathId>>,
     project_user_count:          PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_author_count:        PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_committer_count:     PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
@@ -664,6 +700,8 @@ impl Data {
 
             project_urls:                PersistentMap::new("project_urls",                dir.clone()),
             project_heads:               PersistentMap::new("project_heads",               dir.clone()),
+            project_paths:               PersistentMap::new("project_paths",               dir.clone()),
+            project_path_count:          PersistentMap::new("project_path_count",          dir.clone()),
             project_users:               PersistentMap::new("project_users",               dir.clone()),
             project_user_count:          PersistentMap::new("project_user_count",          dir.clone()),
             project_authors:             PersistentMap::new("project_authors",             dir.clone(),),
@@ -843,6 +881,17 @@ impl Data {
     pub fn project_commit_count(&mut self, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_commit_count().get(id).pirate()
     }
+    pub fn project_path_ids(&mut self, id: &ProjectId) -> Option<&Vec<PathId>> {
+        self.smart_load_project_paths().get(id)
+    }
+    pub fn project_paths(&mut self, id: &ProjectId) -> Option<Vec<Path>> {
+        self.smart_load_project_paths().get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.path(id).pirate()).collect()
+        })
+    }
+    pub fn project_path_count(&mut self, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_path_count().get(id).pirate()
+    }
     pub fn project_author_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
         self.smart_load_project_authors().get(id)
     }
@@ -1002,11 +1051,17 @@ impl Data {
     fn smart_load_project_commits(&mut self) -> &BTreeMap<ProjectId, Vec<CommitId>> {
         load_with_prerequisites!(self, project_commits, two, project_heads, commits)
     }
+    fn smart_load_project_paths(&mut self) -> &BTreeMap<ProjectId, Vec<PathId>> {
+        load_with_prerequisites!(self, project_paths, two, project_commits, commit_changes)
+    }
     fn smart_load_project_user_count(&mut self) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_user_count, one, project_users)
     }
     fn smart_load_project_author_count(&mut self) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_author_count, one, project_authors)
+    }
+    fn smart_load_project_path_count(&mut self) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_path_count, one, project_paths)
     }
     fn smart_load_project_committer_count(&mut self) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_committer_count, one, project_committers)

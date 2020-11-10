@@ -1,3 +1,4 @@
+pub mod attrib;
 pub mod metadata;
 pub mod persistent;
 pub mod iterators;
@@ -9,6 +10,7 @@ pub mod receipt;
 pub mod spec;
 pub mod time;
 pub mod piracy;
+pub mod query;
 
 #[macro_use]
 extern crate mashup;

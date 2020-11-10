@@ -29,17 +29,17 @@ impl<'a, T, I> Iterator for IterWithData<'a, T, I> where I: Iterator<Item=T> {
     }
 }
 
-pub struct ItemWithData<'a, T> { pub data: &'a Database, pub element: T }
+pub struct ItemWithData<'a, T> { pub data: &'a Database, pub item: T }
 impl<'a, T> ItemWithData<'a, T> {
-    pub fn new(data: &'a Database, element: T) -> Self {
-        ItemWithData { data, element }
+    pub fn new(data: &'a Database, item: T) -> Self {
+        ItemWithData { data, item }
     }
 }
 
 //------------------------------------------------------------------------------------------------//
 
-pub struct IterWithDatabasePtr<T, I: Iterator<Item=T>> { data_ptr: DatabasePtr, iterator: I }
-impl<T, I> IterWithDatabasePtr<T, I> where I: Iterator<Item=T> {
+// pub struct IterWithDatabasePtr<T, I: Iterator<Item=T>> { data_ptr: DatabasePtr, iterator: I }
+// impl<T, I> IterWithDatabasePtr<T, I> where I: Iterator<Item=T> {
     // pub fn new__<F>(data_ptr: DataPtr, generator: F) -> Self where F: FnMut(DataPtr) -> I {
     //      //let data_ptr = Rc::new(RefCell::new(data));
     //      IterWithData { data_ptr, iterator: generator(data_ptr.clone()) }
@@ -53,20 +53,20 @@ impl<T, I> IterWithDatabasePtr<T, I> where I: Iterator<Item=T> {
     //     //let data_ptr = Rc::new(RefCell::new(data));
     //     IterWithData { data_ptr, iterator }
     // }
-}
-impl<T, I> Iterator for IterWithDatabasePtr<T, I> where I: Iterator<Item=T> {
-    type Item = ItemWithDatabasePtr<T>;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iterator.next().map(|e| ItemWithDatabasePtr::new(&self.data_ptr, e))
-    }
-}
-
-pub struct ItemWithDatabasePtr<T> { pub data: DatabasePtr, pub element: T }
-impl<T> ItemWithDatabasePtr<T> {
-    pub fn new(data: &DatabasePtr, element: T) -> Self {
-        ItemWithDatabasePtr { data: data.clone(), element }
-    }
-}
+// }
+// impl<T, I> Iterator for IterWithDatabasePtr<T, I> where I: Iterator<Item=T> {
+//     type Item = ItemWithDatabasePtr<T>;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.iterator.next().map(|e| ItemWithDatabasePtr::new(&self.data_ptr, e))
+//     }
+// }
+//
+// pub struct ItemWithDatabasePtr<T> { pub data: DatabasePtr, pub element: T }
+// impl<T> ItemWithDatabasePtr<T> {
+//     pub fn new(data: &DatabasePtr, element: T) -> Self {
+//         ItemWithDatabasePtr { data: data.clone(), element }
+//     }
+// }
 
 // impl<T> From<ItemWithDatabasePtr<T>> for T {
 //     fn from(_: ItemWithDatabasePtr<T>) -> Self {
@@ -74,28 +74,28 @@ impl<T> ItemWithDatabasePtr<T> {
 //     }
 // }
 
-impl Into<Project> for ItemWithDatabasePtr<Project> { fn into(self) -> Project { self.element } }
-impl Into<Commit> for ItemWithDatabasePtr<Commit> { fn into(self) -> Commit { self.element } }
-impl Into<User> for ItemWithDatabasePtr<User> { fn into(self) -> User { self.element } }
-impl Into<Path> for ItemWithDatabasePtr<Path> { fn into(self) -> Path { self.element } }
-impl Into<Snapshot> for ItemWithDatabasePtr<Snapshot> { fn into(self) -> Snapshot { self.element } }
+impl<'a> Into<Project> for ItemWithData<'a, Project> { fn into(self) -> Project { self.item } }
+impl<'a> Into<Commit> for ItemWithData<'a, Commit> { fn into(self) -> Commit { self.item } }
+impl<'a> Into<User> for ItemWithData<'a, User> { fn into(self) -> User { self.item } }
+impl<'a> Into<Path> for ItemWithData<'a, Path> { fn into(self) -> Path { self.item } }
+impl<'a> Into<Snapshot> for ItemWithData<'a, Snapshot> { fn into(self) -> Snapshot { self.item } }
 
-impl Into<ProjectId> for ItemWithDatabasePtr<ProjectId> { fn into(self) -> ProjectId { self.element } }
-impl Into<CommitId> for ItemWithDatabasePtr<CommitId> { fn into(self) -> CommitId { self.element } }
-impl Into<UserId> for ItemWithDatabasePtr<UserId> { fn into(self) -> UserId { self.element } }
-impl Into<PathId> for ItemWithDatabasePtr<PathId> { fn into(self) -> PathId { self.element } }
-impl Into<SnapshotId> for ItemWithDatabasePtr<SnapshotId> { fn into(self) -> SnapshotId { self.element } }
+impl<'a> Into<ProjectId> for ItemWithData<'a, ProjectId> { fn into(self) -> ProjectId { self.item } }
+impl<'a> Into<CommitId> for ItemWithData<'a, CommitId> { fn into(self) -> CommitId { self.item } }
+impl<'a> Into<UserId> for ItemWithData<'a, UserId> { fn into(self) -> UserId { self.item } }
+impl<'a> Into<PathId> for ItemWithData<'a, PathId> { fn into(self) -> PathId { self.item } }
+impl<'a> Into<SnapshotId> for ItemWithData<'a, SnapshotId> { fn into(self) -> SnapshotId { self.item } }
 
-impl Into<String> for ItemWithDatabasePtr<String> { fn into(self) -> String { self.element } }
-impl Into<u64> for ItemWithDatabasePtr<u64> { fn into(self) -> u64 { self.element } }
-impl Into<u32> for ItemWithDatabasePtr<u32> { fn into(self) -> u32 { self.element } }
-impl Into<i64> for ItemWithDatabasePtr<i64> { fn into(self) -> i64 { self.element } }
-impl Into<i32> for ItemWithDatabasePtr<i32> { fn into(self) -> i32 { self.element } }
-impl Into<f64> for ItemWithDatabasePtr<f64> { fn into(self) -> f64 { self.element } }
-impl Into<f32> for ItemWithDatabasePtr<f32> { fn into(self) -> f32 { self.element } }
-impl Into<usize> for ItemWithDatabasePtr<usize> { fn into(self) -> usize { self.element } }
+impl<'a> Into<String> for ItemWithData<'a, String> { fn into(self) -> String { self.item } }
+impl<'a> Into<u64> for ItemWithData<'a, u64> { fn into(self) -> u64 { self.item } }
+impl<'a> Into<u32> for ItemWithData<'a, u32> { fn into(self) -> u32 { self.item } }
+impl<'a> Into<i64> for ItemWithData<'a, i64> { fn into(self) -> i64 { self.item } }
+impl<'a> Into<i32> for ItemWithData<'a, i32> { fn into(self) -> i32 { self.item } }
+impl<'a> Into<f64> for ItemWithData<'a, f64> { fn into(self) -> f64 { self.item } }
+impl<'a> Into<f32> for ItemWithData<'a, f32> { fn into(self) -> f32 { self.item } }
+impl<'a> Into<usize> for ItemWithData<'a, usize> { fn into(self) -> usize { self.item } }
 
-impl<A,B> Into<(A,B)> for ItemWithDatabasePtr<(A,B)> { fn into(self) -> (A,B) { self.element } }
+impl<'a,A,B> Into<(A,B)> for ItemWithData<'a, (A,B)> { fn into(self) -> (A,B) { self.item } }
 
 // ---------------------------------------------------------------------------------------------- //
 

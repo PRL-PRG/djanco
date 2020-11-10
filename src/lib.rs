@@ -1,4 +1,4 @@
-pub mod attrib;
+#[macro_use] pub mod attrib;
 pub mod metadata;
 pub mod persistent;
 pub mod iterators;

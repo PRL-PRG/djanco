@@ -241,7 +241,7 @@ impl Identifiable for Project { type Identity = ProjectId; fn id(&self) -> Proje
 
 impl Project {
     pub fn new              (id: ProjectId, url: String) -> Self                            { Project { id, url }                            }
-    pub fn url              (&self)                      -> &str                            { self.url.as_str()                              }
+    pub fn url              (&self)                      -> String                          { self.url.to_string()                           }
 
     pub fn timestamp        (&self,     _: &Database)    -> i64                             { unimplemented!()                               }
     pub fn issue_count      (&self, store: &Database)    -> Option<usize>                   { store.project_issues(&self.id)                 }

@@ -66,8 +66,8 @@ macro_rules! impl_sort_by_key_sans_db {
     }
 }
 
-//impl_sort_by_key_sans_db!(Project, Id,  id);
-//impl_sort_by_key_sans_db!(Project, URL, url);
+impl_sort_by_key_sans_db!(Project, Id,  id);
+impl_sort_by_key_sans_db!(Project, URL, url);
 impl_sort_by_key_with_db!(Project, Issues, issue_count);
 impl_sort_by_key_with_db!(Project, BuggyIssues, buggy_issue_count);
 impl_sort_by_key_with_db!(Project, IsFork, is_fork);

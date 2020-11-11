@@ -23,7 +23,7 @@ impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
     fn into_csv(self, location: impl Into<String>) -> Result<(), std::io::Error> {
         let mut file = create_file!(location)?;
         writeln!(file, "{}", T::csv_header())?;
-        for element in self { writeln!(file, "{}", element.to_csv_item()); }
+        for element in self { writeln!(file, "{}", element.to_csv_item())?; }
         Ok(())
     }
 }

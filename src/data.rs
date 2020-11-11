@@ -34,9 +34,11 @@ impl Database {
 
 // Quincunx
 impl Database {
-    pub fn projects(&self) -> QuincunxIter<Project> {
-        QuincunxIter::<Project>::new(&self)
-    }
+    pub fn projects(&self)  -> QuincunxIter<Project>  { QuincunxIter::<Project>::new(&self ) }
+    pub fn commits(&self)   -> QuincunxIter<Commit>   { QuincunxIter::<Commit>::new(&self)   }
+    pub fn users(&self)     -> QuincunxIter<User>     { QuincunxIter::<User>::new(&self)     }
+    pub fn paths(&self)     -> QuincunxIter<Path>     { QuincunxIter::<Path>::new(&self)     }
+    pub fn snapshots(&self) -> QuincunxIter<Snapshot> { QuincunxIter::<Snapshot>::new(&self) }
 }
 
 impl Database {
@@ -763,25 +765,25 @@ impl Data { // Prequincunx
 }
 
 impl Data { // Quincunx
-    pub fn projects<'a>(&'a mut self) -> impl Iterator<Item=Project> + 'a {
+    #[allow(dead_code)] pub fn projects<'a>(&'a mut self) -> impl Iterator<Item=Project> + 'a {
         self.smart_load_project_urls().iter().map(|(id, url)| {
             Project::new(id.clone(), url.clone())
         })
     }
 
-    pub fn users<'a>(&'a mut self) -> impl Iterator<Item=&'a User> + 'a {
+    #[allow(dead_code)] pub fn users<'a>(&'a mut self) -> impl Iterator<Item=&'a User> + 'a {
         self.smart_load_users().iter().map(|(_, user)| user)
     }
 
-    pub fn paths<'a>(&'a mut self) -> impl Iterator<Item=&'a Path> + 'a {
+    #[allow(dead_code)] pub fn paths<'a>(&'a mut self) -> impl Iterator<Item=&'a Path> + 'a {
         self.smart_load_paths().iter().map(|(_, path)| path)
     }
 
-    pub fn snapshots<'a>(&'a mut self) -> impl Iterator<Item=&'a Snapshot> + 'a {
+    #[allow(dead_code)] pub fn snapshots<'a>(&'a mut self) -> impl Iterator<Item=&'a Snapshot> +'a {
         self.smart_load_snapshots().iter().map(|(_, snapshot)| snapshot)
     }
 
-    pub fn commits<'a>(&'a mut self) -> impl Iterator<Item=&'a Commit> + 'a {
+    #[allow(dead_code)] pub fn commits<'a>(&'a mut self) -> impl Iterator<Item=&'a Commit> + 'a {
         self.smart_load_commits().iter().map(|(_, commit)| commit)
     }
 }

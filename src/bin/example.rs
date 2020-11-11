@@ -7,6 +7,7 @@ use djanco::time;
 //use djanco::objects::*;
 use djanco::iterators::*;
 use djanco::objects::*;
+use djanco::csv::*;
 
 // TODO
 // * snapshots aka file contents
@@ -42,6 +43,13 @@ impl Configuration {
     pub fn output_path(&self)  -> &str           { self.output_path.to_str().unwrap()  }
     pub fn cache_path(&self)   -> &str           { self.cache_path.to_str().unwrap()   }
     pub fn dump_path(&self)    -> Option<String> { self.dump_path.as_ref().map(Configuration::path_to_string) }
+
+    pub fn output_csv_path<S>(&self, file: S) -> String where S: Into<String> {
+        let mut path: PathBuf = self.output_path.clone();
+        path.push(file.into());
+        path.set_extension("csv");
+        path.to_str().unwrap().to_owned()
+    }
 }
 
 macro_rules! with_elapsed_secs {
@@ -80,23 +88,19 @@ fn main() {
         Database::from_store(store, config.cache_path())
     });
 
-    database.snapshots()
-        .flat_map(|snapshot|
-            if snapshot.contains("#include <memory_resource>") {
-                Some(snapshot.id())
-            } else {
-                None
-            }
-        );
+    let (snapshots, find_snapshots_secs) = with_elapsed_secs!("count projects", {
+        database.snapshot_ids_where(|snapshot| {
+            snapshot.contains("#include <memory_resource>")
+        })
+    });
 
-    //let count_projects_secs = elapsed_secs!("count projects", {
-    // database.projects().filter( |project| {
-    //     project.language().map_or(false, |language| language == Language::Cpp)
-    // }).map(|project| project.project_paths);
-    //});
+    let save_snapshots_secs = elapsed_secs!("count projects", {
+        snapshots.to_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
+    });
 
     eprintln!("Summary");
     eprintln!("   open data store:       {}s", store_secs);
     eprintln!("   open database:         {}s", database_secs);
-    //eprintln!("   count projects:        {}s", count_projects_secs);
+    eprintln!("   find snapshots:        {}s", find_snapshots_secs);
+    eprintln!("   save snapshots:        {}s", save_snapshots_secs);
 }

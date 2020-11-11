@@ -389,6 +389,7 @@ impl Hash for Commit {
 pub struct Path { id: PathId, location: String }
 impl Path {
     pub fn new(id: PathId, location: String) -> Self { Path { id, location } }
+    pub fn location(&self) -> &str { self.location.as_str() }
     pub fn language(&self) -> Option<Language> { Language::from_path(self.location.as_str()) }
 }
 impl Identifiable for Path {

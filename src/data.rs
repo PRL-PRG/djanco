@@ -67,6 +67,27 @@ impl Database {
         //thing
         unimplemented!()
     }
+
+    pub fn snapshot_ids_where<F>(&self, filter: F) -> impl Iterator<Item=SnapshotId>
+        where F: FnMut(&Snapshot) -> bool {
+        let vector: Vec<SnapshotId> =
+            self.data.borrow()
+                .snapshots()
+                .filter(filter)
+                .map(|snapshot| snapshot.id())
+                .collect();
+        vector.into_iter()
+    }
+
+    pub fn snapshots_where<F>(&self, filter: F) -> impl Iterator<Item=Snapshot>
+        where F: FnMut(&Snapshot) -> bool {
+        let vector: Vec<Snapshot> =
+            self.data.borrow()
+                .snapshots()
+                .filter(filter)
+                .collect();
+        vector.into_iter()
+    }
 }
 
 impl Database {
@@ -807,7 +828,7 @@ impl Data { // Quincunx
         self.smart_load_paths().iter().map(|(_, path)| path)
     }
 
-    pub fn snapshots<'a>(&'a mut self) -> impl Iterator<Item=Snapshot> + 'a {
+    pub fn snapshots<'a>(&'a self) -> impl Iterator<Item=Snapshot> + 'a {
         fn construct_snapshot((id, contents): (u64, Vec<u8>)) -> Snapshot {
             Snapshot::new(SnapshotId::from(id), contents)
         }

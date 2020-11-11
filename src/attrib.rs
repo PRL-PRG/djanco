@@ -3,6 +3,11 @@ use std::iter::FromIterator;
 use itertools::Itertools;
 use std::hash::Hash;
 
+pub trait Attribute { type Source; }
+pub trait LogicalAttribute    {}
+pub trait LanguageAttribute: Attribute    {}
+pub trait TimestampAttribute  {}
+pub trait DurationAttribute   {}
 pub trait StringAttribute     {}
 pub trait IntegerAttribute    {}
 pub trait FloatAttribute      {}
@@ -74,7 +79,6 @@ trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     }
 }
 
-//(K, Vec<ItemWithData<'a, T>>)
 trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {
     fn filter_by_attrib<A>(self, attribute: A)
         -> AttributeGroupFilterIter<Self, A>

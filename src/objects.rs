@@ -7,6 +7,8 @@ use serde::{Serialize, Deserialize};
 
 use crate::tuples::Pick;
 use crate::data::Database;
+use std::borrow::Cow;
+use bstr::ByteSlice;
 //use crate::piracy::*;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
@@ -237,7 +239,10 @@ impl Hash for Project {
     fn hash<H: Hasher>(&self, state: &mut H) { self.id.hash(state) }
 }
 
-impl Identifiable for Project { type Identity = ProjectId; fn id(&self) -> ProjectId { self.id } }
+impl Identifiable for Project {
+    type Identity = ProjectId;
+    fn id(&self) -> ProjectId { self.id }
+}
 
 impl Project {
     pub fn new              (id: ProjectId, url: String) -> Self                            { Project { id, url }                            }
@@ -305,8 +310,13 @@ impl User {
     pub fn author_experience     (&self, store: &Database)   -> Option<Duration>      { store.user_author_experience(&self.id)             }
     pub fn experience            (&self, store: &Database)   -> Option<Duration>      { store.user_experience(&self.id)                    }
 }
-impl Identifiable for User { type Identity = UserId; fn id(&self) -> Self::Identity { self.id } }
-impl Reifiable<User> for UserId { fn reify(&self, store: &Database) -> User { store.user(&self).unwrap().clone() } }
+impl Identifiable for User {
+    type Identity = UserId;
+    fn id(&self) -> Self::Identity { self.id }
+}
+impl Reifiable<User> for UserId {
+    fn reify(&self, store: &Database) -> User { store.user(&self).unwrap().clone() }
+}
 impl PartialEq for User {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
@@ -354,8 +364,13 @@ impl Commit {
     pub fn changed_snapshots   (&self, store: &Database) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
 }
 
-impl Identifiable for Commit { type Identity = CommitId; fn id(&self) -> Self::Identity { self.id } }
-impl Reifiable<Commit> for CommitId { fn reify(&self, store: &Database) -> Commit { store.commit(&self).unwrap().clone() } }
+impl Identifiable for Commit {
+    type Identity = CommitId;
+    fn id(&self) -> Self::Identity { self.id }
+}
+impl Reifiable<Commit> for CommitId {
+    fn reify(&self, store: &Database) -> Commit { store.commit(&self).unwrap().clone() }
+}
 impl PartialEq for Commit {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
@@ -376,8 +391,13 @@ impl Path {
     pub fn new(id: PathId, location: String) -> Self { Path { id, location } }
     pub fn language(&self) -> Option<Language> { Language::from_path(self.location.as_str()) }
 }
-impl Identifiable for Path { type Identity = PathId; fn id(&self) -> Self::Identity { self.id } }
-impl Reifiable<Path> for PathId { fn reify(&self, store: &Database) -> Path { store.path(&self).unwrap().clone() } }
+impl Identifiable for Path {
+    type Identity = PathId;
+    fn id(&self) -> Self::Identity { self.id }
+}
+impl Reifiable<Path> for PathId {
+    fn reify(&self, store: &Database) -> Path { store.path(&self).unwrap().clone() }
+}
 impl PartialEq for Path {
     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 }
@@ -396,8 +416,15 @@ impl Hash for Path {
 pub struct Snapshot { id: SnapshotId, contents: Vec<u8> }
 impl Snapshot {
     pub fn new(id: SnapshotId, contents: Vec<u8>) -> Self { Snapshot { id, contents } }
+    pub fn raw_contents(&self) -> &Vec<u8> { &self.contents }
+    //pub fn id(&self) -> SnapshotId { self.id.clone() }
+    pub fn contents(&self) -> Cow<str> { self.contents.to_str_lossy() }
+    pub fn contains(&self, needle: &str) -> bool { self.contents().contains(needle) }
 }
-impl Identifiable for Snapshot { type Identity = SnapshotId; fn id(&self) -> Self::Identity { self.id } }
+impl Identifiable for Snapshot {
+    type Identity = SnapshotId;
+    fn id(&self) -> Self::Identity { self.id }
+}
 impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &Database) -> Snapshot {
     store.snapshot(&self).unwrap().clone() }
 }

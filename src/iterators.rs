@@ -1,9 +1,13 @@
 use std::rc::Rc;
-use std::cell::RefCell;
-use crate::data::Database;
+use std::cell::{RefCell, Ref};
+use crate::data::{Database, Data};
 use std::marker::PhantomData;
 use std::collections::VecDeque;
 use crate::objects::*;
+use std::time::Duration;
+use std::borrow::{Cow, Borrow};
+use crate::data;
+use dcd::PropertyStoreIterator;
 //use std::iter::FromIterator;
 
 //pub type DataPtr = Rc<RefCell<Data>>;
@@ -35,7 +39,58 @@ impl<'a, T> ItemWithData<'a, T> {
         ItemWithData { data, item }
     }
 }
+impl<'a> ItemWithData<'a, Project> {
+    pub fn id               (&self)    -> ProjectId                       { self.item.id()                                     }
+    pub fn url              (&self)    -> String                          { self.item.url().to_string()                        }
+    pub fn issue_count      (&self)    -> Option<usize>                   { self.item.issue_count(&self.data)            }
+    pub fn buggy_issue_count(&self)    -> Option<usize>                   { self.item.buggy_issue_count(&self.data)      }
+    pub fn is_fork          (&self)    -> Option<bool>                    { self.item.is_fork(&self.data)                }
+    pub fn is_archived      (&self)    -> Option<bool>                    { self.item.is_archived(&self.data)            }
+    pub fn is_disabled      (&self)    -> Option<bool>                    { self.item.is_disabled(&self.data)            }
+    pub fn star_count       (&self)    -> Option<usize>                   { self.item.star_count(&self.data)             }
+    pub fn watcher_count    (&self)    -> Option<usize>                   { self.item.watcher_count(&self.data)          }
+    pub fn size             (&self)    -> Option<usize>                   { self.item.size(&self.data)                   }
+    pub fn open_issue_count (&self)    -> Option<usize>                   { self.item.open_issue_count(&self.data)       }
+    pub fn fork_count       (&self)    -> Option<usize>                   { self.item.fork_count(&self.data)             }
+    pub fn subscriber_count (&self)    -> Option<usize>                   { self.item.subscriber_count(&self.data)       }
+    pub fn license          (&self)    -> Option<String>                  { self.item.license(&self.data)                }
+    pub fn language         (&self)    -> Option<Language>                { self.item.language(&self.data)               }
+    pub fn description      (&self)    -> Option<String>                  { self.item.description(&self.data)            }
+    pub fn homepage         (&self)    -> Option<String>                  { self.item.homepage(&self.data)               }
+    pub fn head_ids         (&self)    -> Option<Vec<(String, CommitId)>> { self.item.head_ids(&self.data)               }
+    pub fn heads            (&self)    -> Option<Vec<(String, Commit)>>   { self.item.heads(&self.data)                  }
+    pub fn head_count       (&self)    -> Option<usize>                   { self.item.head_count(&self.data)             }
+    pub fn commit_ids       (&self)    -> Option<Vec<CommitId>>           { self.item.commit_ids(&self.data)             }
+    pub fn commits          (&self)    -> Option<Vec<Commit>>             { self.item.commits(&self.data)                }
+    pub fn commit_count     (&self)    -> Option<usize>                   { self.item.commit_count(&self.data)           }
+    pub fn author_ids       (&self)    -> Option<Vec<UserId>>             { self.item.author_ids(&self.data)             }
+    pub fn authors          (&self)    -> Option<Vec<User>>               { self.item.authors(&self.data)                }
+    pub fn author_count     (&self)    -> Option<usize>                   { self.item.author_count(&self.data)           }
+    pub fn paths            (&self)    -> Option<Vec<Path>>               { self.item.paths(&self.data)                  }
+    pub fn path_count       (&self)    -> Option<usize>                   { self.item.path_count(&self.data)             }
+    pub fn committer_ids    (&self)    -> Option<Vec<UserId>>             { self.item.committer_ids(&self.data)          }
+    pub fn committers       (&self)    -> Option<Vec<User>>               { self.item.committers(&self.data)             }
+    pub fn committer_count  (&self)    -> Option<usize>                   { self.item.committer_count(&self.data)        }
+    pub fn user_ids         (&self)    -> Option<Vec<UserId>>             { self.item.user_ids(&self.data)               }
+    pub fn users            (&self)    -> Option<Vec<User>>               { self.item.users(&self.data)                  }
+    pub fn user_count       (&self)    -> Option<usize>                   { self.item.user_count(&self.data)             }
+    pub fn lifetime         (&self)    -> Option<Duration>                { self.item.lifetime(&self.data)               }
+    pub fn has_issues       (&self)    -> Option<bool>                    { self.item.has_issues(&self.data)             }
+    pub fn has_downloads    (&self)    -> Option<bool>                    { self.item.has_downloads(&self.data)          }
+    pub fn has_wiki         (&self)    -> Option<bool>                    { self.item.has_wiki(&self.data)               }
+    pub fn has_pages        (&self)    -> Option<bool>                    { self.item.has_pages(&self.data)              }
+    pub fn created          (&self)    -> Option<i64>                     { self.item.created(&self.data)                }
+    pub fn updated          (&self)    -> Option<i64>                     { self.item.updated(&self.data)                }
+    pub fn pushed           (&self)    -> Option<i64>                     { self.item.pushed(&self.data)                 }
+    pub fn master_branch    (&self)    -> Option<String>                  { self.item.master_branch(&self.data)          }
+}
+impl<'a> ItemWithData<'a, Snapshot> {
+    pub fn raw_contents(&self) -> &Vec<u8> { &self.item.raw_contents() }
+    pub fn id(&self) -> SnapshotId { self.item.id() }
+    pub fn contents(&self) -> Cow<str> { self.item.contents() }
+    pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
 
+}
 //------------------------------------------------------------------------------------------------//
 
 // pub struct IterWithDatabasePtr<T, I: Iterator<Item=T>> { data_ptr: DatabasePtr, iterator: I }
@@ -223,3 +278,6 @@ impl<K,V,I> DropKey<K,V> for I where I: Iterator<Item=(K, V)> {
         self.map(Box::new(|(_,b)| b))
     }
 }
+
+
+

@@ -1,17 +1,18 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref};
 use std::marker::PhantomData;
 
 use itertools::{Itertools, MinMaxResult};
 
-use dcd::DatastoreView;
+use dcd::{DatastoreView, PropertyStoreIterator};
 
 use crate::objects::*;
 use crate::piracy::*;
 use crate::persistent::*;
 use crate::iterators::*;
 use crate::metadata::ProjectMetadataSource;
+use std::borrow::Borrow;
 
 // Internally Mutable Data
 pub struct Database { data: RefCell<Data> }
@@ -28,8 +29,25 @@ impl Database {
     pub fn all_project_ids(&self)  -> Vec<ProjectId>  { self.data.borrow_mut().all_project_ids()  }
     pub fn all_user_ids(&self)     -> Vec<UserId>     { self.data.borrow_mut().all_user_ids()     }
     pub fn all_path_ids(&self)     -> Vec<PathId>     { self.data.borrow_mut().all_path_ids()     }
-    pub fn all_snapshot_ids(&self) -> Vec<SnapshotId> { self.data.borrow_mut().all_snapshot_ids() }
     pub fn all_commit_ids(&self)   -> Vec<CommitId>   { self.data.borrow_mut().all_commit_ids()   }
+    pub fn all_snapshot_ids(&self) -> Vec<SnapshotId> { self.data.borrow().all_snapshot_ids() }
+}
+
+pub struct OptionIter<I> where I: Iterator {
+    pub iter: Option<I>
+}
+
+impl<I> OptionIter<I> where I: Iterator {
+    pub fn new() -> Self {
+        OptionIter { iter: None }
+    }
+}
+
+impl<I> Iterator for OptionIter<I> where I: Iterator {
+    type Item = I::Item;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.as_mut().map(|iter| iter.next()).flatten()
+    }
 }
 
 // Quincunx
@@ -38,7 +56,17 @@ impl Database {
     pub fn commits(&self)   -> QuincunxIter<Commit>   { QuincunxIter::<Commit>::new(&self)   }
     pub fn users(&self)     -> QuincunxIter<User>     { QuincunxIter::<User>::new(&self)     }
     pub fn paths(&self)     -> QuincunxIter<Path>     { QuincunxIter::<Path>::new(&self)     }
-    pub fn snapshots(&self) -> QuincunxIter<Snapshot> { QuincunxIter::<Snapshot>::new(&self) }
+
+    pub fn snapshots<'a>(&'a self) -> Option<DirectIter<'a, Snapshot>> {
+
+        //let mut option_iterator: OptionIter<DirectIter<'a, Snapshot>> = OptionIter::new();
+        //let mut thing: Option<DirectIter<'a, Snapshot>> = None;
+        //DirectIter::from_ptr(self.data.borrow(), &mut thing);
+        //unimplemented!()
+        //option_iterator
+        //thing
+        unimplemented!()
+    }
 }
 
 impl Database {
@@ -655,7 +683,7 @@ impl From<(u64, dcd::Commit)> for Commit {
     }
 }
 
-struct Data {
+pub(crate) struct Data {
     store:                       DatastoreView,
 
     project_metadata:            ProjectMetadataSource,
@@ -685,7 +713,7 @@ struct Data {
     user_committed_commit_count: PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
 
     paths:                       PersistentMap<PathExtractor>,
-    snapshots:                   PersistentMap<SnapshotExtractor>,
+    //snapshots:                   PersistentMap<SnapshotExtractor>,
 
     commits:                     PersistentMap<CommitExtractor>,
     commit_hashes:               PersistentMap<CommitHashExtractor>,
@@ -733,7 +761,7 @@ impl Data {
             user_committed_commit_count: PersistentMap::new("user_committed_commit_count", dir.clone()),
 
             paths:                       PersistentMap::new("paths",                       dir.clone()),
-            snapshots:                   PersistentMap::new("snapshots",                   dir.clone()),
+            //snapshots:                   PersistentMap::new("snapshots",                   dir.clone()),
 
             commits:                     PersistentMap::new("commits",                     dir.clone()),
             commit_hashes:               PersistentMap::new("commit_hashes",               dir.clone()),
@@ -756,11 +784,11 @@ impl Data { // Prequincunx
     pub fn all_path_ids(&mut self) -> Vec<PathId> {
         self.smart_load_paths().keys().collect::<Vec<&PathId>>().pirate()
     }
-    pub fn all_snapshot_ids(&mut self) -> Vec<SnapshotId> {
-        self.smart_load_snapshots().keys().collect::<Vec<&SnapshotId>>().pirate()
-    }
     pub fn all_commit_ids(&mut self) -> Vec<CommitId> {
         self.smart_load_commits().keys().collect::<Vec<&CommitId>>().pirate()
+    }
+    pub fn all_snapshot_ids(&self) -> Vec<SnapshotId> {
+        self.store.contents().map(|(id, _)| SnapshotId::from(id)).collect()
     }
 }
 
@@ -779,8 +807,11 @@ impl Data { // Quincunx
         self.smart_load_paths().iter().map(|(_, path)| path)
     }
 
-    #[allow(dead_code)] pub fn snapshots<'a>(&'a mut self) -> impl Iterator<Item=&'a Snapshot> +'a {
-        self.smart_load_snapshots().iter().map(|(_, snapshot)| snapshot)
+    pub fn snapshots<'a>(&'a mut self) -> impl Iterator<Item=Snapshot> + 'a {
+        fn construct_snapshot((id, contents): (u64, Vec<u8>)) -> Snapshot {
+            Snapshot::new(SnapshotId::from(id), contents)
+        }
+        self.store.contents().map(construct_snapshot)
     }
 
     #[allow(dead_code)] pub fn commits<'a>(&'a mut self) -> impl Iterator<Item=&'a Commit> + 'a {
@@ -945,7 +976,8 @@ impl Data {
         self.smart_load_paths().get(id)
     }
     pub fn snapshot(&mut self, id: &SnapshotId) -> Option<&Snapshot> {
-        self.smart_load_snapshots().get(id)
+        //self.smart_load_snapshots().get(id)
+        unimplemented!() // FIXME Waiting for random access functionality in DatastoreView
     }
     pub fn commit(&mut self, id: &CommitId) -> Option<&Commit> {
         self.smart_load_commits().get(id)
@@ -1113,9 +1145,9 @@ impl Data {
     fn smart_load_paths(&mut self) -> &BTreeMap<PathId, Path> {
         load_from_store!(self, paths)
     }
-    fn smart_load_snapshots(&mut self) -> &BTreeMap<SnapshotId, Snapshot> {
-        load_from_store!(self, snapshots)
-    }
+    // fn smart_load_snapshots(&mut self) -> &BTreeMap<SnapshotId, Snapshot> {
+    //     load_from_store!(self, snapshots)
+    // }
     fn smart_load_commits(&mut self) -> &BTreeMap<CommitId, Commit> {
         load_from_store!(self, commits)
     }
@@ -1136,5 +1168,43 @@ impl Data {
     }
     fn smart_load_commit_change_count(&mut self) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, one, commit_changes)
+    }
+}
+
+pub struct DirectIter<'a, T> {
+    store: Ref<'a, DatastoreView>,
+    contents: Option<PropertyStoreIterator<'a, Vec<u8>>>,
+    _type: PhantomData<T>,
+}
+
+impl<'a> DirectIter<'a, Snapshot> {
+    pub(crate) fn from(data: Ref<'a, Data>) -> Self {
+        let store: Ref<'a, DatastoreView> = Ref::map(data, |data| &data.store);
+        DirectIter {
+            contents:  None,
+            store,
+            _type: PhantomData
+        }
+    }
+
+    pub(crate) fn from_ptr(
+        data: Ref<'a, Data>,
+        forever_home: &'a mut Option<DirectIter<'a, Snapshot>>)
+    {
+        let store: Ref<'a, DatastoreView> = Ref::map(data, |data| &data.store);
+        *forever_home = Some(DirectIter {
+            contents: None,
+            store,
+            _type: PhantomData
+        });
+        let mut direct_iter_ptr = forever_home.as_mut().unwrap();
+        direct_iter_ptr.contents = Some(direct_iter_ptr.store.contents());
+    }
+}
+
+impl<'a> Iterator for DirectIter<'a, Snapshot> { // Ideally, make generic
+    type Item = Snapshot;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.contents.as_mut().unwrap().next().map(|(id, vector)| Snapshot::new(SnapshotId::from(id), vector))
     }
 }

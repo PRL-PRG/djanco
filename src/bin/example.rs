@@ -87,13 +87,13 @@ fn main() {
         Database::from_store(store, config.cache_path())
     });
 
-    let (snapshots, find_snapshots_secs) = with_elapsed_secs!("count projects", {
+    let (snapshots, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
         database.snapshot_ids_where(|snapshot| {
             snapshot.contains("#include <memory_resource>")
         })
     });
 
-    let save_snapshots_secs = elapsed_secs!("count projects", {
+    let save_snapshots_secs = elapsed_secs!("save snapshots", {
         snapshots.into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
     });
 

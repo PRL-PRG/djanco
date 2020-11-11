@@ -1,4 +1,4 @@
-use crate::attrib::{Filter, Sort};
+use crate::attrib::*;
 use crate::iterators::ItemWithData;
 use crate::objects::*;
 
@@ -35,36 +35,10 @@ use crate::objects::*;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct DefaultBranch;
 #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct Age;
 
-
-
 // TODO
 // #[derive(Eq, PartialEq,       Clone, Hash)] pub struct CommitsWith<F>(pub F) where F: Filter<Entit=Commit>;
 // #[derive(Eq, PartialEq,       Clone, Hash)] pub struct UsersWith<F>(pub F)   where F: Filter<Entity=User>;
 // #[derive(Eq, PartialEq,       Clone, Hash)] pub struct PathsWith<F>(pub F)   where F: Filter<Entity=Path>;
-
-
-macro_rules! impl_sort_by_key {
-    ($item:ident, $attrib:ident, $key_selection:expr) => {
-        impl Sort for $attrib {
-            type Item = $item;
-            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-                vector.sort_by_key($key_selection)
-            }
-        }
-    }
-}
-
-macro_rules! impl_sort_by_key_with_db {
-    ($item:ident, $attrib:ident, $method:ident) => {
-        impl_sort_by_key!($item, $attrib, | ItemWithData { item, data } | item.$method(data));
-    }
-}
-
-macro_rules! impl_sort_by_key_sans_db {
-    ($item:ident, $attrib:ident, $method:ident) => {
-        impl_sort_by_key!($item, $attrib, | ItemWithData { item, data: _ } | item.$method());
-    }
-}
 
 impl_sort_by_key_sans_db!(Project, Id,  id);
 impl_sort_by_key_sans_db!(Project, URL, url);

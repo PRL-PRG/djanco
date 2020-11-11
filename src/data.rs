@@ -139,6 +139,9 @@ impl Database {
     pub fn project_author_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_author_count(id)
     }
+    pub fn project_path_ids(&self, id: &ProjectId) -> Option<Vec<PathId>> {
+        self.data.borrow_mut().project_path_ids(id).pirate()
+    }
     pub fn project_paths(&self, id: &ProjectId) -> Option<Vec<Path>> {
         self.data.borrow_mut().project_paths(id)
     }
@@ -290,7 +293,7 @@ impl DoubleMapExtractor for ProjectPathsExtractor {
                     let path_ids_option =
                         commit_change_ids.get(commit_id).map(|changes| {
                             let vector: Vec<PathId> =
-                                changes.iter().map(|(path_id, snapshot_id)| {
+                                changes.iter().map(|(path_id, _)| {
                                     path_id.clone()
                                 }).collect();
                             vector
@@ -411,7 +414,10 @@ impl TripleMapExtractor for ProjectLifetimesExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     type C = BTreeMap<CommitId, i64>;
-    fn extract(project_commits: &Self::A, authored_timestamps: &Self::B, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(project_commits: &Self::A,
+               authored_timestamps: &Self::B,
+               committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+
        project_commits.iter().flat_map(|(project_id, commit_ids)| {
            let min_max =
                commit_ids.iter()

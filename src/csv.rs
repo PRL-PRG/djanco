@@ -1,8 +1,10 @@
 use std::io::Error;
+use std::io::Write;
 
-use crate::objects::*;
 use serde::export::fmt::Display;
 use itertools::Itertools;
+
+use crate::objects::*;
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -14,12 +16,15 @@ macro_rules! create_file {
 }
 
 pub trait CSV {
-    fn to_csv(&self, location: impl Into<String>) -> Result<(), std::io::Error>;
+    fn into_csv(self, location: impl Into<String>) -> Result<(), std::io::Error>;
 }
 
 impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
-    fn to_csv(&self, location: impl Into<String>) -> Result<(), std::io::Error> {
-        unimplemented!()
+    fn into_csv(self, location: impl Into<String>) -> Result<(), std::io::Error> {
+        let mut file = create_file!(location)?;
+        writeln!(file, "{}", T::csv_header())?;
+        for element in self { writeln!(file, "{}", element.to_csv_item()); }
+        Ok(())
     }
 }
 
@@ -35,15 +40,21 @@ impl<T> Missing for Option<T> where T: Display {
 
 #[allow(non_snake_case)]
 pub trait CSVItem {
-    fn header() -> Vec<&'static str>;
-    fn to_csv(&self) -> Vec<String>;
+    fn column_headers() -> Vec<&'static str>;
+    fn column_values(&self) -> Vec<String>;
+    fn csv_header() -> String {
+        Self::column_headers().into_iter().map(|header| header.to_owned()).join(", ")
+    }
+    fn to_csv_item(&self) -> String {
+        self.column_values().join(", ")
+    }
 }
 
 macro_rules! impl_csv_item {
     ($type:ident, $header:expr, $to_string:expr) => {
         impl CSVItem for $type {
-            fn header() -> Vec<&'static str> { vec![$header] }
-            fn to_csv(&self) -> Vec<String> { $to_string(self) }
+            fn column_headers() -> Vec<&'static str> { vec![$header] }
+            fn column_values(&self) -> Vec<String> { $to_string(self) }
         }
     }
 }
@@ -62,7 +73,7 @@ macro_rules! impl_csv_item_to_string {
 
 macro_rules! impl_csv_item_inner {
     ($type:ident, $header:expr) => {
-        impl_csv_item!($type, $header, |selfie: &$type| selfie.0.to_csv());
+        impl_csv_item!($type, $header, |selfie: &$type| selfie.0.column_values());
     }
 }
 
@@ -84,30 +95,30 @@ impl_csv_item_inner!(PathId, "path_id");
 impl_csv_item_inner!(SnapshotId, "snapshot_id");
 
 impl CSVItem for Project {
-    fn header() -> Vec<&'static str> {
+    fn column_headers() -> Vec<&'static str> {
         vec![ "project_id", "url" ]
     }
-    fn to_csv(&self) -> Vec<String>  {
+    fn column_values(&self) -> Vec<String>  {
         vec![ self.id().to_string(),
               self.url().to_string() ]
     }
 }
 
 impl CSVItem for User {
-    fn header() -> Vec<&'static str> {
+    fn column_headers() -> Vec<&'static str> {
         vec![ "user_id", "email" ]
     }
-    fn to_csv(&self) -> Vec<String>  {
+    fn column_values(&self) -> Vec<String>  {
         vec![ self.id().to_string(),
               self.email().to_string() ]
     }
 }
 
 impl CSVItem for Path {
-    fn header() -> Vec<&'static str> {
+    fn column_headers() -> Vec<&'static str> {
         vec![ "path_id", "path", "language" ]
     }
-    fn to_csv(&self) -> Vec<String>  {
+    fn column_values(&self) -> Vec<String>  {
         vec![ self.id().to_string(),
               self.location().to_string(),
               self.language().to_string_or_empty() ]
@@ -115,10 +126,10 @@ impl CSVItem for Path {
 }
 
 impl CSVItem for Commit {
-    fn header() -> Vec<&'static str> {
+    fn column_headers() -> Vec<&'static str> {
         vec![ "commit_id", "parent_id", "author_id", "committer_id" ]
     }
-    fn to_csv(&self) -> Vec<String>  {
+    fn column_values(&self) -> Vec<String>  {
         vec![ self.id().to_string(),
               self.parent_ids().into_iter().map(|id| id.to_string()).join(" "),
               self.author_id().to_string(),
@@ -127,10 +138,10 @@ impl CSVItem for Commit {
 }
 
 impl CSVItem for Snapshot {
-    fn header() -> Vec<&'static str> {
+    fn column_headers() -> Vec<&'static str> {
         unimplemented!()
     }
-    fn to_csv(&self) -> Vec<String>  {
+    fn column_values(&self) -> Vec<String>  {
         unimplemented!()
     }
 }

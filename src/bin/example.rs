@@ -5,8 +5,7 @@ use dcd::DatastoreView;
 use djanco::data::*;
 use djanco::time;
 //use djanco::objects::*;
-use djanco::iterators::*;
-use djanco::objects::*;
+//use djanco::iterators::*;
 use djanco::csv::*;
 
 // TODO
@@ -95,7 +94,7 @@ fn main() {
     });
 
     let save_snapshots_secs = elapsed_secs!("count projects", {
-        snapshots.to_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
+        snapshots.into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
     });
 
     eprintln!("Summary");

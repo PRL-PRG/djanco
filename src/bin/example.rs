@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use dcd::DatastoreView;
 use djanco::data::*;
 use djanco::time;
-//use djanco::objects::*;
+use djanco::objects::*;
 //use djanco::iterators::*;
 use djanco::csv::*;
 
@@ -87,14 +87,14 @@ fn main() {
         Database::from_store(store, config.cache_path())
     });
 
-    let (snapshots, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
+    let (snapshot_ids, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
         database.snapshots().filter(|snapshot| {
             snapshot.contains("#include <memory_resource>")
-        })
+        }).map(|snapshot| snapshot.id())
     });
 
     let save_snapshots_secs = elapsed_secs!("save snapshots", {
-        snapshots.into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
+        snapshot_ids.into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
     });
 
     eprintln!("Summary");

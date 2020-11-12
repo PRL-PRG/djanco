@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
-use std::time::Duration;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
 use itertools::{Itertools, MinMaxResult};
+use chrono::Duration;
 
 use dcd::DatastoreView;
 
@@ -182,6 +182,21 @@ impl Database {
     pub fn project_path_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_path_count(&self.store, id)
     }
+    pub fn project_snapshot_ids(&self, id: &ProjectId) -> Option<Vec<SnapshotId>> {
+        self.data.borrow_mut().project_snapshot_ids(&self.store, id).pirate()
+    }
+    pub fn project_snapshots(&self, id: &ProjectId) -> Option<Vec<Snapshot>> {
+        self.project_snapshot_ids(id).map(|vector| {
+            vector.into_iter().flat_map(|id| {
+                self.store.content(id.into()).map(|content| {
+                    Snapshot::new(id, content)
+                })
+            }).collect::<Vec<Snapshot>>()
+        })
+    }
+    pub fn project_snapshot_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_snapshot_count(&self.store, id)
+    }
     pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
         self.data.borrow_mut().project_committer_ids(&self.store, id).pirate()
     }
@@ -307,6 +322,34 @@ impl SingleMapExtractor for ProjectHeadsExtractor {
             (ProjectId::from(project_id), heads.into_iter().map(|(name, commit_id)| {
                 (name, CommitId::from(commit_id))
             }).collect())
+        }).collect()
+    }
+}
+
+struct ProjectSnapshotsExtractor {}
+impl MapExtractor for ProjectSnapshotsExtractor {
+    type Key = ProjectId;
+    type Value = Vec<SnapshotId>;
+}
+impl DoubleMapExtractor for ProjectSnapshotsExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<(PathId, SnapshotId)>>;
+
+    fn extract(project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_commit_ids.iter().map(|(project_id, commit_ids)| {
+            let path_ids /* Iterator equivalent of Vec<Vec<PathId>>*/ =
+                commit_ids.iter().flat_map(|commit_id| {
+                    let path_ids_option =
+                        commit_change_ids.get(commit_id).map(|changes| {
+                            let vector: Vec<SnapshotId> =
+                                changes.iter().map(|(_, snapshot_id)| {
+                                    snapshot_id.clone()
+                                }).collect();
+                            vector
+                        });
+                    path_ids_option
+                });
+            (project_id.clone(), path_ids.flatten().unique().collect())
         }).collect()
     }
 }
@@ -694,6 +737,7 @@ pub(crate) struct Data {
     project_urls:                PersistentMap<ProjectUrlExtractor>,
     project_heads:               PersistentMap<ProjectHeadsExtractor>,
     project_paths:               PersistentMap<ProjectPathsExtractor>,
+    project_snapshots:           PersistentMap<ProjectSnapshotsExtractor>,
     project_users:               PersistentMap<ProjectUsersExtractor>,
     project_authors:             PersistentMap<ProjectAuthorsExtractor>,
     project_committers:          PersistentMap<ProjectCommittersExtractor>,
@@ -701,6 +745,7 @@ pub(crate) struct Data {
     project_lifetimes:           PersistentMap<ProjectLifetimesExtractor>,
 
     project_path_count:          PersistentMap<CountPerKeyExtractor<ProjectId, PathId>>,
+    project_snapshot_count:      PersistentMap<CountPerKeyExtractor<ProjectId, SnapshotId>>,
     project_user_count:          PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_author_count:        PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_committer_count:     PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
@@ -742,6 +787,8 @@ impl Data {
             project_heads:               PersistentMap::new("project_heads",               dir.clone()),
             project_paths:               PersistentMap::new("project_paths",               dir.clone()),
             project_path_count:          PersistentMap::new("project_path_count",          dir.clone()),
+            project_snapshots:           PersistentMap::new("project_snapshots",           dir.clone()),
+            project_snapshot_count:      PersistentMap::new("project_snapshot_count",      dir.clone()),
             project_users:               PersistentMap::new("project_users",               dir.clone()),
             project_user_count:          PersistentMap::new("project_user_count",          dir.clone()),
             project_authors:             PersistentMap::new("project_authors",             dir.clone(),),
@@ -925,6 +972,12 @@ impl Data {
     pub fn project_path_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_path_count(store).get(id).pirate()
     }
+    pub fn project_snapshot_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&Vec<SnapshotId>> {
+        self.smart_load_project_snapshots(store).get(id)
+    }
+    pub fn project_snapshot_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_snapshot_count(store).get(id).pirate()
+    }
     pub fn project_author_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&Vec<UserId>> {
         self.smart_load_project_authors(store).get(id)
     }
@@ -961,7 +1014,7 @@ impl Data {
     pub fn project_lifetime(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Duration> {
         self.smart_load_project_lifetimes(store).get(id)
             .pirate()
-            .map(|seconds| Duration::from_secs(seconds))
+            .map(|seconds| Duration::seconds(seconds as i64))
     }
     pub fn user(&mut self, store: &DatastoreView, id: &UserId) -> Option<&User> {
         self.smart_load_users(store).get(id)
@@ -1012,17 +1065,17 @@ impl Data {
     pub fn user_committed_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
         self.smart_load_user_committer_experience(store)
             .get(id)
-            .map(|seconds| Duration::from_secs(*seconds))
+            .map(|seconds| Duration::seconds(*seconds as i64))
     }
     pub fn user_author_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
         self.smart_load_user_author_experience(store)
             .get(id)
-            .map(|seconds| Duration::from_secs(*seconds))
+            .map(|seconds| Duration::seconds(*seconds as i64))
     }
     pub fn user_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
         self.smart_load_user_experience(store)
             .get(id)
-            .map(|seconds| Duration::from_secs(*seconds))
+            .map(|seconds| Duration::seconds(*seconds as i64))
     }
     pub fn user_committed_commit_count(&mut self, store: &DatastoreView, id: &UserId) -> Option<usize> {
         self.smart_load_user_committed_commit_count(store).get(id).pirate()
@@ -1082,6 +1135,9 @@ impl Data {
     fn smart_load_project_paths(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<PathId>> {
         load_with_prerequisites!(self, project_paths, store, two, project_commits, commit_changes)
     }
+    fn smart_load_project_snapshots(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<SnapshotId>> {
+        load_with_prerequisites!(self, project_snapshots, store, two, project_commits, commit_changes)
+    }
     fn smart_load_project_user_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_user_count, store, one, project_users)
     }
@@ -1090,6 +1146,9 @@ impl Data {
     }
     fn smart_load_project_path_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_path_count, store, one, project_paths)
+    }
+    fn smart_load_project_snapshot_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_snapshot_count, store, one, project_snapshots)
     }
     fn smart_load_project_committer_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_committer_count, store, one, project_committers)

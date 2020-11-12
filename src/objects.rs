@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 
-use std::time::Duration;
+use chrono::Duration;
 use serde::{Serialize, Deserialize};
 
 use crate::tuples::Pick;
@@ -274,8 +274,12 @@ impl Project {
     pub fn author_ids       (&self, store: &Database)    -> Option<Vec<UserId>>             { store.project_author_ids(&self.id)             }
     pub fn authors          (&self, store: &Database)    -> Option<Vec<User>>               { store.project_authors(&self.id)                }
     pub fn author_count     (&self, store: &Database)    -> Option<usize>                   { store.project_author_count(&self.id)           }
+    pub fn path_ids         (&self, store: &Database)    -> Option<Vec<PathId>>             { store.project_path_ids(&self.id)               }
     pub fn paths            (&self, store: &Database)    -> Option<Vec<Path>>               { store.project_paths(&self.id)                  }
     pub fn path_count       (&self, store: &Database)    -> Option<usize>                   { store.project_path_count(&self.id)             }
+    pub fn snapshot_ids     (&self, store: &Database)    -> Option<Vec<SnapshotId>>         { store.project_snapshot_ids(&self.id)           }
+    pub fn snapshots        (&self, store: &Database)    -> Option<Vec<Snapshot>>           { store.project_snapshots(&self.id)              }
+    pub fn snapshot_count   (&self, store: &Database)    -> Option<usize>                   { store.project_snapshot_count(&self.id)         }
     pub fn committer_ids    (&self, store: &Database)    -> Option<Vec<UserId>>             { store.project_committer_ids(&self.id)          }
     pub fn committers       (&self, store: &Database)    -> Option<Vec<User>>               { store.project_committers(&self.id)             }
     pub fn committer_count  (&self, store: &Database)    -> Option<usize>                   { store.project_committer_count(&self.id)        }
@@ -306,7 +310,7 @@ impl User {
     pub fn committed_commit_ids  (&self, store: &Database)   -> Option<Vec<CommitId>> { store.user_committed_commit_ids(&self.id)          }
     pub fn committed_commits     (&self, store: &Database)   -> Option<Vec<Commit>>   { store.user_committed_commits(&self.id)             }
     pub fn committed_commit_count(&self, store: &Database)   -> Option<usize>         { store.user_committed_commit_count(&self.id)        }
-    pub fn committed_experience  (&self, store: &Database)   -> Option<Duration>      { store.user_committed_experience(&self.id)          }
+    pub fn committer_experience  (&self, store: &Database)   -> Option<Duration>      { store.user_committed_experience(&self.id)          }
     pub fn author_experience     (&self, store: &Database)   -> Option<Duration>      { store.user_author_experience(&self.id)             }
     pub fn experience            (&self, store: &Database)   -> Option<Duration>      { store.user_experience(&self.id)                    }
 }
@@ -360,7 +364,7 @@ impl Commit {
     pub fn changed_snapshot_ids(&self, store: &Database) -> Option<Vec<SnapshotId>>           {  store.commit_change_ids(&self.id).right()          }
 
     pub fn changed_paths       (&self, store: &Database) -> Option<Vec<Path>>                 {  store.commit_changed_paths(&self.id)               }
-    pub fn changed_path_count  (&self, store: &Database) -> Option<Vec<Path>>                 {  self.changed_path_ids(store).reify(store)          }
+    pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
     pub fn changed_snapshots   (&self, store: &Database) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
 }
 

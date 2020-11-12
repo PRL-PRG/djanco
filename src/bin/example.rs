@@ -1,7 +1,11 @@
-use structopt::StructOpt;
 use std::path::PathBuf;
+use std::collections::BTreeSet;
+
+use structopt::StructOpt;
+use itertools::Itertools;
 
 use dcd::DatastoreView;
+
 use djanco::data::*;
 use djanco::time;
 use djanco::objects::*;
@@ -94,12 +98,33 @@ fn main() {
     });
 
     let save_snapshots_secs = elapsed_secs!("save snapshots", {
-        snapshot_ids.into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
+        snapshot_ids
+            .into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
+    });
+
+    let selected_snapshot_ids: BTreeSet<SnapshotId> = BTreeSet::new(); // FIXME
+
+    let (selected_projects, select_projects_secs) = with_elapsed_secs!("select projects", {
+        database.projects().filter(|project| {
+            project.snapshot_ids()
+                .map_or(false, |snapshot_ids| {
+                    snapshot_ids.iter().any(|snapshot_id| {
+                        selected_snapshot_ids.contains(snapshot_id)
+                    })
+                })
+        }).sorted_by_key(|project| project.star_count())
+    });
+
+    let save_selected_projects_secs = elapsed_secs!("save selected projects", {
+        selected_projects
+            .into_csv(config.output_csv_path("projects_with_memory_resource")).unwrap()
     });
 
     eprintln!("Summary");
-    eprintln!("   open data store:       {}s", store_secs);
-    eprintln!("   open database:         {}s", database_secs);
-    eprintln!("   find snapshots:        {}s", find_snapshots_secs);
-    eprintln!("   save snapshots:        {}s", save_snapshots_secs);
+    eprintln!("   open data store:        {}s", store_secs);
+    eprintln!("   open database:          {}s", database_secs);
+    eprintln!("   find snapshots:         {}s", find_snapshots_secs);
+    eprintln!("   save snapshots:         {}s", save_snapshots_secs);
+    eprintln!("   select projects:        {}s", select_projects_secs);
+    eprintln!("   save selected projects: {}s", save_selected_projects_secs);
 }

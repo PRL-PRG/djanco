@@ -4,6 +4,7 @@ use serde::export::fmt::Display;
 use itertools::Itertools;
 
 use crate::objects::*;
+use crate::iterators::ItemWithData;
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -25,6 +26,26 @@ impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
         for element in self { writeln!(file, "{}", element.to_csv_item())?; }
         Ok(())
     }
+}
+
+pub trait StringConvenience {
+    fn escape_quotes(&self) -> String;
+    fn quoted(&self) -> String;
+}
+
+impl StringConvenience for String {
+    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
+    fn quoted(&self) -> String { format!("\"{}\"", self) }
+}
+
+impl StringConvenience for &String {
+    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
+    fn quoted(&self) -> String { format!("\"{}\"", self) }
+}
+
+impl StringConvenience for &str {
+    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
+    fn quoted(&self) -> String { format!("\"{}\"", self) }
 }
 
 pub trait Missing {
@@ -60,7 +81,7 @@ macro_rules! impl_csv_item {
 
 macro_rules! impl_csv_item_quoted {
     ($type:ident, $header:expr) => {
-        impl_csv_item!($type, $header, |selfie: &$type| vec![format!(r#"{}"#, selfie)]);
+        impl_csv_item!($type, $header, |selfie: &$type| vec![selfie.quoted()]);
     }
 }
 
@@ -136,11 +157,80 @@ impl CSVItem for Commit {
     }
 }
 
+
 impl CSVItem for Snapshot {
     fn column_headers() -> Vec<&'static str> {
-        unimplemented!()
+        vec!["snapshot_id", "content"]
     }
     fn column_values(&self) -> Vec<String>  {
-        unimplemented!()
+        vec![ self.id().to_string(),
+              self.contents().to_string().escape_quotes().quoted() ]
+    }
+}
+
+impl<'a> CSVItem for ItemWithData<'a, Project> {
+    fn column_headers() -> Vec<&'static str> {
+        vec!["id", "url",
+             "is_fork", "is_archived", "is_disabled",
+             "stars", "watchers", "size", "open_issues", "forks", "subscribers",
+             "language",
+             "heads", "commits", "authors", "paths", "snapshots", "committers", "users",
+             "lifetime",
+             "has_issues", "has_downloads", "has_wiki", "has_pages",
+             "created", "updated", "pushed",
+             "master_branch",
+             "license", "homepage", "description"]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![self.id().to_string(),
+             self.url(),
+             self.is_fork().to_string_or_empty(),
+             self.is_archived().to_string_or_empty(),
+             self.is_disabled().to_string_or_empty(),
+             self.star_count().to_string_or_empty(),
+             self.watcher_count().to_string_or_empty(),
+             self.size().to_string_or_empty(),
+             self.open_issue_count().to_string_or_empty(),
+             self.fork_count().to_string_or_empty(),
+             self.subscriber_count().to_string_or_empty(),
+             self.language().to_string_or_empty(),
+             self.head_count().to_string_or_empty(),
+             self.commit_count().to_string_or_empty(),
+             self.author_count().to_string_or_empty(),
+             self.path_count().to_string_or_empty(),
+             self.snapshot_count().to_string_or_empty(),
+             self.committer_count().to_string_or_empty(),
+             self.user_count().to_string_or_empty(),
+             self.lifetime().to_string_or_empty(),
+             self.has_issues().to_string_or_empty(),
+             self.has_downloads().to_string_or_empty(),
+             self.has_wiki().to_string_or_empty(),
+             self.has_pages().to_string_or_empty(),
+             self.created().to_string_or_empty(),
+             self.updated().to_string_or_empty(),
+             self.pushed().to_string_or_empty(),
+             self.master_branch().to_string_or_empty().escape_quotes().quoted(),
+             self.license().to_string_or_empty().escape_quotes().quoted(),
+             self.homepage().to_string_or_empty().escape_quotes().quoted(),
+             self.description().to_string_or_empty().escape_quotes().quoted()]
+    }
+}
+
+impl<'a> CSVItem for ItemWithData<'a, User> {
+    fn column_headers() -> Vec<&'static str> {
+        vec!["id", "email",
+             "authored_commits", "committed_committs",
+             "author_experience", "committer_experience", "experience"]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![self.id().to_string(),
+             self.email().to_string(),
+             self.authored_commit_count().to_string_or_empty(),
+             self.committed_commit_count().to_string_or_empty(),
+             self.author_experience().to_string_or_empty(),
+             self.committer_experience().to_string_or_empty(),
+             self.experience().to_string_or_empty()]
     }
 }

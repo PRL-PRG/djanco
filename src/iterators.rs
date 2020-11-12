@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 use std::collections::VecDeque;
-use std::time::Duration;
 use std::borrow::Cow;
+use std::iter::Map;
+
+use chrono::Duration;
 
 use crate::objects::*;
 use crate::data::*;
@@ -48,8 +50,12 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn author_ids       (&self)    -> Option<Vec<UserId>>             { self.item.author_ids(&self.data)             }
     pub fn authors          (&self)    -> Option<Vec<User>>               { self.item.authors(&self.data)                }
     pub fn author_count     (&self)    -> Option<usize>                   { self.item.author_count(&self.data)           }
+    pub fn path_ids         (&self)    -> Option<Vec<PathId>>             { self.item.path_ids(&self.data)                     }
     pub fn paths            (&self)    -> Option<Vec<Path>>               { self.item.paths(&self.data)                  }
     pub fn path_count       (&self)    -> Option<usize>                   { self.item.path_count(&self.data)             }
+    pub fn snapshot_ids     (&self)    -> Option<Vec<SnapshotId>>         { self.item.snapshot_ids(&self.data)                 }
+    pub fn snapshots        (&self)    -> Option<Vec<Snapshot>>           { self.item.snapshots(&self.data)                    }
+    pub fn snapshot_count   (&self)    -> Option<usize>                   { self.item.snapshot_count(&self.data)               }
     pub fn committer_ids    (&self)    -> Option<Vec<UserId>>             { self.item.committer_ids(&self.data)          }
     pub fn committers       (&self)    -> Option<Vec<User>>               { self.item.committers(&self.data)             }
     pub fn committer_count  (&self)    -> Option<usize>                   { self.item.committer_count(&self.data)        }
@@ -72,6 +78,43 @@ impl<'a> ItemWithData<'a, Snapshot> {
     pub fn contents(&self) -> Cow<str> { self.item.contents() }
     pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
 
+}
+impl<'a> ItemWithData<'a, User> {
+    pub fn id                    (&self)   -> UserId                { self.item.id()    }
+    pub fn email                 (&self)   -> &str                  { self.item.email() }
+    pub fn authored_commit_ids   (&self)   -> Option<Vec<CommitId>> { self.item.authored_commit_ids(&self.data)    }
+    pub fn authored_commits      (&self)   -> Option<Vec<Commit>>   { self.item.authored_commits(&self.data)       }
+    pub fn authored_commit_count (&self)   -> Option<usize>         { self.item.authored_commit_count(&self.data)  }
+    pub fn committed_commit_ids  (&self)   -> Option<Vec<CommitId>> { self.item.committed_commit_ids(&self.data)   }
+    pub fn committed_commits     (&self)   -> Option<Vec<Commit>>   { self.item.committed_commits(&self.data)      }
+    pub fn committed_commit_count(&self)   -> Option<usize>         { self.item.committed_commit_count(&self.data) }
+    pub fn committer_experience  (&self)   -> Option<Duration>      { self.item.committer_experience(&self.data)   }
+    pub fn author_experience     (&self)   -> Option<Duration>      { self.item.author_experience(&self.data)      }
+    pub fn experience            (&self)   -> Option<Duration>      { self.item.experience(&self.data)             }
+}
+impl<'a> ItemWithData<'a, Commit> {
+    pub fn id                 (&self) -> CommitId                           { self.item.id()           }
+    pub fn committer_id       (&self) -> UserId                             { self.item.committer_id() }
+    pub fn author_id          (&self) -> UserId                             { self.item.author_id()    }
+    pub fn parent_ids         (&self) -> &Vec<CommitId>                     { self.item.parent_ids()   }
+    pub fn committer          (&self) -> User                               { self.item.committer(&self.data)            }
+    pub fn author             (&self) -> User                               { self.item.author(self.data)                }
+    pub fn parents            (&self) -> Vec<Commit>                        { self.item.parents(self.data)               }
+    pub fn hash               (&self) -> Option<String>                     { self.item.hash(&self.data)                 }
+    pub fn message            (&self) -> Option<String>                     { self.item.message(&self.data)              }
+    pub fn author_timestamp   (&self) -> Option<i64>                        { self.item.author_timestamp(&self.data)     }
+    pub fn committer_timestamp(&self) -> Option<i64>                        { self.item.committer_timestamp(&self.data)  }
+    pub fn change_ids          (&self) -> Option<Vec<(PathId, SnapshotId)>> { self.item.change_ids(&self.data)           }
+    pub fn changed_path_ids    (&self) -> Option<Vec<PathId>>               { self.item.changed_path_ids(&self.data)     }
+    pub fn changed_snapshot_ids(&self) -> Option<Vec<SnapshotId>>           { self.item.changed_snapshot_ids(&self.data) }
+    pub fn changed_paths       (&self) -> Option<Vec<Path>>                 { self.item.changed_paths(&self.data)        }
+    pub fn changed_path_count  (&self) -> Option<usize>                     { self.item.changed_path_count(&self.data)   }
+    pub fn changed_snapshots   (&self) -> Option<Vec<Snapshot>>             { self.item.changed_snapshots(&self.data)    }
+}
+impl<'a> ItemWithData<'a, Path> {
+    pub fn id      (&self) -> PathId           { self.item.id()       }
+    pub fn location(&self) -> &str             { self.item.location() }
+    pub fn language(&self) -> Option<Language> { self.item.language() }
 }
 
 impl<'a> Into<Project> for ItemWithData<'a, Project> { fn into(self) -> Project { self.item } }
@@ -217,5 +260,16 @@ impl<K,V,I> DropKey<K,V> for I where I: Iterator<Item=(K, V)> {
     }
 }
 
+pub trait DropData<'a, T> {
+    type Iterator;
+    fn drop_database(self) -> std::iter::Map<Self::Iterator, Box<dyn FnMut(ItemWithData<'a, T>) -> T>>;
+}
+
+impl<'a,T,I> DropData<'a, T> for I where I: Iterator<Item=ItemWithData<'a, T>> {
+    type Iterator = I;
+    fn drop_database(self) -> Map<Self::Iterator, Box<dyn FnMut(ItemWithData<'a, T>) -> T>> {
+        self.map(Box::new(|ItemWithData{ item, data: _ }| item))
+    }
+}
 
 

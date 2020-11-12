@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::collections::BTreeSet;
+use std::iter::FromIterator;
 
 use structopt::StructOpt;
 use itertools::Itertools;
@@ -102,7 +103,12 @@ fn main() {
             .into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
     });
 
-    let selected_snapshot_ids: BTreeSet<SnapshotId> = BTreeSet::new(); // FIXME
+
+    let (selected_snapshot_ids, load_snapshots_secs) = with_elapsed_secs!("load snapshots", {
+        let selected_snapshot_ids: Vec<SnapshotId> =
+            Vec::from_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap();
+        BTreeSet::from_iter(selected_snapshot_ids.into_iter())
+    });
 
     let (selected_projects, select_projects_secs) = with_elapsed_secs!("select projects", {
         database.projects().filter(|project| {
@@ -125,6 +131,7 @@ fn main() {
     eprintln!("   open database:          {}s", database_secs);
     eprintln!("   find snapshots:         {}s", find_snapshots_secs);
     eprintln!("   save snapshots:         {}s", save_snapshots_secs);
+    eprintln!("   load snapshots:         {}s", load_snapshots_secs);
     eprintln!("   select projects:        {}s", select_projects_secs);
     eprintln!("   save selected projects: {}s", save_selected_projects_secs);
 }

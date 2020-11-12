@@ -23,5 +23,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_cbor = "0.11.1"
 serde_json = "1.0.59"
 bstr = "0.2.14" # for Vec<u8>::to_str_lossy
+csv = "1.1.4"
 #dcd  = { path = "../dejacode-downloader/" }                  # https://github.com/PRL-PRG/dejacode-downloader
 dcd = { git = "https://github.com/PRL-PRG/dejacode-downloader.git", branch = "realMark2" }

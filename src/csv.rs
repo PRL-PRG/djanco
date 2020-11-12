@@ -5,6 +5,7 @@ use itertools::Itertools;
 
 use crate::objects::*;
 use crate::iterators::ItemWithData;
+use std::fs::File;
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -232,5 +233,40 @@ impl<'a> CSVItem for ItemWithData<'a, User> {
              self.author_experience().to_string_or_empty(),
              self.committer_experience().to_string_or_empty(),
              self.experience().to_string_or_empty()]
+    }
+}
+
+pub trait FromCSV: Sized {
+    fn from_csv<S>(location: S) -> Result<Self, std::io::Error> where S: Into<String>;
+}
+
+impl FromCSV for Vec<SnapshotId> {
+    fn from_csv<S>(location: S) -> Result<Self, std::io::Error> where S: Into<String> {
+        let file = File::open(location.into())?;
+        let mut reader = csv::ReaderBuilder::new()
+                .has_headers(true)
+                .from_reader(file);
+
+        let headers = reader.headers()?;
+
+        let column_indexes: Vec<usize> =
+            headers.iter()
+                .filter(|field| *field == "snapshot_id")
+                .enumerate()
+                .map(|(n, _)| n)
+                .take(1)
+                .collect();
+
+        let column_index= *column_indexes.first().unwrap();
+
+        let snapshot_ids: Vec<SnapshotId> = reader.records()
+            .map(|e| e.unwrap())
+            .map(|string_record| {
+                let field = string_record.get(column_index).unwrap();
+                let n: u64 = field.parse().unwrap();
+                SnapshotId::from(n)
+            }).collect();
+
+        Ok(snapshot_ids)
     }
 }

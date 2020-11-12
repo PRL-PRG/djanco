@@ -1,4 +1,3 @@
-use std::io::Error;
 use std::io::Write;
 
 use serde::export::fmt::Display;

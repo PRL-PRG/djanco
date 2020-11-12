@@ -359,8 +359,8 @@ impl Commit {
     pub fn changed_path_ids    (&self, store: &Database) -> Option<Vec<PathId>>               {  store.commit_change_ids(&self.id).left()           }
     pub fn changed_snapshot_ids(&self, store: &Database) -> Option<Vec<SnapshotId>>           {  store.commit_change_ids(&self.id).right()          }
 
-    pub fn changes             (&self, store: &Database) -> Option<Vec<(Path, Snapshot)>>     {  store.commit_changes(&self.id)                     }
-    pub fn changed_paths       (&self, store: &Database) -> Option<Vec<Path>>                 {  self.changed_path_ids(store).reify(store)          }
+    pub fn changed_paths       (&self, store: &Database) -> Option<Vec<Path>>                 {  store.commit_changed_paths(&self.id)               }
+    pub fn changed_path_count  (&self, store: &Database) -> Option<Vec<Path>>                 {  self.changed_path_ids(store).reify(store)          }
     pub fn changed_snapshots   (&self, store: &Database) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
 }
 
@@ -416,7 +416,12 @@ impl Hash for Path {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Snapshot { id: SnapshotId, contents: Vec<u8> }
 impl Snapshot {
-    pub fn new(id: SnapshotId, contents: Vec<u8>) -> Self { Snapshot { id, contents } }
+    pub fn new(id: SnapshotId, contents: Vec<u8>) -> Self {
+        if contents.is_empty() {
+            eprintln!("WARNING: constructing snapshot id={} from empty contents", id);
+        }
+        Snapshot { id, contents }
+    }
     pub fn raw_contents(&self) -> &Vec<u8> { &self.contents }
     //pub fn id(&self) -> SnapshotId { self.id.clone() }
     pub fn contents(&self) -> Cow<str> { self.contents.to_str_lossy() }

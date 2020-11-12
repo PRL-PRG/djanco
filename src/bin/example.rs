@@ -88,7 +88,7 @@ fn main() {
     });
 
     let (snapshots, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
-        database.snapshot_ids_where(|snapshot| {
+        database.snapshots().filter(|snapshot| {
             snapshot.contains("#include <memory_resource>")
         })
     });

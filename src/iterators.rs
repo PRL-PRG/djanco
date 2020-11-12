@@ -1,30 +1,12 @@
-use std::rc::Rc;
-use std::cell::{RefCell, Ref};
-use crate::data::{Database, Data};
 use std::marker::PhantomData;
 use std::collections::VecDeque;
-use crate::objects::*;
 use std::time::Duration;
-use std::borrow::{Cow, Borrow};
-use crate::data;
-use dcd::PropertyStoreIterator;
-//use std::iter::FromIterator;
+use std::borrow::Cow;
 
-//pub type DataPtr = Rc<RefCell<Data>>;
-pub type DatabasePtr = Rc<RefCell<Database>>;
+use crate::objects::*;
+use crate::data::*;
 
 pub struct IterWithData<'a, T, I: Iterator<Item=T> + 'a> { data: &'a Database, iterator: I/*, _t: PhantomData<&'a T>*/ }
-
-impl<'a, T, I> IterWithData<'a, T, I> where I: Iterator<Item=T> + 'a {
-    // pub fn new(data: &'a Datax, iterator: I) -> Self {
-    //     IterWithData { data, iterator }
-    // }
-    // pub fn from_generator<F>(data: &'a Datax, generator: F) -> Self where F: FnMut(&'a Datax) -> I  {
-    //     let mut me = IterWithData { data, iterator: None };
-    //     me.iterator = generator(data);
-    //     me
-    // }
-}
 
 impl<'a, T, I> Iterator for IterWithData<'a, T, I> where I: Iterator<Item=T> {
     type Item = ItemWithData<'a, T>;
@@ -91,43 +73,6 @@ impl<'a> ItemWithData<'a, Snapshot> {
     pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
 
 }
-//------------------------------------------------------------------------------------------------//
-
-// pub struct IterWithDatabasePtr<T, I: Iterator<Item=T>> { data_ptr: DatabasePtr, iterator: I }
-// impl<T, I> IterWithDatabasePtr<T, I> where I: Iterator<Item=T> {
-    // pub fn new__<F>(data_ptr: DataPtr, generator: F) -> Self where F: FnMut(DataPtr) -> I {
-    //      //let data_ptr = Rc::new(RefCell::new(data));
-    //      IterWithData { data_ptr, iterator: generator(data_ptr.clone()) }
-    // }
-    // pub fn new(data: Data, iterator: I) -> Self {
-    //     let data_ptr = Rc::new(RefCell::new(data));
-    //     IterWithData { data_ptr, iterator }
-    // }
-    //
-    // pub fn new_(data_ptr: DataPtr, iterator: I) -> Self {
-    //     //let data_ptr = Rc::new(RefCell::new(data));
-    //     IterWithData { data_ptr, iterator }
-    // }
-// }
-// impl<T, I> Iterator for IterWithDatabasePtr<T, I> where I: Iterator<Item=T> {
-//     type Item = ItemWithDatabasePtr<T>;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.iterator.next().map(|e| ItemWithDatabasePtr::new(&self.data_ptr, e))
-//     }
-// }
-//
-// pub struct ItemWithDatabasePtr<T> { pub data: DatabasePtr, pub element: T }
-// impl<T> ItemWithDatabasePtr<T> {
-//     pub fn new(data: &DatabasePtr, element: T) -> Self {
-//         ItemWithDatabasePtr { data: data.clone(), element }
-//     }
-// }
-
-// impl<T> From<ItemWithDatabasePtr<T>> for T {
-//     fn from(_: ItemWithDatabasePtr<T>) -> Self {
-//         unimplemented!()
-//     }
-// }
 
 impl<'a> Into<Project> for ItemWithData<'a, Project> { fn into(self) -> Project { self.item } }
 impl<'a> Into<Commit> for ItemWithData<'a, Commit> { fn into(self) -> Commit { self.item } }
@@ -151,8 +96,6 @@ impl<'a> Into<f32> for ItemWithData<'a, f32> { fn into(self) -> f32 { self.item 
 impl<'a> Into<usize> for ItemWithData<'a, usize> { fn into(self) -> usize { self.item } }
 
 impl<'a,A,B> Into<(A,B)> for ItemWithData<'a, (A,B)> { fn into(self) -> (A,B) { self.item } }
-
-// ---------------------------------------------------------------------------------------------- //
 
 pub struct QuincunxIter<'a, T: Identifiable> {
     data: &'a Database,
@@ -178,11 +121,11 @@ impl<'a> QuincunxIter<'a, User> {
     }
 }
 
-impl<'a> QuincunxIter<'a, Snapshot> {
-    pub fn new(data: &'a Database) -> Self {
-        QuincunxIter { data, ids: VecDeque::from(data.all_snapshot_ids()), _type: PhantomData }
-    }
-}
+// impl<'a> QuincunxIter<'a, Snapshot> {
+//     pub fn new(data: &'a Database) -> Self {
+//         QuincunxIter { data, ids: VecDeque::from(data.all_snapshot_ids()), _type: PhantomData }
+//     }
+// }
 
 impl<'a> QuincunxIter<'a, Path> {
     pub fn new(data: &'a Database) -> Self {
@@ -266,11 +209,6 @@ pub trait DropKey<K, V> {
     type Iterator;
     fn drop_key(self) -> std::iter::Map<Self::Iterator, Box<dyn FnMut((K, V)) -> V>>;
 }
-
-// pub struct KeyDropper;
-// impl<K,V> Fn((K, V)) -> V for KeyDropper {
-//     fn call(&self, args: ((K, V))) -> Self::Output { args.1 }
-// }
 
 impl<K,V,I> DropKey<K,V> for I where I: Iterator<Item=(K, V)> {
     type Iterator = I;

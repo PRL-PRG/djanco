@@ -1,36 +1,34 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
-use std::cell::{RefCell, Ref};
+use std::cell::RefCell;
 use std::marker::PhantomData;
 
 use itertools::{Itertools, MinMaxResult};
 
-use dcd::{DatastoreView, PropertyStoreIterator};
+use dcd::DatastoreView;
 
 use crate::objects::*;
 use crate::piracy::*;
 use crate::persistent::*;
 use crate::iterators::*;
-use crate::metadata::ProjectMetadataSource;
-use std::borrow::Borrow;
+use crate::metadata::*;
 
 // Internally Mutable Data
-pub struct Database { data: RefCell<Data> }
+pub struct Database { data: RefCell<Data>, store: DatastoreView }
 
 // Constructors
 impl Database {
     pub fn from_store<S>(store: DatastoreView, cache_dir: S) -> Database where S: Into<String> {
-        Database { data: RefCell::new(Data::from_store(store, cache_dir)) }
+        Database { data: RefCell::new(Data::new(cache_dir)), store }
     }
 }
 
 // Prequincunx
 impl Database {
-    pub fn all_project_ids(&self)  -> Vec<ProjectId>  { self.data.borrow_mut().all_project_ids()  }
-    pub fn all_user_ids(&self)     -> Vec<UserId>     { self.data.borrow_mut().all_user_ids()     }
-    pub fn all_path_ids(&self)     -> Vec<PathId>     { self.data.borrow_mut().all_path_ids()     }
-    pub fn all_commit_ids(&self)   -> Vec<CommitId>   { self.data.borrow_mut().all_commit_ids()   }
-    pub fn all_snapshot_ids(&self) -> Vec<SnapshotId> { self.data.borrow().all_snapshot_ids() }
+    pub fn all_project_ids(&self)  -> Vec<ProjectId>  { self.data.borrow_mut().all_project_ids(&self.store)  }
+    pub fn all_user_ids(&self)     -> Vec<UserId>     { self.data.borrow_mut().all_user_ids(&self.store)     }
+    pub fn all_path_ids(&self)     -> Vec<PathId>     { self.data.borrow_mut().all_path_ids(&self.store)     }
+    pub fn all_commit_ids(&self)   -> Vec<CommitId>   { self.data.borrow_mut().all_commit_ids(&self.store)   }
 }
 
 pub struct OptionIter<I> where I: Iterator {
@@ -56,229 +54,214 @@ impl Database {
     pub fn commits(&self)   -> QuincunxIter<Commit>   { QuincunxIter::<Commit>::new(&self)   }
     pub fn users(&self)     -> QuincunxIter<User>     { QuincunxIter::<User>::new(&self)     }
     pub fn paths(&self)     -> QuincunxIter<Path>     { QuincunxIter::<Path>::new(&self)     }
+}
 
-    pub fn snapshots<'a>(&'a self) -> Option<DirectIter<'a, Snapshot>> {
-
-        //let mut option_iterator: OptionIter<DirectIter<'a, Snapshot>> = OptionIter::new();
-        //let mut thing: Option<DirectIter<'a, Snapshot>> = None;
-        //DirectIter::from_ptr(self.data.borrow(), &mut thing);
-        //unimplemented!()
-        //option_iterator
-        //thing
-        unimplemented!()
+// Uncached stuff
+impl Database {
+    pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
+        self.store.content(id.into())
+            .map(|content| Snapshot::new(id.clone(), content))
     }
-
-    pub fn snapshot_ids_where<F>(&self, filter: F) -> impl Iterator<Item=SnapshotId>
-        where F: FnMut(&Snapshot) -> bool {
-        let vector: Vec<SnapshotId> =
-            self.data.borrow()
-                .snapshots()
-                .filter(filter)
-                .map(|snapshot| snapshot.id())
-                .collect();
-        vector.into_iter()
+    pub fn snapshots<'a>(&'a self) -> impl Iterator<Item=Snapshot> + 'a {
+        self.store.contents()
+            .map(|(id, content)| {
+                Snapshot::new(SnapshotId::from(id), content)
+            })
     }
-
-    pub fn snapshots_where<F>(&self, filter: F) -> impl Iterator<Item=Snapshot>
-        where F: FnMut(&Snapshot) -> bool {
-        let vector: Vec<Snapshot> =
-            self.data.borrow()
-                .snapshots()
-                .filter(filter)
-                .collect();
-        vector.into_iter()
+    pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
+        self.store.contents().map(|(id, _)| SnapshotId::from(id))
     }
 }
 
 impl Database {
     pub fn project(&self, id: &ProjectId) -> Option<Project> {
-        self.data.borrow_mut().project(id)
+        self.data.borrow_mut().project(&self.store, id)
     }
     pub fn project_issues(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_issues(id)
+        self.data.borrow_mut().project_issues(&self.store, id)
     }
     pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_buggy_issues(id)
+        self.data.borrow_mut().project_buggy_issues(&self.store, id)
     }
     pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_fork(id)
+        self.data.borrow_mut().project_is_fork(&self.store, id)
     }
     pub fn project_is_archived(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_archived(id)
+        self.data.borrow_mut().project_is_archived(&self.store, id)
     }
     pub fn project_is_disabled(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_disabled(id)
+        self.data.borrow_mut().project_is_disabled(&self.store, id)
     }
     pub fn project_star_gazer_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_star_gazer_count(id)
+        self.data.borrow_mut().project_star_gazer_count(&self.store, id)
     }
     pub fn project_watcher_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_watcher_count(id)
+        self.data.borrow_mut().project_watcher_count(&self.store, id)
     }
     pub fn project_size(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_size(id)
+        self.data.borrow_mut().project_size(&self.store, id)
     }
     pub fn project_open_issue_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_open_issue_count(id)
+        self.data.borrow_mut().project_open_issue_count(&self.store, id)
     }
     pub fn project_fork_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_fork_count(id)
+        self.data.borrow_mut().project_fork_count(&self.store, id)
     }
     pub fn project_subscriber_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_subscriber_count(id)
+        self.data.borrow_mut().project_subscriber_count(&self.store, id)
     }
     pub fn project_license(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_license(id).pirate()
+        self.data.borrow_mut().project_license(&self.store, id).pirate()
     }
     pub fn project_language(&self, id: &ProjectId) -> Option<Language> {
-        self.data.borrow_mut().project_language(id)
+        self.data.borrow_mut().project_language(&self.store, id)
     }
     pub fn project_description(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_description(id).pirate()
+        self.data.borrow_mut().project_description(&self.store, id).pirate()
     }
     pub fn project_homepage(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_homepage(id).pirate()
+        self.data.borrow_mut().project_homepage(&self.store, id).pirate()
     }
     pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_issues(id)
+        self.data.borrow_mut().project_has_issues(&self.store, id)
     }
     pub fn project_has_downloads(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_downloads(id)
+        self.data.borrow_mut().project_has_downloads(&self.store, id)
     }
     pub fn project_has_wiki(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_wiki(id)
+        self.data.borrow_mut().project_has_wiki(&self.store, id)
     }
     pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_pages(id)
+        self.data.borrow_mut().project_has_pages(&self.store, id)
     }
     pub fn project_created(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().project_created(id)
+        self.data.borrow_mut().project_created(&self.store, id)
     }
     pub fn project_updated(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().project_updated(id)
+        self.data.borrow_mut().project_updated(&self.store, id)
     }
     pub fn project_pushed(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().project_pushed(id)
+        self.data.borrow_mut().project_pushed(&self.store, id)
     }
     pub fn project_master(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_master(id).pirate()
+        self.data.borrow_mut().project_master(&self.store, id).pirate()
     }
     pub fn project_url(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_url(id)
+        self.data.borrow_mut().project_url(&self.store, id)
     }
     pub fn project_head_ids(&self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
-        self.data.borrow_mut().project_head_ids(id)
+        self.data.borrow_mut().project_head_ids(&self.store, id)
     }
     pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
-        self.data.borrow_mut().project_heads(id)
+        self.data.borrow_mut().project_heads(&self.store, id)
     }
     pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().project_commit_ids(id).pirate()
+        self.data.borrow_mut().project_commit_ids(&self.store, id).pirate()
     }
     pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().project_commits(id)
+        self.data.borrow_mut().project_commits(&self.store, id)
     }
     pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_commit_count(id)
+        self.data.borrow_mut().project_commit_count(&self.store, id)
     }
     pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_author_ids(id).pirate()
+        self.data.borrow_mut().project_author_ids(&self.store, id).pirate()
     }
     pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_authors(id)
+        self.data.borrow_mut().project_authors(&self.store, id)
     }
     pub fn project_author_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_author_count(id)
+        self.data.borrow_mut().project_author_count(&self.store, id)
     }
     pub fn project_path_ids(&self, id: &ProjectId) -> Option<Vec<PathId>> {
-        self.data.borrow_mut().project_path_ids(id).pirate()
+        self.data.borrow_mut().project_path_ids(&self.store, id).pirate()
     }
     pub fn project_paths(&self, id: &ProjectId) -> Option<Vec<Path>> {
-        self.data.borrow_mut().project_paths(id)
+        self.data.borrow_mut().project_paths(&self.store, id)
     }
     pub fn project_path_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_path_count(id)
+        self.data.borrow_mut().project_path_count(&self.store, id)
     }
     pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_committer_ids(id).pirate()
+        self.data.borrow_mut().project_committer_ids(&self.store, id).pirate()
     }
     pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_committers(id)
+        self.data.borrow_mut().project_committers(&self.store, id)
     }
     pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_committer_count(id)
+        self.data.borrow_mut().project_committer_count(&self.store, id)
     }
     pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_user_ids(id).pirate()
+        self.data.borrow_mut().project_user_ids(&self.store, id).pirate()
     }
     pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_users(id)
+        self.data.borrow_mut().project_users(&self.store, id)
     }
     pub fn project_user_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_user_count(id)
+        self.data.borrow_mut().project_user_count(&self.store, id)
     }
     pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration> {
-        self.data.borrow_mut().project_lifetime(id)
+        self.data.borrow_mut().project_lifetime(&self.store, id)
     }
     pub fn user(&self, id: &UserId) -> Option<User> {
-        self.data.borrow_mut().user(id).pirate()
+        self.data.borrow_mut().user(&self.store, id).pirate()
     }
     pub fn path(&self, id: &PathId) -> Option<Path> {
-        self.data.borrow_mut().path(id).pirate()
-    }
-    pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
-        self.data.borrow_mut().snapshot(id).pirate()
+        self.data.borrow_mut().path(&self.store, id).pirate()
     }
     pub fn commit(&self, id: &CommitId) -> Option<Commit> {
-        self.data.borrow_mut().commit(id).pirate()
+        self.data.borrow_mut().commit(&self.store, id).pirate()
     }
     pub fn commit_hash(&self, id: &CommitId) -> Option<String> {
-        self.data.borrow_mut().commit_hash(id).pirate()
+        self.data.borrow_mut().commit_hash(&self.store, id).pirate()
     }
     pub fn commit_message(&self, id: &CommitId) -> Option<String> {
-        self.data.borrow_mut().commit_message(id).pirate()
+        self.data.borrow_mut().commit_message(&self.store, id).pirate()
     }
     pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<i64> {
-        self.data.borrow_mut().commit_author_timestamp(id)
+        self.data.borrow_mut().commit_author_timestamp(&self.store, id)
     }
     pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<i64> {
-        self.data.borrow_mut().commit_committer_timestamp(id)
+        self.data.borrow_mut().commit_committer_timestamp(&self.store, id)
     }
     pub fn commit_change_ids(&self, id: &CommitId) -> Option<Vec<(PathId, SnapshotId)>> {
-        self.data.borrow_mut().commit_change_ids(id).pirate()
+        self.data.borrow_mut().commit_change_ids(&self.store, id).pirate()
     }
-    pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<(Path, Snapshot)>> {
-        self.data.borrow_mut().commit_changes(id)
+    pub fn commit_changed_paths(&self, id: &CommitId) -> Option<Vec<Path>> {
+        self.data.borrow_mut().commit_changed_paths(&self.store, id)
     }
     pub fn commit_change_count(&self, id: &CommitId) -> Option<usize> {
-        self.data.borrow_mut().commit_change_count(id)
+        self.data.borrow_mut().commit_change_count(&self.store, id)
+    }
+    pub fn commit_changed_path_count(&self, id: &CommitId) -> Option<usize> {
+        self.data.borrow_mut().commit_changed_path_count(&self.store, id)
     }
     pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().user_committed_commit_ids(id).pirate()
+        self.data.borrow_mut().user_committed_commit_ids(&self.store, id).pirate()
     }
     pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().user_authored_commits(id)
+        self.data.borrow_mut().user_authored_commits(&self.store, id)
     }
     pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().user_authored_commit_ids(id).pirate()
+        self.data.borrow_mut().user_authored_commit_ids(&self.store, id).pirate()
     }
     pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_committed_experience(id)
+        self.data.borrow_mut().user_committed_experience(&self.store, id)
     }
     pub fn user_author_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_author_experience(id)
+        self.data.borrow_mut().user_author_experience(&self.store, id)
     }
     pub fn user_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_experience(id)
+        self.data.borrow_mut().user_experience(&self.store, id)
     }
     pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize> {
-        self.data.borrow_mut().user_committed_commit_count(id)
+        self.data.borrow_mut().user_committed_commit_count(&self.store, id)
     }
     pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize> {
-        self.data.borrow_mut().user_authored_commit_count(id)
+        self.data.borrow_mut().user_authored_commit_count(&self.store, id)
     }
     pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().user_committed_commits(id)
+        self.data.borrow_mut().user_committed_commits(&self.store, id)
     }
 }
 
@@ -705,7 +688,7 @@ impl From<(u64, dcd::Commit)> for Commit {
 }
 
 pub(crate) struct Data {
-    store:                       DatastoreView,
+    //store:                       DatastoreView,
 
     project_metadata:            ProjectMetadataSource,
     project_urls:                PersistentMap<ProjectUrlExtractor>,
@@ -750,10 +733,10 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub fn from_store<S>(store: DatastoreView, cache_dir: S) -> Data where S: Into<String> {
+    pub fn new<S>(/*store: DatastoreView,*/ cache_dir: S) -> Data where S: Into<String> {
         let dir = cache_dir.into();
         Data {
-            store,
+            //store,
 
             project_urls:                PersistentMap::new("project_urls",                dir.clone()),
             project_heads:               PersistentMap::new("project_heads",               dir.clone()),
@@ -795,298 +778,282 @@ impl Data {
     }
 }
 
-impl Data { // Prequincunx
-    pub fn all_project_ids(&mut self) -> Vec<ProjectId> {
-        self.smart_load_project_urls().keys().collect::<Vec<&ProjectId>>().pirate()
+impl Data { // Prequincunx, sort of
+    pub fn all_project_ids(&mut self, store: &DatastoreView) -> Vec<ProjectId> {
+        self.smart_load_project_urls(store).keys().collect::<Vec<&ProjectId>>().pirate()
     }
-    pub fn all_user_ids(&mut self) -> Vec<UserId> {
-        self.smart_load_users().keys().collect::<Vec<&UserId>>().pirate()
+    pub fn all_user_ids(&mut self, store: &DatastoreView) -> Vec<UserId> {
+        self.smart_load_users(store).keys().collect::<Vec<&UserId>>().pirate()
     }
-    pub fn all_path_ids(&mut self) -> Vec<PathId> {
-        self.smart_load_paths().keys().collect::<Vec<&PathId>>().pirate()
+    pub fn all_path_ids(&mut self, store: &DatastoreView) -> Vec<PathId> {
+        self.smart_load_paths(store).keys().collect::<Vec<&PathId>>().pirate()
     }
-    pub fn all_commit_ids(&mut self) -> Vec<CommitId> {
-        self.smart_load_commits().keys().collect::<Vec<&CommitId>>().pirate()
-    }
-    pub fn all_snapshot_ids(&self) -> Vec<SnapshotId> {
-        self.store.contents().map(|(id, _)| SnapshotId::from(id)).collect()
+    pub fn all_commit_ids(&mut self, store: &DatastoreView) -> Vec<CommitId> {
+        self.smart_load_commits(store).keys().collect::<Vec<&CommitId>>().pirate()
     }
 }
 
-impl Data { // Quincunx
-    #[allow(dead_code)] pub fn projects<'a>(&'a mut self) -> impl Iterator<Item=Project> + 'a {
-        self.smart_load_project_urls().iter().map(|(id, url)| {
+impl Data { // Quincunx, sort of
+    #[allow(dead_code)] pub fn projects<'a>(&'a mut self, store: &DatastoreView) -> impl Iterator<Item=Project> + 'a {
+        self.smart_load_project_urls(store).iter().map(|(id, url)| {
             Project::new(id.clone(), url.clone())
         })
     }
 
-    #[allow(dead_code)] pub fn users<'a>(&'a mut self) -> impl Iterator<Item=&'a User> + 'a {
-        self.smart_load_users().iter().map(|(_, user)| user)
+    #[allow(dead_code)] pub fn users<'a>(&'a mut self, store: &DatastoreView) -> impl Iterator<Item=&'a User> + 'a {
+        self.smart_load_users(store).iter().map(|(_, user)| user)
     }
 
-    #[allow(dead_code)] pub fn paths<'a>(&'a mut self) -> impl Iterator<Item=&'a Path> + 'a {
-        self.smart_load_paths().iter().map(|(_, path)| path)
+    #[allow(dead_code)] pub fn paths<'a>(&'a mut self, store: &DatastoreView) -> impl Iterator<Item=&'a Path> + 'a {
+        self.smart_load_paths(store).iter().map(|(_, path)| path)
     }
 
-    pub fn snapshots<'a>(&'a self) -> impl Iterator<Item=Snapshot> + 'a {
-        fn construct_snapshot((id, contents): (u64, Vec<u8>)) -> Snapshot {
-            Snapshot::new(SnapshotId::from(id), contents)
-        }
-        self.store.contents().map(construct_snapshot)
-    }
-
-    #[allow(dead_code)] pub fn commits<'a>(&'a mut self) -> impl Iterator<Item=&'a Commit> + 'a {
-        self.smart_load_commits().iter().map(|(_, commit)| commit)
+    #[allow(dead_code)] pub fn commits<'a>(&'a mut self, store: &DatastoreView) -> impl Iterator<Item=&'a Commit> + 'a {
+        self.smart_load_commits(store).iter().map(|(_, commit)| commit)
     }
 }
 
 impl Data {
-    pub fn project(&mut self, id: &ProjectId) -> Option<Project> {
-        self.smart_load_project_urls().get(id)
+    pub fn project(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Project> {
+        self.smart_load_project_urls(store).get(id)
             .map(|url| Project::new(id.clone(), url.clone()))
     }
-    pub fn project_issues(&mut self, _id: &ProjectId) -> Option<usize> {
+    pub fn project_issues(&mut self, _store: &DatastoreView, _id: &ProjectId) -> Option<usize> {
         unimplemented!()
     }         // FIXME
-    pub fn project_buggy_issues(&mut self, _id: &ProjectId) -> Option<usize> {
+    pub fn project_buggy_issues(&mut self, _store: &DatastoreView, _id: &ProjectId) -> Option<usize> {
         unimplemented!()
     }   // FIXME
-    pub fn project_is_fork(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.is_fork(&self.store, id)
+    pub fn project_is_fork(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.is_fork(store, id)
     }
-    pub fn project_is_archived(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.is_archived(&self.store, id)
+    pub fn project_is_archived(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.is_archived(store, id)
     }
-    pub fn project_is_disabled(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.is_disabled(&self.store, id)
+    pub fn project_is_disabled(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.is_disabled(store, id)
     }
-    pub fn project_star_gazer_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.star_gazers(&self.store, id)
+    pub fn project_star_gazer_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.star_gazers(store, id)
     }
-    pub fn project_watcher_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.watchers(&self.store, id)
+    pub fn project_watcher_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.watchers(store, id)
     }
-    pub fn project_size(&mut self, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.size(&self.store, id)
+    pub fn project_size(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.size(store, id)
     }
-    pub fn project_open_issue_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.open_issues(&self.store, id)
+    pub fn project_open_issue_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.open_issues(store, id)
     }
-    pub fn project_fork_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.forks(&self.store, id)
+    pub fn project_fork_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.forks(store, id)
     }
-    pub fn project_subscriber_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.subscribers(&self.store, id)
+    pub fn project_subscriber_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.subscribers(store, id)
     }
-    pub fn project_license(&mut self, id: &ProjectId) -> Option<&String> {
-        self.project_metadata.license(&self.store, id)
+    pub fn project_license(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&String> {
+        self.project_metadata.license(store, id)
     }
-    pub fn project_language(&mut self, id: &ProjectId) -> Option<Language> {
-        self.project_metadata.language(&self.store, id)
+    pub fn project_language(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Language> {
+        self.project_metadata.language(store, id)
     }
-    pub fn project_description(&mut self, id: &ProjectId) -> Option<&String> {
-        self.project_metadata.description(&self.store, id)
+    pub fn project_description(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&String> {
+        self.project_metadata.description(store, id)
     }
-    pub fn project_homepage(&mut self, id: &ProjectId) -> Option<&String> {
-        self.project_metadata.homepage(&self.store, id)
+    pub fn project_homepage(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&String> {
+        self.project_metadata.homepage(store, id)
     }
-    pub fn project_has_issues(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.has_issues(&self.store, id)
+    pub fn project_has_issues(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.has_issues(store, id)
     }
-    pub fn project_has_downloads(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.has_downloads(&self.store, id)
+    pub fn project_has_downloads(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.has_downloads(store, id)
     }
-    pub fn project_has_wiki(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.has_wiki(&self.store, id)
+    pub fn project_has_wiki(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.has_wiki(store, id)
     }
-    pub fn project_has_pages(&mut self, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.has_pages(&self.store, id)
+    pub fn project_has_pages(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<bool> {
+        self.project_metadata.has_pages(store, id)
     }
-    pub fn project_created(&mut self, id: &ProjectId) -> Option<i64> {
-        self.project_metadata.created(&self.store, id)
+    pub fn project_created(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<i64> {
+        self.project_metadata.created(store, id)
     }
-    pub fn project_updated(&mut self, id: &ProjectId) -> Option<i64> {
-        self.project_metadata.updated(&self.store, id)
+    pub fn project_updated(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<i64> {
+        self.project_metadata.updated(store, id)
     }
-    pub fn project_pushed(&mut self, id: &ProjectId) -> Option<i64> {
-        self.project_metadata.pushed(&self.store, id)
+    pub fn project_pushed(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<i64> {
+        self.project_metadata.pushed(store, id)
     }
-    pub fn project_master(&mut self, id: &ProjectId) -> Option<&String> {
-        self.project_metadata.master(&self.store, id)
+    pub fn project_master(&mut self, store: &DatastoreView,id: &ProjectId) -> Option<&String> {
+        self.project_metadata.master(store, id)
     }
-    pub fn project_url(&mut self, id: &ProjectId) -> Option<String> {
-        self.smart_load_project_urls().get(id).pirate()
+    pub fn project_url(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<String> {
+        self.smart_load_project_urls(store).get(id).pirate()
     }
-    pub fn project_head_ids(&mut self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
-        self.smart_load_project_heads().get(id).pirate()
+    pub fn project_head_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
+        self.smart_load_project_heads(store).get(id).pirate()
     }
-    pub fn project_heads(&mut self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
-        self.smart_load_project_heads().get(id).pirate().map(|v| {
+    pub fn project_heads(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
+        self.smart_load_project_heads(store).get(id).pirate().map(|v| {
             v.into_iter().flat_map(|(name, commit_id)| {
-                self.commit(&commit_id).map(|commit| {
+                self.commit(store, &commit_id).map(|commit| {
                     (name, commit.clone())
                 })
             }).collect()
         })
     }
-    pub fn project_commit_ids(&mut self, id: &ProjectId) -> Option<&Vec<CommitId>> {
-        self.smart_load_project_commits().get(id)
+    pub fn project_commit_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&Vec<CommitId>> {
+        self.smart_load_project_commits(store).get(id)
     }
-    pub fn project_commits(&mut self, id: &ProjectId) -> Option<Vec<Commit>> {
-        self.smart_load_project_commits().get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
+    pub fn project_commits(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<Commit>> {
+        self.smart_load_project_commits(store).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.commit(store, id).pirate()).collect()
             // FIXME issue warnings in situations like these (when self.commit(id) fails etc.)
         })
     }
-    pub fn project_commit_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.smart_load_project_commit_count().get(id).pirate()
+    pub fn project_commit_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_commit_count(store).get(id).pirate()
     }
-    pub fn project_path_ids(&mut self, id: &ProjectId) -> Option<&Vec<PathId>> {
-        self.smart_load_project_paths().get(id)
+    pub fn project_path_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&Vec<PathId>> {
+        self.smart_load_project_paths(store).get(id)
     }
-    pub fn project_paths(&mut self, id: &ProjectId) -> Option<Vec<Path>> {
-        self.smart_load_project_paths().get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.path(id).pirate()).collect()
+    pub fn project_paths(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<Path>> {
+        self.smart_load_project_paths(store).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.path(store, id).pirate()).collect()
         })
     }
-    pub fn project_path_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.smart_load_project_path_count().get(id).pirate()
+    pub fn project_path_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_path_count(store).get(id).pirate()
     }
-    pub fn project_author_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
-        self.smart_load_project_authors().get(id)
+    pub fn project_author_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&Vec<UserId>> {
+        self.smart_load_project_authors(store).get(id)
     }
-    pub fn project_authors(&mut self, id: &ProjectId) -> Option<Vec<User>> {
-        self.smart_load_project_authors().get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.user(id).pirate()).collect()
+    pub fn project_authors(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<User>> {
+        self.smart_load_project_authors(store).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.user(store, id).pirate()).collect()
         })
     }
-    pub fn project_author_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.smart_load_project_author_count().get(id).pirate()
+    pub fn project_author_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_author_count(store).get(id).pirate()
     }
-    pub fn project_committer_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
-        self.smart_load_project_committers().get(id)
+    pub fn project_committer_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&Vec<UserId>> {
+        self.smart_load_project_committers(store).get(id)
     }
-    pub fn project_committers(&mut self, id: &ProjectId) -> Option<Vec<User>> {
-        self.smart_load_project_committers().get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.user(id).pirate()).collect()
+    pub fn project_committers(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<User>> {
+        self.smart_load_project_committers(store).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.user(store, id).pirate()).collect()
         })
     }
-    pub fn project_committer_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.smart_load_project_committer_count().get(id).pirate()
+    pub fn project_committer_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_committer_count(store).get(id).pirate()
     }
-    pub fn project_user_ids(&mut self, id: &ProjectId) -> Option<&Vec<UserId>> {
-        self.smart_load_project_users().get(id)
+    pub fn project_user_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&Vec<UserId>> {
+        self.smart_load_project_users(store).get(id)
     }
-    pub fn project_users(&mut self, id: &ProjectId) -> Option<Vec<User>> {
-        self.smart_load_project_users().get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.user(id).pirate()).collect()
+    pub fn project_users(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<User>> {
+        self.smart_load_project_users(store).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.user(store, id).pirate()).collect()
         })
     }
-    pub fn project_user_count(&mut self, id: &ProjectId) -> Option<usize> {
-        self.smart_load_project_user_count().get(id).pirate()
+    pub fn project_user_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_user_count(store).get(id).pirate()
     }
-    pub fn project_lifetime(&mut self, id: &ProjectId) -> Option<Duration> {
-        self.smart_load_project_lifetimes().get(id)
+    pub fn project_lifetime(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Duration> {
+        self.smart_load_project_lifetimes(store).get(id)
             .pirate()
             .map(|seconds| Duration::from_secs(seconds))
     }
-    pub fn user(&mut self, id: &UserId) -> Option<&User> {
-        self.smart_load_users().get(id)
+    pub fn user(&mut self, store: &DatastoreView, id: &UserId) -> Option<&User> {
+        self.smart_load_users(store).get(id)
     }
-    pub fn path(&mut self, id: &PathId) -> Option<&Path> {
-        self.smart_load_paths().get(id)
+    pub fn path(&mut self, store: &DatastoreView, id: &PathId) -> Option<&Path> {
+        self.smart_load_paths(store).get(id)
     }
-    pub fn snapshot(&mut self, id: &SnapshotId) -> Option<&Snapshot> {
-        //self.smart_load_snapshots().get(id)
-        unimplemented!() // FIXME Waiting for random access functionality in DatastoreView
+    pub fn commit(&mut self, store: &DatastoreView, id: &CommitId) -> Option<&Commit> {
+        self.smart_load_commits(store).get(id)
     }
-    pub fn commit(&mut self, id: &CommitId) -> Option<&Commit> {
-        self.smart_load_commits().get(id)
+    pub fn commit_hash(&mut self, store: &DatastoreView, id: &CommitId) -> Option<&String> {
+        self.smart_load_commit_hashes(store).get(id)
     }
-    pub fn commit_hash(&mut self, id: &CommitId) -> Option<&String> {
-        self.smart_load_commit_hashes().get(id)
+    pub fn commit_message(&mut self, store: &DatastoreView, id: &CommitId) -> Option<&String> {
+        self.smart_load_commit_messages(store).get(id)
     }
-    pub fn commit_message(&mut self, id: &CommitId) -> Option<&String> {
-        self.smart_load_commit_messages().get(id)
+    pub fn commit_author_timestamp(&mut self, store: &DatastoreView, id: &CommitId) -> Option<i64> {
+        self.smart_load_commit_author_timestamps(store).get(id).pirate()
     }
-    pub fn commit_author_timestamp(&mut self, id: &CommitId) -> Option<i64> {
-        self.smart_load_commit_author_timestamps().get(id).pirate()
+    pub fn commit_committer_timestamp(&mut self, store: &DatastoreView, id: &CommitId) -> Option<i64> {
+        self.smart_load_commit_committer_timestamps(store).get(id).pirate()
     }
-    pub fn commit_committer_timestamp(&mut self, id: &CommitId) -> Option<i64> {
-        self.smart_load_commit_committer_timestamps().get(id).pirate()
+    pub fn commit_change_ids(&mut self, store: &DatastoreView, id: &CommitId) -> Option<&Vec<(PathId, SnapshotId)>> {
+        self.smart_load_commit_changes(store).get(id)
     }
-    pub fn commit_change_ids(&mut self, id: &CommitId) -> Option<&Vec<(PathId, SnapshotId)>> {
-        self.smart_load_commit_changes().get(id)
-    }
-    pub fn commit_changes(&mut self, id: &CommitId) -> Option<Vec<(Path, Snapshot)>> {
-        self.smart_load_commit_changes().get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|(path_id, snapshot_id)| {
-                match (self.path(path_id).pirate(), self.snapshot(snapshot_id).pirate()) {
-                    (Some(path), Some(snapshot)) => Some((path, snapshot)),
-                    _ => None
-                }
-            }).collect()
+    pub fn commit_changed_paths(&mut self, store: &DatastoreView, id: &CommitId) -> Option<Vec<Path>> {
+        self.smart_load_commit_changes(store).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|(path_id, _)| self.path(store, path_id).pirate()).collect()
         })
     }
-    pub fn commit_change_count(&mut self, id: &CommitId) -> Option<usize> {
-        self.smart_load_commit_change_count().get(id).pirate()
+    pub fn commit_change_count(&mut self, store: &DatastoreView, id: &CommitId) -> Option<usize> {
+        self.smart_load_commit_change_count(store).get(id).pirate()
     }
-    pub fn user_committed_commit_ids(&mut self, id: &UserId) -> Option<&Vec<CommitId>> {
-        self.smart_load_user_committed_commits().get(id)
+    pub fn commit_changed_path_count(&mut self, store: &DatastoreView, id: &CommitId) -> Option<usize> {
+        self.smart_load_commit_change_count(store).get(id).pirate()
     }
-    pub fn user_authored_commits(&mut self, id: &UserId) -> Option<Vec<Commit>> {
-        self.smart_load_user_authored_commits().get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
+    pub fn user_committed_commit_ids(&mut self, store: &DatastoreView, id: &UserId) -> Option<&Vec<CommitId>> {
+        self.smart_load_user_committed_commits(store).get(id)
+    }
+    pub fn user_authored_commits(&mut self, store: &DatastoreView, id: &UserId) -> Option<Vec<Commit>> {
+        self.smart_load_user_authored_commits(store).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.commit(store, id).pirate()).collect()
         })
     }
-    pub fn user_authored_commit_ids(&mut self, id: &UserId) -> Option<&Vec<CommitId>> {
-        self.smart_load_user_authored_commits().get(id)
+    pub fn user_authored_commit_ids(&mut self, store: &DatastoreView, id: &UserId) -> Option<&Vec<CommitId>> {
+        self.smart_load_user_authored_commits(store).get(id)
     }
-    pub fn user_committed_experience(&mut self, id: &UserId) -> Option<Duration> {
-        self.smart_load_user_committer_experience()
+    pub fn user_committed_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
+        self.smart_load_user_committer_experience(store)
             .get(id)
             .map(|seconds| Duration::from_secs(*seconds))
     }
-    pub fn user_author_experience(&mut self, id: &UserId) -> Option<Duration> {
-        self.smart_load_user_author_experience()
+    pub fn user_author_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
+        self.smart_load_user_author_experience(store)
             .get(id)
             .map(|seconds| Duration::from_secs(*seconds))
     }
-    pub fn user_experience(&mut self, id: &UserId) -> Option<Duration> {
-        self.smart_load_user_experience()
+    pub fn user_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
+        self.smart_load_user_experience(store)
             .get(id)
             .map(|seconds| Duration::from_secs(*seconds))
     }
-    pub fn user_committed_commit_count(&mut self, id: &UserId) -> Option<usize> {
-        self.smart_load_user_committed_commit_count().get(id).pirate()
+    pub fn user_committed_commit_count(&mut self, store: &DatastoreView, id: &UserId) -> Option<usize> {
+        self.smart_load_user_committed_commit_count(store).get(id).pirate()
     }
-    pub fn user_authored_commit_count(&mut self, id: &UserId) -> Option<usize> {
-        self.smart_load_user_authored_commit_count().get(id).pirate()
+    pub fn user_authored_commit_count(&mut self, store: &DatastoreView, id: &UserId) -> Option<usize> {
+        self.smart_load_user_authored_commit_count(store).get(id).pirate()
     }
-    pub fn user_committed_commits(&mut self, id: &UserId) -> Option<Vec<Commit>> {
-        self.smart_load_user_committed_commits().get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.commit(id).pirate()).collect()
+    pub fn user_committed_commits(&mut self, store: &DatastoreView, id: &UserId) -> Option<Vec<Commit>> {
+        self.smart_load_user_committed_commits(store).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.commit(store, id).pirate()).collect()
         })
     }
 }
 
 macro_rules! load_from_store {
-    ($self:ident, $vector:ident)  => {{
+    ($self:ident, $vector:ident, $store:expr)  => {{
         if !$self.$vector.is_loaded() {
-            $self.$vector.load_from_one(&$self.store);
+            $self.$vector.load_from_one($store);
         }
         $self.$vector.grab_collection()
     }}
 }
 
 macro_rules! load_with_prerequisites {
-    ($self:ident, $vector:ident, $n:ident, $($prereq:ident),*)  => {{
+    ($self:ident, $vector:ident, $store:expr, $n:ident, $($prereq:ident),*)  => {{
         mashup! {
             $( m["smart_load" $prereq] = smart_load_$prereq; )*
                m["load"] = load_from_$n;
         }
         if !$self.$vector.is_loaded() {
-            m! { $(  $self."smart_load" $prereq(); )*              }
+            m! { $(  $self."smart_load" $prereq($store); )*              }
             m! { $self.$vector."load"($($self.$prereq.grab_collection()), *); }
         }
         $self.$vector.grab_collection()
@@ -1094,138 +1061,100 @@ macro_rules! load_with_prerequisites {
 }
 
 impl Data {
-    fn smart_load_project_urls(&mut self) -> &BTreeMap<ProjectId, String> {
-        load_from_store!(self, project_urls)
+    fn smart_load_project_urls(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, String> {
+        load_from_store!(self, project_urls, store)
     }
-    fn smart_load_project_heads(&mut self) -> &BTreeMap<ProjectId, Vec<(String, CommitId)>> {
-        load_from_store!(self, project_heads)
+    fn smart_load_project_heads(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<(String, CommitId)>> {
+        load_from_store!(self, project_heads, store)
     }
-    fn smart_load_project_users(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
-        load_with_prerequisites!(self, project_users, two, project_authors, project_committers)
+    fn smart_load_project_users(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<UserId>> {
+        load_with_prerequisites!(self, project_users, store, two, project_authors, project_committers)
     }
-    fn smart_load_project_authors(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
-        load_with_prerequisites!(self, project_authors, two, project_commits, commits)
+    fn smart_load_project_authors(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<UserId>> {
+        load_with_prerequisites!(self, project_authors, store, two, project_commits, commits)
     }
-    fn smart_load_project_committers(&mut self) -> &BTreeMap<ProjectId, Vec<UserId>> {
-        load_with_prerequisites!(self, project_committers, two, project_commits, commits)
+    fn smart_load_project_committers(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<UserId>> {
+        load_with_prerequisites!(self, project_committers, store, two, project_commits, commits)
     }
-    fn smart_load_project_commits(&mut self) -> &BTreeMap<ProjectId, Vec<CommitId>> {
-        load_with_prerequisites!(self, project_commits, two, project_heads, commits)
+    fn smart_load_project_commits(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<CommitId>> {
+        load_with_prerequisites!(self, project_commits, store, two, project_heads, commits)
     }
-    fn smart_load_project_paths(&mut self) -> &BTreeMap<ProjectId, Vec<PathId>> {
-        load_with_prerequisites!(self, project_paths, two, project_commits, commit_changes)
+    fn smart_load_project_paths(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<PathId>> {
+        load_with_prerequisites!(self, project_paths, store, two, project_commits, commit_changes)
     }
-    fn smart_load_project_user_count(&mut self) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_user_count, one, project_users)
+    fn smart_load_project_user_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_user_count, store, one, project_users)
     }
-    fn smart_load_project_author_count(&mut self) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_author_count, one, project_authors)
+    fn smart_load_project_author_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_author_count, store, one, project_authors)
     }
-    fn smart_load_project_path_count(&mut self) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_path_count, one, project_paths)
+    fn smart_load_project_path_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_path_count, store, one, project_paths)
     }
-    fn smart_load_project_committer_count(&mut self) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_committer_count, one, project_committers)
+    fn smart_load_project_committer_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_committer_count, store, one, project_committers)
     }
-    fn smart_load_project_commit_count(&mut self) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_commit_count, one, project_commits)
+    fn smart_load_project_commit_count(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_commit_count, store, one, project_commits)
     }
-    fn smart_load_project_lifetimes(&mut self) -> &BTreeMap<ProjectId, u64> {
-        load_with_prerequisites!(self, project_lifetimes, three, project_commits,
-                                                                 commit_author_timestamps,
-                                                                 commit_committer_timestamps)
+    fn smart_load_project_lifetimes(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, u64> {
+        load_with_prerequisites!(self, project_lifetimes, store, three, project_commits,
+                                                                        commit_author_timestamps,
+                                                                        commit_committer_timestamps)
     }
-    fn smart_load_users(&mut self) -> &BTreeMap<UserId, User> {
-        load_from_store!(self, users)
+    fn smart_load_users(&mut self, store: &DatastoreView) -> &BTreeMap<UserId, User> {
+        load_from_store!(self, users, store)
     }
-    fn smart_load_user_authored_commits(&mut self) -> &BTreeMap<UserId, Vec<CommitId>> {
-        load_with_prerequisites!(self, user_authored_commits, one, commits)
+    fn smart_load_user_authored_commits(&mut self, store: &DatastoreView) -> &BTreeMap<UserId, Vec<CommitId>> {
+        load_with_prerequisites!(self, user_authored_commits, store, one, commits)
     }
-    fn smart_load_user_committed_commits(&mut self) -> &BTreeMap<UserId, Vec<CommitId>> {
-        load_with_prerequisites!(self, user_committed_commits, one, commits)
+    fn smart_load_user_committed_commits(&mut self, store: &DatastoreView) -> &BTreeMap<UserId, Vec<CommitId>> {
+        load_with_prerequisites!(self, user_committed_commits, store, one, commits)
     }
-    fn smart_load_user_author_experience(&mut self) -> &BTreeMap<UserId, u64> {
-        load_with_prerequisites!(self, user_author_experience, two, user_authored_commits,
-                                                                    commit_author_timestamps)
+    fn smart_load_user_author_experience(&mut self, store: &DatastoreView) -> &BTreeMap<UserId, u64> {
+        load_with_prerequisites!(self, user_author_experience, store, two, user_authored_commits,
+                                                                           commit_author_timestamps)
     }
-    fn smart_load_user_committer_experience(&mut self) -> &BTreeMap<UserId, u64> {
-        load_with_prerequisites!(self, user_committer_experience, two, user_committed_commits,
-                                                                       commit_committer_timestamps)
+    fn smart_load_user_committer_experience(&mut self, store: &DatastoreView) -> &BTreeMap<UserId, u64> {
+        load_with_prerequisites!(self, user_committer_experience, store, two, user_committed_commits,
+                                                                              commit_committer_timestamps)
     }
-    fn smart_load_user_experience(&mut self) -> &BTreeMap<UserId, u64> {
-        load_with_prerequisites!(self, user_experience, three, user_committed_commits,
-                                                               commit_author_timestamps,
-                                                               commit_committer_timestamps)
+    fn smart_load_user_experience(&mut self, store: &DatastoreView) -> &BTreeMap<UserId, u64> {
+        load_with_prerequisites!(self, user_experience, store, three, user_committed_commits,
+                                                                      commit_author_timestamps,
+                                                                      commit_committer_timestamps)
     }
-    fn smart_load_user_committed_commit_count(&mut self) -> &BTreeMap<UserId, usize> {
-        load_with_prerequisites!(self, user_committed_commit_count, one, user_committed_commits)
+    fn smart_load_user_committed_commit_count(&mut self, store: &DatastoreView) -> &BTreeMap<UserId, usize> {
+        load_with_prerequisites!(self, user_committed_commit_count, store, one, user_committed_commits)
     }
-    fn smart_load_user_authored_commit_count(&mut self) -> &BTreeMap<UserId, usize> {
-        load_with_prerequisites!(self, user_authored_commit_count, one, user_authored_commits)
+    fn smart_load_user_authored_commit_count(&mut self, store: &DatastoreView) -> &BTreeMap<UserId, usize> {
+        load_with_prerequisites!(self, user_authored_commit_count, store, one, user_authored_commits)
     }
-    fn smart_load_paths(&mut self) -> &BTreeMap<PathId, Path> {
-        load_from_store!(self, paths)
+    fn smart_load_paths(&mut self, store: &DatastoreView) -> &BTreeMap<PathId, Path> {
+        load_from_store!(self, paths, store)
     }
-    // fn smart_load_snapshots(&mut self) -> &BTreeMap<SnapshotId, Snapshot> {
-    //     load_from_store!(self, snapshots)
+    // fn smart_load_snapshots(&mut self, store: &DatastoreView) -> &BTreeMap<SnapshotId, Snapshot> {
+    //     load_from_store!(self, snapshots, store)
     // }
-    fn smart_load_commits(&mut self) -> &BTreeMap<CommitId, Commit> {
-        load_from_store!(self, commits)
+    fn smart_load_commits(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, Commit> {
+        load_from_store!(self, commits, store)
     }
-    fn smart_load_commit_hashes(&mut self) -> &BTreeMap<CommitId, String> {
-        load_from_store!(self, commit_hashes)
+    fn smart_load_commit_hashes(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, String> {
+        load_from_store!(self, commit_hashes, store)
     }
-    fn smart_load_commit_messages(&mut self) -> &BTreeMap<CommitId, String> {
-        load_from_store!(self, commit_messages)
+    fn smart_load_commit_messages(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, String> {
+        load_from_store!(self, commit_messages, store)
     }
-    fn smart_load_commit_committer_timestamps(&mut self) -> &BTreeMap<CommitId, i64> {
-        load_from_store!(self, commit_committer_timestamps)
+    fn smart_load_commit_committer_timestamps(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, i64> {
+        load_from_store!(self, commit_committer_timestamps, store)
     }
-    fn smart_load_commit_author_timestamps(&mut self) -> &BTreeMap<CommitId, i64> {
-        load_from_store!(self, commit_author_timestamps)
+    fn smart_load_commit_author_timestamps(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, i64> {
+        load_from_store!(self, commit_author_timestamps, store)
     }
-    fn smart_load_commit_changes(&mut self) -> &BTreeMap<CommitId, Vec<(PathId, SnapshotId)>> {
-        load_from_store!(self, commit_changes)
+    fn smart_load_commit_changes(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, Vec<(PathId, SnapshotId)>> {
+        load_from_store!(self, commit_changes, store)
     }
-    fn smart_load_commit_change_count(&mut self) -> &BTreeMap<CommitId, usize> {
-        load_with_prerequisites!(self, commit_change_count, one, commit_changes)
-    }
-}
-
-pub struct DirectIter<'a, T> {
-    store: Ref<'a, DatastoreView>,
-    contents: Option<PropertyStoreIterator<'a, Vec<u8>>>,
-    _type: PhantomData<T>,
-}
-
-impl<'a> DirectIter<'a, Snapshot> {
-    pub(crate) fn from(data: Ref<'a, Data>) -> Self {
-        let store: Ref<'a, DatastoreView> = Ref::map(data, |data| &data.store);
-        DirectIter {
-            contents:  None,
-            store,
-            _type: PhantomData
-        }
-    }
-
-    pub(crate) fn from_ptr(
-        data: Ref<'a, Data>,
-        forever_home: &'a mut Option<DirectIter<'a, Snapshot>>)
-    {
-        let store: Ref<'a, DatastoreView> = Ref::map(data, |data| &data.store);
-        *forever_home = Some(DirectIter {
-            contents: None,
-            store,
-            _type: PhantomData
-        });
-        let mut direct_iter_ptr = forever_home.as_mut().unwrap();
-        direct_iter_ptr.contents = Some(direct_iter_ptr.store.contents());
-    }
-}
-
-impl<'a> Iterator for DirectIter<'a, Snapshot> { // Ideally, make generic
-    type Item = Snapshot;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.contents.as_mut().unwrap().next().map(|(id, vector)| Snapshot::new(SnapshotId::from(id), vector))
+    fn smart_load_commit_change_count(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, usize> {
+        load_with_prerequisites!(self, commit_change_count, store, one, commit_changes)
     }
 }

@@ -71,6 +71,28 @@ impl Database {
     pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
         self.store.contents().map(|(id, _)| SnapshotId::from(id))
     }
+    pub fn snapshots_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=Snapshot> + 'a
+        where F: Fn(&Snapshot) -> bool + 'a {
+        self.store.contents().flat_map(move |(id, content)| {
+            let snapshot = Snapshot::new(SnapshotId::from(id), content);
+            if filter(&snapshot) {
+                Some(snapshot)
+            } else {
+                None
+            }
+        })
+    }
+    pub fn snapshot_ids_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=SnapshotId> + 'a
+        where F: Fn(&Snapshot) -> bool + 'a {
+        self.store.contents().flat_map(move |(id, content)| {
+            let snapshot = Snapshot::new(SnapshotId::from(id), content);
+            if filter(&snapshot) {
+                Some(snapshot.id())
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl Database {

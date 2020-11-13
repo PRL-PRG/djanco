@@ -112,7 +112,7 @@ fn main() {
 
     let (selected_snapshot_ids, load_snapshots_secs) = with_elapsed_secs!("load snapshots", {
         let selected_snapshot_ids: Vec<SnapshotId> =
-            Vec::from_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap();
+            SnapshotId::from_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap();
         BTreeSet::from_iter(selected_snapshot_ids.into_iter())
     });
 

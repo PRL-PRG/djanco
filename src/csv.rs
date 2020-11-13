@@ -1,11 +1,13 @@
 use std::io::Write;
+use std::fs::File;
+use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
 
 use serde::export::fmt::Display;
 use itertools::Itertools;
 
 use crate::objects::*;
-use crate::iterators::ItemWithData;
-use std::fs::File;
+use crate::iterators::*;
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -236,37 +238,104 @@ impl<'a> CSVItem for ItemWithData<'a, User> {
     }
 }
 
-pub trait FromCSV: Sized {
-    fn from_csv<S>(location: S) -> Result<Self, std::io::Error> where S: Into<String>;
+#[derive(Debug)]
+pub enum Error {
+    IO(std::io::Error),
+    CSV(csv::Error),
+    ParseInt(std::num::ParseIntError),
+    MissingColumn(String),
 }
 
-impl FromCSV for Vec<SnapshotId> {
-    fn from_csv<S>(location: S) -> Result<Self, std::io::Error> where S: Into<String> {
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Self { Error::IO(error) }
+}
+impl From<csv::Error> for Error {
+    fn from(error: csv::Error) -> Self { Error::CSV(error) }
+}
+impl From<std::num::ParseIntError> for Error {
+    fn from(error: std::num::ParseIntError) -> Self { Error::ParseInt(error) }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Error::IO(error) => error.fmt(f),
+            Error::CSV(error) => error.fmt(f),
+            Error::ParseInt(error) => error.fmt(f),
+            Error::MissingColumn(column) => write!(f, "column {} does not exist", column)
+        }
+    }
+}
+
+pub trait FromCSV: Sized {
+    fn item_from_csv_row(values: HashMap<String, String>) -> Result<Self, Error>;
+
+    fn from_csv<S>(location: S) -> Result<Vec<Self>, Error> where S: Into<String> {
         let file = File::open(location.into())?;
         let mut reader = csv::ReaderBuilder::new()
-                .has_headers(true)
-                .from_reader(file);
+            .has_headers(true)
+            .from_reader(file);
 
-        let headers = reader.headers()?;
+        let headers: Vec<String> = reader.headers()
+            .map_err(|e| Error::from(e))?
+            .iter().map(|s| s.to_string()).collect();
 
-        let column_indexes: Vec<usize> =
-            headers.iter()
-                .filter(|field| *field == "snapshot_id")
-                .enumerate()
-                .map(|(n, _)| n)
-                .take(1)
-                .collect();
+        let mut vector: Vec<Self> = Vec::new();
+        for record in reader.records() {
+            let record = record.map_err(|e| Error::from(e))?;
+            let fields =
+                record.iter()
+                    .map(|s| s.to_string());
+            let values: HashMap<String, String> =
+                headers.iter()
+                    .map(|s| s.to_string())
+                    .zip(fields).collect();
+            let item = Self::item_from_csv_row(values)?;
+            vector.push(item);
+        }
+        Ok(vector)
+    }
+}
 
-        let column_index= *column_indexes.first().unwrap();
+macro_rules! from_single_column {
+    ($item:ident, $values:expr, $t:ident) => {{
+        let column: &str = SnapshotId::column_headers().pop().unwrap();
+        let str: Option<&String> = $values.get(column);
+        if let Some(str) = str {
+           let n: $t = str.parse().map_err(|e| Error::from(e))?;
+           Ok($item::from(n))
+        } else {
+            Err(Error::MissingColumn(column.to_owned()))
+        }
+    }}
+}
 
-        let snapshot_ids: Vec<SnapshotId> = reader.records()
-            .map(|e| e.unwrap())
-            .map(|string_record| {
-                let field = string_record.get(column_index).unwrap();
-                let n: u64 = field.parse().unwrap();
-                SnapshotId::from(n)
-            }).collect();
+impl FromCSV for PathId {
+    fn item_from_csv_row(values: HashMap<String, String, RandomState>) -> Result<Self, Error> {
+        from_single_column!(Self, values, u64)
+    }
+}
 
-        Ok(snapshot_ids)
+impl FromCSV for UserId {
+    fn item_from_csv_row(values: HashMap<String, String, RandomState>) -> Result<Self, Error> {
+        from_single_column!(Self, values, u64)
+    }
+}
+
+impl FromCSV for ProjectId {
+    fn item_from_csv_row(values: HashMap<String, String, RandomState>) -> Result<Self, Error> {
+        from_single_column!(Self, values, u64)
+    }
+}
+
+impl FromCSV for CommitId {
+    fn item_from_csv_row(values: HashMap<String, String, RandomState>) -> Result<Self, Error> {
+        from_single_column!(Self, values, u64)
+    }
+}
+
+impl FromCSV for SnapshotId {
+    fn item_from_csv_row(values: HashMap<String, String, RandomState>) -> Result<Self, Error> {
+        from_single_column!(Self, values, u64)
     }
 }

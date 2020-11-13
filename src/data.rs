@@ -171,10 +171,10 @@ impl Database {
     pub fn project_url(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_url(&self.store, id)
     }
-    pub fn project_head_ids(&self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
-        self.data.borrow_mut().project_head_ids(&self.store, id)
-    }
-    pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
+    // pub fn project_head_ids(&self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
+    //     self.data.borrow_mut().project_head_ids(&self.store, id)
+    // }
+    pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<Head>> {
         self.data.borrow_mut().project_heads(&self.store, id)
     }
     pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>> {
@@ -335,14 +335,14 @@ impl SingleMapExtractor for ProjectUrlExtractor {
 struct ProjectHeadsExtractor;
 impl MapExtractor for ProjectHeadsExtractor {
     type Key = ProjectId;
-    type Value = Vec<(String, CommitId)>;
+    type Value = Vec<Head>;
 }
 impl SingleMapExtractor for ProjectHeadsExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         store.project_heads().map(|(project_id, heads)| {
             (ProjectId::from(project_id), heads.into_iter().map(|(name, commit_id)| {
-                (name, CommitId::from(commit_id))
+                Head::new(name, CommitId::from(commit_id))
             }).collect())
         }).collect()
     }
@@ -492,13 +492,13 @@ impl MapExtractor for ProjectCommitsExtractor {
     type Value = Vec<CommitId>;
 }
 impl DoubleMapExtractor for ProjectCommitsExtractor {
-    type A = BTreeMap<ProjectId, Vec<(String, CommitId)>>;
+    type A = BTreeMap<ProjectId, Vec<Head>>;
     type B = BTreeMap<CommitId, Commit>;
     fn extract(heads: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         heads.iter().map(|(project_id, heads)| {
             (project_id.clone(),
-             heads.iter().flat_map(|(_, commit_id)| {
-                 Self::commits_from_head(commits, commit_id)
+             heads.iter().flat_map(|head| {
+                 Self::commits_from_head(commits, &head.commit_id())
              }).collect::<Vec<CommitId>>())
         }).collect()
     }
@@ -959,18 +959,18 @@ impl Data {
     pub fn project_url(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<String> {
         self.smart_load_project_urls(store).get(id).pirate()
     }
-    pub fn project_head_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
+    pub fn project_heads(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<Head>> {
         self.smart_load_project_heads(store).get(id).pirate()
     }
-    pub fn project_heads(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
-        self.smart_load_project_heads(store).get(id).pirate().map(|v| {
-            v.into_iter().flat_map(|(name, commit_id)| {
-                self.commit(store, &commit_id).map(|commit| {
-                    (name, commit.clone())
-                })
-            }).collect()
-        })
-    }
+    // pub fn project_heads(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
+    //     self.smart_load_project_heads(store).get(id).pirate().map(|v| {
+    //         v.into_iter().flat_map(|(name, commit_id)| {
+    //             self.commit(store, &commit_id).map(|commit| {
+    //                 Head::new(name, commit.clone())
+    //             })
+    //         }).collect()
+    //     })
+    // }
     pub fn project_commit_ids(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&Vec<CommitId>> {
         self.smart_load_project_commits(store).get(id)
     }
@@ -1139,7 +1139,7 @@ impl Data {
     fn smart_load_project_urls(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, String> {
         load_from_store!(self, project_urls, store)
     }
-    fn smart_load_project_heads(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<(String, CommitId)>> {
+    fn smart_load_project_heads(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<Head>> {
         load_from_store!(self, project_heads, store)
     }
     fn smart_load_project_users(&mut self, store: &DatastoreView) -> &BTreeMap<ProjectId, Vec<UserId>> {

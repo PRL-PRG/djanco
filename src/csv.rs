@@ -213,7 +213,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.created().to_string_or_empty(),
              self.updated().to_string_or_empty(),
              self.pushed().to_string_or_empty(),
-             self.master_branch().to_string_or_empty().escape_quotes().quoted(),
+             self.default_branch().to_string_or_empty().escape_quotes().quoted(),
              self.license().to_string_or_empty().escape_quotes().quoted(),
              self.homepage().to_string_or_empty().escape_quotes().quoted(),
              self.description().to_string_or_empty().escape_quotes().quoted()]

@@ -1,3 +1,4 @@
+             pub mod query;
              pub mod csv;
 #[macro_use] pub mod attrib;
              pub mod metadata;
@@ -11,6 +12,5 @@
              pub mod spec;
              pub mod time;
              pub mod piracy;
-             pub mod query;
 
 #[macro_use] extern crate mashup;

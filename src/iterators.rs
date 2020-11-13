@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 use std::collections::VecDeque;
-use std::borrow::Cow;
 use std::iter::Map;
-
-use chrono::Duration;
 
 use crate::objects::*;
 use crate::data::*;
@@ -23,105 +20,13 @@ impl<'a, T> ItemWithData<'a, T> {
         ItemWithData { data, item }
     }
 }
-impl<'a> ItemWithData<'a, Project> {
-    pub fn id               (&self)    -> ProjectId                       { self.item.id()                                     }
-    pub fn url              (&self)    -> String                          { self.item.url().to_string()                        }
-    pub fn issue_count      (&self)    -> Option<usize>                   { self.item.issue_count(&self.data)            }
-    pub fn buggy_issue_count(&self)    -> Option<usize>                   { self.item.buggy_issue_count(&self.data)      }
-    pub fn is_fork          (&self)    -> Option<bool>                    { self.item.is_fork(&self.data)                }
-    pub fn is_archived      (&self)    -> Option<bool>                    { self.item.is_archived(&self.data)            }
-    pub fn is_disabled      (&self)    -> Option<bool>                    { self.item.is_disabled(&self.data)            }
-    pub fn star_count       (&self)    -> Option<usize>                   { self.item.star_count(&self.data)             }
-    pub fn watcher_count    (&self)    -> Option<usize>                   { self.item.watcher_count(&self.data)          }
-    pub fn size             (&self)    -> Option<usize>                   { self.item.size(&self.data)                   }
-    pub fn open_issue_count (&self)    -> Option<usize>                   { self.item.open_issue_count(&self.data)       }
-    pub fn fork_count       (&self)    -> Option<usize>                   { self.item.fork_count(&self.data)             }
-    pub fn subscriber_count (&self)    -> Option<usize>                   { self.item.subscriber_count(&self.data)       }
-    pub fn license          (&self)    -> Option<String>                  { self.item.license(&self.data)                }
-    pub fn language         (&self)    -> Option<Language>                { self.item.language(&self.data)               }
-    pub fn description      (&self)    -> Option<String>                  { self.item.description(&self.data)            }
-    pub fn homepage         (&self)    -> Option<String>                  { self.item.homepage(&self.data)               }
-    pub fn head_ids         (&self)    -> Option<Vec<(String, CommitId)>> { self.item.head_ids(&self.data)               }
-    pub fn heads            (&self)    -> Option<Vec<(String, Commit)>>   { self.item.heads(&self.data)                  }
-    pub fn head_count       (&self)    -> Option<usize>                   { self.item.head_count(&self.data)             }
-    pub fn commit_ids       (&self)    -> Option<Vec<CommitId>>           { self.item.commit_ids(&self.data)             }
-    pub fn commits          (&self)    -> Option<Vec<Commit>>             { self.item.commits(&self.data)                }
-    pub fn commit_count     (&self)    -> Option<usize>                   { self.item.commit_count(&self.data)           }
-    pub fn author_ids       (&self)    -> Option<Vec<UserId>>             { self.item.author_ids(&self.data)             }
-    pub fn authors          (&self)    -> Option<Vec<User>>               { self.item.authors(&self.data)                }
-    pub fn author_count     (&self)    -> Option<usize>                   { self.item.author_count(&self.data)           }
-    pub fn path_ids         (&self)    -> Option<Vec<PathId>>             { self.item.path_ids(&self.data)                     }
-    pub fn paths            (&self)    -> Option<Vec<Path>>               { self.item.paths(&self.data)                  }
-    pub fn path_count       (&self)    -> Option<usize>                   { self.item.path_count(&self.data)             }
-    pub fn snapshot_ids     (&self)    -> Option<Vec<SnapshotId>>         { self.item.snapshot_ids(&self.data)                 }
-    pub fn snapshots        (&self)    -> Option<Vec<Snapshot>>           { self.item.snapshots(&self.data)                    }
-    pub fn snapshot_count   (&self)    -> Option<usize>                   { self.item.snapshot_count(&self.data)               }
-    pub fn committer_ids    (&self)    -> Option<Vec<UserId>>             { self.item.committer_ids(&self.data)          }
-    pub fn committers       (&self)    -> Option<Vec<User>>               { self.item.committers(&self.data)             }
-    pub fn committer_count  (&self)    -> Option<usize>                   { self.item.committer_count(&self.data)        }
-    pub fn user_ids         (&self)    -> Option<Vec<UserId>>             { self.item.user_ids(&self.data)               }
-    pub fn users            (&self)    -> Option<Vec<User>>               { self.item.users(&self.data)                  }
-    pub fn user_count       (&self)    -> Option<usize>                   { self.item.user_count(&self.data)             }
-    pub fn lifetime         (&self)    -> Option<Duration>                { self.item.lifetime(&self.data)               }
-    pub fn has_issues       (&self)    -> Option<bool>                    { self.item.has_issues(&self.data)             }
-    pub fn has_downloads    (&self)    -> Option<bool>                    { self.item.has_downloads(&self.data)          }
-    pub fn has_wiki         (&self)    -> Option<bool>                    { self.item.has_wiki(&self.data)               }
-    pub fn has_pages        (&self)    -> Option<bool>                    { self.item.has_pages(&self.data)              }
-    pub fn created          (&self)    -> Option<i64>                     { self.item.created(&self.data)                }
-    pub fn updated          (&self)    -> Option<i64>                     { self.item.updated(&self.data)                }
-    pub fn pushed           (&self)    -> Option<i64>                     { self.item.pushed(&self.data)                 }
-    pub fn master_branch    (&self)    -> Option<String>                  { self.item.master_branch(&self.data)          }
-}
-impl<'a> ItemWithData<'a, Snapshot> {
-    pub fn raw_contents(&self) -> &Vec<u8> { &self.item.raw_contents() }
-    pub fn id(&self) -> SnapshotId { self.item.id() }
-    pub fn contents(&self) -> Cow<str> { self.item.contents() }
-    pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
-
-}
-impl<'a> ItemWithData<'a, User> {
-    pub fn id                    (&self)   -> UserId                { self.item.id()    }
-    pub fn email                 (&self)   -> &str                  { self.item.email() }
-    pub fn authored_commit_ids   (&self)   -> Option<Vec<CommitId>> { self.item.authored_commit_ids(&self.data)    }
-    pub fn authored_commits      (&self)   -> Option<Vec<Commit>>   { self.item.authored_commits(&self.data)       }
-    pub fn authored_commit_count (&self)   -> Option<usize>         { self.item.authored_commit_count(&self.data)  }
-    pub fn committed_commit_ids  (&self)   -> Option<Vec<CommitId>> { self.item.committed_commit_ids(&self.data)   }
-    pub fn committed_commits     (&self)   -> Option<Vec<Commit>>   { self.item.committed_commits(&self.data)      }
-    pub fn committed_commit_count(&self)   -> Option<usize>         { self.item.committed_commit_count(&self.data) }
-    pub fn committer_experience  (&self)   -> Option<Duration>      { self.item.committer_experience(&self.data)   }
-    pub fn author_experience     (&self)   -> Option<Duration>      { self.item.author_experience(&self.data)      }
-    pub fn experience            (&self)   -> Option<Duration>      { self.item.experience(&self.data)             }
-}
-impl<'a> ItemWithData<'a, Commit> {
-    pub fn id                 (&self) -> CommitId                           { self.item.id()           }
-    pub fn committer_id       (&self) -> UserId                             { self.item.committer_id() }
-    pub fn author_id          (&self) -> UserId                             { self.item.author_id()    }
-    pub fn parent_ids         (&self) -> &Vec<CommitId>                     { self.item.parent_ids()   }
-    pub fn committer          (&self) -> User                               { self.item.committer(&self.data)            }
-    pub fn author             (&self) -> User                               { self.item.author(self.data)                }
-    pub fn parents            (&self) -> Vec<Commit>                        { self.item.parents(self.data)               }
-    pub fn hash               (&self) -> Option<String>                     { self.item.hash(&self.data)                 }
-    pub fn message            (&self) -> Option<String>                     { self.item.message(&self.data)              }
-    pub fn author_timestamp   (&self) -> Option<i64>                        { self.item.author_timestamp(&self.data)     }
-    pub fn committer_timestamp(&self) -> Option<i64>                        { self.item.committer_timestamp(&self.data)  }
-    pub fn change_ids          (&self) -> Option<Vec<(PathId, SnapshotId)>> { self.item.change_ids(&self.data)           }
-    pub fn changed_path_ids    (&self) -> Option<Vec<PathId>>               { self.item.changed_path_ids(&self.data)     }
-    pub fn changed_snapshot_ids(&self) -> Option<Vec<SnapshotId>>           { self.item.changed_snapshot_ids(&self.data) }
-    pub fn changed_paths       (&self) -> Option<Vec<Path>>                 { self.item.changed_paths(&self.data)        }
-    pub fn changed_path_count  (&self) -> Option<usize>                     { self.item.changed_path_count(&self.data)   }
-    pub fn changed_snapshots   (&self) -> Option<Vec<Snapshot>>             { self.item.changed_snapshots(&self.data)    }
-}
-impl<'a> ItemWithData<'a, Path> {
-    pub fn id      (&self) -> PathId           { self.item.id()       }
-    pub fn location(&self) -> &str             { self.item.location() }
-    pub fn language(&self) -> Option<Language> { self.item.language() }
-}
 
 impl<'a> Into<Project> for ItemWithData<'a, Project> { fn into(self) -> Project { self.item } }
 impl<'a> Into<Commit> for ItemWithData<'a, Commit> { fn into(self) -> Commit { self.item } }
 impl<'a> Into<User> for ItemWithData<'a, User> { fn into(self) -> User { self.item } }
 impl<'a> Into<Path> for ItemWithData<'a, Path> { fn into(self) -> Path { self.item } }
 impl<'a> Into<Snapshot> for ItemWithData<'a, Snapshot> { fn into(self) -> Snapshot { self.item } }
+impl<'a> Into<Head> for ItemWithData<'a, Head> { fn into(self) -> Head { self.item } }
 
 impl<'a> Into<ProjectId> for ItemWithData<'a, ProjectId> { fn into(self) -> ProjectId { self.item } }
 impl<'a> Into<CommitId> for ItemWithData<'a, CommitId> { fn into(self) -> CommitId { self.item } }

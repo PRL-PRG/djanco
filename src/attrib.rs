@@ -1,17 +1,26 @@
-use crate::iterators::ItemWithData;
 use std::iter::FromIterator;
-use itertools::Itertools;
 use std::hash::Hash;
 
-pub trait Attribute { type Source; }
-pub trait LogicalAttribute    {}
-pub trait LanguageAttribute: Attribute    {}
-pub trait TimestampAttribute  {}
-pub trait DurationAttribute   {}
-pub trait StringAttribute     {}
-pub trait IntegerAttribute    {}
-pub trait FloatAttribute      {}
-pub trait CollectionAttribute {}
+use itertools::Itertools;
+use chrono::Duration;
+
+use crate::iterators::*;
+use crate::objects;
+
+pub trait Attribute { type Object; }
+pub trait Getter<T>: Attribute { fn get(object: &ItemWithData<Self::Object>) -> Option<T>;       }
+pub trait Counter:   Attribute { fn count(object: &ItemWithData<Self::Object>) -> Option<usize>; }
+
+pub trait LogicalAttribute: Getter<bool> {}
+pub trait LanguageAttribute: Getter<objects::Language> {}
+pub trait TimestampAttribute: Getter<i64> {}
+pub trait DurationAttribute: Getter<Duration> {}
+pub trait StringAttribute: Getter<String> {}
+pub trait IntegerAttribute: Getter<usize> {}
+pub trait FloatAttribute: Getter<f64> {}
+
+pub trait CollectionAttribute<T>: Getter<Vec<T>>            {}
+pub trait IdentityAttribute<I:objects::Identity>: Getter<I> {}
 
 pub trait Group {
     type Key: Hash + Eq;

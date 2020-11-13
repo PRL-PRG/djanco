@@ -93,16 +93,22 @@ fn main() {
     });
 
     let (snapshot_ids, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
-        database.snapshots().filter(|snapshot| {
-            snapshot.contains("#include <memory_resource>")
-        }).map(|snapshot| snapshot.id())
+        let snapshot_ids = database.snapshots().flat_map(|snapshot| {
+            if snapshot.contains("#include <memory_resource>") {
+                eprint!("*");
+                Some(snapshot.id())
+            } else {
+                None
+            }
+        }).collect::<Vec<SnapshotId>>();
+        eprintln!("\nfound {} snapshot_ids", snapshot_ids.len());
+        snapshot_ids
     });
 
     let save_snapshots_secs = elapsed_secs!("save snapshots", {
-        snapshot_ids
+        snapshot_ids.into_iter()
             .into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
     });
-
 
     let (selected_snapshot_ids, load_snapshots_secs) = with_elapsed_secs!("load snapshots", {
         let selected_snapshot_ids: Vec<SnapshotId> =

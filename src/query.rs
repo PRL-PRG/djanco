@@ -1,9 +1,6 @@
-//use std::borrow::Cow;
-
 use chrono::Duration;
 
 use crate::attrib::*;
-//use crate::iterators::ItemWithData;
 use crate::objects;
 use crate::iterators::ItemWithData;
 
@@ -65,7 +62,7 @@ macro_rules! impl_surefire_collection_attribute {
     }
 }
 
-mod project {
+pub mod project {
     use crate::query::*;
     impl_surefire_attribute!(objects::Project, Id, objects::ProjectId, id);
     impl_surefire_attribute!(objects::Project, URL, String, url);
@@ -102,7 +99,7 @@ mod project {
     impl_collection_attribute!(objects::Project, Snapshots, objects::Snapshot, snapshots, snapshot_count);
 }
 
-mod commit {
+pub mod commit {
     use crate::query::*;
     impl_surefire_attribute!(objects::Commit, Id, objects::CommitId, id);
     impl_surefire_attribute!(objects::Commit, Committer, objects::User, committer);
@@ -116,13 +113,13 @@ mod commit {
     impl_surefire_collection_attribute!(objects::Commit, Parents, objects::Commit, parents, parent_count);
 }
 
-mod head {
+pub mod head {
     use crate::query::*;
     impl_surefire_attribute!(objects::Head, Name, String, name);
     impl_surefire_attribute!(objects::Head, Commit, objects::Commit, commit);
 }
 
-mod user {
+pub mod user {
     use crate::query::*;
     impl_surefire_attribute!(objects::User, Id, objects::UserId, id);
     impl_surefire_attribute!(objects::User, Email, String, email);
@@ -133,14 +130,14 @@ mod user {
     impl_collection_attribute!(objects::User, CommittedCommits, objects::Commit, committed_commits, committed_commit_count);
 }
 
-mod path {
+pub mod path {
     use crate::query::*;
     impl_surefire_attribute!(objects::Path, Id, objects::PathId, id);
     impl_surefire_attribute!(objects::Path, Location, String, location);
     impl_optional_attribute!(objects::Path, Language, objects::Language, language);
 }
 
-mod snapshot {
+pub mod snapshot {
     use crate::query::*;
     impl_surefire_attribute!(objects::Snapshot, Id, objects::SnapshotId, id);
     impl_surefire_attribute!(objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned);

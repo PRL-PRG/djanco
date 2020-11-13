@@ -11,16 +11,32 @@ pub trait Attribute { type Object; }
 pub trait Getter<T>: Attribute { fn get(object: &ItemWithData<Self::Object>) -> Option<T>;       }
 pub trait Counter:   Attribute { fn count(object: &ItemWithData<Self::Object>) -> Option<usize>; }
 
-pub trait LogicalAttribute: Getter<bool> {}
-pub trait LanguageAttribute: Getter<objects::Language> {}
-pub trait TimestampAttribute: Getter<i64> {}
-pub trait DurationAttribute: Getter<Duration> {}
-pub trait StringAttribute: Getter<String> {}
-pub trait IntegerAttribute: Getter<usize> {}
-pub trait FloatAttribute: Getter<f64> {}
+pub trait IdentityAttribute<I> {}
+impl<A,I> IdentityAttribute<I> for A where A: Getter<I>, I: objects::Identity { }
 
-pub trait CollectionAttribute<T>: Getter<Vec<T>>            {}
-pub trait IdentityAttribute<I:objects::Identity>: Getter<I> {}
+pub trait LogicalAttribute {}
+impl<A> LogicalAttribute for A where A: Getter<bool> {}
+
+pub trait LanguageAttribute {}
+impl<A> LanguageAttribute for A where A: Getter<objects::Language> {}
+
+pub trait TimestampAttribute {}
+impl<A> TimestampAttribute for A where A: Getter<i64> {}
+
+pub trait DurationAttribute {}
+impl<A> DurationAttribute for A where A: Getter<Duration> {}
+
+pub trait StringAttribute {}
+impl<A> StringAttribute for A where A: Getter<String> {}
+
+pub trait IntegerAttribute {}
+impl<A> IntegerAttribute for A where A: Getter<usize> {}
+
+pub trait FloatAttribute {}
+impl<A> FloatAttribute for A where A: Getter<f64> {}
+
+pub trait CollectionAttribute<T> {}
+impl<A,T> CollectionAttribute<T> for A where A: Getter<Vec<T>> + Counter {}
 
 pub trait Group {
     type Key: Hash + Eq;

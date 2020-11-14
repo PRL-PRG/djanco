@@ -83,6 +83,9 @@ fn main() {
     let now = time::now();
     let config = Configuration::from_args();
 
+
+
+
     let (store, store_secs) = with_elapsed_secs!("open data store", {
         DatastoreView::new(config.dataset_path(), now)
     });
@@ -91,12 +94,21 @@ fn main() {
         Database::from_store(store, config.cache_path())
     });
 
+    let _ = elapsed_secs!("sanity check", {
+        eprintln!("sanity check start");
+        let count = database.debug_count_snapshots();
+        eprintln!("sanity check counts {} snapshots", count);
+    });
+
     let (snapshot_ids, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
         let snapshot_ids = database.snapshots().flat_map(|snapshot| {
             if snapshot.contains("#include <memory_resource>") {
-                eprint!("*");
+                let id = snapshot.id();
+                eprint!("\\u001b[32m+{} \\u001b[0m", id);
                 Some(snapshot.id())
             } else {
+                let id = snapshot.id();
+                eprint!("-{} ", id);
                 None
             }
         }).collect::<Vec<SnapshotId>>();

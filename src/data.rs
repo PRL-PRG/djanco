@@ -59,7 +59,7 @@ impl Database {
 // Uncached stuff
 impl Database {
     pub fn debug_count_snapshots(&self) -> usize {
-        self.store.contents().map(|(left, _)| left).count()
+        self.store.contents()/*.map(|(left, _)| left)*/.count()
     }
     pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
         self.store.content(id.into())

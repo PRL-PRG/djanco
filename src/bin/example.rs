@@ -11,6 +11,7 @@ use djanco::data::*;
 use djanco::time;
 use djanco::objects::*;
 use djanco::csv::*;
+use djanco::log::*;
 
 // TODO
 // * snapshots aka file contents
@@ -82,13 +83,14 @@ macro_rules! elapsed_secs {
 fn main() {
     let now = time::now();
     let config = Configuration::from_args();
+    let log = Log::new(Verbosity::Debug);
 
     let (store, store_secs) = with_elapsed_secs!("open data store", {
         DatastoreView::new(config.dataset_path(), now)
     });
 
     let (database, database_secs) = with_elapsed_secs!("open database", {
-        Database::from_store(store, config.cache_path())
+        Database::from_store(store, config.cache_path(), log)
     });
 
     let (snapshot_ids, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {

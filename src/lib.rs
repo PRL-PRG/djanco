@@ -1,3 +1,5 @@
+             pub mod countable;
+             pub mod log;
              pub mod query;
              pub mod csv;
 #[macro_use] pub mod attrib;

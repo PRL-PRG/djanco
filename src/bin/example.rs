@@ -77,14 +77,11 @@ macro_rules! elapsed_secs {
     }}
 }
 
-// works with downloader from commit  146e55e34ca1f4cc5b826e0c909deac96afafc17
+// works with downloader from commit 5e4e9d5deb0fe8f9c8bb3bae0ca6947633701346 
 // `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let now = time::now();
     let config = Configuration::from_args();
-
-
-
 
     let (store, store_secs) = with_elapsed_secs!("open data store", {
         DatastoreView::new(config.dataset_path(), now)
@@ -92,12 +89,6 @@ fn main() {
 
     let (database, database_secs) = with_elapsed_secs!("open database", {
         Database::from_store(store, config.cache_path())
-    });
-
-    let _ = elapsed_secs!("sanity check", {
-        eprintln!("sanity check start");
-        let count = database.debug_count_snapshots();
-        eprintln!("sanity check counts {} snapshots", count);
     });
 
     let (snapshot_ids, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
@@ -108,7 +99,7 @@ fn main() {
                 Some(snapshot.id())
             } else {
                 let id = snapshot.id();
-                eprint!("-{} ", id);
+                //eprint!("-{} ", id);
                 None
             }
         }).collect::<Vec<SnapshotId>>();

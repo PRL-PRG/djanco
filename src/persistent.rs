@@ -5,8 +5,10 @@ use std::path::PathBuf;
 use std::marker::PhantomData;
 use std::fs::{File, create_dir_all};
 use std::error::Error;
+use crate::log::{Log, Verbosity};
+use crate::countable::*;
 
-pub static PERSISTENT_EXTENSION: &str = ".cbor";
+pub static PERSISTENT_EXTENSION: &str = "cbor";
 
 pub trait Persistent: Serialize + DeserializeOwned {}
 impl<T> Persistent for T where T: Serialize + DeserializeOwned {}
@@ -32,7 +34,7 @@ pub trait TripleVectorExtractor: VectorExtractor {
 
 pub trait MapExtractor {
     type Key:   Ord + Persistent;
-    type Value: Clone + Persistent;
+    type Value: Clone + Persistent + Countable;
 }
 
 pub trait SingleMapExtractor: MapExtractor {
@@ -56,7 +58,7 @@ pub trait TripleMapExtractor: MapExtractor {
 // }
 
 pub trait PersistentCollection {
-    type Collection: Persistent;
+    type Collection: Persistent + Countable;
 
     fn setup_files<Sa,Sb>(name: Sa, dir: Sb) -> (PathBuf, PathBuf)
         where Sa: Into<String>, Sb: Into<String>  {
@@ -71,6 +73,8 @@ pub trait PersistentCollection {
         (cache_dir, cache_path)
     }
 
+    fn name(&self) -> String;
+    fn log(&self) -> &Log;
     fn cache_path(&self) -> &PathBuf;
     fn cache_dir(&self) -> &PathBuf;
     fn collection(&self) -> &Option<Self::Collection>;
@@ -102,10 +106,21 @@ pub trait PersistentCollection {
 
         if self.collection().is_none() {
             if self.already_cached() {
-                self.load_from_cache().unwrap()
+                let mut event = self.log().start(Verbosity::Log, format!("loading {} from cache at {}", self.name(), self.cache_path().to_str().unwrap()));
+                self.load_from_cache().unwrap();
+                event.counted(self.collection().as_ref().map_or(0, |c| c.count_items()));
+                event.weighed(self.collection().as_ref().unwrap());
+                self.log().end(event);
             } else {
+                let mut event = self.log().start(Verbosity::Log, format!("loading {} from source", self.name()));
                 self.set_collection(load());
-                self.store_to_cache().unwrap()
+                event.counted(self.collection().as_ref().map_or(0, |c| c.count_items()));
+                event.weighed(self.collection().as_ref().unwrap());
+                self.log().end(event);
+
+                let event = self.log().start(Verbosity::Log, format!("storing {} into cache at {}", self.name(), self.cache_path().to_str().unwrap()));
+                self.store_to_cache().unwrap();
+                self.log().end(event);
             }
         }
         self.grab_collection()
@@ -113,7 +128,8 @@ pub trait PersistentCollection {
 }
 
 pub struct PersistentVector<E: VectorExtractor> {
-    //name: String,
+    log: Log,
+    name: String,
     cache_path: PathBuf,
     cache_dir: PathBuf,
     vector: Option<Vec<E::Value>>,
@@ -122,6 +138,8 @@ pub struct PersistentVector<E: VectorExtractor> {
 
 impl<E> PersistentCollection for PersistentVector<E> where E: VectorExtractor {
     type Collection = Vec<E::Value>;
+    fn name(&self) -> String { self.name.clone() }
+    fn log(&self) -> &Log { &self.log }
     fn cache_path(&self) -> &PathBuf { &self.cache_path }
     fn cache_dir(&self) -> &PathBuf { &self.cache_dir }
     fn collection(&self) -> &Option<Self::Collection> { &self.vector }
@@ -129,9 +147,10 @@ impl<E> PersistentCollection for PersistentVector<E> where E: VectorExtractor {
 }
 
 impl<E> PersistentVector<E> where E: VectorExtractor {
-    pub fn new<Sa, Sb>(name: Sa, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
-        let (cache_dir, cache_path) = Self::setup_files(name, dir);
-        PersistentVector { /*name,*/ cache_path, cache_dir, vector: None, extractor: PhantomData }
+    pub fn new<Sa, Sb>(name: Sa, dir: Sb, log: &Log) -> Self where Sa: Into<String>, Sb: Into<String> {
+        let name = name.into();
+        let (cache_dir, cache_path) = Self::setup_files(name.clone(), dir);
+        PersistentVector { name, log: log.clone(), cache_path, cache_dir, vector: None, extractor: PhantomData }
     }
 }
 
@@ -154,7 +173,8 @@ impl<E,A,B,C> PersistentVector<E> where E: TripleVectorExtractor<A=A, B=B, C=C> 
 }
 
 pub struct PersistentMap<E: MapExtractor> {
-    //name: String,
+    log: Log,
+    name: String,
     cache_path: PathBuf,
     cache_dir: PathBuf,
     map: Option<BTreeMap<E::Key, E::Value>>,
@@ -163,6 +183,8 @@ pub struct PersistentMap<E: MapExtractor> {
 
 impl<E> PersistentCollection for PersistentMap<E> where E: MapExtractor {
     type Collection = BTreeMap<E::Key, E::Value>;
+    fn name(&self) -> String { self.name.clone() }
+    fn log(&self) -> &Log { &self.log }
     fn cache_path(&self) -> &PathBuf { &self.cache_path }
     fn cache_dir(&self) -> &PathBuf { &self.cache_dir }
     fn collection(&self) -> &Option<Self::Collection> { &self.map }
@@ -170,9 +192,10 @@ impl<E> PersistentCollection for PersistentMap<E> where E: MapExtractor {
 }
 
 impl<E> PersistentMap<E> where E: MapExtractor {
-    pub fn new<Sa, Sb>(name: Sa, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
-        let (cache_dir, cache_path) = Self::setup_files(name, dir);
-        PersistentMap { /*name,*/ cache_path, cache_dir, map: None, extractor: PhantomData }
+    pub fn new<Sa, Sb>(name: Sa, log: &Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
+        let name = name.into();
+        let (cache_dir, cache_path) = Self::setup_files(name.clone(), dir);
+        PersistentMap { name, log: log.clone(), cache_path, cache_dir, map: None, extractor: PhantomData }
     }
 }
 

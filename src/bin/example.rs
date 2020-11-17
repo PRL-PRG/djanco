@@ -11,6 +11,7 @@ use djanco::data::*;
 use djanco::time;
 use djanco::objects::*;
 use djanco::csv::*;
+use djanco::log::*;
 
 // TODO
 // * snapshots aka file contents
@@ -82,44 +83,36 @@ macro_rules! elapsed_secs {
 fn main() {
     let now = time::now();
     let config = Configuration::from_args();
-
-
-
+    let log = Log::new(Verbosity::Debug);
 
     let (store, store_secs) = with_elapsed_secs!("open data store", {
         DatastoreView::new(config.dataset_path(), now)
     });
 
     let (database, database_secs) = with_elapsed_secs!("open database", {
-        Database::from_store(store, config.cache_path())
+        Database::from_store(store, config.cache_path(), log)
     });
 
-    let _ = elapsed_secs!("sanity check", {
-        eprintln!("sanity check start");
-        let count = database.debug_count_snapshots();
-        eprintln!("sanity check counts {} snapshots", count);
-    });
+    // let (snapshot_ids, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
+    //     let snapshot_ids = database.snapshots().flat_map(|snapshot| {
+    //         if snapshot.contains("#include <memory_resource>") {
+    //             let id = snapshot.id();
+    //             eprint!("\\u001b[32m+{} \\u001b[0m", id);
+    //             Some(snapshot.id())
+    //         } else {
+    //             let id = snapshot.id();
+    //             eprint!("-{} ", id);
+    //             None
+    //         }
+    //     }).collect::<Vec<SnapshotId>>();
+    //     eprintln!("\nfound {} snapshot_ids", snapshot_ids.len());
+    //     snapshot_ids
+    // });
 
-    let (snapshot_ids, find_snapshots_secs) = with_elapsed_secs!("find snapshots", {
-        let snapshot_ids = database.snapshots().flat_map(|snapshot| {
-            if snapshot.contains("#include <memory_resource>") {
-                let id = snapshot.id();
-                eprint!("\\u001b[32m+{} \\u001b[0m", id);
-                Some(snapshot.id())
-            } else {
-                let id = snapshot.id();
-                eprint!("-{} ", id);
-                None
-            }
-        }).collect::<Vec<SnapshotId>>();
-        eprintln!("\nfound {} snapshot_ids", snapshot_ids.len());
-        snapshot_ids
-    });
-
-    let save_snapshots_secs = elapsed_secs!("save snapshots", {
-        snapshot_ids.into_iter()
-            .into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
-    });
+    // let save_snapshots_secs = elapsed_secs!("save snapshots", {
+    //     snapshot_ids.into_iter()
+    //         .into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap()
+    // });
 
     let (selected_snapshot_ids, load_snapshots_secs) = with_elapsed_secs!("load snapshots", {
         let selected_snapshot_ids: Vec<SnapshotId> =
@@ -146,8 +139,8 @@ fn main() {
     eprintln!("Summary");
     eprintln!("   open data store:        {}s", store_secs);
     eprintln!("   open database:          {}s", database_secs);
-    eprintln!("   find snapshots:         {}s", find_snapshots_secs);
-    eprintln!("   save snapshots:         {}s", save_snapshots_secs);
+    //eprintln!("   find snapshots:         {}s", find_snapshots_secs);
+    //eprintln!("   save snapshots:         {}s", save_snapshots_secs);
     eprintln!("   load snapshots:         {}s", load_snapshots_secs);
     eprintln!("   select projects:        {}s", select_projects_secs);
     eprintln!("   save selected projects: {}s", save_selected_projects_secs);

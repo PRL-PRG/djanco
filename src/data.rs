@@ -12,23 +12,24 @@ use crate::piracy::*;
 use crate::persistent::*;
 use crate::iterators::*;
 use crate::metadata::*;
+use crate::log::*;
 
 // Internally Mutable Data
-pub struct Database { data: RefCell<Data>, store: DatastoreView }
+pub struct Database { data: RefCell<Data>, store: DatastoreView, log: Log }
 
 // Constructors
 impl Database {
-    pub fn from_store<S>(store: DatastoreView, cache_dir: S) -> Database where S: Into<String> {
-        Database { data: RefCell::new(Data::new(cache_dir)), store }
+    pub fn from_store<S>(store: DatastoreView, cache_dir: S, log: Log) -> Database where S: Into<String> {
+        Database { data: RefCell::new(Data::new(cache_dir, &log)), store, log }
     }
 }
 
 // Prequincunx
 impl Database {
-    pub fn all_project_ids(&self)  -> Vec<ProjectId>  { self.data.borrow_mut().all_project_ids(&self.store)  }
-    pub fn all_user_ids(&self)     -> Vec<UserId>     { self.data.borrow_mut().all_user_ids(&self.store)     }
-    pub fn all_path_ids(&self)     -> Vec<PathId>     { self.data.borrow_mut().all_path_ids(&self.store)     }
-    pub fn all_commit_ids(&self)   -> Vec<CommitId>   { self.data.borrow_mut().all_commit_ids(&self.store)   }
+    pub fn all_project_ids(&self) -> Vec<ProjectId> { self.data.borrow_mut().all_project_ids(&self.store)  }
+    pub fn all_user_ids(&self)    -> Vec<UserId>    { self.data.borrow_mut().all_user_ids(&self.store)     }
+    pub fn all_path_ids(&self)    -> Vec<PathId>    { self.data.borrow_mut().all_path_ids(&self.store)     }
+    pub fn all_commit_ids(&self)  -> Vec<CommitId>  { self.data.borrow_mut().all_commit_ids(&self.store)   }
 }
 
 pub struct OptionIter<I> where I: Iterator {
@@ -756,8 +757,6 @@ impl From<(u64, dcd::Commit)> for Commit {
 }
 
 pub(crate) struct Data {
-    //store:                       DatastoreView,
-
     project_metadata:            ProjectMetadataSource,
     project_urls:                PersistentMap<ProjectUrlExtractor>,
     project_heads:               PersistentMap<ProjectHeadsExtractor>,
@@ -803,49 +802,47 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub fn new<S>(/*store: DatastoreView,*/ cache_dir: S) -> Data where S: Into<String> {
+    pub fn new<S>(/*store: DatastoreView,*/ cache_dir: S, log: &Log) -> Data where S: Into<String> {
         let dir = cache_dir.into();
         Data {
-            //store,
-
-            project_urls:                PersistentMap::new("project_urls",                dir.clone()),
-            project_heads:               PersistentMap::new("project_heads",               dir.clone()),
-            project_paths:               PersistentMap::new("project_paths",               dir.clone()),
-            project_path_count:          PersistentMap::new("project_path_count",          dir.clone()),
-            project_snapshots:           PersistentMap::new("project_snapshots",           dir.clone()),
-            project_snapshot_count:      PersistentMap::new("project_snapshot_count",      dir.clone()),
-            project_users:               PersistentMap::new("project_users",               dir.clone()),
-            project_user_count:          PersistentMap::new("project_user_count",          dir.clone()),
-            project_authors:             PersistentMap::new("project_authors",             dir.clone(),),
-            project_author_count:        PersistentMap::new("project_author_count",        dir.clone()),
-            project_committers:          PersistentMap::new("project_committers",          dir.clone()),
-            project_committer_count:     PersistentMap::new("project_committer_count",     dir.clone()),
-            project_commits:             PersistentMap::new("project_commits",             dir.clone()),
-            project_commit_count:        PersistentMap::new("project_commit_count",        dir.clone()),
-            project_lifetimes:           PersistentMap::new("project_lifetimes",           dir.clone()),
+            project_urls:                PersistentMap::new("project_urls",                log, dir.clone()),
+            project_heads:               PersistentMap::new("project_heads",               log, dir.clone()),
+            project_paths:               PersistentMap::new("project_paths",               log, dir.clone()),
+            project_path_count:          PersistentMap::new("project_path_count",          log, dir.clone()),
+            project_snapshots:           PersistentMap::new("project_snapshots",           log, dir.clone()),
+            project_snapshot_count:      PersistentMap::new("project_snapshot_count",      log, dir.clone()),
+            project_users:               PersistentMap::new("project_users",               log, dir.clone()),
+            project_user_count:          PersistentMap::new("project_user_count",          log, dir.clone()),
+            project_authors:             PersistentMap::new("project_authors",             log, dir.clone(),),
+            project_author_count:        PersistentMap::new("project_author_count",        log, dir.clone()),
+            project_committers:          PersistentMap::new("project_committers",          log, dir.clone()),
+            project_committer_count:     PersistentMap::new("project_committer_count",     log, dir.clone()),
+            project_commits:             PersistentMap::new("project_commits",             log, dir.clone()),
+            project_commit_count:        PersistentMap::new("project_commit_count",        log, dir.clone()),
+            project_lifetimes:           PersistentMap::new("project_lifetimes",           log, dir.clone()),
 
             project_metadata:            ProjectMetadataSource::new("project",             dir.clone()),
 
-            users:                       PersistentMap::new("users",                       dir.clone()),
-            user_authored_commits:       PersistentMap::new("user_authored_commits",       dir.clone()),
-            user_committed_commits:      PersistentMap::new("user_committed_commits",      dir.clone()),
-            user_author_experience:      PersistentMap::new("user_author_experience",      dir.clone()),
-            user_committer_experience:   PersistentMap::new("user_committer_experience",   dir.clone()),
-            user_experience:             PersistentMap::new("user_experience",             dir.clone()),
+            users:                       PersistentMap::new("users",                       log, dir.clone()),
+            user_authored_commits:       PersistentMap::new("user_authored_commits",       log, dir.clone()),
+            user_committed_commits:      PersistentMap::new("user_committed_commits",      log, dir.clone()),
+            user_author_experience:      PersistentMap::new("user_author_experience",      log, dir.clone()),
+            user_committer_experience:   PersistentMap::new("user_committer_experience",   log, dir.clone()),
+            user_experience:             PersistentMap::new("user_experience",             log, dir.clone()),
 
-            user_authored_commit_count:  PersistentMap::new("user_authored_commit_count",  dir.clone()),
-            user_committed_commit_count: PersistentMap::new("user_committed_commit_count", dir.clone()),
+            user_authored_commit_count:  PersistentMap::new("user_authored_commit_count",  log, dir.clone()),
+            user_committed_commit_count: PersistentMap::new("user_committed_commit_count", log, dir.clone()),
 
-            paths:                       PersistentMap::new("paths",                       dir.clone()),
+            paths:                       PersistentMap::new("paths",                       log, dir.clone()),
             //snapshots:                   PersistentMap::new("snapshots",                   dir.clone()),
 
-            commits:                     PersistentMap::new("commits",                     dir.clone()),
-            commit_hashes:               PersistentMap::new("commit_hashes",               dir.clone()),
-            commit_messages:             PersistentMap::new("commit_messages",             dir.clone()),
-            commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    dir.clone()),
-            commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", dir.clone()),
-            commit_changes:              PersistentMap::new("commit_changes",              dir.clone()),
-            commit_change_count:         PersistentMap::new("commit_change_count",         dir.clone()),
+            commits:                     PersistentMap::new("commits",                     log, dir.clone()),
+            commit_hashes:               PersistentMap::new("commit_hashes",               log, dir.clone()),
+            commit_messages:             PersistentMap::new("commit_messages",             log, dir.clone()),
+            commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    log, dir.clone()),
+            commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", log, dir.clone()),
+            commit_changes:              PersistentMap::new("commit_changes",              log, dir.clone()),
+            commit_change_count:         PersistentMap::new("commit_change_count",         log, dir.clone()),
         }
     }
 }

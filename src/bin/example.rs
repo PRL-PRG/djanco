@@ -18,12 +18,6 @@ use select::attrib::sort::Direction::*;
 use select::time::{Month, Seconds};
 use select::dump::Dump;
 
-// TODO
-// * snapshots aka file contents
-// * keep and produce receipt snippets
-// * fix load filters, maybe base on git commit hash of query
-// * logging everywhere
-
 #[derive(StructOpt,Debug)]
 pub struct Configuration {
     #[structopt(parse(from_os_str), short = "o", long = "output", name = "OUTPUT_PATH")]
@@ -244,7 +238,6 @@ fn dump_all(config: &Configuration, projects: Projects) {
     }
 }
 
-// works with downloader from commit  146e55e34ca1f4cc5b826e0c909deac96afafc17
 fn main() {
     // let dataset_path = "/dejacode/dataset";
     // let cache_path = "examples/cache";

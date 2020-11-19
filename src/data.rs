@@ -13,6 +13,7 @@ use crate::persistent::*;
 use crate::iterators::*;
 use crate::metadata::*;
 use crate::log::*;
+use std::iter::FromIterator;
 
 // Internally Mutable Data
 pub struct Database { data: RefCell<Data>, store: DatastoreView, log: Log }
@@ -505,7 +506,9 @@ impl DoubleMapExtractor for ProjectCommitsExtractor {
             (project_id.clone(),
              heads.iter().flat_map(|head| {
                  Self::commits_from_head(commits, &head.commit_id())
-             }).dedup().collect::<Vec<CommitId>>())
+             }).collect::<BTreeSet<CommitId>>())
+        }).map(|(project_id, commits)| {
+            (project_id, Vec::from_iter(commits.into_iter()))
         }).collect()
     }
 }

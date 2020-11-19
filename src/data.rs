@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
@@ -478,12 +478,14 @@ impl<K, V> SingleMapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Or
 
 struct ProjectCommitsExtractor {}
 impl ProjectCommitsExtractor {
-    fn commits_from_head(commits: &BTreeMap<CommitId, Commit>, head: &CommitId) -> Vec<CommitId> {
-        let mut commits_in_head: Vec<CommitId> = vec![];
+    fn commits_from_head(commits: &BTreeMap<CommitId, Commit>, head: &CommitId) -> BTreeSet<CommitId> {
+        let mut commits_in_head: BTreeSet<CommitId> = BTreeSet::new();
         let mut stack = vec![head.clone()];
+        let mut visited: BTreeSet<CommitId> = BTreeSet::new();
         while !stack.is_empty() {
             let commit_id = stack.pop().unwrap();
-            commits_in_head.push(commit_id);
+            if !visited.insert(commit_id) { continue } // If the set **did have** this value present, `false` is returned.
+            commits_in_head.insert(commit_id);
             let commit = commits.get(&commit_id).unwrap(); // Potentially explosive?
             let parents = commit.parent_ids();
             stack.extend(parents)
@@ -503,7 +505,7 @@ impl DoubleMapExtractor for ProjectCommitsExtractor {
             (project_id.clone(),
              heads.iter().flat_map(|head| {
                  Self::commits_from_head(commits, &head.commit_id())
-             }).collect::<Vec<CommitId>>())
+             }).dedup().collect::<Vec<CommitId>>())
         }).collect()
     }
 }

@@ -56,6 +56,8 @@ macro_rules! quick_impl_countable {
         }
     }
 }
+
+quick_impl_countable!(bool);
 quick_impl_countable!(String);
 quick_impl_countable!(usize);
 quick_impl_countable!(u64);
@@ -70,6 +72,7 @@ quick_impl_countable!(Commit);
 quick_impl_countable!(Path);
 quick_impl_countable!(Snapshot);
 quick_impl_countable!(Head);
+quick_impl_countable!(Language);
 
 quick_impl_countable!(UserId);
 quick_impl_countable!(ProjectId);
@@ -117,6 +120,7 @@ macro_rules! quick_impl_weighed {
    }
 }
 
+quick_impl_weighed!(bool);
 quick_impl_weighed!(usize);
 quick_impl_weighed!(u64);
 quick_impl_weighed!(u32);
@@ -129,6 +133,8 @@ quick_impl_weighed!(ProjectId);
 quick_impl_weighed!(CommitId);
 quick_impl_weighed!(PathId);
 quick_impl_weighed!(SnapshotId);
+
+quick_impl_weighed!(Language);
 
 macro_rules! quick_impl_weighed_static_collection {
    ($t:ty, $e:ty) => {

@@ -139,16 +139,16 @@ impl Database {
         self.data.borrow_mut().project_subscriber_count(&self.store, id)
     }
     pub fn project_license(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_license(&self.store, id).pirate()
+        self.data.borrow_mut().project_license(&self.store, id)
     }
     pub fn project_language(&self, id: &ProjectId) -> Option<Language> {
         self.data.borrow_mut().project_language(&self.store, id)
     }
     pub fn project_description(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_description(&self.store, id).pirate()
+        self.data.borrow_mut().project_description(&self.store, id)
     }
     pub fn project_homepage(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_homepage(&self.store, id).pirate()
+        self.data.borrow_mut().project_homepage(&self.store, id)
     }
     pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool> {
         self.data.borrow_mut().project_has_issues(&self.store, id)
@@ -172,7 +172,7 @@ impl Database {
         self.data.borrow_mut().project_pushed(&self.store, id)
     }
     pub fn project_master(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_master(&self.store, id).pirate()
+        self.data.borrow_mut().project_master(&self.store, id)
     }
     pub fn project_url(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_url(&self.store, id)
@@ -830,7 +830,7 @@ impl Data {
             project_commit_count:        PersistentMap::new("project_commit_count",        log, dir.clone()),
             project_lifetimes:           PersistentMap::new("project_lifetimes",           log, dir.clone()),
 
-            project_metadata:            ProjectMetadataSource::new("project",             dir.clone()),
+            project_metadata:            ProjectMetadataSource::new("project",             log, dir.clone()),
 
             users:                       PersistentMap::new("users",                       log, dir.clone()),
             user_authored_commits:       PersistentMap::new("user_authored_commits",       log, dir.clone()),
@@ -929,16 +929,16 @@ impl Data {
     pub fn project_subscriber_count(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<usize> {
         self.project_metadata.subscribers(store, id)
     }
-    pub fn project_license(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&String> {
+    pub fn project_license(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<String> {
         self.project_metadata.license(store, id)
     }
     pub fn project_language(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Language> {
         self.project_metadata.language(store, id)
     }
-    pub fn project_description(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&String> {
+    pub fn project_description(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<String> {
         self.project_metadata.description(store, id)
     }
-    pub fn project_homepage(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<&String> {
+    pub fn project_homepage(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<String> {
         self.project_metadata.homepage(store, id)
     }
     pub fn project_has_issues(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<bool> {
@@ -962,7 +962,7 @@ impl Data {
     pub fn project_pushed(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<i64> {
         self.project_metadata.pushed(store, id)
     }
-    pub fn project_master(&mut self, store: &DatastoreView,id: &ProjectId) -> Option<&String> {
+    pub fn project_master(&mut self, store: &DatastoreView,id: &ProjectId) -> Option<String> {
         self.project_metadata.master(store, id)
     }
     pub fn project_url(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<String> {

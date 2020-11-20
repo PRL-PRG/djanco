@@ -1,4 +1,4 @@
-             pub mod countable;
+             pub mod weights_and_measures;
              pub mod log;
              pub mod query;
              pub mod csv;

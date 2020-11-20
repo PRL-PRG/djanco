@@ -11,6 +11,7 @@ use serde::{Serialize, Deserialize};
 use crate::tuples::Pick;
 use crate::data::Database;
 use crate::iterators::ItemWithData;
+use crate::weights_and_measures::Weighed;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum Language {
@@ -183,7 +184,7 @@ impl Display for SnapshotId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
 }
 
-pub trait Identity: Copy + Clone + Hash + Eq + PartialEq + Ord + PartialOrd + Display + Serialize /*+ WithNames*/ {}
+pub trait Identity: Copy + Clone + Hash + Eq + PartialEq + Ord + PartialOrd + Display + Serialize + Weighed /*+ WithNames*/ {}
 impl Identity for ProjectId  {}
 impl Identity for UserId     {}
 impl Identity for CommitId   {}
@@ -303,8 +304,8 @@ impl Project {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Head {
-    name: String,
-    commit: CommitId,
+    pub(crate) name: String,
+    pub(crate) commit: CommitId,
 }
 
 impl Head {
@@ -407,7 +408,7 @@ impl Hash for Commit {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Path { id: PathId, location: String }
+pub struct Path { pub(crate) id: PathId, pub(crate) location: String }
 impl Path {
     pub fn new(id: PathId, location: String) -> Self { Path { id, location } }
     pub fn location(&self) -> String { self.location.to_string() }
@@ -435,7 +436,7 @@ impl Hash for Path {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Snapshot { id: SnapshotId, contents: Vec<u8> }
+pub struct Snapshot { pub(crate) id: SnapshotId, pub(crate) contents: Vec<u8> }
 impl Snapshot {
     pub fn new(id: SnapshotId, contents: Vec<u8>) -> Self {
         if contents.is_empty() {

@@ -14,6 +14,7 @@ use crate::iterators::*;
 use crate::metadata::*;
 use crate::log::*;
 use std::iter::FromIterator;
+use crate::weights_and_measures::Weighed;
 
 // Internally Mutable Data
 pub struct Database { data: RefCell<Data>, store: DatastoreView, log: Log }
@@ -465,11 +466,11 @@ impl DoubleMapExtractor for ProjectCommittersExtractor {
 }
 
 struct CountPerKeyExtractor<K: Clone + Ord + Persistent, V>(PhantomData<(K, V)>);
-impl<K, V> MapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent {
+impl<K, V> MapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent + Weighed {
     type Key = K;
     type Value = usize;
 }
-impl<K, V> SingleMapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent {
+impl<K, V> SingleMapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent + Weighed {
     type A = BTreeMap<K, Vec<V>>;
 
     fn extract(primary: &Self::A) -> BTreeMap<Self::Key, Self::Value> {

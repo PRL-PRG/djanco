@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use std::fs::{File, create_dir_all};
 use std::error::Error;
 use crate::log::{Log, Verbosity};
-use crate::countable::*;
+use crate::weights_and_measures::*;
 
 pub static PERSISTENT_EXTENSION: &str = "cbor";
 
@@ -14,7 +14,7 @@ pub trait Persistent: Serialize + DeserializeOwned {}
 impl<T> Persistent for T where T: Serialize + DeserializeOwned {}
 
 pub trait VectorExtractor {
-    type Value: Clone + Persistent;
+    type Value: Clone + Persistent + Weighed;
 }
 
 pub trait SingleVectorExtractor: VectorExtractor {
@@ -33,8 +33,8 @@ pub trait TripleVectorExtractor: VectorExtractor {
 }
 
 pub trait MapExtractor {
-    type Key:   Ord + Persistent;
-    type Value: Clone + Persistent + Countable;
+    type Key:   Ord + Persistent + Weighed;
+    type Value: Clone + Persistent + Countable + Weighed;
 }
 
 pub trait SingleMapExtractor: MapExtractor {
@@ -58,7 +58,7 @@ pub trait TripleMapExtractor: MapExtractor {
 // }
 
 pub trait PersistentCollection {
-    type Collection: Persistent + Countable;
+    type Collection: Persistent + Countable + Weighed;
 
     fn setup_files<Sa,Sb>(name: Sa, dir: Sb) -> (PathBuf, PathBuf)
         where Sa: Into<String>, Sb: Into<String>  {
@@ -78,6 +78,7 @@ pub trait PersistentCollection {
     fn cache_path(&self) -> &PathBuf;
     fn cache_dir(&self) -> &PathBuf;
     fn collection(&self) -> &Option<Self::Collection>;
+    //fn weigh(&self) -> usize;
     fn set_collection(&mut self, collection: Self::Collection);
 
     fn grab_collection(&mut self) -> &Self::Collection {
@@ -138,6 +139,7 @@ pub struct PersistentVector<E: VectorExtractor> {
 
 impl<E> PersistentCollection for PersistentVector<E> where E: VectorExtractor {
     type Collection = Vec<E::Value>;
+    //fn weigh(&self) -> usize { Self.weight_in_bytes() }
     fn name(&self) -> String { self.name.clone() }
     fn log(&self) -> &Log { &self.log }
     fn cache_path(&self) -> &PathBuf { &self.cache_path }
@@ -183,6 +185,7 @@ pub struct PersistentMap<E: MapExtractor> {
 
 impl<E> PersistentCollection for PersistentMap<E> where E: MapExtractor {
     type Collection = BTreeMap<E::Key, E::Value>;
+    //fn weigh(&self) -> usize { Self.weight_in_bytes() }
     fn name(&self) -> String { self.name.clone() }
     fn log(&self) -> &Log { &self.log }
     fn cache_path(&self) -> &PathBuf { &self.cache_path }

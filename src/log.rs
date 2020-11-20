@@ -3,6 +3,7 @@ use std::fmt::Display;
 use std::cell::RefCell;
 use std::time::Instant;
 use std::rc::Rc;
+use crate::weights_and_measures::{Weighed, Weights};
 
 pub struct Log {
     log: Rc<RefCell<InnerLog>>
@@ -115,8 +116,8 @@ impl Event {
     pub(crate) fn counted(&mut self, items: usize) {
         self.items = Some(items)
     }
-    pub(crate) fn weighed<T>(&mut self, object: &T) {
-        self.size = Some(std::mem::size_of_val(object))
+    pub(crate) fn weighed<T>(&mut self, object: &T) where T: Weighed {
+        self.size = Some(object.weigh())
     }
     pub fn message(&self) -> String {
         match (self.elapsed_hr_time(), self.items, self.size) {
@@ -124,13 +125,15 @@ impl Event {
                 format!("Starting {}...", self.event)
             },
             (Some(elapsed), Some(items), Some(bytes)) => {
-                format!("Finished {} ({} items in {} and {}B in memory)", self.event, items, elapsed, bytes)
+                let memory = Weights::bytes_as_human_readable_string(bytes);
+                format!("Finished {} ({} items in {} and {} in memory)", self.event, items, elapsed, memory)
             }
             (Some(elapsed), Some(items), None) => {
                 format!("Finished {} ({} items in {})", self.event, items, elapsed)
             }
             (Some(elapsed), None, Some(bytes)) => {
-                format!("Finished {} ({} and {}B in memory)", self.event, elapsed, bytes)
+                let memory = Weights::bytes_as_human_readable_string(bytes);
+                format!("Finished {} ({} and {} in memory)", self.event, elapsed, memory)
             }
             (Some(elapsed), None, None) => {
                 format!("Finished {} ({}s)", self.event, elapsed)

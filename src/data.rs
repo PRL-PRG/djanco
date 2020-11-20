@@ -487,9 +487,12 @@ impl ProjectCommitsExtractor {
             let commit_id = stack.pop().unwrap();
             if !visited.insert(commit_id) { continue } // If the set **did have** this value present, `false` is returned.
             commits_in_head.insert(commit_id);
-            let commit = commits.get(&commit_id).unwrap(); // Potentially explosive?
-            let parents = commit.parent_ids();
-            stack.extend(parents)
+            if let Some(commit) = commits.get(&commit_id) {// Potentially explosive?
+                let parents = commit.parent_ids();
+                stack.extend(parents)
+            } else {
+                eprintln!("WARNING: commit id {} was found as a parent of another commit, but it does not have a commit associated with it", commit_id)
+            }
         }
         commits_in_head
     }

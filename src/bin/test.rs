@@ -97,9 +97,9 @@ fn main() {
         Database::from_store(store, config.cache_path(), log)
     });
 
-    elapsed_secs!("projects", {
-        database.projects().for_each(|p| eprintln!("{} {}", p.id(), p.url()));
-    });
+    // elapsed_secs!("projects", {
+    //     database.projects().for_each(|p| eprintln!("{} {}", p.id(), p.url()));
+    // });
 
     elapsed_secs!("project_commits", {
         database.projects().map(|p| p.commits().is_some()).collect::<Vec<bool>>();

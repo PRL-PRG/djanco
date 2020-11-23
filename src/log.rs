@@ -205,3 +205,47 @@ macro_rules! elapsed_secs {
         secs
     }}
 }
+
+pub(crate) struct LogIter<I: Iterator> {
+    iter: I,
+    log: Log,
+    event: Option<Event>,
+    items: usize,
+    level: Verbosity,
+    description: String
+}
+impl<I> LogIter<I> where I: Iterator {
+    pub fn new<S>(description: S, log: &Log, level: Verbosity, iter: I) -> Self
+        where S: Into<String> {
+
+        LogIter {
+            description: description.into(),
+            log: log.clone(),
+            level,
+            iter,
+            event: None,
+            items: 0,
+        }
+    }
+}
+impl<I,T> Iterator for LogIter<I> where I: Iterator<Item=T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.event.is_none() {
+            self.event = Some(self.log.start(self.level, &self.description))
+        }
+
+        let item = self.iter.next();
+
+        if item.is_some() {
+            self.items += 1;
+
+        } else {
+            let mut event = self.event.as_ref().unwrap().clone();
+            event.counted(self.items); // TODO factory pattern here
+            self.log.end(event);
+        }
+
+        return item
+    }
+}

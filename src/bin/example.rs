@@ -42,18 +42,13 @@ fn main() {
     if config.grep_snapshots {
         let (snapshot_ids, _) = with_elapsed_secs!("find snapshots", {
             let snapshot_ids = database.snapshots().flat_map(|snapshot| {
-                eprintln!("");
                 if snapshot.contains("#include <memory_resource>") {
                     let id = snapshot.id();
-                    eprint!("\\u001b[32m+{} \\u001b[0m", id);
                     Some(snapshot.id())
                 } else {
-                    //let id = snapshot.id();
-                    //eprint!("-{} ", id);
                     None
                 }
             }).collect::<Vec<SnapshotId>>();
-            eprintln!("\nfound {} snapshot_ids", snapshot_ids.len());
             snapshot_ids
         });
 

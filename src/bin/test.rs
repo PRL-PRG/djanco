@@ -30,7 +30,9 @@ fn main() {
         Database::from_store(store, config.cache_path(), log)
     });
 
+    database.snapshots().count();
+
     database.projects()
-        .map((|project| project.star_count()))
-        .into_csv(config.output_csv_path("stars.csv")).unwrap()
+        //.map((|project| project.star_count()))
+        .into_csv(config.output_csv_path("all_projects.csv")).unwrap()
 }

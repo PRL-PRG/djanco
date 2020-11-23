@@ -61,44 +61,45 @@ impl Database {
 
 // Uncached stuff
 impl Database {
-    pub fn debug_count_snapshots(&self) -> usize {
-        self.store.contents()/*.map(|(left, _)| left)*/.count()
-    }
     pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
         self.store.content(id.into())
             .map(|content| Snapshot::new(id.clone(), content))
     }
     pub fn snapshots<'a>(&'a self) -> impl Iterator<Item=Snapshot> + 'a {
-        self.store.contents()
-            .map(|(id, content)| {
-                Snapshot::new(SnapshotId::from(id), content)
-            })
+        LogIter::new(
+            "reading snapshots",
+            &self.log,Verbosity::Log,
+            self.store.contents()
+                .map(|(id, content)| {
+                    Snapshot::new(SnapshotId::from(id), content)
+                })
+        )
     }
     pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
         self.store.contents().map(|(id, _)| SnapshotId::from(id))
     }
-    pub fn snapshots_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=Snapshot> + 'a
-        where F: Fn(&Snapshot) -> bool + 'a {
-        self.store.contents().flat_map(move |(id, content)| {
-            let snapshot = Snapshot::new(SnapshotId::from(id), content);
-            if filter(&snapshot) {
-                Some(snapshot)
-            } else {
-                None
-            }
-        })
-    }
-    pub fn snapshot_ids_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=SnapshotId> + 'a
-        where F: Fn(&Snapshot) -> bool + 'a {
-        self.store.contents().flat_map(move |(id, content)| {
-            let snapshot = Snapshot::new(SnapshotId::from(id), content);
-            if filter(&snapshot) {
-                Some(snapshot.id())
-            } else {
-                None
-            }
-        })
-    }
+    // pub fn snapshots_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=Snapshot> + 'a
+    //     where F: Fn(&Snapshot) -> bool + 'a {
+    //     self.store.contents().flat_map(move |(id, content)| {
+    //         let snapshot = Snapshot::new(SnapshotId::from(id), content);
+    //         if filter(&snapshot) {
+    //             Some(snapshot)
+    //         } else {
+    //             None
+    //         }
+    //     })
+    // }
+    // pub fn snapshot_ids_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=SnapshotId> + 'a
+    //     where F: Fn(&Snapshot) -> bool + 'a {
+    //     self.store.contents().flat_map(move |(id, content)| {
+    //         let snapshot = Snapshot::new(SnapshotId::from(id), content);
+    //         if filter(&snapshot) {
+    //             Some(snapshot.id())
+    //         } else {
+    //             None
+    //         }
+    //     })
+    // }
 }
 
 impl Database {

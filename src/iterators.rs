@@ -4,6 +4,7 @@ use std::iter::Map;
 
 use crate::objects::*;
 use crate::data::*;
+use crate::attrib::AttributeIterator;
 
 pub struct IterWithData<'a, T, I: Iterator<Item=T> + 'a> { data: &'a Database, iterator: I/*, _t: PhantomData<&'a T>*/ }
 
@@ -47,25 +48,26 @@ impl<'a,A,B> Into<(A,B)> for ItemWithData<'a, (A,B)> { fn into(self) -> (A,B) { 
 
 pub struct QuincunxIter<'a, T: Identifiable> {
     data: &'a Database,
-    ids: VecDeque<T::Identity>,
-    _type: PhantomData<T>,
+    ids: VecDeque<T::Identity>
 }
+
+//impl<'a, T> Sized for QuincunxIter<'a, T> {}
 
 impl<'a> QuincunxIter<'a, Project> {
     pub fn new(data: &'a Database) -> Self {
-        QuincunxIter { data, ids: VecDeque::from(data.all_project_ids()), _type: PhantomData }
+        QuincunxIter { data, ids: VecDeque::from(data.all_project_ids()), }//_type: PhantomData }
     }
 }
 
 impl<'a> QuincunxIter<'a, Commit> {
     pub fn new(data: &'a Database) -> Self {
-        QuincunxIter { data, ids: VecDeque::from(data.all_commit_ids()), _type: PhantomData }
+        QuincunxIter { data, ids: VecDeque::from(data.all_commit_ids()), }//_type: PhantomData }
     }
 }
 
 impl<'a> QuincunxIter<'a, User> {
     pub fn new(data: &'a Database) -> Self {
-        QuincunxIter { data, ids: VecDeque::from(data.all_user_ids()), _type: PhantomData }
+        QuincunxIter { data, ids: VecDeque::from(data.all_user_ids()), }//_type: PhantomData }
     }
 }
 
@@ -77,7 +79,7 @@ impl<'a> QuincunxIter<'a, User> {
 
 impl<'a> QuincunxIter<'a, Path> {
     pub fn new(data: &'a Database) -> Self {
-        QuincunxIter { data, ids: VecDeque::from(data.all_path_ids()), _type: PhantomData }
+        QuincunxIter { data, ids: VecDeque::from(data.all_path_ids()), }//_type: PhantomData }
     }
 }
 
@@ -176,5 +178,3 @@ impl<'a,T,I> DropData<'a, T> for I where I: Iterator<Item=ItemWithData<'a, T>> {
         self.map(Box::new(|ItemWithData{ item, data: _ }| item))
     }
 }
-
-

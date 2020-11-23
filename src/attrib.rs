@@ -65,7 +65,7 @@ pub trait Sampler {
     fn sample(&self, vector: &mut Vec<ItemWithData<Self::Item>>);
 }
 
-trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
+pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     fn filter_by_attrib<A>(self, attribute: A)
         -> AttributeFilterIter<Self, A>
         where A: Filter<Item=T> {
@@ -102,9 +102,14 @@ trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
             (key, item_with_data)
         }).into_group_map().into_iter()
     }
+
+    // TODO drop options
 }
 
-trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {
+impl<'a, T, I> AttributeIterator<'a, T> for I
+    where I: Sized + Iterator<Item=ItemWithData<'a, T>> {}
+
+pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {
     fn filter_by_attrib<A>(self, attribute: A)
         -> AttributeGroupFilterIter<Self, A>
         where A: Filter<Item=T> {
@@ -149,7 +154,10 @@ trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWithDa
     }
 }
 
-struct AttributeFilterIter<I, A> { iterator: I, attribute: A }
+impl<'a, K, T, I> AttributeGroupIterator<'a, K, T> for I
+    where I: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {}
+
+pub struct AttributeFilterIter<I, A> { iterator: I, attribute: A }
 impl<'a,I,A,T> Iterator for AttributeFilterIter<I, A>
     where I: Iterator<Item=ItemWithData<'a, T>>, A: Filter<Item=T> {
     type Item = ItemWithData<'a, T>;
@@ -161,7 +169,7 @@ impl<'a,I,A,T> Iterator for AttributeFilterIter<I, A>
     }
 }
 
-struct AttributeGroupFilterIter<I, A> { iterator: I, attribute: A }
+pub struct AttributeGroupFilterIter<I, A> { iterator: I, attribute: A }
 impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
     where I: Iterator<Item=(K, Vec<ItemWithData<'a, T>>)>, A: Filter<Item=T> {
     type Item = (K, Vec<ItemWithData<'a, T>>);
@@ -178,7 +186,7 @@ impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
     }
 }
 
-struct AttributeSelectIter<I, A> { iterator: I, attribute: A }
+pub struct AttributeSelectIter<I, A> { iterator: I, attribute: A }
 impl<'a,I,A,Ta,Tb> Iterator for AttributeSelectIter<I, A>
     where I: Iterator<Item=ItemWithData<'a, Ta>>, A: Select<Item=Ta, IntoItem=Tb> {
     type Item = ItemWithData<'a, Tb>;
@@ -190,7 +198,7 @@ impl<'a,I,A,Ta,Tb> Iterator for AttributeSelectIter<I, A>
     }
 }
 
-struct AttributeGroupSelectIter<I, A> { iterator: I, attribute: A }
+pub struct AttributeGroupSelectIter<I, A> { iterator: I, attribute: A }
 impl<'a,I,A,K,Ta,Tb> Iterator for AttributeGroupSelectIter<I, A>
     where I: Iterator<Item=(K, Vec<ItemWithData<'a, Ta>>)>, A: Select<Item=Ta, IntoItem=Tb> {
     type Item = (K, Vec<ItemWithData<'a, Tb>>);

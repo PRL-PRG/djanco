@@ -4,6 +4,12 @@ use crate::attrib::*;
 use crate::objects;
 use crate::iterators::ItemWithData;
 
+// macro_rules! impl_sort_by_key {
+//     ($object:ty, $attribute:ident) => {
+//
+//     }
+// }
+
 macro_rules! impl_surefire_attribute {
     ($object:ty, $attribute:ident, $small_type:ty, $getter:ident) => {
         #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct $attribute;
@@ -11,6 +17,26 @@ macro_rules! impl_surefire_attribute {
         impl Getter<$small_type> for $attribute {
             fn get(object: &ItemWithData<Self::Object>) -> Option<$small_type> {
                 Some(object.$getter())
+            }
+        }
+        impl Sort for $attribute {
+            type Item = $object;
+            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+                vector.sort_by_key(|item_with_data| Self::get(item_with_data).unwrap())
+            }
+        }
+        impl Select for $attribute {
+            type Item = $object;
+            type IntoItem = $small_type;
+            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+                Self::get(item_with_data).unwrap()
+            }
+        }
+        impl Group for $attribute {
+            type Key = $small_type;
+            type Item = $object;
+            fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+                Self::get(item_with_data).unwrap()
             }
         }
     }
@@ -23,6 +49,26 @@ macro_rules! impl_optional_attribute {
         impl Getter<$small_type> for $attribute {
             fn get(object: &ItemWithData<Self::Object>) -> Option<$small_type> {
                 object.$getter()
+            }
+        }
+        impl Sort for $attribute {
+            type Item = $object;
+            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+                vector.sort_by_key(|e| Self::get(e))
+            }
+        }
+        impl Select for $attribute {
+            type Item = $object;
+            type IntoItem = Option<$small_type>;
+            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+                Self::get(item_with_data)
+            }
+        }
+        impl Group for $attribute {
+            type Key = Option<$small_type>;
+            type Item = $object;
+            fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+                Self::get(item_with_data)
             }
         }
     }
@@ -42,6 +88,15 @@ macro_rules! impl_collection_attribute {
                 object.$counter()
             }
         }
+        // Not sorting by collection attributes.
+        impl Select for $attribute {
+            type Item = $object;
+            type IntoItem = Option<Vec<$small_type>>;
+            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+                Self::get(item_with_data)
+            }
+        }
+        // No grouping by collection attributes (use counts and buckets).// FIXME impl counts and buckets
     }
 }
 
@@ -59,6 +114,15 @@ macro_rules! impl_surefire_collection_attribute {
                 Some(object.$id_getter())
             }
         }
+        // Not sorting by collection attributes.
+        impl Select for $attribute {
+            type Item = $object;
+            type IntoItem = Vec<$small_type>;
+            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+                Self::get(item_with_data).unwrap()
+            }
+        }
+        // No grouping by collection attributes (use counts and buckets).
     }
 }
 
@@ -144,39 +208,44 @@ pub mod snapshot {
     impl_surefire_attribute!(objects::Snapshot, Contents, String, contents_owned);
 }
 
-/*
-impl_sort_by_key_sans_db!(Project, Id,  id);
-impl_sort_by_key_sans_db!(Project, URL, url);
-impl_sort_by_key_with_db!(Project, Issues, issue_count);
-impl_sort_by_key_with_db!(Project, BuggyIssues, buggy_issue_count);
-impl_sort_by_key_with_db!(Project, IsFork, is_fork);
-impl_sort_by_key_with_db!(Project, IsArchived, is_archived);
-impl_sort_by_key_with_db!(Project, IsDisabled, is_disabled);
-impl_sort_by_key_with_db!(Project, Stars, star_count);
-impl_sort_by_key_with_db!(Project, Watchers, watcher_count);
-impl_sort_by_key_with_db!(Project, Size, size);
-impl_sort_by_key_with_db!(Project, OpenIssues, open_issue_count);
-impl_sort_by_key_with_db!(Project, Forks, fork_count);
-impl_sort_by_key_with_db!(Project, Subscribers, subscriber_count);
-impl_sort_by_key_with_db!(Project, License, license);
-impl_sort_by_key_with_db!(Project, Language, language);
-impl_sort_by_key_with_db!(Project, Description, description);
-impl_sort_by_key_with_db!(Project, Homepage, homepage);
-impl_sort_by_key_with_db!(Project, Heads, head_count);
-impl_sort_by_key_with_db!(Project, Commits, commit_count);
-impl_sort_by_key_with_db!(Project, Authors, author_count);
-impl_sort_by_key_with_db!(Project, Committers, committer_count);
-impl_sort_by_key_with_db!(Project, Users, user_count);
-impl_sort_by_key_with_db!(Project, Paths, path_count);
-impl_sort_by_key_with_db!(Project, HasIssues, has_issues);
-impl_sort_by_key_with_db!(Project, HasDownloads, has_downloads);
-impl_sort_by_key_with_db!(Project, HasWiki, has_wiki);
-impl_sort_by_key_with_db!(Project, HasPages, has_pages);
-impl_sort_by_key_with_db!(Project, Created, created);
-impl_sort_by_key_with_db!(Project, Updated, updated);
-impl_sort_by_key_with_db!(Project, Pushed, pushed);
-impl_sort_by_key_with_db!(Project, DefaultBranch, master_branch);
-impl_sort_by_key_with_db!(Project, Age, lifetime);
-*/
+pub mod require {
+    use crate::query::*;
+    use crate::attrib::*;
+    use crate::iterators::ItemWithData;
 
-
+    pub struct MoreThan<A, N>(pub A, pub N) where A: Getter<N>;
+    impl<A, N, T> Filter for MoreThan<A, N> where A: Getter<N> + Attribute<Object=T>, N: PartialOrd {
+        type Item = T;
+        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+            A::get(item_with_data).map_or(false, |n| n > self.1)
+        }
+    }
+    pub struct AtLeast<A, N>(pub A, pub N) where A: Getter<N>;
+    impl<A, N, T> Filter for AtLeast<A, N> where A: Getter<N> + Attribute<Object=T>, N: PartialOrd {
+        type Item = T;
+        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+            A::get(item_with_data).map_or(false, |n| n >= self.1)
+        }
+    }
+    pub struct Exactly<A, N>(pub A, pub N) where A: Getter<N>;
+    impl<A, N, T> Filter for Exactly<A, N> where A: Getter<N> + Attribute<Object=T>, N: Eq {
+        type Item = T;
+        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+            A::get(item_with_data).map_or(false, |n| n == self.1)
+        }
+    }
+    pub struct AtMost<A, N>(pub A, pub N) where A: Getter<N>;
+    impl<A, N, T> Filter for AtMost<A, N> where A: Getter<N> + Attribute<Object=T>, N: PartialOrd {
+        type Item = T;
+        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+            A::get(item_with_data).map_or(true, |n| n <= self.1)
+        }
+    }
+    pub struct LessThan<A, N>(pub A, pub N) where A: Getter<N>;
+    impl<A, N, T> Filter for LessThan<A, N> where A: Getter<N> + Attribute<Object=T>, N: PartialOrd {
+        type Item = T;
+        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+            A::get(item_with_data).map_or(true, |n| n < self.1)
+        }
+    }
+}

@@ -117,6 +117,13 @@ impl_csv_item_inner!(UserId, "user_id");
 impl_csv_item_inner!(PathId, "path_id");
 impl_csv_item_inner!(SnapshotId, "snapshot_id");
 
+impl<T> CSVItem for Option<T> where T: CSVItem {
+    fn column_headers() -> Vec<&'static str> { T::column_headers() }
+    fn column_values(&self) -> Vec<String> {
+        self.as_ref().map_or(vec![], |e| e.column_values())
+    }
+}
+
 impl CSVItem for Project {
     fn column_headers() -> Vec<&'static str> {
         vec![ "project_id", "url" ]

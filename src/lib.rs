@@ -1,12 +1,12 @@
+             pub mod commandline;
              pub mod weights_and_measures;
-             pub mod log;
+#[macro_use] pub mod log;
              pub mod query;
              pub mod csv;
 #[macro_use] pub mod attrib;
              pub mod metadata;
              pub mod persistent;
              pub mod iterators;
-             //pub mod csv;
              pub mod tuples;
              pub mod data;
              pub mod objects;

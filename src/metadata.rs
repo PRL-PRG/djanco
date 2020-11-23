@@ -10,8 +10,9 @@ use dcd::DatastoreView;
 
 use crate::persistent::*;
 use crate::objects::*;
-use crate::log::{Log, Verbosity};
+use crate::log::{Log, Verbosity, Warning};
 use crate::weights_and_measures::Weighed;
+use bstr::ByteSlice;
 
 trait MetadataFieldExtractor {
     type Value: Persistent + Weighed;
@@ -34,7 +35,10 @@ impl MetadataFieldExtractor for CountExtractor {
     type Value = usize;
     fn get(&self, value: &JSON) -> Self::Value {
         match value {
-            JSON::Number(n) if n.is_u64() => n.as_u64().unwrap() as usize,
+            JSON::Number(n) if n.is_u64() => {
+                let number = n.as_u64().map(|n| n as usize);
+                number.expect(&format!("Could not parse JSON Number {} as usize", value))
+            }
             JSON::Number(n) => panic!("Expected Number >= 0, found {:?}", n),
             value => panic!("Expected Number, found {:?}", value),
         }
@@ -64,15 +68,15 @@ impl MetadataFieldExtractor for NullableStringExtractor {
     }
 }
 
-
 struct TimestampExtractor;
 impl MetadataFieldExtractor for TimestampExtractor {
     type Value = i64;
     fn get(&self, value: &JSON) -> Self::Value {
         match value {
             JSON::String(s) => {
-                let date = DateTime::parse_from_rfc3339(s).unwrap(); // Should be there, right?
-                date.timestamp()
+                DateTime::parse_from_rfc3339(s)
+                    .expect(&format!("Could not parse JSON String {} as RFC3339 date", value)) // Should be there, right?
+                    .timestamp()
             }
             value => panic!("Expected String representing a timestamp, found {:?}", value),
         }
@@ -85,11 +89,8 @@ impl MetadataFieldExtractor for LanguageExtractor {
     fn get(&self, value: &JSON) -> Self::Value {
         match value {
             JSON::String(s) => {
-                let language = Language::from_str(s);
-                if language.is_none() {
-                    eprintln!("WARNING: language {} is unknown, so it will be treated as None", s)
-                }
-                language
+                Language::from_str(s)
+                    .warn(&format!("Language {} is unknown, so it will be treated as None", s))
             },
             JSON::Null => { None }
             value => panic!("Expected String, found {:?}", value),
@@ -104,7 +105,8 @@ impl<T, M> MetadataFieldExtractor for FieldExtractor<M>
     fn get(&self, value: &JSON) -> Self::Value {
         match value {
             JSON::Object(map) => {
-                self.1.get(&map.get(&self.0.to_owned()).unwrap())
+                self.1.get(&map.get(&self.0.to_owned())
+                    .expect(&format!("Could not extract field {} from JSON Object {}: no such field", value, self.0)))
             },
             value => panic!("Expected Object for {} found {:?}", &self.0, value),
         }
@@ -113,12 +115,14 @@ impl<T, M> MetadataFieldExtractor for FieldExtractor<M>
 
 struct NullableFieldExtractor<M: MetadataFieldExtractor>(pub &'static str, pub M);
 impl<T, M> MetadataFieldExtractor for NullableFieldExtractor<M>
-    where M: MetadataFieldExtractor<Value=T>, T: Persistent + Weighed {
+    where M: MetadataFieldExtractor<Value=Option<T>>, T: Persistent + Weighed {
     type Value = Option<T>;
     fn get(&self, value: &JSON) -> Self::Value {
         match value {
             JSON::Object(map) => {
-                Some(self.1.get(&map.get(&self.0.to_owned()).unwrap()))
+                map.get(&self.0.to_owned())
+                    .map(|value| { self.1.get(value) })
+                    .flatten()
             },
             JSON::Null => None,
             value => panic!("Expected Object or Null for {} found {:?}", &self.0, value),
@@ -204,12 +208,14 @@ impl<M> MetadataVec<M> where M: MetadataFieldExtractor {
     pub fn data(&mut self) -> &BTreeMap<ProjectId, M::Value> {
         if !self.already_loaded() {
             if self.already_cached() {
-                self.load_from_cache().unwrap();
+                self.load_from_cache()
+                    .expect(&format!("Could not load data from data store at {} for {}",
+                                     self.cache_dir.to_str().unwrap(), self.name))
             } else {
                 panic!("Must preload data from data store before accessing!");
             }
         }
-        self.vector.as_ref().unwrap()
+        self.vector.as_ref().unwrap() // guaranteed
     }
 
     pub fn get(&mut self, key: &ProjectId) -> Option<&M::Value> {
@@ -228,19 +234,23 @@ trait MetadataSource {
         let content_project_ids: HashMap<u64, u64> =
             store.projects_metadata()
                 .filter(|(_, meta)| meta.key == "github_metadata")
-                .map(|(id, metadata)| (id, metadata.value.parse::<u64>().unwrap()))
+                .map(|(id, metadata)| (id, metadata.value.parse::<u64>().expect("")))
                 .map(|(project_id, content_id)| (content_id, project_id))
                 .collect();
 
         store.contents()
             .filter(|(content_id, _)| content_project_ids.contains_key(content_id))
-            .map(|(content_id, contents)| {
-                let json: JSON = serde_json::from_slice(contents.as_slice()).unwrap();
-                let project_id = content_project_ids.get(&content_id).unwrap();
-                match json {
-                    JSON::Object(map) => (ProjectId::from(project_id), map),
-                    meta => panic!("Unexpected JSON value for metadata: {:?}", meta),
-                }
+            .flat_map(|(content_id, contents)| {
+                let json: JSON = serde_json::from_slice(contents.as_slice())
+                    .expect(&format!("Failed to parse JSON from {}", contents.to_str_lossy()));
+                content_project_ids.get(&content_id)
+                    .warn(format!("No project ID found for content ID {}", content_id))
+                    .map(|project_id| {
+                        match json {
+                            JSON::Object(map) => (ProjectId::from(project_id), map),
+                            meta => panic!("Unexpected JSON value for project ID {} for metadata: {:?}", project_id, meta),
+                        }
+                    })
             }).collect()
     }
 
@@ -301,7 +311,7 @@ pub struct ProjectMetadataSource {
     open_issues:      MetadataVec<CountExtractor>,
     forks:            MetadataVec<CountExtractor>,
     subscribers:      MetadataVec<CountExtractor>,
-    licenses:         MetadataVec<NullableFieldExtractor<StringExtractor>>,
+    licenses:         MetadataVec<NullableFieldExtractor<NullableStringExtractor>>,
     languages:        MetadataVec<LanguageExtractor>,
     descriptions:     MetadataVec<NullableStringExtractor>,
     homepages:        MetadataVec<NullableStringExtractor>,
@@ -331,7 +341,7 @@ impl ProjectMetadataSource {
             languages:     MetadataVec::new("language",          dir.as_str(), &log, LanguageExtractor),
             descriptions:  MetadataVec::new("description",       dir.as_str(), &log, NullableStringExtractor),
             homepages:     MetadataVec::new("homepage",          dir.as_str(), &log, NullableStringExtractor),
-            licenses:      MetadataVec::new("license",           dir.as_str(), &log, NullableFieldExtractor("name", /*Nullable*/StringExtractor)),
+            licenses:      MetadataVec::new("license",           dir.as_str(), &log, NullableFieldExtractor("name", /*Nullable*/NullableStringExtractor)),
             has_issues:    MetadataVec::new("has_issues",        dir.as_str(), &log, BoolExtractor),
             has_downloads: MetadataVec::new("has_downloads",     dir.as_str(), &log, BoolExtractor),
             has_wiki:      MetadataVec::new("has_wiki",          dir.as_str(), &log, BoolExtractor),

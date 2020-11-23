@@ -168,3 +168,40 @@ impl Event {
         system_log_level.should_log(&self.level)
     }
 }
+
+pub trait Warning {
+    fn warn<S>(self, warning: S) -> Self where S: Into<String>;
+}
+
+impl<T> Warning for Option<T> {
+    fn warn<S>(self, warning: S) -> Self where S: Into<String> {
+        if self.is_none() {
+            eprintln!("WARNING! {}", warning.into());
+        }
+        self
+    }
+}
+
+#[macro_export]
+macro_rules! with_elapsed_secs {
+    ($name:expr,$thing:expr) => {{
+        eprintln!("Starting task {}...", $name);
+        let start = std::time::Instant::now();
+        let result = { $thing };
+        let secs = start.elapsed().as_secs();
+        eprintln!("Finished task {} in {}s.", $name, secs);
+        (result, secs)
+    }}
+}
+
+#[macro_export]
+macro_rules! elapsed_secs {
+    ($name:expr,$thing:expr) => {{
+        eprintln!("Starting task {}...", $name);
+        let start = std::time::Instant::now();
+        { $thing };
+        let secs = start.elapsed().as_secs();
+        eprintln!("Finished task {} in {}s.", $name, secs);
+        secs
+    }}
+}

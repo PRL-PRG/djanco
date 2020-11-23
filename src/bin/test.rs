@@ -1,21 +1,36 @@
 use djanco::objects::{Project, ProjectId};
+use std::path::PathBuf;
+use std::collections::BTreeSet;
+use std::iter::FromIterator;
 
-struct A {}
-struct B { b: usize }
-struct C { c: String }
-struct D<'a> { d: &'a usize }
-struct E { e: Vec<usize> }
-struct F { e: Option<usize> }
+use structopt::StructOpt;
+use itertools::Itertools;
+
+use dcd::DatastoreView;
+
+#[macro_use] use djanco::*;
+use djanco::data::*;
+use djanco::time;
+use djanco::objects::*;
+use djanco::csv::*;
+use djanco::log::*;
+use djanco::commandline::*;
 
 fn main() {
-    println!("usize {}", std::mem::size_of::<usize>());
-    println!("A     {}", std::mem::size_of::<A>());
-    println!("B     {}", std::mem::size_of::<B>());
-    println!("C     {}", std::mem::size_of::<C>());
-    println!("D     {}", std::mem::size_of::<D>());
-    println!("E     {}", std::mem::size_of::<E>());
-    println!("ProjectId {}", std::mem::size_of::<ProjectId>());
-    println!("String {}", std::mem::size_of::<String>());
-    println!("Project {}", std::mem::size_of::<Project>());
-    println!("F {}", std::mem::size_of::<Option<usize>>());
+    let now = time::now();
+    let config = Configuration::from_args();
+    let log = Log::new(Verbosity::Debug);
+
+    let (store, store_secs) = with_elapsed_secs!("open data store", {
+        DatastoreView::new(config.dataset_path(), now)
+    });
+
+
+    let (database, database_secs) = with_elapsed_secs!("open database", {
+        Database::from_store(store, config.cache_path(), log)
+    });
+
+    database.projects()
+        .map((|project| project.star_count()))
+        .into_csv(config.output_csv_path("stars.csv")).unwrap()
 }

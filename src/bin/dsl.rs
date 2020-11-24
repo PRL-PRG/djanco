@@ -39,5 +39,13 @@ fn main() {
     database.projects().sort_by_attrib(project::Stars).count(); // TODO logging
     database.projects().select_by_attrib(project::Stars).count();
     database.projects().group_by_attrib(project::Stars).count();
-    database.projects().filter_by_attrib(require::AtLeast(project::Stars, 1)).count();
+    database.projects().filter_by_attrib(require::Exactly(project::Language, objects::Language::C));
+    database.projects().filter_by_attrib(require::And(require::AtLeast(project::Stars, 1), require::AtMost(project::Stars, 10))).count();
+    database.projects().filter_by_attrib(require::Exists(project::Stars));
+    database.projects().filter_by_attrib(require::Same(project::Homepage, "kondziu.github.io"));
+    database.projects().filter_by_attrib(require::Matches(project::Homepage, regex!("www.*")));
+    database.projects().filter_by_attrib(project::HasIssues);
+    database.projects().sort_by_attrib(stats::Count(project::Commits));
+
+
 }

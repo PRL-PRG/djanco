@@ -4,27 +4,15 @@ use crate::attrib::*;
 use crate::objects;
 use crate::iterators::ItemWithData;
 
-// macro_rules! impl_sort_by_key {
-//     ($object:ty, $attribute:ident) => {
-//
-//     }
-// }
-
-macro_rules! impl_surefire_attribute {
-    ($object:ty, $attribute:ident, $small_type:ty, $getter:ident) => {
+macro_rules! impl_attribute_definition {
+    [$object:ty, $attribute:ident] => {
         #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct $attribute;
         impl Attribute for $attribute { type Object = $object; }
-        impl Getter<$small_type> for $attribute {
-            fn get(object: &ItemWithData<Self::Object>) -> Option<$small_type> {
-                Some(object.$getter())
-            }
-        }
-        impl Sort for $attribute {
-            type Item = $object;
-            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-                vector.sort_by_key(|item_with_data| Self::get(item_with_data).unwrap())
-            }
-        }
+    }
+}
+
+macro_rules! impl_attribute_select {
+    [! $object:ty, $attribute:ident, $small_type:ty] => {
         impl Select for $attribute {
             type Item = $object;
             type IntoItem = $small_type;
@@ -32,6 +20,67 @@ macro_rules! impl_surefire_attribute {
                 Self::get(item_with_data).unwrap()
             }
         }
+    };
+    [? $object:ty, $attribute:ident, $small_type:ty] => {
+        impl Select for $attribute {
+            type Item = $object;
+            type IntoItem = Option<$small_type>;
+            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+                Self::get(item_with_data)
+            }
+        }
+    }
+}
+
+macro_rules! impl_attribute_getter {
+    [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+        impl Getter for $attribute {
+            type IntoItem = $small_type;
+            fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+                Some(object.$getter())
+            }
+        }
+    };
+    [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+        impl Getter for $attribute {
+            type IntoItem = $small_type;
+            fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+                object.$getter()
+            }
+        }
+    }
+}
+
+macro_rules! impl_attribute_sort {
+    [! $object:ty, $attribute:ident] => {
+        impl Sort for $attribute {
+            type Item = $object;
+            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+                vector.sort_by_key(|item_with_data| Self::get(item_with_data).unwrap())
+            }
+        }
+    };
+    [? $object:ty, $attribute:ident] => {
+        impl Sort for $attribute {
+            type Item = $object;
+            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+                vector.sort_by_key(|e| Self::get(e))
+            }
+        }
+    };
+}
+
+macro_rules! impl_attribute_group {
+    [! $object:ty, $attribute:ident, $small_type:ty] => {
+        impl Group for $attribute {
+            type Key = Option<$small_type>;
+            type Item = $object;
+            fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+                Self::get(item_with_data)
+            }
+        }
+    };
+    [? $object:ty, $attribute:ident, $small_type:ty] => {
         impl Group for $attribute {
             type Key = $small_type;
             type Item = $object;
@@ -42,170 +91,167 @@ macro_rules! impl_surefire_attribute {
     }
 }
 
-macro_rules! impl_optional_attribute {
-    ($object:ty, $attribute:ident, $small_type:ty, $getter:ident) => {
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct $attribute;
-        impl Attribute for $attribute { type Object = $object; }
-        impl Getter<$small_type> for $attribute {
-            fn get(object: &ItemWithData<Self::Object>) -> Option<$small_type> {
-                object.$getter()
+macro_rules! impl_attribute_count {
+    [! $object:ty, $attribute:ident, $counter:ident] => {
+        impl Countable for $attribute {
+            fn count(object: &ItemWithData<Self::Object>) -> Option<usize> {
+                Some(object.$counter())
             }
         }
-        impl Sort for $attribute {
-            type Item = $object;
-            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-                vector.sort_by_key(|e| Self::get(e))
-            }
-        }
-        impl Select for $attribute {
-            type Item = $object;
-            type IntoItem = Option<$small_type>;
-            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-                Self::get(item_with_data)
-            }
-        }
-        impl Group for $attribute {
-            type Key = Option<$small_type>;
-            type Item = $object;
-            fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-                Self::get(item_with_data)
-            }
-        }
-    }
-}
-
-macro_rules! impl_collection_attribute {
-    ($object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident) => {
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct $attribute;
-        impl Attribute for $attribute { type Object = $object; }
-        impl Getter<Vec<$small_type>> for $attribute {
-            fn get(object: &ItemWithData<Self::Object>) -> Option<Vec<$small_type>> {
-                object.$getter()
-            }
-        }
-        impl Counter for $attribute {
+    };
+    [? $object:ty, $attribute:ident, $counter:ident] => {
+        impl Countable for $attribute {
             fn count(object: &ItemWithData<Self::Object>) -> Option<usize> {
                 object.$counter()
             }
         }
-        // Not sorting by collection attributes.
-        impl Select for $attribute {
-            type Item = $object;
-            type IntoItem = Option<Vec<$small_type>>;
-            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-                Self::get(item_with_data)
-            }
-        }
-        // No grouping by collection attributes (use counts and buckets).// FIXME impl counts and buckets
     }
 }
 
-macro_rules! impl_surefire_collection_attribute {
-    ($object:ty, $attribute:ident, $small_type:ty, $getter:ident, $id_getter:ident) => {
-        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct $attribute;
-        impl Attribute for $attribute { type Object = $object; }
-        impl Getter<Vec<$small_type>> for $attribute {
-            fn get(object: &ItemWithData<Self::Object>) -> Option<Vec<$small_type>> {
-                Some(object.$getter())
-            }
-        }
-        impl Counter for $attribute {
-            fn count(object: &ItemWithData<Self::Object>) -> Option<usize> {
-                Some(object.$id_getter())
-            }
-        }
-        // Not sorting by collection attributes.
-        impl Select for $attribute {
+macro_rules! impl_attribute_filter {
+    [$object:ty, $attribute:ident] => {
+        impl Filter for $attribute {
             type Item = $object;
-            type IntoItem = Vec<$small_type>;
-            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-                Self::get(item_with_data).unwrap()
+            fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+                Self::get(item_with_data).unwrap_or(false)
             }
         }
-        // No grouping by collection attributes (use counts and buckets).
     }
+    // ($object:ty, $attribute:ident, $small_type:ty) => {
+    //     impl Filter for $attribute {
+    //         type Item = $object;
+    //         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+    //             Self::get(item_with_data).is_some()
+    //         }
+    //     }
+    // }
+}
+
+macro_rules! impl_attribute {
+    [! $object:ty, $attribute:ident, bool, $getter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![! $object, $attribute, bool, $getter];
+        impl_attribute_select![! $object, $attribute, bool];
+        impl_attribute_sort![! $object, $attribute];
+        impl_attribute_group![! $object, $attribute, bool];
+        impl_attribute_filter![$object, $attribute];
+    };
+    [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![! $object, $attribute, $small_type, $getter];
+        impl_attribute_select![! $object, $attribute, $small_type];
+        impl_attribute_sort![! $object, $attribute];
+        impl_attribute_group![! $object, $attribute, $small_type];
+    };
+    [? $object:ty, $attribute:ident, bool, $getter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![? $object, $attribute, bool, $getter];
+        impl_attribute_select![? $object, $attribute, bool];
+        impl_attribute_sort![? $object, $attribute];
+        impl_attribute_group![? $object, $attribute, bool];
+        impl_attribute_filter![$object, $attribute];
+    };
+    [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![? $object, $attribute, $small_type, $getter];
+        impl_attribute_select![? $object, $attribute, $small_type];
+        impl_attribute_sort![? $object, $attribute];
+        impl_attribute_group![? $object, $attribute, $small_type];
+    };
+    [!.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![! $object, $attribute, Vec<$small_type>, $getter];
+        impl_attribute_select![! $object, $attribute, Vec<$small_type>];
+        impl_attribute_count![! $object, $attribute, $counter];
+    };
+    [?.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![? $object, $attribute, Vec<$small_type>, $getter];
+        impl_attribute_select![? $object, $attribute, Vec<$small_type>];
+        impl_attribute_count![? $object, $attribute, $counter];
+    };
 }
 
 pub mod project {
     use crate::query::*;
-    impl_surefire_attribute!(objects::Project, Id, objects::ProjectId, id);
-    impl_surefire_attribute!(objects::Project, URL, String, url);
-    impl_optional_attribute!(objects::Project, Issues, usize, issue_count);
-    impl_optional_attribute!(objects::Project, BuggyIssues, usize, buggy_issue_count);
-    impl_optional_attribute!(objects::Project, IsFork, bool, is_fork);
-    impl_optional_attribute!(objects::Project, IsArchived, bool, is_archived);
-    impl_optional_attribute!(objects::Project, IsDisabled, bool, is_disabled);
-    impl_optional_attribute!(objects::Project, Stars, usize, star_count);
-    impl_optional_attribute!(objects::Project, Watchers, usize, watcher_count);
-    impl_optional_attribute!(objects::Project, Size, usize, size);
-    impl_optional_attribute!(objects::Project, OpenIssues, usize, open_issue_count);
-    impl_optional_attribute!(objects::Project, Forks, usize, fork_count);
-    impl_optional_attribute!(objects::Project, Subscribers, usize, subscriber_count);
-    impl_optional_attribute!(objects::Project, License, String, license);
-    impl_optional_attribute!(objects::Project, Language, objects::Language, language);
-    impl_optional_attribute!(objects::Project, Description, String, description);
-    impl_optional_attribute!(objects::Project, Homepage, String, homepage);
-    impl_optional_attribute!(objects::Project, HasIssues, bool, has_issues);
-    impl_optional_attribute!(objects::Project, HasDownloads, bool, has_downloads);
-    impl_optional_attribute!(objects::Project, HasWiki, bool, has_wiki);
-    impl_optional_attribute!(objects::Project, HasPages, bool, has_pages);
-    impl_optional_attribute!(objects::Project, Created, i64, created);
-    impl_optional_attribute!(objects::Project, Updated, i64, updated);
-    impl_optional_attribute!(objects::Project, Pushed, i64, pushed);
-    impl_optional_attribute!(objects::Project, DefaultBranch, String, default_branch);
-    impl_optional_attribute!(objects::Project, Age, Duration, lifetime);
-    impl_collection_attribute!(objects::Project, Heads, objects::Head, heads, head_count);
-    impl_collection_attribute!(objects::Project, Commits, objects::Commit, commits, commit_count);
-    impl_collection_attribute!(objects::Project, Authors, objects::User, authors, author_count);
-    impl_collection_attribute!(objects::Project, Committers, objects::User, committers, committer_count);
-    impl_collection_attribute!(objects::Project, Users, objects::User, users, user_count);
-    impl_collection_attribute!(objects::Project, Paths, objects::Path, paths, path_count);
-    impl_collection_attribute!(objects::Project, Snapshots, objects::Snapshot, snapshots, snapshot_count);
+    impl_attribute![!   objects::Project, Id, objects::ProjectId, id];
+    impl_attribute![!   objects::Project, URL, String, url];
+    impl_attribute![?   objects::Project, Issues, usize, issue_count];
+    impl_attribute![?   objects::Project, BuggyIssues, usize, buggy_issue_count];
+    impl_attribute![?   objects::Project, IsFork, bool, is_fork];
+    impl_attribute![?   objects::Project, IsArchived, bool, is_archived];
+    impl_attribute![?   objects::Project, IsDisabled, bool, is_disabled];
+    impl_attribute![?   objects::Project, Stars, usize, star_count];
+    impl_attribute![?   objects::Project, Watchers, usize, watcher_count];
+    impl_attribute![?   objects::Project, Size, usize, size];
+    impl_attribute![?   objects::Project, OpenIssues, usize, open_issue_count];
+    impl_attribute![?   objects::Project, Forks, usize, fork_count];
+    impl_attribute![?   objects::Project, Subscribers, usize, subscriber_count];
+    impl_attribute![?   objects::Project, License, String, license];
+    impl_attribute![?   objects::Project, Language, objects::Language, language];
+    impl_attribute![?   objects::Project, Description, String, description];
+    impl_attribute![?   objects::Project, Homepage, String, homepage];
+    impl_attribute![?   objects::Project, HasIssues, bool, has_issues];
+    impl_attribute![?   objects::Project, HasDownloads, bool, has_downloads];
+    impl_attribute![?   objects::Project, HasWiki, bool, has_wiki];
+    impl_attribute![?   objects::Project, HasPages, bool, has_pages];
+    impl_attribute![?   objects::Project, Created, i64, created];
+    impl_attribute![?   objects::Project, Updated, i64, updated];
+    impl_attribute![?   objects::Project, Pushed, i64, pushed];
+    impl_attribute![?   objects::Project, DefaultBranch, String, default_branch];
+    impl_attribute![?   objects::Project, Age, Duration, lifetime];
+    impl_attribute![?.. objects::Project, Heads, objects::Head, heads, head_count];
+    impl_attribute![?.. objects::Project, Commits, objects::Commit, commits, commit_count];
+    impl_attribute![?.. objects::Project, Authors, objects::User, authors, author_count];
+    impl_attribute![?.. objects::Project, Committers, objects::User, committers, committer_count];
+    impl_attribute![?.. objects::Project, Users, objects::User, users, user_count];
+    impl_attribute![?.. objects::Project, Paths, objects::Path, paths, path_count];
+    impl_attribute![?.. objects::Project, Snapshots, objects::Snapshot, snapshots, snapshot_count];
 }
 
 pub mod commit {
     use crate::query::*;
-    impl_surefire_attribute!(objects::Commit, Id, objects::CommitId, id);
-    impl_surefire_attribute!(objects::Commit, Committer, objects::User, committer);
-    impl_surefire_attribute!(objects::Commit, Author, objects::User, author);
-    impl_optional_attribute!(objects::Commit, Hash, String, hash);
-    impl_optional_attribute!(objects::Commit, Message, String, message);
-    impl_optional_attribute!(objects::Commit, AuthoredTimestamp, i64, author_timestamp);
-    impl_optional_attribute!(objects::Commit, CommittedTimestamp, i64, committer_timestamp);
-    impl_collection_attribute!(objects::Commit, Paths, objects::Path, changed_paths, changed_path_count);
-    impl_collection_attribute!(objects::Commit, Snapshots, objects::Snapshot, changed_snapshots, changed_snapshot_count);
-    impl_surefire_collection_attribute!(objects::Commit, Parents, objects::Commit, parents, parent_count);
+    impl_attribute![!   objects::Commit, Id, objects::CommitId, id];
+    impl_attribute![!   objects::Commit, Committer, objects::User, committer];
+    impl_attribute![!   objects::Commit, Author, objects::User, author];
+    impl_attribute![?   objects::Commit, Hash, String, hash];
+    impl_attribute![?   objects::Commit, Message, String, message];
+    impl_attribute![?   objects::Commit, AuthoredTimestamp, i64, author_timestamp];
+    impl_attribute![?   objects::Commit, CommittedTimestamp, i64, committer_timestamp];
+    impl_attribute![?.. objects::Commit, Paths, objects::Path, changed_paths, changed_path_count];
+    impl_attribute![?.. objects::Commit, Snapshots, objects::Snapshot, changed_snapshots, changed_snapshot_count];
+    impl_attribute![!.. objects::Commit, Parents, objects::Commit, parents, parent_count];
 }
 
 pub mod head {
     use crate::query::*;
-    impl_surefire_attribute!(objects::Head, Name, String, name);
-    impl_surefire_attribute!(objects::Head, Commit, objects::Commit, commit);
+    impl_attribute![!   objects::Head, Name, String, name];
+    impl_attribute![!   objects::Head, Commit, objects::Commit, commit];
 }
 
 pub mod user {
     use crate::query::*;
-    impl_surefire_attribute!(objects::User, Id, objects::UserId, id);
-    impl_surefire_attribute!(objects::User, Email, String, email);
-    impl_optional_attribute!(objects::User, AuthorExperience, Duration, author_experience);
-    impl_optional_attribute!(objects::User, CommitterExperience, Duration, committer_experience);
-    impl_optional_attribute!(objects::User, Experience, Duration, experience);
-    impl_collection_attribute!(objects::User, AuthoredCommits, objects::Commit, authored_commits, authored_commit_count);
-    impl_collection_attribute!(objects::User, CommittedCommits, objects::Commit, committed_commits, committed_commit_count);
+    impl_attribute![!   objects::User, Id, objects::UserId, id];
+    impl_attribute![!   objects::User, Email, String, email];
+    impl_attribute![?   objects::User, AuthorExperience, Duration, author_experience];
+    impl_attribute![?   objects::User, CommitterExperience, Duration, committer_experience];
+    impl_attribute![?   objects::User, Experience, Duration, experience];
+    impl_attribute![?.. objects::User, AuthoredCommits, objects::Commit, authored_commits, authored_commit_count];
+    impl_attribute![?.. objects::User, CommittedCommits, objects::Commit, committed_commits, committed_commit_count];
 }
 
 pub mod path {
     use crate::query::*;
-    impl_surefire_attribute!(objects::Path, Id, objects::PathId, id);
-    impl_surefire_attribute!(objects::Path, Location, String, location);
-    impl_optional_attribute!(objects::Path, Language, objects::Language, language);
+    impl_attribute![!   objects::Path, Id, objects::PathId, id];
+    impl_attribute![!   objects::Path, Location, String, location];
+    impl_attribute![?   objects::Path, Language, objects::Language, language];
 }
 
 pub mod snapshot {
     use crate::query::*;
-    impl_surefire_attribute!(objects::Snapshot, Id, objects::SnapshotId, id);
-    impl_surefire_attribute!(objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned);
-    impl_surefire_attribute!(objects::Snapshot, Contents, String, contents_owned);
+    impl_attribute![!   objects::Snapshot, Id, objects::SnapshotId, id];
+    impl_attribute![!   objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned];
+    impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];
 }
 
 pub mod require {
@@ -213,39 +259,168 @@ pub mod require {
     use crate::attrib::*;
     use crate::iterators::ItemWithData;
 
-    pub struct MoreThan<A, N>(pub A, pub N) where A: Getter<N>;
-    impl<A, N, T> Filter for MoreThan<A, N> where A: Getter<N> + Attribute<Object=T>, N: PartialOrd {
-        type Item = T;
-        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get(item_with_data).map_or(false, |n| n > self.1)
+    macro_rules! impl_comparison {
+        ($name:ident, $trait_limit:ident, $comparator:ident, $default:expr) => {
+            pub struct $name<A, N>(pub A, pub N) where A: Getter<IntoItem=N>;
+            impl<A, N, T> Filter for $name<A, N> where A: Getter<IntoItem=N> + Attribute<Object=T>, N: $trait_limit {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+                    A::get(item_with_data).map_or(true, |n| n.$comparator(&self.1))
+                }
+            }
         }
     }
-    pub struct AtLeast<A, N>(pub A, pub N) where A: Getter<N>;
-    impl<A, N, T> Filter for AtLeast<A, N> where A: Getter<N> + Attribute<Object=T>, N: PartialOrd {
-        type Item = T;
-        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get(item_with_data).map_or(false, |n| n >= self.1)
+                                               /* vs None */
+    impl_comparison!(LessThan, PartialOrd, lt, false);
+    impl_comparison!(AtMost,   PartialOrd, le, false);
+    impl_comparison!(Exactly,  Eq,         eq, false);
+    impl_comparison!(AtLeast,  PartialOrd, ge, true);
+    impl_comparison!(MoreThan, PartialOrd, gt, true);
+
+    macro_rules! impl_binary {
+        ($name:ident, $comparator:expr) => {
+            pub struct $name<A, B>(pub A, pub B) where A: Filter, B: Filter;
+            impl<A, B, T> Filter for $name<A, B> where A: Filter<Item=T>, B: Filter<Item=T> {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+                    $comparator(self.0.accept(item_with_data),
+                                self.1.accept(item_with_data))
+                }
+            }
         }
     }
-    pub struct Exactly<A, N>(pub A, pub N) where A: Getter<N>;
-    impl<A, N, T> Filter for Exactly<A, N> where A: Getter<N> + Attribute<Object=T>, N: Eq {
-        type Item = T;
-        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get(item_with_data).map_or(false, |n| n == self.1)
+
+    impl_binary!(And, |a, b| a && b); // TODO Effectively does not short circuit.
+    impl_binary!(Or,  |a, b| a || b);
+
+    macro_rules! impl_unary {
+        ($name:ident, $comparator:expr) => {
+            pub struct $name<A>(pub A) where A: Filter;
+            impl<A, T> Filter for $name<A> where A: Filter<Item=T> {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+                    $comparator(self.0.accept(item_with_data))
+                }
+            }
         }
     }
-    pub struct AtMost<A, N>(pub A, pub N) where A: Getter<N>;
-    impl<A, N, T> Filter for AtMost<A, N> where A: Getter<N> + Attribute<Object=T>, N: PartialOrd {
-        type Item = T;
-        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get(item_with_data).map_or(true, |n| n <= self.1)
+
+    impl_unary!(Not,  |a: bool| !a);
+
+    macro_rules! impl_existential {
+        ($name:ident, $method:ident) => {
+            pub struct $name<A>(pub A) where A: Getter;
+            impl<A, T> Filter for $name<A> where A: Getter, A: Attribute<Object=T> {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+                    A::get(item_with_data).$method()
+                }
+            }
         }
     }
-    pub struct LessThan<A, N>(pub A, pub N) where A: Getter<N>;
-    impl<A, N, T> Filter for LessThan<A, N> where A: Getter<N> + Attribute<Object=T>, N: PartialOrd {
+
+    impl_existential!(Exists,  is_some);
+    impl_existential!(Missing, is_none);
+
+    pub struct Same<'a, A>(pub A, pub &'a str) where A: Getter;
+    impl<'a, A, T> Filter for Same<'a, A> where A: Getter<IntoItem=String>, A: Attribute<Object=T> {
         type Item = T;
         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get(item_with_data).map_or(true, |n| n < self.1)
+            A::get(item_with_data).map_or(false, |e| e.as_str() == self.1)
         }
     }
+
+    #[macro_export] macro_rules! regex { ($str:expr) => { regex::Regex::new($str).unwrap() }}
+    pub struct Matches<A>(pub A, pub regex::Regex) where A: Getter;
+    impl<A, T> Filter for  Matches<A> where A: Getter<IntoItem=String>, A: Attribute<Object=T> {
+        type Item = T;
+        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+            A::get(item_with_data).map_or(false, |e| self.1.is_match(&e))
+        }
+    }
+}
+
+pub mod stats {
+    use crate::query::*;
+    use crate::attrib::*;
+    use crate::iterators::ItemWithData;
+    use crate::piracy::OptionPiracy;
+    use std::hash::Hash;
+    use itertools::Itertools;
+
+    pub struct Count<A: Countable>(pub A);
+    impl<A, T> Attribute for Count<A> where A: Attribute<Object=T> + Countable {
+        type Object = T;
+    }
+    impl<A, T> Getter for Count<A> where A: Attribute<Object=T> + Countable {
+        type IntoItem = usize;
+        fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            A::count(object)
+        }
+    }
+    impl<A, T> Sort for Count<A> where A: Attribute<Object=T> + Countable  {
+        type Item = T;
+        fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+            vector.sort_by_key(|item_with_data| Self::get(item_with_data))
+        }
+    }
+    impl<A, T> Select for Count<A> where A: Attribute<Object=T> + Countable  {
+        type Item = T;
+        type IntoItem = Option<usize>;
+        fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+            Self::get(item_with_data)
+        }
+    }
+    impl<A, T> Group for Count<A> where A: Attribute<Object=T> + Countable {
+        type Key = Option<usize>;
+        type Item = T;
+        fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+            Self::get(item_with_data)
+        }
+    }
+
+    // TODO bucket
+    pub struct Bin;
+    pub struct Bucket;
+
+    macro_rules! impl_minmax {
+        ($name:ident, $selector:block -> $return:ty) => {
+            pub struct $name<A: Getter>(pub A);
+            impl<A, T> Attribute for $name<A> where A: Attribute<Object=T> + Getter {
+                type Object = T;
+            }
+            impl<A, I, T> Getter for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
+                type IntoItem = $return;
+                fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+                    A::get(object).map($selector).flatten()
+                }
+            }
+            impl<A, I, T> Sort for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
+                type Item = T;
+                fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+                    vector.sort_by_key(|item_with_data| Self::get(item_with_data))
+                }
+            }
+            impl<A, I, T> Select for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
+                type Item = T;
+                type IntoItem = Option<$return>;
+                fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+                    Self::get(item_with_data)
+                }
+            }
+            impl<A, I, T> Group for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone + Hash {
+                type Key = Option<$return>;
+                type Item = T;
+                fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+                    Self::get(item_with_data)
+                }
+            }
+        }
+    }
+
+    //TODO min_by/max_by/minmax_by
+    impl_minmax!(Min,    { |v| v.iter().min().pirate() }                  -> I);
+    impl_minmax!(Max,    { |v| v.iter().max().pirate() }                  -> I);
+    impl_minmax!(MinMax, { |v| v.iter().minmax().into_option().pirate() } -> (I, I));
+
 }

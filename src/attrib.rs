@@ -7,36 +7,43 @@ use chrono::Duration;
 use crate::iterators::*;
 use crate::objects;
 
-pub trait Attribute { type Object; }
-pub trait Getter<T>: Attribute { fn get(object: &ItemWithData<Self::Object>) -> Option<T>;       }
-pub trait Counter:   Attribute { fn count(object: &ItemWithData<Self::Object>) -> Option<usize>; }
+pub trait Attribute {
+    type Object;
+}
+pub trait Getter: Attribute {
+    type IntoItem;
+    fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem>;
+}
+pub trait Countable: Attribute {
+    fn count(object: &ItemWithData<Self::Object>) -> Option<usize>;
+}
 
 pub trait IdentityAttribute<I> {}
-impl<A,I> IdentityAttribute<I> for A where A: Getter<I>, I: objects::Identity { }
+impl<A,I> IdentityAttribute<I> for A where A: Getter<IntoItem=I>, I: objects::Identity { }
 
 pub trait LogicalAttribute {}
-impl<A> LogicalAttribute for A where A: Getter<bool> {}
+impl<A> LogicalAttribute for A where A: Getter<IntoItem=bool> {}
 
 pub trait LanguageAttribute {}
-impl<A> LanguageAttribute for A where A: Getter<objects::Language> {}
+impl<A> LanguageAttribute for A where A: Getter<IntoItem=objects::Language> {}
 
 pub trait TimestampAttribute {}
-impl<A> TimestampAttribute for A where A: Getter<i64> {}
+impl<A> TimestampAttribute for A where A: Getter<IntoItem=i64> {}
 
 pub trait DurationAttribute {}
-impl<A> DurationAttribute for A where A: Getter<Duration> {}
+impl<A> DurationAttribute for A where A: Getter<IntoItem=Duration> {}
 
 pub trait StringAttribute {}
-impl<A> StringAttribute for A where A: Getter<String> {}
+impl<A> StringAttribute for A where A: Getter<IntoItem=String> {}
 
 pub trait IntegerAttribute {}
-impl<A> IntegerAttribute for A where A: Getter<usize> {}
+impl<A> IntegerAttribute for A where A: Getter<IntoItem=usize> {}
 
 pub trait FloatAttribute {}
-impl<A> FloatAttribute for A where A: Getter<f64> {}
+impl<A> FloatAttribute for A where A: Getter<IntoItem=f64> {}
 
 pub trait CollectionAttribute<T> {}
-impl<A,T> CollectionAttribute<T> for A where A: Getter<Vec<T>> + Counter {}
+impl<A,T> CollectionAttribute<T> for A where A: Getter<IntoItem=Vec<T>> + Countable {}
 
 pub trait Group {
     type Key: Hash + Eq;

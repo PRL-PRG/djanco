@@ -21,8 +21,6 @@ use djanco::commandline::*;
 // * fix load filters, maybe base on git commit hash of query
 // * logging everywhere
 
-
-
 // works with downloader from commit 5e4e9d5deb0fe8f9c8bb3bae0ca6947633701346 
 // `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {

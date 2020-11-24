@@ -182,6 +182,16 @@ impl<T> Warning for Option<T> {
     }
 }
 
+impl<T, E> Warning for Result<T, E> where E: std::fmt::Debug {
+    fn warn<S>(self, warning: S) -> Self where S: Into<String> {
+        if let Some(error) = self.as_ref().err() {
+            eprintln!("WARNING! {}", warning.into());
+            eprintln!("associated error: {:?}", error);
+        }
+        self
+    }
+}
+
 #[macro_export]
 macro_rules! with_elapsed_secs {
     ($name:expr,$thing:expr) => {{

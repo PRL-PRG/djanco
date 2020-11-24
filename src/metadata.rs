@@ -241,16 +241,25 @@ trait MetadataSource {
         store.contents()
             .filter(|(content_id, _)| content_project_ids.contains_key(content_id))
             .flat_map(|(content_id, contents)| {
-                let json: JSON = serde_json::from_slice(contents.as_slice())
-                    .expect(&format!("Failed to parse JSON from {}", contents.to_str_lossy()));
-                content_project_ids.get(&content_id)
-                    .warn(format!("No project ID found for content ID {}", content_id))
-                    .map(|project_id| {
-                        match json {
-                            JSON::Object(map) => (ProjectId::from(project_id), map),
-                            meta => panic!("Unexpected JSON value for project ID {} for metadata: {:?}", project_id, meta),
-                        }
-                    })
+                serde_json::from_slice(contents.as_slice())
+                    .warn(&format!("Failed to parse JSON for content ID {} and content:\n>> {}\n",
+                                   content_id, contents.to_str_lossy().replace("\n", "\n>> ")))
+                    .map_or_else(|_| None, |value| Some(value))
+                    .map(|json: JSON| {
+                        content_project_ids.get(&content_id)
+                            .warn(format!("No project ID found for content ID {}", content_id))
+                            .map(|project_id| {
+                                match json {
+                                    JSON::Object(map) => {
+                                        (ProjectId::from(project_id), map)
+                                    },
+                                    meta => {
+                                        panic!("Unexpected JSON value for project ID {} for metadata: {:?}",
+                                               project_id, meta)
+                                    },
+                                }
+                            })
+                    }).flatten()
             }).collect()
     }
 

@@ -341,12 +341,13 @@ pub mod require {
 }
 
 pub mod stats {
+    use std::hash::Hash;
+    use itertools::Itertools;
+
     use crate::query::*;
     use crate::attrib::*;
     use crate::iterators::ItemWithData;
     use crate::piracy::OptionPiracy;
-    use std::hash::Hash;
-    use itertools::Itertools;
 
     pub struct Count<A: Countable>(pub A);
     impl<A, T> Attribute for Count<A> where A: Attribute<Object=T> + Countable {

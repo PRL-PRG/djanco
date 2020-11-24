@@ -234,7 +234,12 @@ trait MetadataSource {
         let content_project_ids: HashMap<u64, u64> =
             store.projects_metadata()
                 .filter(|(_, meta)| meta.key == "github_metadata")
-                .map(|(id, metadata)| (id, metadata.value.parse::<u64>().expect("")))
+                .map(|(id, metadata)| {
+                    let value = metadata.value.parse::<u64>()
+                        .expect(&format!("Could not parse {} as u64", metadata.value));
+                    eprintln!("metadata project_id={}->content_id={}", id, value); // FIXME! remove! hasty debug!
+                    (id, value)
+                })
                 .map(|(project_id, content_id)| (content_id, project_id))
                 .collect();
 

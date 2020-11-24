@@ -1,3 +1,4 @@
+mod ordf64;
 pub mod commandline;
              pub mod weights_and_measures;
 #[macro_use] pub mod log;

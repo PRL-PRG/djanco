@@ -348,6 +348,8 @@ pub mod stats {
     use crate::attrib::*;
     use crate::iterators::ItemWithData;
     use crate::piracy::OptionPiracy;
+    use crate::ordf64::OrdF64;
+    use std::iter::Sum;
 
     pub struct Count<A: Countable>(pub A);
     impl<A, T> Attribute for Count<A> where A: Attribute<Object=T> + Countable {
@@ -424,4 +426,114 @@ pub mod stats {
     impl_minmax!(Max,    { |v| v.iter().max().pirate() }                  -> I);
     impl_minmax!(MinMax, { |v| v.iter().minmax().into_option().pirate() } -> (I, I));
 
+
+    pub struct Mean<A: Countable + Getter>(pub A);
+    impl<A, T> Attribute for Mean<A> where A: Attribute<Object=T> + Countable + Getter {
+        type Object = T;
+    }
+    impl<A, I, T> Getter for Mean<A>
+        where I: Sum + Into<f64>, // Just Into<f64>?
+              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type IntoItem = OrdF64;
+        fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            A::get(object).map(|v| {
+                A::count(object).map(|n| {
+                    OrdF64::from(v.into_iter().sum::<I>().into() / n as f64)
+                })
+            }).flatten()
+        }
+    }
+    impl<A, I, T> Sort for Mean<A>
+        where I: Sum + Into<f64>,
+              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type Item = T;
+        fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+            vector.sort_by_key(|item_with_data| Self::get(item_with_data))
+        }
+    }
+    impl<A, I, T> Select for Mean<A>
+        where I: Sum + Into<f64>,
+              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type Item = T;
+        type IntoItem = Option<OrdF64>;
+        fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+            Self::get(item_with_data)
+        }
+    }
+    impl<A, I, T> Group for Mean<A>
+        where I: Sum + Into<f64>,
+              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type Key = Option<OrdF64>;
+        type Item = T;
+        fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+            Self::get(item_with_data)
+        }
+    }
+
+    pub struct Median<A: Countable + Getter>(pub A);
+    impl<A, T> Attribute for Median<A> where A: Attribute<Object=T> + Countable + Getter {
+        type Object = T;
+    }
+    impl<A, I, T> Getter for Median<A>
+        where I: Sum + Ord + Into<f64> + Clone, // Just Into<f64>?
+              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type IntoItem = OrdF64;
+        fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            A::get(object).map(|v| {
+                let items: Vec<I> = v.into_iter().sorted().collect();
+                let length = items.len();
+                if length == 0 {
+                    None
+                } else {
+                    let value: f64 =
+                        if length == 1 {
+                            items[0].clone().into()
+                        } else if length % 2 != 0usize {
+                            items[length / 2].clone().into()
+                        } else {
+                            let left = items[(length / 2) - 1].clone().into();
+                            let right = items[(length / 2)].clone().into();
+                            (left + right) / 2f64
+                        };
+                    Some(OrdF64::from(value))
+                }
+            }).flatten()
+        }
+    }
+    impl<A, I, T> Sort for Median<A>
+        where I: Sum + Ord + Into<f64> + Clone,
+              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type Item = T;
+        fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+            vector.sort_by_key(|item_with_data| Self::get(item_with_data))
+        }
+    }
+    impl<A, I, T> Select for Median<A>
+        where I: Sum + Ord + Into<f64> + Clone,
+              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type Item = T;
+        type IntoItem = Option<OrdF64>;
+        fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+            Self::get(item_with_data)
+        }
+    }
+    impl<A, I, T> Group for Median<A>
+        where I: Sum + Ord + Into<f64> + Clone,
+              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type Key = Option<OrdF64>;
+        type Item = T;
+        fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+            Self::get(item_with_data)
+        }
+    }
 }
+
+// FIXME should sort have directions?

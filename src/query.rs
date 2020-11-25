@@ -70,26 +70,26 @@ macro_rules! impl_attribute_getter {
 //     };
 // }
 
-macro_rules! impl_attribute_group {
-    [! $object:ty, $attribute:ident, $small_type:ty] => {
-        impl Group for $attribute {
-            type Key = Option<$small_type>;
-            type Item = $object;
-            fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-                Self::get(item_with_data)
-            }
-        }
-    };
-    [? $object:ty, $attribute:ident, $small_type:ty] => {
-        impl Group for $attribute {
-            type Key = $small_type;
-            type Item = $object;
-            fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-                Self::get(item_with_data).unwrap()
-            }
-        }
-    }
-}
+// macro_rules! impl_attribute_group {
+//     [! $object:ty, $attribute:ident, $small_type:ty] => {
+//         impl Group for $attribute {
+//             type Key = Option<$small_type>;
+//             type Item = $object;
+//             fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+//                 Self::get(item_with_data)
+//             }
+//         }
+//     };
+//     [? $object:ty, $attribute:ident, $small_type:ty] => {
+//         impl Group for $attribute {
+//             type Key = $small_type;
+//             type Item = $object;
+//             fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+//                 Self::get(item_with_data).unwrap()
+//             }
+//         }
+//     }
+// }
 
 macro_rules! impl_attribute_count {
     [! $object:ty, $attribute:ident, $counter:ident] => {
@@ -141,14 +141,14 @@ macro_rules! impl_attribute {
         impl_attribute_getter![! $object, $attribute, $small_type, $getter];
         impl_attribute_select![! $object, $attribute, $small_type];
         //impl_attribute_sort![! $object, $attribute];
-        impl_attribute_group![! $object, $attribute, $small_type];
+        //impl_attribute_group![! $object, $attribute, $small_type];
     };
     [? $object:ty, $attribute:ident, bool, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, bool, $getter];
         impl_attribute_select![? $object, $attribute, bool];
         //impl_attribute_sort![? $object, $attribute];
-        impl_attribute_group![? $object, $attribute, bool];
+        //impl_attribute_group![? $object, $attribute, bool];
         impl_attribute_filter![$object, $attribute];
     };
     [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
@@ -156,7 +156,7 @@ macro_rules! impl_attribute {
         impl_attribute_getter![? $object, $attribute, $small_type, $getter];
         impl_attribute_select![? $object, $attribute, $small_type];
         //impl_attribute_sort![? $object, $attribute];
-        impl_attribute_group![? $object, $attribute, $small_type];
+        //impl_attribute_group![? $object, $attribute, $small_type];
     };
     [!.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute_definition![$object, $attribute];
@@ -382,13 +382,13 @@ pub mod stats {
             Self::get(item_with_data)
         }
     }
-    impl<A, T> Group for Count<A> where A: Attribute<Object=T> + Countable {
-        type Key = Option<usize>;
-        type Item = T;
-        fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-            Self::get(item_with_data)
-        }
-    }
+    // impl<A, T> Group for Count<A> where A: Attribute<Object=T> + Countable {
+    //     type Key = Option<usize>;
+    //     type Item = T;
+    //     fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+    //         Self::get(item_with_data)
+    //     }
+    // }
 
     // TODO bucket
     pub struct Bin;
@@ -419,13 +419,13 @@ pub mod stats {
                     Self::get(item_with_data)
                 }
             }
-            impl<A, I, T> Group for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone + Hash {
-                type Key = Option<$return>;
-                type Item = T;
-                fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-                    Self::get(item_with_data)
-                }
-            }
+            // impl<A, I, T> Group for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone + Hash {
+            //     type Key = Option<$return>;
+            //     type Item = T;
+            //     fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+            //         Self::get(item_with_data)
+            //     }
+            // }
         }
     }
 
@@ -471,16 +471,16 @@ pub mod stats {
             Self::get(item_with_data)
         }
     }
-    impl<A, I, T> Group for Mean<A>
-        where I: Sum + Into<f64>,
-              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
-
-        type Key = Option<OrdF64>;
-        type Item = T;
-        fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-            Self::get(item_with_data)
-        }
-    }
+    // impl<A, I, T> Group for Mean<A>
+    //     where I: Sum + Into<f64>,
+    //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+    //
+    //     type Key = Option<OrdF64>;
+    //     type Item = T;
+    //     fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+    //         Self::get(item_with_data)
+    //     }
+    // }
 
     pub struct Median<A: Countable + Getter>(pub A);
     impl<A, T> Attribute for Median<A> where A: Attribute<Object=T> + Countable + Getter {
@@ -532,16 +532,16 @@ pub mod stats {
             Self::get(item_with_data)
         }
     }
-    impl<A, I, T> Group for Median<A>
-        where I: Sum + Ord + Into<f64> + Clone,
-              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
-
-        type Key = Option<OrdF64>;
-        type Item = T;
-        fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-            Self::get(item_with_data)
-        }
-    }
+    // impl<A, I, T> Group for Median<A>
+    //     where I: Sum + Ord + Into<f64> + Clone,
+    //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+    //
+    //     type Key = Option<OrdF64>;
+    //     type Item = T;
+    //     fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
+    //         Self::get(item_with_data)
+    //     }
+    // }
 }
 
 pub mod retrieve {

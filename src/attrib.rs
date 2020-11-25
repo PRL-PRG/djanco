@@ -63,11 +63,12 @@ impl<A> FloatAttribute for A where A: Getter<IntoItem=f64> {}
 pub trait CollectionAttribute<T> {}
 impl<A,T> CollectionAttribute<T> for A where A: Getter<IntoItem=Vec<T>> + Countable {}
 
-pub trait Group {
-    type Key: Hash + Eq;
-    type Item;
-    fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key;
+pub trait Group<T, I: Hash + Eq>: Attribute<Object=T> + Getter<IntoItem=I> {
+    fn select_key(&self, object: &ItemWithData<T>) -> Option<I> {
+        Self::get(object)
+    }
 }
+impl<T, I, A> Group<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I>, I: Hash + Eq {}
 
 pub trait Select {
     type Item;
@@ -80,7 +81,7 @@ pub trait Filter {
     fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool;
 }
 
-pub trait Sort<T,I: Ord>: Getter<IntoItem=I> + Attribute<Object=T> {
+pub trait Sort<T,I: Ord>: Attribute<Object=T> + Getter<IntoItem=I> {
     fn sort_ascending(&self, vector: &mut Vec<ItemWithData<T>>) {
         vector.sort_by_key(|object| Self::get(object))
     }
@@ -140,8 +141,8 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     }
 
     fn group_by_attrib<A, K>(self, attribute: A)
-        -> std::collections::hash_map::IntoIter<K, Vec<ItemWithData<'a, T>>>
-        where A: Group<Item=T, Key=K>, K: Hash + Eq {
+        -> std::collections::hash_map::IntoIter<Option<K>, Vec<ItemWithData<'a, T>>>
+        where A: Group<T, K>, K: Hash + Eq {
         self.map(|item_with_data| {
             let key = attribute.select_key(&item_with_data);
             (key, item_with_data)

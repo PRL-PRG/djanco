@@ -14,57 +14,65 @@ pub trait Attribute {
 }
 pub trait Getter: Attribute {
     type IntoItem;
-    fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem>;
-    fn get_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
-        Self::get(object).map(|result| {
+    fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem;
+    fn get_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> ItemWithData<'a, Self::IntoItem> {
+        ItemWithData::new(object.data, Self::get(object))
+    }
+}
+pub trait OptionGetter: Attribute {
+    type IntoItem;
+    fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem>;
+    fn get_opt_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
+        Self::get_opt(object).map(|result| {
             ItemWithData::new(object.data, result)
         })
     }
 }
-pub trait CollectionGetter<T,I>: Attribute<Object=T> + Getter<IntoItem=Vec<I>> {
-    fn get_each_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
-        Self::get(object).map(|v| {
+
+pub trait CollectionGetter<T,I>: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {
+    fn get_opt_each_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
+        Self::get_opt(object).map(|v| {
             v.into_iter().map(|e| {
                 ItemWithData::new(object.data, e)
             }).collect()
         })
     }
 }
-impl<G, T, I> CollectionGetter<T,I> for G where G: Attribute<Object=T> + Getter<IntoItem=Vec<I>> {}
+impl<G, T, I> CollectionGetter<T,I> for G where G: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {}
 
 pub trait Countable: Attribute {
     fn count(object: &ItemWithData<Self::Object>) -> Option<usize>;
 }
 
-pub trait IdentityAttribute<I> {}
-impl<A,I> IdentityAttribute<I> for A where A: Getter<IntoItem=I>, I: objects::Identity { }
-
-pub trait LogicalAttribute {}
-impl<A> LogicalAttribute for A where A: Getter<IntoItem=bool> {}
-
-pub trait LanguageAttribute {}
-impl<A> LanguageAttribute for A where A: Getter<IntoItem=objects::Language> {}
-
-pub trait TimestampAttribute {}
-impl<A> TimestampAttribute for A where A: Getter<IntoItem=i64> {}
-
-pub trait DurationAttribute {}
-impl<A> DurationAttribute for A where A: Getter<IntoItem=Duration> {}
-
-pub trait StringAttribute {}
-impl<A> StringAttribute for A where A: Getter<IntoItem=String> {}
-
-pub trait IntegerAttribute {}
-impl<A> IntegerAttribute for A where A: Getter<IntoItem=usize> {}
-
-pub trait FloatAttribute {}
-impl<A> FloatAttribute for A where A: Getter<IntoItem=f64> {}
-
-pub trait CollectionAttribute<T> {}
-impl<A,T> CollectionAttribute<T> for A where A: Getter<IntoItem=Vec<T>> + Countable {}
+// pub trait IdentityAttribute<I> {}
+// impl<A,I> IdentityAttribute<I> for A where A: Getter<IntoItem=I>, I: objects::Identity { }
+//
+// pub trait LogicalAttribute {}
+// impl<A> LogicalAttribute for A where A: Getter<IntoItem=bool> {}
+//
+// pub trait LanguageAttribute {}
+// impl<A> LanguageAttribute for A where A: Getter<IntoItem=objects::Language> {}
+//
+// pub trait TimestampAttribute {}
+// impl<A> TimestampAttribute for A where A: Getter<IntoItem=i64> {}
+//
+// pub trait DurationAttribute {}
+// impl<A> DurationAttribute for A where A: Getter<IntoItem=Duration> {}
+//
+// pub trait StringAttribute {}
+// impl<A> StringAttribute for A where A: Getter<IntoItem=String> {}
+//
+// pub trait IntegerAttribute {}
+// impl<A> IntegerAttribute for A where A: Getter<IntoItem=usize> {}
+//
+// pub trait FloatAttribute {}
+// impl<A> FloatAttribute for A where A: Getter<IntoItem=f64> {}
+//
+// pub trait CollectionAttribute<T> {}
+// impl<A,T> CollectionAttribute<T> for A where A: Getter<IntoItem=Vec<T>> + Countable {}
 
 pub trait Group<T, I: Hash + Eq>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn select_key(&self, object: &ItemWithData<T>) -> Option<I> {
+    fn select_key(&self, object: &ItemWithData<T>) -> I {
         Self::get(object)
     }
 }
@@ -141,7 +149,7 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     }
 
     fn group_by_attrib<A, K>(self, attribute: A)
-        -> std::collections::hash_map::IntoIter<Option<K>, Vec<ItemWithData<'a, T>>>
+        -> std::collections::hash_map::IntoIter<K, Vec<ItemWithData<'a, T>>>
         where A: Group<T, K>, K: Hash + Eq {
         self.map(|item_with_data| {
             let key = attribute.select_key(&item_with_data);

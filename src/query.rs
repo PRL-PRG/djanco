@@ -17,7 +17,7 @@ macro_rules! impl_attribute_select {
             type Item = $object;
             type IntoItem = $small_type;
             fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-                Self::get(item_with_data).unwrap()
+                Self::get(item_with_data)
             }
         }
     };
@@ -36,15 +36,27 @@ macro_rules! impl_attribute_getter {
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl Getter for $attribute {
             type IntoItem = $small_type;
-            fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+                object.$getter()
+            }
+        }
+        impl OptionGetter for $attribute {
+            type IntoItem = $small_type;
+            fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.$getter())
             }
         }
     };
     [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl Getter for $attribute {
+            type IntoItem = Option<$small_type>;
+            fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+                object.$getter()
+            }
+        }
+        impl OptionGetter for $attribute {
             type IntoItem = $small_type;
-            fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
                 object.$getter()
             }
         }
@@ -261,11 +273,11 @@ pub mod require {
 
     macro_rules! impl_comparison {
         ($name:ident, $trait_limit:ident, $comparator:ident, $default:expr) => {
-            pub struct $name<A, N>(pub A, pub N) where A: Getter<IntoItem=N>;
-            impl<A, N, T> Filter for $name<A, N> where A: Getter<IntoItem=N> + Attribute<Object=T>, N: $trait_limit {
+            pub struct $name<A, N>(pub A, pub N) where A: OptionGetter<IntoItem=N>;
+            impl<A, N, T> Filter for $name<A, N> where A: OptionGetter<IntoItem=N> + Attribute<Object=T>, N: $trait_limit {
                 type Item = T;
                 fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-                    A::get(item_with_data).map_or(true, |n| n.$comparator(&self.1))
+                    A::get_opt(item_with_data).map_or(true, |n| n.$comparator(&self.1))
                 }
             }
         }
@@ -309,11 +321,11 @@ pub mod require {
 
     macro_rules! impl_existential {
         ($name:ident, $method:ident) => {
-            pub struct $name<A>(pub A) where A: Getter;
-            impl<A, T> Filter for $name<A> where A: Getter, A: Attribute<Object=T> {
+            pub struct $name<A>(pub A) where A: OptionGetter;
+            impl<A, T> Filter for $name<A> where A: OptionGetter, A: Attribute<Object=T> {
                 type Item = T;
                 fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-                    A::get(item_with_data).$method()
+                    A::get_opt(item_with_data).$method()
                 }
             }
         }
@@ -322,28 +334,28 @@ pub mod require {
     impl_existential!(Exists,  is_some);
     impl_existential!(Missing, is_none);
 
-    pub struct Same<'a, A>(pub A, pub &'a str) where A: Getter;
-    impl<'a, A, T> Filter for Same<'a, A> where A: Getter<IntoItem=String>, A: Attribute<Object=T> {
+    pub struct Same<'a, A>(pub A, pub &'a str) where A: OptionGetter;
+    impl<'a, A, T> Filter for Same<'a, A> where A: OptionGetter<IntoItem=String>, A: Attribute<Object=T> {
         type Item = T;
         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get(item_with_data).map_or(false, |e| e.as_str() == self.1)
+            A::get_opt(item_with_data).map_or(false, |e| e.as_str() == self.1)
         }
     }
 
-    pub struct Contains<'a, A>(pub A, pub &'a str) where A: Getter;
-    impl<'a, A, T> Filter for Contains<'a, A> where A: Getter<IntoItem=String>, A: Attribute<Object=T> {
+    pub struct Contains<'a, A>(pub A, pub &'a str) where A: OptionGetter;
+    impl<'a, A, T> Filter for Contains<'a, A> where A: OptionGetter<IntoItem=String>, A: Attribute<Object=T> {
         type Item = T;
         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get(item_with_data).map_or(false, |e| e.contains(self.1))
+            A::get_opt(item_with_data).map_or(false, |e| e.contains(self.1))
         }
     }
 
     #[macro_export] macro_rules! regex { ($str:expr) => { regex::Regex::new($str).unwrap() }}
-    pub struct Matches<A>(pub A, pub regex::Regex) where A: Getter;
-    impl<A, T> Filter for  Matches<A> where A: Getter<IntoItem=String>, A: Attribute<Object=T> {
+    pub struct Matches<A>(pub A, pub regex::Regex) where A: OptionGetter;
+    impl<A, T> Filter for  Matches<A> where A: OptionGetter<IntoItem=String>, A: Attribute<Object=T> {
         type Item = T;
         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get(item_with_data).map_or(false, |e| self.1.is_match(&e))
+            A::get_opt(item_with_data).map_or(false, |e| self.1.is_match(&e))
         }
     }
 }
@@ -364,8 +376,14 @@ pub mod stats {
         type Object = T;
     }
     impl<A, T> Getter for Count<A> where A: Attribute<Object=T> + Countable {
+        type IntoItem = Option<usize>;
+        fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            A::count(object)
+        }
+    }
+    impl<A, T> OptionGetter for Count<A> where A: Attribute<Object=T> + Countable {
         type IntoItem = usize;
-        fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
             A::count(object)
         }
     }
@@ -396,14 +414,20 @@ pub mod stats {
 
     macro_rules! impl_minmax {
         ($name:ident, $selector:block -> $return:ty) => {
-            pub struct $name<A: Getter>(pub A);
-            impl<A, T> Attribute for $name<A> where A: Attribute<Object=T> + Getter {
+            pub struct $name<A: OptionGetter>(pub A);
+            impl<A, T> Attribute for $name<A> where A: Attribute<Object=T> + OptionGetter {
                 type Object = T;
             }
-            impl<A, I, T> Getter for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
+            // impl<A, I, T> Getter for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
+            //     type IntoItem = Option<$return>;
+            //     fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            //         A::get_opt(object).map($selector).flatten()
+            //     }
+            // }
+            impl<A, I, T> OptionGetter for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
                 type IntoItem = $return;
-                fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-                    A::get(object).map($selector).flatten()
+                fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+                    A::get_opt(object).map($selector).flatten()
                 }
             }
             // impl<A, I, T> Sort for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
@@ -412,11 +436,11 @@ pub mod stats {
             //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
             //     }
             // }
-            impl<A, I, T> Select for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
+            impl<A, I, T> Select for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
                 type Item = T;
                 type IntoItem = Option<$return>;
                 fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-                    Self::get(item_with_data)
+                    Self::get_opt(item_with_data)
                 }
             }
             // impl<A, I, T> Group for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone + Hash {
@@ -435,17 +459,29 @@ pub mod stats {
     impl_minmax!(MinMax, { |v| v.iter().minmax().into_option().pirate() } -> (I, I));
 
 
-    pub struct Mean<A: Countable + Getter>(pub A);
-    impl<A, T> Attribute for Mean<A> where A: Attribute<Object=T> + Countable + Getter {
+    pub struct Mean<A: Countable + OptionGetter>(pub A);
+    impl<A, T> Attribute for Mean<A> where A: Attribute<Object=T> + Countable + OptionGetter {
         type Object = T;
     }
-    impl<A, I, T> Getter for Mean<A>
+    // impl<A, I, T> Getter for Mean<A>
+    //     where I: Sum + Into<f64>, // Just Into<f64>?
+    //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+    //     type IntoItem = Option<OrdF64>;
+    //     fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+    //         A::get_opt(object).map(|v| {
+    //             A::count(object).map(|n| {
+    //                 OrdF64::from(v.into_iter().sum::<I>().into() / n as f64)
+    //             })
+    //         }).flatten()
+    //     }
+    // }
+    impl<A, I, T> OptionGetter for Mean<A>
         where I: Sum + Into<f64>, // Just Into<f64>?
-              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+              A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
 
         type IntoItem = OrdF64;
-        fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            A::get(object).map(|v| {
+        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            A::get_opt(object).map(|v| {
                 A::count(object).map(|n| {
                     OrdF64::from(v.into_iter().sum::<I>().into() / n as f64)
                 })
@@ -463,12 +499,12 @@ pub mod stats {
     // }
     impl<A, I, T> Select for Mean<A>
         where I: Sum + Into<f64>,
-              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+              A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
 
         type Item = T;
         type IntoItem = Option<OrdF64>;
         fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-            Self::get(item_with_data)
+            Self::get_opt(item_with_data)
         }
     }
     // impl<A, I, T> Group for Mean<A>
@@ -482,17 +518,17 @@ pub mod stats {
     //     }
     // }
 
-    pub struct Median<A: Countable + Getter>(pub A);
-    impl<A, T> Attribute for Median<A> where A: Attribute<Object=T> + Countable + Getter {
+    pub struct Median<A: Countable + OptionGetter>(pub A);
+    impl<A, T> Attribute for Median<A> where A: Attribute<Object=T> + Countable + OptionGetter {
         type Object = T;
     }
-    impl<A, I, T> Getter for Median<A>
+    impl<A, I, T> OptionGetter for Median<A>
         where I: Sum + Ord + Into<f64> + Clone, // Just Into<f64>?
-              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+              A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
 
         type IntoItem = OrdF64;
-        fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            A::get(object).map(|v| {
+        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            A::get_opt(object).map(|v| {
                 let items: Vec<I> = v.into_iter().sorted().collect();
                 let length = items.len();
                 if length == 0 {
@@ -524,12 +560,12 @@ pub mod stats {
     // }
     impl<A, I, T> Select for Median<A>
         where I: Sum + Ord + Into<f64> + Clone,
-              A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
+              A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
 
         type Item = T;
         type IntoItem = Option<OrdF64>;
         fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-            Self::get(item_with_data)
+            Self::get_opt(item_with_data)
         }
     }
     // impl<A, I, T> Group for Median<A>
@@ -550,17 +586,17 @@ pub mod retrieve {
 
     //From(project::Commits, commit::Author)
 
-    pub struct From<O: Getter, A: Attribute> (pub O, pub A);
+    pub struct From<O: OptionGetter, A: Attribute> (pub O, pub A);
     impl<O, A, T, I> Attribute for From<O, A>
-        where O: Attribute<Object=T> + Getter<IntoItem=I>, A: Attribute<Object=I> {
+        where O: Attribute<Object=T> + OptionGetter<IntoItem=I>, A: Attribute<Object=I> {
         type Object = T;
     }
-    impl<O, A, T, I, E> Getter for From<O, A>
-         where O: Attribute<Object=T> + Getter<IntoItem=I>,
-               A: Attribute<Object=I> + Getter<IntoItem=E> {
+    impl<O, A, T, I, E> OptionGetter for From<O, A>
+         where O: Attribute<Object=T> + OptionGetter<IntoItem=I>,
+               A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
          type IntoItem = E;
-         fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            O::get_with_data(object).map(|object| A::get(&object)).flatten()
+         fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            O::get_opt_with_data(object).map(|object| A::get_opt(&object)).flatten()
          }
     }
     // impl<O, A, T, I, E> Sort for From<O, A>
@@ -574,29 +610,29 @@ pub mod retrieve {
     //     }
     // }
 
-    pub struct FromEach<O: Getter, A: Attribute> (pub O, pub A);
+    pub struct FromEach<O: OptionGetter, A: Attribute> (pub O, pub A);
     impl<O, A, T, I> Attribute for FromEach<O, A>
-        where O: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, A: Attribute<Object=I> {
+        where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, A: Attribute<Object=I> {
         type Object = T;
     }
-    impl<O, A, T, I, E> Getter for FromEach<O, A>
-        where O: Attribute<Object=T> + Getter<IntoItem=Vec<I>>,
-              A: Attribute<Object=I> + Getter<IntoItem=E> {
+    impl<O, A, T, I, E> OptionGetter for FromEach<O, A>
+        where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+              A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
         type IntoItem = Vec<E>;
-        fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            O::get_each_with_data(object).map(|v| {
-                v.iter().flat_map(|object| { A::get(object) }).collect()
+        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            O::get_opt_each_with_data(object).map(|v| {
+                v.iter().flat_map(|object| { A::get_opt(object) }).collect()
             })
         }
     }
     impl<O, A, T, I, E> Select for FromEach<O,A>
-        where O: Attribute<Object=T> + Getter<IntoItem=Vec<I>>,
-              A: Attribute<Object=I> + Getter<IntoItem=E> {
+        where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+              A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
 
         type Item = T;
         type IntoItem = Vec<E>;
         fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-            Self::get(item_with_data).unwrap_or(Vec::new())
+            Self::get_opt(item_with_data).unwrap_or(Vec::new())
         }
     }
 }

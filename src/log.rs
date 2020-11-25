@@ -3,7 +3,7 @@ use std::fmt::Display;
 use std::cell::RefCell;
 use std::time::Instant;
 use std::rc::Rc;
-use crate::weights_and_measures::{Weighed, Weights};
+use crate::weights_and_measures::{Weighed, Weights, BigNumbers};
 
 pub struct Log {
     log: Rc<RefCell<InnerLog>>
@@ -126,10 +126,12 @@ impl Event {
             },
             (Some(elapsed), Some(items), Some(bytes)) => {
                 let memory = Weights::bytes_as_human_readable_string(bytes);
-                format!("Finished {} ({} items in {} and {} in memory)", self.event, items, elapsed, memory)
+                let hr_items = BigNumbers::big_number_as_human_readable_string(items);
+                format!("Finished {} ({}/{} items in {} and {} in memory)", self.event, hr_items, items, elapsed, memory)
             }
             (Some(elapsed), Some(items), None) => {
-                format!("Finished {} ({} items in {})", self.event, items, elapsed)
+                let hr_items = BigNumbers::big_number_as_human_readable_string(items);
+                format!("Finished {} ({}/{} items in {})", self.event, hr_items, items, elapsed)
             }
             (Some(elapsed), None, Some(bytes)) => {
                 let memory = Weights::bytes_as_human_readable_string(bytes);
@@ -139,6 +141,11 @@ impl Event {
                 format!("Finished {} ({}s)", self.event, elapsed)
             }
         }
+    }
+    pub fn items_hr(&self) -> Option<String> {
+        self.items.map(|n| {
+            BigNumbers::big_number_as_human_readable_string(n)
+        })
     }
     pub fn elapsed_secs(&self) -> Option<u64> {
         self.end.map(|end| end.duration_since(self.start).as_secs())

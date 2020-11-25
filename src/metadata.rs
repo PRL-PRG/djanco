@@ -16,15 +16,16 @@ use bstr::ByteSlice;
 
 trait MetadataFieldExtractor {
     type Value: Persistent + Weighed;
-    fn get(&self, value: &JSON) -> Self::Value;
+    fn get(&self, value: &JSON) -> Option<Self::Value>;
 }
 
 struct BoolExtractor;
 impl MetadataFieldExtractor for BoolExtractor {
     type Value = bool;
-    fn get(&self, value: &JSON) -> Self::Value {
+    fn get(&self, value: &JSON) -> Option<Self::Value> {
         match value {
-            JSON::Bool(b) => *b,
+            JSON::Bool(b) => Some(*b),
+            JSON::Null => None,
             value => panic!("Expected Bool, found {:?}", value),
         }
     }
@@ -33,13 +34,16 @@ impl MetadataFieldExtractor for BoolExtractor {
 struct CountExtractor;
 impl MetadataFieldExtractor for CountExtractor {
     type Value = usize;
-    fn get(&self, value: &JSON) -> Self::Value {
+    fn get(&self, value: &JSON) -> Option<Self::Value> {
         match value {
             JSON::Number(n) if n.is_u64() => {
-                let number = n.as_u64().map(|n| n as usize);
-                number.expect(&format!("Could not parse JSON Number {} as usize", value))
+                let number = n
+                    .as_u64().map(|n| n as usize)
+                    .expect(&format!("Could not parse JSON Number {} as usize", value));
+                Some(number)
             }
             JSON::Number(n) => panic!("Expected Number >= 0, found {:?}", n),
+            JSON::Null => None,
             value => panic!("Expected Number, found {:?}", value),
         }
     }
@@ -48,18 +52,7 @@ impl MetadataFieldExtractor for CountExtractor {
 struct StringExtractor;
 impl MetadataFieldExtractor for StringExtractor {
     type Value = String;
-    fn get(&self, value: &JSON) -> Self::Value {
-        match value {
-            JSON::String(s) => s.clone(),
-            value => panic!("Expected String, found {:?}", value),
-        }
-    }
-}
-
-struct NullableStringExtractor;
-impl MetadataFieldExtractor for NullableStringExtractor {
-    type Value = Option<String>;
-    fn get(&self, value: &JSON) -> Self::Value {
+    fn get(&self, value: &JSON) -> Option<Self::Value> {
         match value {
             JSON::String(s) => Some(s.clone()),
             JSON::Null => None,
@@ -71,13 +64,15 @@ impl MetadataFieldExtractor for NullableStringExtractor {
 struct TimestampExtractor;
 impl MetadataFieldExtractor for TimestampExtractor {
     type Value = i64;
-    fn get(&self, value: &JSON) -> Self::Value {
+    fn get(&self, value: &JSON) -> Option<Self::Value> {
         match value {
             JSON::String(s) => {
-                DateTime::parse_from_rfc3339(s)
+                let timestamp = DateTime::parse_from_rfc3339(s)
                     .expect(&format!("Could not parse JSON String {} as RFC3339 date", value)) // Should be there, right?
-                    .timestamp()
+                    .timestamp();
+                Some(timestamp)
             }
+            JSON::Null => None,
             value => panic!("Expected String representing a timestamp, found {:?}", value),
         }
     }
@@ -85,8 +80,8 @@ impl MetadataFieldExtractor for TimestampExtractor {
 
 struct LanguageExtractor;
 impl MetadataFieldExtractor for LanguageExtractor {
-    type Value = Option<Language>;
-    fn get(&self, value: &JSON) -> Self::Value {
+    type Value = Language;
+    fn get(&self, value: &JSON) -> Option<Self::Value> {
         match value {
             JSON::String(s) => {
                 Language::from_str(s)
@@ -97,27 +92,27 @@ impl MetadataFieldExtractor for LanguageExtractor {
         }
     }
 }
+//
+// struct FieldExtractor<M: MetadataFieldExtractor>(pub &'static str, pub M);
+// impl<T, M> MetadataFieldExtractor for FieldExtractor<M>
+//     where M: MetadataFieldExtractor<Value=T>, T: Persistent + Weighed {
+//     type Value = T;
+//     fn get(&self, value: &JSON) -> Option<Self::Value> {
+//         match value {
+//             JSON::Object(map) => {
+//                 self.1.get(&map.get(&self.0.to_owned())
+//                     .expect(&format!("Could not extract field {} from JSON Object {}: no such field", value, self.0)))
+//             },
+//             value => panic!("Expected Object for {} found {:?}", &self.0, value),
+//         }
+//     }
+// }
 
 struct FieldExtractor<M: MetadataFieldExtractor>(pub &'static str, pub M);
 impl<T, M> MetadataFieldExtractor for FieldExtractor<M>
     where M: MetadataFieldExtractor<Value=T>, T: Persistent + Weighed {
     type Value = T;
-    fn get(&self, value: &JSON) -> Self::Value {
-        match value {
-            JSON::Object(map) => {
-                self.1.get(&map.get(&self.0.to_owned())
-                    .expect(&format!("Could not extract field {} from JSON Object {}: no such field", value, self.0)))
-            },
-            value => panic!("Expected Object for {} found {:?}", &self.0, value),
-        }
-    }
-}
-
-struct NullableFieldExtractor<M: MetadataFieldExtractor>(pub &'static str, pub M);
-impl<T, M> MetadataFieldExtractor for NullableFieldExtractor<M>
-    where M: MetadataFieldExtractor<Value=Option<T>>, T: Persistent + Weighed {
-    type Value = Option<T>;
-    fn get(&self, value: &JSON) -> Self::Value {
+    fn get(&self, value: &JSON) -> Option<Self::Value> {
         match value {
             JSON::Object(map) => {
                 map.get(&self.0.to_owned())
@@ -167,7 +162,8 @@ impl<M> MetadataVec<M> where M: MetadataFieldExtractor {
                         //println!("___ {:?} {:?}", property, properties);
                         match property {
                             Some(property) => {
-                                Some((id.clone(), self.extractor.get(property)))
+                                self.extractor.get(property)
+                                    .map(|e| (id.clone(), e))
                             }
                             None => {
                                 eprintln!("WARNING! Attempt to retrieve property {} for project {} from property map yielded None, available keys: {}",
@@ -325,10 +321,10 @@ pub struct ProjectMetadataSource {
     open_issues:      MetadataVec<CountExtractor>,
     forks:            MetadataVec<CountExtractor>,
     subscribers:      MetadataVec<CountExtractor>,
-    licenses:         MetadataVec<NullableFieldExtractor<NullableStringExtractor>>,
+    licenses:         MetadataVec<FieldExtractor<StringExtractor>>,
     languages:        MetadataVec<LanguageExtractor>,
-    descriptions:     MetadataVec<NullableStringExtractor>,
-    homepages:        MetadataVec<NullableStringExtractor>,
+    descriptions:     MetadataVec<StringExtractor>,
+    homepages:        MetadataVec<StringExtractor>,
     has_issues:       MetadataVec<BoolExtractor>,
     has_downloads:    MetadataVec<BoolExtractor>,
     has_wiki:         MetadataVec<BoolExtractor>,
@@ -353,9 +349,9 @@ impl ProjectMetadataSource {
             forks:         MetadataVec::new("forks",             dir.as_str(), &log, CountExtractor),
             subscribers:   MetadataVec::new("subscribers_count", dir.as_str(), &log, CountExtractor),
             languages:     MetadataVec::new("language",          dir.as_str(), &log, LanguageExtractor),
-            descriptions:  MetadataVec::new("description",       dir.as_str(), &log, NullableStringExtractor),
-            homepages:     MetadataVec::new("homepage",          dir.as_str(), &log, NullableStringExtractor),
-            licenses:      MetadataVec::new("license",           dir.as_str(), &log, NullableFieldExtractor("name", /*Nullable*/NullableStringExtractor)),
+            descriptions:  MetadataVec::new("description",       dir.as_str(), &log, StringExtractor),
+            homepages:     MetadataVec::new("homepage",          dir.as_str(), &log, StringExtractor),
+            licenses:      MetadataVec::new("license",           dir.as_str(), &log, FieldExtractor("name", StringExtractor)),
             has_issues:    MetadataVec::new("has_issues",        dir.as_str(), &log, BoolExtractor),
             has_downloads: MetadataVec::new("has_downloads",     dir.as_str(), &log, BoolExtractor),
             has_wiki:      MetadataVec::new("has_wiki",          dir.as_str(), &log, BoolExtractor),
@@ -381,10 +377,10 @@ impl ProjectMetadataSource {
     pub fn open_issues      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,   store, pirate, key)           }
     pub fn forks            (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, forks,         store, pirate, key)           }
     pub fn subscribers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,   store, pirate, key)           }
-    pub fn license          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,      store, pirate, key).flatten() }
-    pub fn description      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions,  store, pirate, key).flatten() }
-    pub fn homepage         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key).flatten() }
-    pub fn language         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<Language> { gimme!(self, languages,     store, pirate, key).flatten() }
+    pub fn license          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,      store, pirate, key)           }
+    pub fn description      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions,  store, pirate, key)           }
+    pub fn homepage         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
+    pub fn language         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<Language> { gimme!(self, languages,     store, pirate, key)           }
     pub fn has_issues       (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_issues,    store, pirate, key)           }
     pub fn has_downloads    (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_downloads, store, pirate, key)           }
     pub fn has_wiki         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_wiki,      store, pirate, key)           }
@@ -392,10 +388,8 @@ impl ProjectMetadataSource {
     pub fn created          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, created,       store, pirate, key)           }
     pub fn updated          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
     pub fn pushed           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
-    pub fn master           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key).flatten() }
+    pub fn master           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
 }
-
-
 
 impl MetadataSource for ProjectMetadataSource {
     fn load_all_from(&mut self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) {

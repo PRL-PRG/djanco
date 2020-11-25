@@ -8,7 +8,7 @@ const BILLION:     (usize, &'static str) = (MILLION.0  * 1000, "B");
 const MILLION:     (usize, &'static str) = (THOUSAND.0 * 1000, "M");
 const THOUSAND:    (usize, &'static str) = (             1000, "K");
 
-struct BigNumbers {
+pub struct BigNumbers {
 
 }
 impl BigNumbers {

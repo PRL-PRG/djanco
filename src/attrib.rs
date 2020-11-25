@@ -80,16 +80,18 @@ pub trait Filter {
     fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool;
 }
 
-pub trait Sort {
-    type Item;
-    fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>);
-    fn sort(&self, direction: sort::Direction, vector: &mut Vec<ItemWithData<Self::Item>>) {
+pub trait Sort<T,I: Ord>: Getter<IntoItem=I> + Attribute<Object=T> {
+    fn sort_ascending(&self, vector: &mut Vec<ItemWithData<T>>) {
+        vector.sort_by_key(|object| Self::get(object))
+    }
+    fn sort(&self, direction: sort::Direction, vector: &mut Vec<ItemWithData<T>>) {
         self.sort_ascending(vector);
         if direction == sort::Direction::Descending {
             vector.reverse()
         }
     }
 }
+impl<A, I, T> Sort<T, I> for A where A: Getter<IntoItem=I> + Attribute<Object=T>, I: Ord {}
 
 pub trait Sampler {
     type Item;
@@ -115,15 +117,15 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
         AttributeSelectIter { iterator: self, attribute }
     }
 
-    fn sort_by_attrib<A: 'a>(self, attribute: A)
+    fn sort_by_attrib<A: 'a, I>(self, attribute: A)
         -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where A: Sort<Item=T> {
+        where A: Sort<T, I>, I: Ord {
         self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
     }
 
-    fn sort_by_attrib_with_direction<A: 'a>(self, direction: sort::Direction, attribute: A)
+    fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
                              -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where A: Sort<Item=T> {
+        where A: Sort<T, I>, I: Ord {
         let mut vector = Vec::from_iter(self);
         attribute.sort(direction, &mut vector);
         vector.into_iter()
@@ -166,15 +168,15 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
         AttributeGroupSelectIter { iterator: self, attribute }
     }
 
-    fn sort_by_attrib<A: 'a>(self, attribute: A)
+    fn sort_by_attrib<A: 'a, I>(self, attribute: A)
         -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where A: Sort<Item=T> {
+        where A: Sort<T, I>, I: Ord {
         self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
     }
 
-    fn sort_by_attrib_with_direction<A: 'a>(self, direction: sort::Direction, attribute: A)
+    fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
         -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where A: Sort<Item=T> {
+        where A: Sort<T, I>, I: Ord {
         let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
             self.map(|(key, mut vector)| {
                 attribute.sort(direction, &mut vector);

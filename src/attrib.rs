@@ -3,9 +3,11 @@ use std::hash::Hash;
 
 use itertools::Itertools;
 use chrono::Duration;
+use serde::{Serialize,Deserialize};
 
 use crate::iterators::*;
 use crate::objects;
+use std::fs::create_dir;
 
 pub trait Attribute {
     type Object;
@@ -13,7 +15,23 @@ pub trait Attribute {
 pub trait Getter: Attribute {
     type IntoItem;
     fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem>;
+    fn get_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
+        Self::get(object).map(|result| {
+            ItemWithData::new(object.data, result)
+        })
+    }
 }
+pub trait CollectionGetter<T,I>: Attribute<Object=T> + Getter<IntoItem=Vec<I>> {
+    fn get_each_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
+        Self::get(object).map(|v| {
+            v.into_iter().map(|e| {
+                ItemWithData::new(object.data, e)
+            }).collect()
+        })
+    }
+}
+impl<G, T, I> CollectionGetter<T,I> for G where G: Attribute<Object=T> + Getter<IntoItem=Vec<I>> {}
+
 pub trait Countable: Attribute {
     fn count(object: &ItemWithData<Self::Object>) -> Option<usize>;
 }
@@ -64,12 +82,24 @@ pub trait Filter {
 
 pub trait Sort {
     type Item;
-    fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>);
+    fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>);
+    fn sort(&self, direction: sort::Direction, vector: &mut Vec<ItemWithData<Self::Item>>) {
+        self.sort_ascending(vector);
+        if direction == sort::Direction::Descending {
+            vector.reverse()
+        }
+    }
 }
 
 pub trait Sampler {
     type Item;
     fn sample(&self, vector: &mut Vec<ItemWithData<Self::Item>>);
+}
+
+
+pub mod sort {
+    #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
+    pub enum Direction { Ascending, Descending }
 }
 
 pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
@@ -88,8 +118,14 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     fn sort_by_attrib<A: 'a>(self, attribute: A)
         -> std::vec::IntoIter<ItemWithData<'a, T>>
         where A: Sort<Item=T> {
+        self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
+    }
+
+    fn sort_by_attrib_with_direction<A: 'a>(self, direction: sort::Direction, attribute: A)
+                             -> std::vec::IntoIter<ItemWithData<'a, T>>
+        where A: Sort<Item=T> {
         let mut vector = Vec::from_iter(self);
-        attribute.sort(&mut vector);
+        attribute.sort(direction, &mut vector);
         vector.into_iter()
     }
 
@@ -133,9 +169,15 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
     fn sort_by_attrib<A: 'a>(self, attribute: A)
         -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
         where A: Sort<Item=T> {
+        self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
+    }
+
+    fn sort_by_attrib_with_direction<A: 'a>(self, direction: sort::Direction, attribute: A)
+        -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
+        where A: Sort<Item=T> {
         let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
             self.map(|(key, mut vector)| {
-                attribute.sort(&mut vector);
+                attribute.sort(direction, &mut vector);
                 (key, vector)
             }).collect();
         vector.into_iter()

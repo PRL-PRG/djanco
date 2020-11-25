@@ -46,6 +46,6 @@ fn main() {
     database.projects().filter_by_attrib(require::Matches(project::Homepage, regex!("www.*")));
     database.projects().filter_by_attrib(project::HasIssues);
     database.projects().sort_by_attrib(stats::Count(project::Commits));
-
+    database.projects().select_by_attrib(retrieve::FromEach(project::Commits, commit::Message));
 
 }

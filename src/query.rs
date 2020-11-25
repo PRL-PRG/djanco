@@ -55,7 +55,7 @@ macro_rules! impl_attribute_sort {
     [! $object:ty, $attribute:ident] => {
         impl Sort for $attribute {
             type Item = $object;
-            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+            fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
                 vector.sort_by_key(|item_with_data| Self::get(item_with_data).unwrap())
             }
         }
@@ -63,7 +63,7 @@ macro_rules! impl_attribute_sort {
     [? $object:ty, $attribute:ident] => {
         impl Sort for $attribute {
             type Item = $object;
-            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+            fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
                 vector.sort_by_key(|e| Self::get(e))
             }
         }
@@ -371,7 +371,7 @@ pub mod stats {
     }
     impl<A, T> Sort for Count<A> where A: Attribute<Object=T> + Countable  {
         type Item = T;
-        fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+        fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
             vector.sort_by_key(|item_with_data| Self::get(item_with_data))
         }
     }
@@ -408,7 +408,7 @@ pub mod stats {
             }
             impl<A, I, T> Sort for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
                 type Item = T;
-                fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+                fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
                     vector.sort_by_key(|item_with_data| Self::get(item_with_data))
                 }
             }
@@ -457,7 +457,7 @@ pub mod stats {
               A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
 
         type Item = T;
-        fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+        fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
             vector.sort_by_key(|item_with_data| Self::get(item_with_data))
         }
     }
@@ -518,7 +518,7 @@ pub mod stats {
               A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
 
         type Item = T;
-        fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+        fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
             vector.sort_by_key(|item_with_data| Self::get(item_with_data))
         }
     }
@@ -544,4 +544,59 @@ pub mod stats {
     }
 }
 
-// FIXME should sort have directions?
+pub mod retrieve {
+    use crate::attrib::*;
+    use crate::iterators::ItemWithData;
+
+    //From(project::Commits, commit::Author)
+
+    pub struct From<O: Getter, A: Attribute> (pub O, pub A);
+    impl<O, A, T, I> Attribute for From<O, A>
+        where O: Attribute<Object=T> + Getter<IntoItem=I>, A: Attribute<Object=I> {
+        type Object = T;
+    }
+    impl<O, A, T, I, E> Getter for From<O, A>
+         where O: Attribute<Object=T> + Getter<IntoItem=I>,
+               A: Attribute<Object=I> + Getter<IntoItem=E> {
+         type IntoItem = E;
+         fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            O::get_with_data(object).map(|object| A::get(&object)).flatten()
+         }
+    }
+    impl<O, A, T, I, E> Sort for From<O, A>
+        where O: Attribute<Object=T> + Getter<IntoItem=I>,
+              A: Attribute<Object=I> + Getter<IntoItem=E>,
+              E: Ord {
+
+        type Item = T;
+        fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
+            vector.sort_by_key(|item_with_data| Self::get(item_with_data))
+        }
+    }
+
+    pub struct FromEach<O: Getter, A: Attribute> (pub O, pub A);
+    impl<O, A, T, I> Attribute for FromEach<O, A>
+        where O: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, A: Attribute<Object=I> {
+        type Object = T;
+    }
+    impl<O, A, T, I, E> Getter for FromEach<O, A>
+        where O: Attribute<Object=T> + Getter<IntoItem=Vec<I>>,
+              A: Attribute<Object=I> + Getter<IntoItem=E> {
+        type IntoItem = Vec<E>;
+        fn get(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            O::get_each_with_data(object).map(|v| {
+                v.iter().flat_map(|object| { A::get(object) }).collect()
+            })
+        }
+    }
+    impl<O, A, T, I, E> Select for FromEach<O,A>
+        where O: Attribute<Object=T> + Getter<IntoItem=Vec<I>>,
+              A: Attribute<Object=I> + Getter<IntoItem=E> {
+
+        type Item = T;
+        type IntoItem = Vec<E>;
+        fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+            Self::get(item_with_data).unwrap_or(Vec::new())
+        }
+    }
+}

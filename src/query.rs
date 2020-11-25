@@ -330,6 +330,14 @@ pub mod require {
         }
     }
 
+    pub struct Contains<'a, A>(pub A, pub &'a str) where A: Getter;
+    impl<'a, A, T> Filter for Contains<'a, A> where A: Getter<IntoItem=String>, A: Attribute<Object=T> {
+        type Item = T;
+        fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
+            A::get(item_with_data).map_or(false, |e| e.contains(self.1))
+        }
+    }
+
     #[macro_export] macro_rules! regex { ($str:expr) => { regex::Regex::new($str).unwrap() }}
     pub struct Matches<A>(pub A, pub regex::Regex) where A: Getter;
     impl<A, T> Filter for  Matches<A> where A: Getter<IntoItem=String>, A: Attribute<Object=T> {

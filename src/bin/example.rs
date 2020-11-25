@@ -14,6 +14,8 @@ use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
 use djanco::commandline::*;
+use djanco::attrib::*;
+use djanco::query::*;
 
 // TODO
 // * snapshots aka file contents
@@ -36,6 +38,11 @@ fn main() {
     let (database, database_secs) = with_elapsed_secs!("open database", {
         Database::from_store(store, config.cache_path(), log)
     });
+
+    // database.snapshots()
+    //     .filter_by_attrib(require::Contains(snapshot::Contents, "#include <memory_resource>"))
+    //     .select_attib(snapshot::Id)
+    //     .into_csv(config.output_csv_path("snapshots_with_memory_resource"));
 
     if config.grep_snapshots {
         let (snapshot_ids, _) = with_elapsed_secs!("find snapshots", {

@@ -11,27 +11,6 @@ macro_rules! impl_attribute_definition {
     }
 }
 
-// macro_rules! impl_attribute_select {
-//     [! $object:ty, $attribute:ident, $small_type:ty] => {
-//         impl Select for $attribute {
-//             type Item = $object;
-//             type IntoItem = $small_type;
-//             fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-//                 Self::get(item_with_data)
-//             }
-//         }
-//     };
-//     [? $object:ty, $attribute:ident, $small_type:ty] => {
-//         impl Select for $attribute {
-//             type Item = $object;
-//             type IntoItem = Option<$small_type>;
-//             fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-//                 Self::get(item_with_data)
-//             }
-//         }
-//     }
-// }
-
 macro_rules! impl_attribute_getter {
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl Getter for $attribute {
@@ -63,46 +42,6 @@ macro_rules! impl_attribute_getter {
     }
 }
 
-// macro_rules! impl_attribute_sort {
-//     [! $object:ty, $attribute:ident] => {
-//         impl Sort for $attribute {
-//             type Item = $object;
-//             fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-//                 vector.sort_by_key(|item_with_data| Self::get(item_with_data).unwrap())
-//             }
-//         }
-//     };
-//     [? $object:ty, $attribute:ident] => {
-//         impl Sort for $attribute {
-//             type Item = $object;
-//             fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-//                 vector.sort_by_key(|e| Self::get(e))
-//             }
-//         }
-//     };
-// }
-
-// macro_rules! impl_attribute_group {
-//     [! $object:ty, $attribute:ident, $small_type:ty] => {
-//         impl Group for $attribute {
-//             type Key = Option<$small_type>;
-//             type Item = $object;
-//             fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-//                 Self::get(item_with_data)
-//             }
-//         }
-//     };
-//     [? $object:ty, $attribute:ident, $small_type:ty] => {
-//         impl Group for $attribute {
-//             type Key = $small_type;
-//             type Item = $object;
-//             fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-//                 Self::get(item_with_data).unwrap()
-//             }
-//         }
-//     }
-// }
-
 macro_rules! impl_attribute_count {
     [! $object:ty, $attribute:ident, $counter:ident] => {
         impl Countable for $attribute {
@@ -129,57 +68,35 @@ macro_rules! impl_attribute_filter {
             }
         }
     }
-    // ($object:ty, $attribute:ident, $small_type:ty) => {
-    //     impl Filter for $attribute {
-    //         type Item = $object;
-    //         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-    //             Self::get(item_with_data).is_some()
-    //         }
-    //     }
-    // }
 }
 
 macro_rules! impl_attribute {
     [! $object:ty, $attribute:ident, bool, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, bool, $getter];
-        //impl_attribute_select![! $object, $attribute, bool];
-        //impl_attribute_sort![! $object, $attribute];
-        //impl_attribute_group![! $object, $attribute, bool];
         impl_attribute_filter![$object, $attribute];
     };
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, $small_type, $getter];
-        //impl_attribute_select![! $object, $attribute, $small_type];
-        //impl_attribute_sort![! $object, $attribute];
-        //impl_attribute_group![! $object, $attribute, $small_type];
     };
     [? $object:ty, $attribute:ident, bool, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, bool, $getter];
-        //impl_attribute_select![? $object, $attribute, bool];
-        //impl_attribute_sort![? $object, $attribute];
-        //impl_attribute_group![? $object, $attribute, bool];
         impl_attribute_filter![$object, $attribute];
     };
     [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, $small_type, $getter];
-        //impl_attribute_select![? $object, $attribute, $small_type];
-        //impl_attribute_sort![? $object, $attribute];
-        //impl_attribute_group![? $object, $attribute, $small_type];
     };
     [!.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, Vec<$small_type>, $getter];
-        //impl_attribute_select![! $object, $attribute, Vec<$small_type>];
         impl_attribute_count![! $object, $attribute, $counter];
     };
     [?.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, Vec<$small_type>, $getter];
-        //impl_attribute_select![? $object, $attribute, Vec<$small_type>];
         impl_attribute_count![? $object, $attribute, $counter];
     };
 }
@@ -268,7 +185,6 @@ pub mod snapshot {
 
 pub mod require {
     use crate::query::*;
-    use crate::attrib::*;
     use crate::iterators::ItemWithData;
 
     macro_rules! impl_comparison {
@@ -361,13 +277,11 @@ pub mod require {
 }
 
 pub mod stats {
-    use std::hash::Hash;
     use itertools::Itertools;
 
     use crate::query::*;
-    use crate::attrib::*;
+    #[allow(unused_imports)] use crate::attrib::*;
     use crate::iterators::ItemWithData;
-    use crate::piracy::OptionPiracy;
     use crate::ordf64::OrdF64;
     use std::iter::Sum;
 
@@ -387,26 +301,6 @@ pub mod stats {
             A::count(object)
         }
     }
-    // impl<A, T> Sort for Count<A> where A: Attribute<Object=T> + Countable  {
-    //     type Item = T;
-    //     fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-    //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
-    //     }
-    // }
-    // impl<A, T> Select for Count<A> where A: Attribute<Object=T> + Countable  {
-    //     type Item = T;
-    //     type IntoItem = Option<usize>;
-    //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-    //         Self::get(item_with_data)
-    //     }
-    // }
-    // impl<A, T> Group for Count<A> where A: Attribute<Object=T> + Countable {
-    //     type Key = Option<usize>;
-    //     type Item = T;
-    //     fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-    //         Self::get(item_with_data)
-    //     }
-    // }
 
     // TODO bucket
     pub struct Bin;
@@ -418,12 +312,6 @@ pub mod stats {
             impl<A, T> Attribute for $name<A> where A: Attribute<Object=T> {
                 type Object = T;
             }
-            // impl<A, I, T> Getter for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
-            //     type IntoItem = Option<$return>;
-            //     fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-            //         A::get_opt(object).map($selector).flatten()
-            //     }
-            // }
             impl<A, I, T> Getter for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
                 type IntoItem = Option<$result>;
                 fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
@@ -436,26 +324,6 @@ pub mod stats {
                     A::get_opt(object).map(|e| e.into_iter().$selector()).flatten()
                 }
             }
-            // impl<A, I, T> Sort for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
-            //     type Item = T;
-            //     fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-            //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
-            //     }
-            // }
-            // impl<A, I, T> Select for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
-            //     type Item = T;
-            //     type IntoItem = Option<$return>;
-            //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-            //         Self::get_opt(item_with_data)
-            //     }
-            // }
-            // impl<A, I, T> Group for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone + Hash {
-            //     type Key = Option<$return>;
-            //     type Item = T;
-            //     fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-            //         Self::get(item_with_data)
-            //     }
-            // }
         }
     }
 
@@ -498,35 +366,6 @@ pub mod stats {
             A::get_opt(object).map(|vector| Self::calculate_mean(vector))
         }
     }
-    // impl<A, I, T> Sort for Mean<A>
-    //     where I: Sum + Into<f64>,
-    //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
-    //
-    //     type Item = T;
-    //     fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-    //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
-    //     }
-    // }
-    // impl<A, I, T> Select for Mean<A>
-    //     where I: Sum + Into<f64>,
-    //           A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
-    //
-    //     //type Item = T;
-    //     type IntoItem = Option<OrdF64>;
-    //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-    //         Self::get_opt(item_with_data)
-    //     }
-    // }
-    // impl<A, I, T> Group for Mean<A>
-    //     where I: Sum + Into<f64>,
-    //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
-    //
-    //     type Key = Option<OrdF64>;
-    //     type Item = T;
-    //     fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-    //         Self::get(item_with_data)
-    //     }
-    // }
 
     pub struct Median<A: Attribute>(pub A);
     impl<A, T> Attribute for Median<A> where A: Attribute<Object=T> {
@@ -573,42 +412,11 @@ pub mod stats {
             }).flatten()
         }
     }
-    // impl<A, I, T> Sort for Median<A>
-    //     where I: Sum + Ord + Into<f64> + Clone,
-    //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
-    //
-    //     type Item = T;
-    //     fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-    //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
-    //     }
-    // }
-    // impl<A, I, T> Select for Median<A>
-    //     where I: Sum + Ord + Into<f64> + Clone,
-    //           A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
-    //
-    //     type Item = T;
-    //     type IntoItem = Option<OrdF64>;
-    //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-    //         Self::get_opt(item_with_data)
-    //     }
-    // }
-    // impl<A, I, T> Group for Median<A>
-    //     where I: Sum + Ord + Into<f64> + Clone,
-    //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
-    //
-    //     type Key = Option<OrdF64>;
-    //     type Item = T;
-    //     fn select_key(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::Key {
-    //         Self::get(item_with_data)
-    //     }
-    // }
 }
 
 pub mod retrieve {
     use crate::attrib::*;
     use crate::iterators::ItemWithData;
-
-    //From(project::Commits, commit::Author)
 
     pub struct From<O: Attribute, A: Attribute> (pub O, pub A);
     impl<O, A, T, I> Attribute for From<O, A>
@@ -631,16 +439,6 @@ pub mod retrieve {
             O::get_opt_with_data(object).map(|object| A::get_opt(&object)).flatten()
         }
     }
-    // impl<O, A, T, I, E> Sort for From<O, A>
-    //     where O: Attribute<Object=T> + Getter<IntoItem=I>,
-    //           A: Attribute<Object=I> + Getter<IntoItem=E>,
-    //           E: Ord {
-    //
-    //     type Item = T;
-    //     fn sort_ascending(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-    //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
-    //     }
-    // }
 
     pub struct FromEach<O: Attribute, A: Attribute> (pub O, pub A);
     impl<O, A, T, I> Attribute for FromEach<O, A>
@@ -667,14 +465,4 @@ pub mod retrieve {
             })
         }
     }
-    // impl<O, A, T, I, E> Select for FromEach<O,A>
-    //     where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
-    //           A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
-    //
-    //     type Item = T;
-    //     type IntoItem = Vec<E>;
-    //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-    //         Self::get_opt(item_with_data).unwrap_or(Vec::new())
-    //     }
-    // }
 }

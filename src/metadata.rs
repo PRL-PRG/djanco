@@ -311,7 +311,7 @@ macro_rules! run_and_consolidate_errors {
 
 pub struct ProjectMetadataSource {
     loaded:           bool,
-    log:              Log,
+    //log:              Log,
     are_forks:        MetadataVec<BoolExtractor>,
     are_archived:     MetadataVec<BoolExtractor>,
     are_disabled:     MetadataVec<BoolExtractor>,
@@ -362,7 +362,7 @@ impl ProjectMetadataSource {
             master:        MetadataVec::new("default_branch",    dir.as_str(), &log, StringExtractor),
 
             loaded:        false,
-            log:           log.clone(),
+            //log:           log.clone(),
         }
     }
 }

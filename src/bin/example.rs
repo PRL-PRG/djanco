@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::collections::BTreeSet;
 use std::iter::FromIterator;
 
@@ -7,15 +6,13 @@ use itertools::Itertools;
 
 use dcd::DatastoreView;
 
-#[macro_use] use djanco::*;
+use djanco::*;
 use djanco::data::*;
 use djanco::time;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
 use djanco::commandline::*;
-use djanco::attrib::*;
-use djanco::query::*;
 
 // TODO
 // * snapshots aka file contents
@@ -48,7 +45,6 @@ fn main() {
         let (snapshot_ids, _) = with_elapsed_secs!("find snapshots", {
             let snapshot_ids = database.snapshots().flat_map(|snapshot| {
                 if snapshot.contains("#include <memory_resource>") {
-                    let id = snapshot.id();
                     Some(snapshot.id())
                 } else {
                     None

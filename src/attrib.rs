@@ -2,12 +2,8 @@ use std::iter::FromIterator;
 use std::hash::Hash;
 
 use itertools::Itertools;
-use chrono::Duration;
-use serde::{Serialize,Deserialize};
 
 use crate::iterators::*;
-use crate::objects;
-use std::fs::create_dir;
 use std::marker::PhantomData;
 
 pub trait Attribute {
@@ -45,53 +41,19 @@ pub trait Countable: Attribute { // TODO Option? // FIXME needed?
     fn count(object: &ItemWithData<Self::Object>) -> Option<usize>;
 }
 
-// pub trait IdentityAttribute<I> {}
-// impl<A,I> IdentityAttribute<I> for A where A: Getter<IntoItem=I>, I: objects::Identity { }
-//
-// pub trait LogicalAttribute {}
-// impl<A> LogicalAttribute for A where A: Getter<IntoItem=bool> {}
-//
-// pub trait LanguageAttribute {}
-// impl<A> LanguageAttribute for A where A: Getter<IntoItem=objects::Language> {}
-//
-// pub trait TimestampAttribute {}
-// impl<A> TimestampAttribute for A where A: Getter<IntoItem=i64> {}
-//
-// pub trait DurationAttribute {}
-// impl<A> DurationAttribute for A where A: Getter<IntoItem=Duration> {}
-//
-// pub trait StringAttribute {}
-// impl<A> StringAttribute for A where A: Getter<IntoItem=String> {}
-//
-// pub trait IntegerAttribute {}
-// impl<A> IntegerAttribute for A where A: Getter<IntoItem=usize> {}
-//
-// pub trait FloatAttribute {}
-// impl<A> FloatAttribute for A where A: Getter<IntoItem=f64> {}
-//
-// pub trait CollectionAttribute<T> {}
-// impl<A,T> CollectionAttribute<T> for A where A: Getter<IntoItem=Vec<T>> + Countable {}
-
 pub trait Group<T, I: Hash + Eq>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn select_key(&self, object: &ItemWithData<T>) -> I {
-        Self::get(object)
-    }
+    fn select_key(&self, object: &ItemWithData<T>) -> I { Self::get(object) }
 }
 impl<T, I, A> Group<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I>, I: Hash + Eq {}
 
 pub trait Select<T, I>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn select(&self, object: &ItemWithData<T>) -> I {
-        Self::get(object)
-    }
+    fn select(&self, object: &ItemWithData<T>) -> I { Self::get(object) }
 }
 impl<T, I, A> Select<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I> {}
 
 pub trait Sort<T,I: Ord>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn sort_ascending(&self, vector: &mut Vec<ItemWithData<T>>) {
-        vector.sort_by_key(|object| Self::get(object))
-    }
     fn sort(&self, direction: sort::Direction, vector: &mut Vec<ItemWithData<T>>) {
-        self.sort_ascending(vector);
+        vector.sort_by_key(|object| Self::get(object));
         if direction == sort::Direction::Descending {
             vector.reverse()
         }

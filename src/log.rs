@@ -19,9 +19,9 @@ impl Log {
     pub fn new(level: Verbosity) -> Self {
         Log { log: Rc::new(RefCell::new(InnerLog::new(level))) }
     }
-    fn log(&self, event: &Event) {
-        self.log.as_ref().borrow().log(event)
-    }
+    // fn log(&self, event: &Event) {
+    //     self.log.as_ref().borrow().log(event)
+    // }
     pub fn start<S>(&self, level: Verbosity, event: S) -> Event where S: Display {
         self.log.as_ref().borrow().start(level, event)
     }

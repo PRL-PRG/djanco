@@ -1,6 +1,4 @@
 use std::path::PathBuf;
-use std::collections::BTreeSet;
-use std::iter::FromIterator;
 
 use structopt::StructOpt;
 

@@ -1,10 +1,10 @@
 use std::iter::FromIterator;
 use std::hash::Hash;
+use std::marker::PhantomData;
 
 use itertools::Itertools;
 
 use crate::iterators::*;
-use std::marker::PhantomData;
 
 pub trait Attribute {
     type Object;
@@ -38,6 +38,10 @@ pub trait CollectionGetter<T,I>: Attribute<Object=T> + OptionGetter<IntoItem=Vec
 impl<G, T, I> CollectionGetter<T,I> for G where G: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {}
 
 pub trait Countable: Attribute { // TODO Option? // FIXME needed?
+    fn count(object: &ItemWithData<Self::Object>) -> usize;
+}
+
+pub trait OptionCountable: Attribute { // TODO Option? // FIXME needed?
     fn count(object: &ItemWithData<Self::Object>) -> Option<usize>;
 }
 

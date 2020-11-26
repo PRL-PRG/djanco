@@ -45,13 +45,18 @@ macro_rules! impl_attribute_getter {
 macro_rules! impl_attribute_count {
     [! $object:ty, $attribute:ident, $counter:ident] => {
         impl Countable for $attribute {
+            fn count(object: &ItemWithData<Self::Object>) -> usize {
+                object.$counter()
+            }
+        }
+        impl OptionCountable for $attribute {
             fn count(object: &ItemWithData<Self::Object>) -> Option<usize> {
                 Some(object.$counter())
             }
         }
     };
     [? $object:ty, $attribute:ident, $counter:ident] => {
-        impl Countable for $attribute {
+        impl OptionCountable for $attribute {
             fn count(object: &ItemWithData<Self::Object>) -> Option<usize> {
                 object.$counter()
             }
@@ -285,17 +290,17 @@ pub mod stats {
     use crate::ordf64::OrdF64;
     use std::iter::Sum;
 
-    pub struct Count<A: Countable>(pub A);
-    impl<A, T> Attribute for Count<A> where A: Attribute<Object=T> + Countable {
+    pub struct Count<A: Attribute>(pub A);
+    impl<A, T> Attribute for Count<A> where A: Attribute<Object=T> {
         type Object = T;
     }
-    impl<A, T> Getter for Count<A> where A: Attribute<Object=T> + Countable {
-        type IntoItem = Option<usize>;
+    impl<A, T> Getter for Count<A> where A: Attribute<Object=T> + OptionCountable {
+        type IntoItem = usize;
         fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-            A::count(object)
+            A::count(object).unwrap_or(0)
         }
     }
-    impl<A, T> OptionGetter for Count<A> where A: Attribute<Object=T> + Countable {
+    impl<A, T> OptionGetter for Count<A> where A: Attribute<Object=T> + OptionCountable {
         type IntoItem = usize;
         fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
             A::count(object)

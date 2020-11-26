@@ -8,6 +8,7 @@ use serde::{Serialize,Deserialize};
 use crate::iterators::*;
 use crate::objects;
 use std::fs::create_dir;
+use std::marker::PhantomData;
 
 pub trait Attribute {
     type Object;
@@ -40,7 +41,7 @@ pub trait CollectionGetter<T,I>: Attribute<Object=T> + OptionGetter<IntoItem=Vec
 }
 impl<G, T, I> CollectionGetter<T,I> for G where G: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {}
 
-pub trait Countable: Attribute {
+pub trait Countable: Attribute { // TODO Option?
     fn count(object: &ItemWithData<Self::Object>) -> Option<usize>;
 }
 
@@ -78,11 +79,12 @@ pub trait Group<T, I: Hash + Eq>: Attribute<Object=T> + Getter<IntoItem=I> {
 }
 impl<T, I, A> Group<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I>, I: Hash + Eq {}
 
-pub trait Select {
-    type Item;
-    type IntoItem;
-    fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem;
+pub trait Select<T, I>: Attribute<Object=T> + Getter<IntoItem=I> {
+    fn select(&self, object: &ItemWithData<T>) -> I {
+        Self::get(object)
+    }
 }
+impl<T, I, A> Select<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I> {}
 
 pub trait Filter {
     type Item;
@@ -121,9 +123,9 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     }
 
     fn select_by_attrib<A, Ta, Tb>(self, attribute: A)
-        -> AttributeSelectIter<Self, A>
-        where A: Select<Item=Ta, IntoItem=Tb> {
-        AttributeSelectIter { iterator: self, attribute }
+        -> AttributeSelectIter<Self, A, Ta, Tb>
+        where A: Select<Ta, Tb> {
+        AttributeSelectIter { iterator: self, attribute, function: PhantomData }
     }
 
     fn sort_by_attrib<A: 'a, I>(self, attribute: A)
@@ -172,9 +174,9 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
     // TODO filter_key
 
     fn select_by_attrib<A, Ta, Tb>(self, attribute: A)
-        -> AttributeGroupSelectIter<Self, A>
-        where A: Select<Item=Ta, IntoItem=Tb> {
-        AttributeGroupSelectIter { iterator: self, attribute }
+        -> AttributeGroupSelectIter<Self, A, Ta, Tb>
+        where A: Select<Ta, Tb> {
+        AttributeGroupSelectIter { iterator: self, attribute, function: PhantomData }
     }
 
     fn sort_by_attrib<A: 'a, I>(self, attribute: A)
@@ -246,9 +248,9 @@ impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
     }
 }
 
-pub struct AttributeSelectIter<I, A> { iterator: I, attribute: A }
-impl<'a,I,A,Ta,Tb> Iterator for AttributeSelectIter<I, A>
-    where I: Iterator<Item=ItemWithData<'a, Ta>>, A: Select<Item=Ta, IntoItem=Tb> {
+pub struct AttributeSelectIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
+impl<'a,I,A,Ta,Tb> Iterator for AttributeSelectIter<I, A, Ta, Tb>
+    where I: Iterator<Item=ItemWithData<'a, Ta>>, A: Select<Ta, Tb> {
     type Item = ItemWithData<'a, Tb>;
     fn next(&mut self) -> Option<Self::Item> {
         let attribute = &self.attribute;
@@ -258,9 +260,9 @@ impl<'a,I,A,Ta,Tb> Iterator for AttributeSelectIter<I, A>
     }
 }
 
-pub struct AttributeGroupSelectIter<I, A> { iterator: I, attribute: A }
-impl<'a,I,A,K,Ta,Tb> Iterator for AttributeGroupSelectIter<I, A>
-    where I: Iterator<Item=(K, Vec<ItemWithData<'a, Ta>>)>, A: Select<Item=Ta, IntoItem=Tb> {
+pub struct AttributeGroupSelectIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
+impl<'a,I,A,K,Ta,Tb> Iterator for AttributeGroupSelectIter<I, A, Ta, Tb>
+    where I: Iterator<Item=(K, Vec<ItemWithData<'a, Ta>>)>, A: Select<Ta, Tb> {
     type Item = (K, Vec<ItemWithData<'a, Tb>>);
     fn next(&mut self) -> Option<Self::Item> {
         let attribute = &self.attribute;

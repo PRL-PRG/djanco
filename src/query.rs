@@ -11,26 +11,26 @@ macro_rules! impl_attribute_definition {
     }
 }
 
-macro_rules! impl_attribute_select {
-    [! $object:ty, $attribute:ident, $small_type:ty] => {
-        impl Select for $attribute {
-            type Item = $object;
-            type IntoItem = $small_type;
-            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-                Self::get(item_with_data)
-            }
-        }
-    };
-    [? $object:ty, $attribute:ident, $small_type:ty] => {
-        impl Select for $attribute {
-            type Item = $object;
-            type IntoItem = Option<$small_type>;
-            fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-                Self::get(item_with_data)
-            }
-        }
-    }
-}
+// macro_rules! impl_attribute_select {
+//     [! $object:ty, $attribute:ident, $small_type:ty] => {
+//         impl Select for $attribute {
+//             type Item = $object;
+//             type IntoItem = $small_type;
+//             fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+//                 Self::get(item_with_data)
+//             }
+//         }
+//     };
+//     [? $object:ty, $attribute:ident, $small_type:ty] => {
+//         impl Select for $attribute {
+//             type Item = $object;
+//             type IntoItem = Option<$small_type>;
+//             fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+//                 Self::get(item_with_data)
+//             }
+//         }
+//     }
+// }
 
 macro_rules! impl_attribute_getter {
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
@@ -143,7 +143,7 @@ macro_rules! impl_attribute {
     [! $object:ty, $attribute:ident, bool, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, bool, $getter];
-        impl_attribute_select![! $object, $attribute, bool];
+        //impl_attribute_select![! $object, $attribute, bool];
         //impl_attribute_sort![! $object, $attribute];
         impl_attribute_group![! $object, $attribute, bool];
         impl_attribute_filter![$object, $attribute];
@@ -151,14 +151,14 @@ macro_rules! impl_attribute {
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, $small_type, $getter];
-        impl_attribute_select![! $object, $attribute, $small_type];
+        //impl_attribute_select![! $object, $attribute, $small_type];
         //impl_attribute_sort![! $object, $attribute];
         //impl_attribute_group![! $object, $attribute, $small_type];
     };
     [? $object:ty, $attribute:ident, bool, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, bool, $getter];
-        impl_attribute_select![? $object, $attribute, bool];
+        //impl_attribute_select![? $object, $attribute, bool];
         //impl_attribute_sort![? $object, $attribute];
         //impl_attribute_group![? $object, $attribute, bool];
         impl_attribute_filter![$object, $attribute];
@@ -166,20 +166,20 @@ macro_rules! impl_attribute {
     [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, $small_type, $getter];
-        impl_attribute_select![? $object, $attribute, $small_type];
+        //impl_attribute_select![? $object, $attribute, $small_type];
         //impl_attribute_sort![? $object, $attribute];
         //impl_attribute_group![? $object, $attribute, $small_type];
     };
     [!.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, Vec<$small_type>, $getter];
-        impl_attribute_select![! $object, $attribute, Vec<$small_type>];
+        //impl_attribute_select![! $object, $attribute, Vec<$small_type>];
         impl_attribute_count![! $object, $attribute, $counter];
     };
     [?.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, Vec<$small_type>, $getter];
-        impl_attribute_select![? $object, $attribute, Vec<$small_type>];
+        //impl_attribute_select![? $object, $attribute, Vec<$small_type>];
         impl_attribute_count![? $object, $attribute, $counter];
     };
 }
@@ -393,13 +393,13 @@ pub mod stats {
     //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
     //     }
     // }
-    impl<A, T> Select for Count<A> where A: Attribute<Object=T> + Countable  {
-        type Item = T;
-        type IntoItem = Option<usize>;
-        fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-            Self::get(item_with_data)
-        }
-    }
+    // impl<A, T> Select for Count<A> where A: Attribute<Object=T> + Countable  {
+    //     type Item = T;
+    //     type IntoItem = Option<usize>;
+    //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+    //         Self::get(item_with_data)
+    //     }
+    // }
     // impl<A, T> Group for Count<A> where A: Attribute<Object=T> + Countable {
     //     type Key = Option<usize>;
     //     type Item = T;
@@ -413,9 +413,9 @@ pub mod stats {
     pub struct Bucket;
 
     macro_rules! impl_minmax {
-        ($name:ident, $selector:block -> $return:ty) => {
-            pub struct $name<A: OptionGetter>(pub A);
-            impl<A, T> Attribute for $name<A> where A: Attribute<Object=T> + OptionGetter {
+        ($name:ident, $selector:ident -> $result:ty) => {
+            pub struct $name<A: Attribute>(pub A);
+            impl<A, T> Attribute for $name<A> where A: Attribute<Object=T> {
                 type Object = T;
             }
             // impl<A, I, T> Getter for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
@@ -424,10 +424,16 @@ pub mod stats {
             //         A::get_opt(object).map($selector).flatten()
             //     }
             // }
+            impl<A, I, T> Getter for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
+                type IntoItem = Option<$result>;
+                fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+                    A::get(object).into_iter().$selector()
+                }
+            }
             impl<A, I, T> OptionGetter for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
-                type IntoItem = $return;
+                type IntoItem = $result;
                 fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-                    A::get_opt(object).map($selector).flatten()
+                    A::get_opt(object).map(|e| e.into_iter().$selector()).flatten()
                 }
             }
             // impl<A, I, T> Sort for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
@@ -436,13 +442,13 @@ pub mod stats {
             //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
             //     }
             // }
-            impl<A, I, T> Select for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
-                type Item = T;
-                type IntoItem = Option<$return>;
-                fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-                    Self::get_opt(item_with_data)
-                }
-            }
+            // impl<A, I, T> Select for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
+            //     type Item = T;
+            //     type IntoItem = Option<$return>;
+            //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+            //         Self::get_opt(item_with_data)
+            //     }
+            // }
             // impl<A, I, T> Group for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone + Hash {
             //     type Key = Option<$return>;
             //     type Item = T;
@@ -453,39 +459,43 @@ pub mod stats {
         }
     }
 
+    trait OptionMinMax<T: PartialOrd + Clone>: Iterator<Item=T> + Sized {
+        fn minmax_into_option(self) -> Option<(T, T)> { Itertools::minmax(self).into_option() }
+    }
+    impl<I, T> OptionMinMax<T> for I where I: Iterator<Item=T> + Sized, T: PartialOrd + Clone {}
+
     //TODO min_by/max_by/minmax_by
-    impl_minmax!(Min,    { |v| v.iter().min().pirate() }                  -> I);
-    impl_minmax!(Max,    { |v| v.iter().max().pirate() }                  -> I);
-    impl_minmax!(MinMax, { |v| v.iter().minmax().into_option().pirate() } -> (I, I));
+    impl_minmax!(Min,    min -> I);
+    impl_minmax!(Max,    max -> I);
+    impl_minmax!(MinMax, minmax_into_option -> (I, I));
 
-
-    pub struct Mean<A: Countable + OptionGetter>(pub A);
-    impl<A, T> Attribute for Mean<A> where A: Attribute<Object=T> + Countable + OptionGetter {
+    pub struct Mean<A: Attribute>(pub A);
+    impl<A, T> Attribute for Mean<A> where A: Attribute<Object=T> {
         type Object = T;
     }
-    // impl<A, I, T> Getter for Mean<A>
-    //     where I: Sum + Into<f64>, // Just Into<f64>?
-    //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
-    //     type IntoItem = Option<OrdF64>;
-    //     fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-    //         A::get_opt(object).map(|v| {
-    //             A::count(object).map(|n| {
-    //                 OrdF64::from(v.into_iter().sum::<I>().into() / n as f64)
-    //             })
-    //         }).flatten()
-    //     }
-    // }
+    impl<A> Mean<A> where A: Attribute {
+        fn calculate_mean<N>(vector: Vec<N>) -> OrdF64 where N: Sum + Into<f64> {
+            let length = vector.len() as f64;
+            let sum = vector.into_iter().sum::<N>().into();
+            OrdF64::from(sum / length)
+        }
+    }
+    impl<A, I, T> Getter for Mean<A>
+        where I: Sum + Into<f64>, // Just Into<f64>?
+              A: Attribute<Object=T> + Getter<IntoItem=Vec<I>> + Sum<I> {
+
+        type IntoItem = OrdF64;
+        fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            Self::calculate_mean(A::get(object))
+        }
+    }
     impl<A, I, T> OptionGetter for Mean<A>
         where I: Sum + Into<f64>, // Just Into<f64>?
-              A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
+              A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
 
         type IntoItem = OrdF64;
         fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            A::get_opt(object).map(|v| {
-                A::count(object).map(|n| {
-                    OrdF64::from(v.into_iter().sum::<I>().into() / n as f64)
-                })
-            }).flatten()
+            A::get_opt(object).map(|vector| Self::calculate_mean(vector))
         }
     }
     // impl<A, I, T> Sort for Mean<A>
@@ -497,16 +507,16 @@ pub mod stats {
     //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
     //     }
     // }
-    impl<A, I, T> Select for Mean<A>
-        where I: Sum + Into<f64>,
-              A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
-
-        type Item = T;
-        type IntoItem = Option<OrdF64>;
-        fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-            Self::get_opt(item_with_data)
-        }
-    }
+    // impl<A, I, T> Select for Mean<A>
+    //     where I: Sum + Into<f64>,
+    //           A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
+    //
+    //     //type Item = T;
+    //     type IntoItem = Option<OrdF64>;
+    //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+    //         Self::get_opt(item_with_data)
+    //     }
+    // }
     // impl<A, I, T> Group for Mean<A>
     //     where I: Sum + Into<f64>,
     //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
@@ -518,34 +528,48 @@ pub mod stats {
     //     }
     // }
 
-    pub struct Median<A: Countable + OptionGetter>(pub A);
-    impl<A, T> Attribute for Median<A> where A: Attribute<Object=T> + Countable + OptionGetter {
+    pub struct Median<A: Attribute>(pub A);
+    impl<A, T> Attribute for Median<A> where A: Attribute<Object=T> {
         type Object = T;
+    }
+    impl<A> Median<A> where A: Attribute {
+        fn calculate_median<N>(mut items: Vec<N>) -> Option<OrdF64>
+            where N: Sum + Ord + Into<f64> + Clone {
+            //let items: Vec<N> = vector.into_iter().sorted().collect();
+            items.sort();
+            let length = items.len();
+            if length == 0 {
+                None
+            } else {
+                let value: f64 =
+                    if length == 1 {
+                        items[0].clone().into()
+                    } else if length % 2 != 0usize {
+                        items[length / 2].clone().into()
+                    } else {
+                        let left = items[(length / 2) - 1].clone().into();
+                        let right = items[(length / 2)].clone().into();
+                        (left + right) / 2f64
+                    };
+                Some(OrdF64::from(value))
+            }
+        }
+    }
+    impl<A, I, T> Getter for Median<A>
+        where I: Sum + Ord + Into<f64> + Clone, // Just Into<f64>?
+              A: Attribute<Object=T> + Getter<IntoItem=Vec<I>> + Sum<I> {
+        type IntoItem = Option<OrdF64>; // TODO None == NAN
+        fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            Self::calculate_median(A::get(object))
+        }
     }
     impl<A, I, T> OptionGetter for Median<A>
         where I: Sum + Ord + Into<f64> + Clone, // Just Into<f64>?
-              A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
-
+              A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
         type IntoItem = OrdF64;
         fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
             A::get_opt(object).map(|v| {
-                let items: Vec<I> = v.into_iter().sorted().collect();
-                let length = items.len();
-                if length == 0 {
-                    None
-                } else {
-                    let value: f64 =
-                        if length == 1 {
-                            items[0].clone().into()
-                        } else if length % 2 != 0usize {
-                            items[length / 2].clone().into()
-                        } else {
-                            let left = items[(length / 2) - 1].clone().into();
-                            let right = items[(length / 2)].clone().into();
-                            (left + right) / 2f64
-                        };
-                    Some(OrdF64::from(value))
-                }
+                Self::calculate_median(v)
             }).flatten()
         }
     }
@@ -558,16 +582,16 @@ pub mod stats {
     //         vector.sort_by_key(|item_with_data| Self::get(item_with_data))
     //     }
     // }
-    impl<A, I, T> Select for Median<A>
-        where I: Sum + Ord + Into<f64> + Clone,
-              A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
-
-        type Item = T;
-        type IntoItem = Option<OrdF64>;
-        fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-            Self::get_opt(item_with_data)
-        }
-    }
+    // impl<A, I, T> Select for Median<A>
+    //     where I: Sum + Ord + Into<f64> + Clone,
+    //           A: Attribute<Object=T> + Countable + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
+    //
+    //     type Item = T;
+    //     type IntoItem = Option<OrdF64>;
+    //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+    //         Self::get_opt(item_with_data)
+    //     }
+    // }
     // impl<A, I, T> Group for Median<A>
     //     where I: Sum + Ord + Into<f64> + Clone,
     //           A: Attribute<Object=T> + Countable + Getter<IntoItem=Vec<I>> + Sum<I> {
@@ -586,18 +610,26 @@ pub mod retrieve {
 
     //From(project::Commits, commit::Author)
 
-    pub struct From<O: OptionGetter, A: Attribute> (pub O, pub A);
+    pub struct From<O: Attribute, A: Attribute> (pub O, pub A);
     impl<O, A, T, I> Attribute for From<O, A>
         where O: Attribute<Object=T> + OptionGetter<IntoItem=I>, A: Attribute<Object=I> {
         type Object = T;
     }
-    impl<O, A, T, I, E> OptionGetter for From<O, A>
+    impl<O, A, T, I, E> Getter for From<O, A>
          where O: Attribute<Object=T> + OptionGetter<IntoItem=I>,
-               A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
-         type IntoItem = E;
-         fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            O::get_opt_with_data(object).map(|object| A::get_opt(&object)).flatten()
+               A: Attribute<Object=I> + Getter<IntoItem=E> {
+         type IntoItem = Option<E>;
+         fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            O::get_opt_with_data(object).map(|object| A::get(&object))
          }
+    }
+    impl<O, A, T, I, E> OptionGetter for From<O, A>
+        where O: Attribute<Object=T> + OptionGetter<IntoItem=I>,
+              A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
+        type IntoItem = E;
+        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            O::get_opt_with_data(object).map(|object| A::get_opt(&object)).flatten()
+        }
     }
     // impl<O, A, T, I, E> Sort for From<O, A>
     //     where O: Attribute<Object=T> + Getter<IntoItem=I>,
@@ -610,10 +642,20 @@ pub mod retrieve {
     //     }
     // }
 
-    pub struct FromEach<O: OptionGetter, A: Attribute> (pub O, pub A);
+    pub struct FromEach<O: Attribute, A: Attribute> (pub O, pub A);
     impl<O, A, T, I> Attribute for FromEach<O, A>
         where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, A: Attribute<Object=I> {
         type Object = T;
+    }
+    impl<O, A, T, I, E> Getter for FromEach<O, A>
+        where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+              A: Attribute<Object=I> + Getter<IntoItem=E> {
+        type IntoItem = Option<Vec<E>>;
+        fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            O::get_opt_each_with_data(object).map(|v| {
+                v.iter().map(|object| { A::get(object) }).collect()
+            })
+        }
     }
     impl<O, A, T, I, E> OptionGetter for FromEach<O, A>
         where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
@@ -625,14 +667,14 @@ pub mod retrieve {
             })
         }
     }
-    impl<O, A, T, I, E> Select for FromEach<O,A>
-        where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
-              A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
-
-        type Item = T;
-        type IntoItem = Vec<E>;
-        fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
-            Self::get_opt(item_with_data).unwrap_or(Vec::new())
-        }
-    }
+    // impl<O, A, T, I, E> Select for FromEach<O,A>
+    //     where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+    //           A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
+    //
+    //     type Item = T;
+    //     type IntoItem = Vec<E>;
+    //     fn select(&self, item_with_data: &ItemWithData<Self::Item>) -> Self::IntoItem {
+    //         Self::get_opt(item_with_data).unwrap_or(Vec::new())
+    //     }
+    // }
 }

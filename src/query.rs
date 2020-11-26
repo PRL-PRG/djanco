@@ -145,7 +145,7 @@ macro_rules! impl_attribute {
         impl_attribute_getter![! $object, $attribute, bool, $getter];
         //impl_attribute_select![! $object, $attribute, bool];
         //impl_attribute_sort![! $object, $attribute];
-        impl_attribute_group![! $object, $attribute, bool];
+        //impl_attribute_group![! $object, $attribute, bool];
         impl_attribute_filter![$object, $attribute];
     };
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {

@@ -41,7 +41,7 @@ pub trait CollectionGetter<T,I>: Attribute<Object=T> + OptionGetter<IntoItem=Vec
 }
 impl<G, T, I> CollectionGetter<T,I> for G where G: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {}
 
-pub trait Countable: Attribute { // TODO Option?
+pub trait Countable: Attribute { // TODO Option? // FIXME needed?
     fn count(object: &ItemWithData<Self::Object>) -> Option<usize>;
 }
 
@@ -86,11 +86,6 @@ pub trait Select<T, I>: Attribute<Object=T> + Getter<IntoItem=I> {
 }
 impl<T, I, A> Select<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I> {}
 
-pub trait Filter {
-    type Item;
-    fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool;
-}
-
 pub trait Sort<T,I: Ord>: Attribute<Object=T> + Getter<IntoItem=I> {
     fn sort_ascending(&self, vector: &mut Vec<ItemWithData<T>>) {
         vector.sort_by_key(|object| Self::get(object))
@@ -109,6 +104,10 @@ pub trait Sampler {
     fn sample(&self, vector: &mut Vec<ItemWithData<Self::Item>>);
 }
 
+pub trait Filter {
+    type Item;
+    fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool;
+}
 
 pub mod sort {
     #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]

@@ -18,6 +18,7 @@ impl<'a, T> ItemWithData<'a, T> {
     pub fn new(data: &'a Database, item: T) -> Self {
         ItemWithData { data, item }
     }
+    //pub fn as_ref(&self) -> ItemWithData<&T> { Self::new(self.data, self.item) }
 }
 impl<'a, T> Clone for ItemWithData<'a, T> where T: Clone {
     fn clone(&self) -> Self {

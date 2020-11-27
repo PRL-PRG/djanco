@@ -65,9 +65,13 @@ pub trait Sort<T,I: Ord>: Attribute<Object=T> + Getter<IntoItem=I> {
 }
 impl<A, I, T> Sort<T, I> for A where A: Getter<IntoItem=I> + Attribute<Object=T>, I: Ord {}
 
-pub trait Sampler {
-    type Item;
-    fn sample(&self, vector: &mut Vec<ItemWithData<Self::Item>>);
+pub trait Sampler<T> {
+//    type Item;
+    fn sample<'a, I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
+        where I: Iterator<Item=ItemWithData<'a, T>>;
+    fn sample_from<'a>(&self, vector: Vec<ItemWithData<'a, T>>) -> Vec<ItemWithData<'a, T>> {
+        self.sample(vector.into_iter())
+    }
 }
 
 pub trait Filter {
@@ -109,10 +113,8 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
 
     fn sample<S>(self, sampler: S)
         -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where S: Sampler<Item=T> {
-        let mut vector = Vec::from_iter(self);
-        sampler.sample(&mut vector);
-        vector.into_iter()
+        where S: Sampler<T> {
+        sampler.sample(self).into_iter()
     }
 
     fn group_by_attrib<A, K>(self, attribute: A)
@@ -164,11 +166,10 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
 
     fn sample<S>(self, sampler: S)
         -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where S: Sampler<Item=T> {
+        where S: Sampler<T> {
         let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
             self.map(|(key, mut vector)| {
-                sampler.sample(&mut vector);
-                (key, vector)
+                (key, sampler.sample_from(vector))
             }).collect();
         vector.into_iter()
     }

@@ -60,8 +60,8 @@ impl Duration {
     }
 }
 
-impl From<u64> for Duration { fn from(seconds: u64) -> Self { Duration::new(n) } }
-impl Into<u64> for Duration { fn into(self)         -> u64  { self.seconds             } }
+impl From<u64> for Duration { fn from(seconds: u64) -> Self { Duration::new(seconds) } }
+impl Into<u64> for Duration { fn into(self)         -> u64  { self.seconds           } }
 
 impl Display for Duration {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {

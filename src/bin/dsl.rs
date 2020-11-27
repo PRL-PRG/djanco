@@ -9,9 +9,7 @@ use djanco::log::*;
 use djanco::commandline::*;
 use djanco::query::*;
 use djanco::attrib::*;
-use djanco::iterators::{DropData, ItemWithData};
 use djanco::csv::CSV;
-use std::convert::TryInto;
 
 // works with downloader from commit 5e4e9d5deb0fe8f9c8bb3bae0ca6947633701346
 // `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`

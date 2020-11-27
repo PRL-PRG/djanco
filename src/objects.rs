@@ -5,13 +5,69 @@ use std::borrow::Cow;
 
 use bstr::ByteSlice;
 use itertools::Itertools;
-use chrono::Duration;
 use serde::{Serialize, Deserialize};
 
 use crate::tuples::Pick;
 use crate::data::Database;
 use crate::iterators::ItemWithData;
 use crate::weights_and_measures::Weighed;
+
+
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
+pub struct Duration { seconds: u64 }
+
+const YEAR: u64 = 12 * MONTH;
+const MONTH: u64 = 30 * DAY;
+const DAY: u64 = 24 * HOUR;
+const HOUR: u64 = 60 * MINUTE;
+const MINUTE: u64 = 60 * SECOND;
+const SECOND: u64 = 1;
+
+impl Duration {
+    pub fn new(seconds: u64) -> Self { Duration { seconds } }
+    pub fn as_components(&self) -> (u64, u64, u64, u64, u64, u64 ) {
+        let seconds = self.seconds % MINUTE;
+        let abs_minutes = self.seconds / MINUTE;
+        let minutes = abs_minutes % HOUR;
+        let abs_hours = abs_minutes / HOUR;
+        let hours = abs_hours % DAY;
+        let abs_days = abs_hours / DAY;
+        let days = abs_days / MONTH;
+        let abs_months = abs_days % MONTH;
+        let months = abs_months % YEAR;
+        let years = abs_months / YEAR;
+        (years, months, days, hours, minutes, seconds)
+    }
+    fn to_pretty_string(&self) -> String {
+        if self.seconds == 0 { return "0 seconds".to_owned() }
+
+        let (years, months, days, hours, minutes, seconds) = self.as_components();
+
+        let years   = if years == 0 { String::new() }   else { format!("{} years",   years)   };
+        let months  = if months == 0 { String::new() }  else { format!("{} months",  months)  };
+        let days    = if days == 0 { String::new() }    else { format!("{} days",    days)    };
+        let hours   = if hours == 0 { String::new() }   else { format!("{} hours",   hours)   };
+        let minutes = if minutes == 0 { String::new() } else { format!("{} minutes", minutes) };
+        let seconds = if seconds == 0 { String::new() } else { format!("{} seconds", seconds) };
+
+        return format!("{}{}{}{}{}{}", years, months, days, hours, minutes, seconds)
+    }
+    fn as_seconds(&self) -> u64 {
+        self.seconds
+    }
+    fn as_duration(&self) -> chrono::Duration {
+        chrono::Duration::seconds(self.seconds as i64)
+    }
+}
+
+impl From<u64> for Duration { fn from(seconds: u64) -> Self { Duration::new(n) } }
+impl Into<u64> for Duration { fn into(self)         -> u64  { self.seconds             } }
+
+impl Display for Duration {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}", self.seconds)
+    }
+}
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum Language {

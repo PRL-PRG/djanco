@@ -3,7 +3,6 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 use itertools::{Itertools, MinMaxResult};
-use chrono::Duration;
 
 use dcd::DatastoreView;
 
@@ -1046,7 +1045,7 @@ impl Data {
     pub fn project_lifetime(&mut self, store: &DatastoreView, id: &ProjectId) -> Option<Duration> {
         self.smart_load_project_lifetimes(store).get(id)
             .pirate()
-            .map(|seconds| Duration::seconds(seconds as i64))
+            .map(|seconds| Duration::from(seconds))
     }
     pub fn user(&mut self, store: &DatastoreView, id: &UserId) -> Option<&User> {
         self.smart_load_users(store).get(id)
@@ -1097,17 +1096,17 @@ impl Data {
     pub fn user_committed_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
         self.smart_load_user_committer_experience(store)
             .get(id)
-            .map(|seconds| Duration::seconds(*seconds as i64))
+            .map(|seconds| Duration::from(*seconds))
     }
     pub fn user_author_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
         self.smart_load_user_author_experience(store)
             .get(id)
-            .map(|seconds| Duration::seconds(*seconds as i64))
+            .map(|seconds| Duration::from(*seconds))
     }
     pub fn user_experience(&mut self, store: &DatastoreView, id: &UserId) -> Option<Duration> {
         self.smart_load_user_experience(store)
             .get(id)
-            .map(|seconds| Duration::seconds(*seconds as i64))
+            .map(|seconds| Duration::from(*seconds))
     }
     pub fn user_committed_commit_count(&mut self, store: &DatastoreView, id: &UserId) -> Option<usize> {
         self.smart_load_user_committed_commit_count(store).get(id).pirate()

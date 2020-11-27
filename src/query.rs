@@ -1,7 +1,6 @@
-use chrono::Duration;
-
 use crate::attrib::*;
 use crate::objects;
+use crate::objects::Duration;
 use crate::iterators::ItemWithData;
 
 macro_rules! impl_attribute_definition {

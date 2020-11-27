@@ -19,6 +19,7 @@ pub enum Language {
     PHP, Python, Perl, Clojure, Erlang, Haskell, Scala,
 }
 
+// HTML, CSS, Jupyter Notebook, Shell, Rich Text Format, Dart, R, Makefile, Vue, TeX, Vim script, Meson, Roff, CMake, Smarty, MATLAB, Elixir, Julia, F#,
 impl Language {
     pub fn from_str(string: &str) -> Option<Self> {
         match string.to_lowercase().as_str() {
@@ -51,8 +52,8 @@ impl Language {
 
     fn from_extension(extension: &str) -> Option<Self> {
         match extension {
-            "c"                                                     => Some(Language::C),
-            "C" | ".cc" | "cpp" | "cxx" | "c++"                     => Some(Language::Cpp),
+            "c" | "h"                                               => Some(Language::C),
+            "C" | "cc" | "cpp" | "cxx" | "c++" | "hpp"              => Some(Language::Cpp),
             "m" | "mm" | "M"                                        => Some(Language::ObjectiveC),
             "go"                                                    => Some(Language::Go),
             "java"                                                  => Some(Language::Java),
@@ -372,6 +373,7 @@ impl Commit {
 
     pub fn hash               (&self, store: &Database) -> Option<String>                     {  store.commit_hash(&self.id)                        }
     pub fn message            (&self, store: &Database) -> Option<String>                     {  store.commit_message(&self.id)                     }
+    pub fn message_length     (&self, store: &Database) -> Option<usize>                      {  self.message(store).map(|s| s.len()) }
 
     pub fn author_timestamp   (&self, store: &Database) -> Option<i64>                        {  store.commit_author_timestamp(&self.id)            }
     pub fn committer_timestamp(&self, store: &Database) -> Option<i64>                        {  store.commit_committer_timestamp(&self.id)         }
@@ -542,6 +544,7 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn parents            (&self) -> Vec<Commit>                        { self.item.parents(self.data)               }
     pub fn hash               (&self) -> Option<String>                     { self.item.hash(&self.data)                 }
     pub fn message            (&self) -> Option<String>                     { self.item.message(&self.data)              }
+    pub fn message_length     (&self) -> Option<usize>                      { self.item.message_length(&self.data)       }
     pub fn author_timestamp   (&self) -> Option<i64>                        { self.item.author_timestamp(&self.data)     }
     pub fn committer_timestamp(&self) -> Option<i64>                        { self.item.committer_timestamp(&self.data)  }
     pub fn change_ids          (&self) -> Option<Vec<(PathId, SnapshotId)>> { self.item.change_ids(&self.data)           }

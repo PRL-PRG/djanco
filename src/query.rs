@@ -150,6 +150,7 @@ pub mod commit {
     impl_attribute![!   objects::Commit, Author, objects::User, author];
     impl_attribute![?   objects::Commit, Hash, String, hash];
     impl_attribute![?   objects::Commit, Message, String, message];
+    impl_attribute![?   objects::Commit, MessageLength, usize, message_length];
     impl_attribute![?   objects::Commit, AuthoredTimestamp, i64, author_timestamp];
     impl_attribute![?   objects::Commit, CommittedTimestamp, i64, committer_timestamp];
     impl_attribute![?.. objects::Commit, Paths, objects::Path, changed_paths, changed_path_count];
@@ -198,7 +199,7 @@ pub mod require {
             impl<A, N, T> Filter for $name<A, N> where A: OptionGetter<IntoItem=N> + Attribute<Object=T>, N: $trait_limit {
                 type Item = T;
                 fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-                    A::get_opt(item_with_data).map_or(true, |n| n.$comparator(&self.1))
+                    A::get_opt(item_with_data).map_or($default, |n| n.$comparator(&self.1))
                 }
             }
         }
@@ -289,6 +290,10 @@ pub mod stats {
     use crate::iterators::ItemWithData;
     use crate::ordf64::OrdF64;
     use std::iter::Sum;
+    use std::ops::Add;
+    use std::convert::*;
+    use std::fmt::Display;
+    use crate::fraction::*;
 
     pub struct Count<A: Attribute>(pub A);
     impl<A, T> Attribute for Count<A> where A: Attribute<Object=T> {
@@ -311,115 +316,85 @@ pub mod stats {
     pub struct Bin;
     pub struct Bucket;
 
-    macro_rules! impl_minmax {
-        ($name:ident, $selector:ident -> $result:ty) => {
+    trait CalculateStat<N, T>{ fn calculate(vector: Vec<N>) -> T; }
+    macro_rules! impl_calculator {
+        ($name:ident -> $result:ty where N: $($requirements:path),+; $calculate:item) => {
             pub struct $name<A: Attribute>(pub A);
             impl<A, T> Attribute for $name<A> where A: Attribute<Object=T> {
                 type Object = T;
             }
-            impl<A, I, T> Getter for $name<A> where A: Attribute<Object=T> + Getter<IntoItem=Vec<I>>, I: Ord + Clone {
+            impl<A, N, T> Getter for $name<A>
+                where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<N>>, N: $($requirements +)+ {
                 type IntoItem = Option<$result>;
                 fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-                    A::get(object).into_iter().$selector()
+                    A::get_opt(object).map(|object| Self::calculate(object)).flatten()
                 }
             }
-            impl<A, I, T> OptionGetter for $name<A> where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>, I: Ord + Clone {
+            impl<A, N, T> OptionGetter for $name<A>
+                where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<N>>, N: $($requirements +)+  { //$n: $(as_item!($requirements) +)+ {
                 type IntoItem = $result;
                 fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-                    A::get_opt(object).map(|e| e.into_iter().$selector()).flatten()
+                    A::get_opt(object).map(|object| Self::calculate(object)).flatten()
                 }
+            }
+            impl<A, N, T> CalculateStat<N, Option<$result>> for $name<A> where A: Attribute<Object=T>, N: $($requirements +)+  {
+                $calculate
             }
         }
     }
-
-    trait OptionMinMax<T: PartialOrd + Clone>: Iterator<Item=T> + Sized {
-        fn minmax_into_option(self) -> Option<(T, T)> { Itertools::minmax(self).into_option() }
-    }
-    impl<I, T> OptionMinMax<T> for I where I: Iterator<Item=T> + Sized, T: PartialOrd + Clone {}
+    //
+    // trait Unwrap<T,I> { fn unwrap(&self) -> I; }
+    // impl Unwrap<usize, f64> for std::result::Result<f64, <usize as TryInto<f64>>::Err> {
+    //     fn unwrap(&self) -> f64 {
+    //         self.unwrap()
+    //     }
+    // }
 
     //TODO min_by/max_by/minmax_by
-    impl_minmax!(Min,    min -> I);
-    impl_minmax!(Max,    max -> I);
-    impl_minmax!(MinMax, minmax_into_option -> (I, I));
-
-    pub struct Mean<A: Attribute>(pub A);
-    impl<A, T> Attribute for Mean<A> where A: Attribute<Object=T> {
-        type Object = T;
-    }
-    impl<A> Mean<A> where A: Attribute {
-        fn calculate_mean<N>(vector: Vec<N>) -> OrdF64 where N: Sum + Into<f64> {
-            let length = vector.len() as f64;
-            let sum = vector.into_iter().sum::<N>().into();
-            OrdF64::from(sum / length)
+    impl_calculator!(Min -> N where N: Ord, Clone;
+        fn calculate(vector: Vec<N>) -> Option<N> { vector.into_iter().min() }
+    );
+    impl_calculator!(Max -> N where N: Ord, Clone;
+        fn calculate(vector: Vec<N>) -> Option<N> { vector.into_iter().max() }
+    );
+    impl_calculator!(MinMax -> (N, N) where N: Ord, Clone;
+        fn calculate(vector: Vec<N>) -> Option<(N,N)> { vector.into_iter().minmax().into_option() }
+    );
+    impl_calculator!(Mean -> Fraction<N> where N: Sum;
+        fn calculate(vector: Vec<N>) -> Option<Fraction<N>> {
+            let length = vector.len();
+            let sum = vector.into_iter().sum::<N>();
+            if length == 0 {
+                None
+            } else {
+                Some(Fraction::new(sum, length))
+            }
         }
-    }
-    impl<A, I, T> Getter for Mean<A>
-        where I: Sum + Into<f64>, // Just Into<f64>?
-              A: Attribute<Object=T> + Getter<IntoItem=Vec<I>> + Sum<I> {
-
-        type IntoItem = OrdF64;
-        fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-            Self::calculate_mean(A::get(object))
-        }
-    }
-    impl<A, I, T> OptionGetter for Mean<A>
-        where I: Sum + Into<f64>, // Just Into<f64>?
-              A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
-
-        type IntoItem = OrdF64;
-        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            A::get_opt(object).map(|vector| Self::calculate_mean(vector))
-        }
-    }
-
-    pub struct Median<A: Attribute>(pub A);
-    impl<A, T> Attribute for Median<A> where A: Attribute<Object=T> {
-        type Object = T;
-    }
-    impl<A> Median<A> where A: Attribute {
-        fn calculate_median<N>(mut items: Vec<N>) -> Option<OrdF64>
-            where N: Sum + Ord + Into<f64> + Clone {
-            //let items: Vec<N> = vector.into_iter().sorted().collect();
+    );
+    impl_calculator!(Median -> Fraction<N> where N: Ord, Clone, Sum;
+        fn calculate(mut items: Vec<N>) -> Option<Fraction<N>> {
             items.sort();
             let length = items.len();
             if length == 0 {
                 None
             } else {
-                let value: f64 =
+                let value: Fraction<N> =
                     if length == 1 {
-                        items[0].clone().into()
+                        Fraction::new(items[0].clone(), 1)
                     } else if length % 2 != 0usize {
-                        items[length / 2].clone().into()
+                        Fraction::new(items[length / 2].clone(), 1)
                     } else {
-                        let left = items[(length / 2) - 1].clone().into();
-                        let right = items[(length / 2)].clone().into();
-                        (left + right) / 2f64
+                        let left: N = items[(length / 2) - 1].clone();
+                        let right: N = items[(length / 2)].clone();
+                        Fraction::new(vec![left, right].into_iter().sum(), 2)
                     };
-                Some(OrdF64::from(value))
+                Some(value)
             }
         }
-    }
-    impl<A, I, T> Getter for Median<A>
-        where I: Sum + Ord + Into<f64> + Clone, // Just Into<f64>?
-              A: Attribute<Object=T> + Getter<IntoItem=Vec<I>> + Sum<I> {
-        type IntoItem = Option<OrdF64>; // TODO None == NAN
-        fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-            Self::calculate_median(A::get(object))
-        }
-    }
-    impl<A, I, T> OptionGetter for Median<A>
-        where I: Sum + Ord + Into<f64> + Clone, // Just Into<f64>?
-              A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> + Sum<I> {
-        type IntoItem = OrdF64;
-        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            A::get_opt(object).map(|v| {
-                Self::calculate_median(v)
-            }).flatten()
-        }
-    }
+    );
 }
 
-pub mod retrieve {
+pub mod get {
     use crate::attrib::*;
     use crate::iterators::ItemWithData;
 

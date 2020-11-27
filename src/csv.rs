@@ -8,10 +8,11 @@ use itertools::Itertools;
 
 use crate::objects::*;
 use crate::iterators::*;
+use crate::fraction::*;
 
 macro_rules! create_file {
     ($location:expr) => {{
-        let path = std::path::PathBuf::from($location.into());
+        let path = std::path::PathBuf::from($location.clone());
         let dir_path = { let mut dir_path = path.clone(); dir_path.pop(); dir_path };
         std::fs::create_dir_all(&dir_path)?;
         std::fs::File::create(path)
@@ -24,10 +25,45 @@ pub trait CSV {
 
 impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
     fn into_csv(self, location: impl Into<String>) -> Result<(), std::io::Error> {
+        let location = location.into();
+        eprintln!("Writing to CSV file at {}", location);
         let mut file = create_file!(location)?;
         writeln!(file, "{}", T::csv_header())?;
         for element in self { writeln!(file, "{}", element.to_csv_item())?; }
+        eprintln!("Done writing to CSV file at {}", location);
         Ok(())
+    }
+}
+
+pub trait JoinConvenience {
+    fn to_space_separated_string(&self) -> String;
+    fn to_comma_separated_string(&self) -> String;
+}
+
+impl<T> JoinConvenience for Vec<T> where T: Display {
+    fn to_space_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join(" ")
+    }
+    fn to_comma_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join(",")
+    }
+}
+
+impl<T> JoinConvenience for Option<T> where T: JoinConvenience {
+    fn to_space_separated_string(&self) -> String {
+        self.as_ref().map_or(String::new(),|v| v.to_space_separated_string())
+    }
+    fn to_comma_separated_string(&self) -> String {
+        self.as_ref().map_or(String::new(),|v| v.to_comma_separated_string())
+    }
+}
+
+impl<T> JoinConvenience for &Vec<T> where T: Display {
+    fn to_space_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join(" ")
+    }
+    fn to_comma_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join(" ")
     }
 }
 
@@ -66,10 +102,10 @@ pub trait CSVItem {
     fn column_headers() -> Vec<&'static str>;
     fn column_values(&self) -> Vec<String>;
     fn csv_header() -> String {
-        Self::column_headers().into_iter().map(|header| header.to_owned()).join(", ")
+        Self::column_headers().into_iter().map(|header| header.to_owned()).join(",")
     }
     fn to_csv_item(&self) -> String {
-        self.column_values().join(", ")
+        self.column_values().join(",")
     }
 }
 
@@ -111,6 +147,12 @@ impl_csv_item_to_string!(usize, "n");
 
 impl_csv_item_quoted!(String, "string");
 
+// FIXME more typess of N
+impl<N> CSVItem for Fraction<N> where N: Clone + Into<usize> {
+    fn column_headers() -> Vec<&'static str> { vec!["n"] }
+    fn column_values(&self) -> Vec<String> { vec![self.as_fraction_string()] }
+}
+
 impl_csv_item_inner!(ProjectId, "project_id");
 impl_csv_item_inner!(CommitId, "commit_id");
 impl_csv_item_inner!(UserId, "user_id");
@@ -121,6 +163,21 @@ impl<T> CSVItem for Option<T> where T: CSVItem {
     fn column_headers() -> Vec<&'static str> { T::column_headers() }
     fn column_values(&self) -> Vec<String> {
         self.as_ref().map_or(vec![], |e| e.column_values())
+    }
+}
+
+impl<Ta, Tb> CSVItem for (Ta, Tb) where Ta: CSVItem, Tb: CSVItem {
+    fn column_headers() -> Vec<&'static str> {
+        let mut combined = Vec::new();
+        combined.append(&mut Ta::column_headers());
+        combined.append(&mut Tb::column_headers());
+        combined
+    }
+    fn column_values(&self) -> Vec<String> {
+        let mut combined = Vec::new();
+        combined.append(&mut self.0.column_values());
+        combined.append(&mut self.1.column_values());
+        combined
     }
 }
 
@@ -227,6 +284,27 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
     }
 }
 
+impl<'a> CSVItem for ItemWithData<'a, Commit> {
+    fn column_headers() -> Vec<&'static str> {
+        vec!["id", "hash",
+             "committer_id", "author_id",
+             "parent_ids", "parent_count",
+             "author_timestamp", "committer_timestamp",
+             "changed_paths", "changed_path_count" ,
+             "message", "message_length"]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![self.id().to_string(), self.hash().to_string_or_empty(),
+            self.committer_id().to_string(), self.author_id().to_string(),
+            self.parent_ids().to_space_separated_string(), self.parent_count().to_string(),
+            self.author_timestamp().to_string_or_empty(), self.committer_timestamp().to_string_or_empty(),
+            self.changed_path_ids().to_space_separated_string(), self.changed_snapshot_count().to_string_or_empty(),
+            self.message().to_string_or_empty(), self.message_length().to_string_or_empty()]
+    }
+}
+
+
 impl<'a> CSVItem for ItemWithData<'a, User> {
     fn column_headers() -> Vec<&'static str> {
         vec!["id", "email",
@@ -244,6 +322,73 @@ impl<'a> CSVItem for ItemWithData<'a, User> {
              self.experience().to_string_or_empty()]
     }
 }
+
+
+impl<'a> CSVItem for ItemWithData<'a, Option<Project>> { // FIXME implement a full complement of types, do a macro
+    fn column_headers() -> Vec<&'static str> {
+        ItemWithData::<Project>::column_headers()
+    }
+    fn column_values(&self) -> Vec<String> {
+        self.item.as_ref()
+            .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+            .unwrap_or(vec![])
+    }
+}
+
+impl<'a> CSVItem for ItemWithData<'a, Option<usize>> {
+    fn column_headers() -> Vec<&'static str> {
+        ItemWithData::<usize>::column_headers()
+    }
+    fn column_values(&self) -> Vec<String> {
+        self.item.as_ref()
+            .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+            .unwrap_or(vec![])
+    }
+}
+
+impl<'a, N> CSVItem for ItemWithData<'a, Fraction<N>> where N: Clone + Into<usize> {
+    fn column_headers() -> Vec<&'static str> {
+        Fraction::<N>::column_headers()
+    }
+    fn column_values(&self) -> Vec<String> {
+        self.item.column_values()
+    }
+}
+
+impl<'a, N> CSVItem for ItemWithData<'a, Option<Fraction<N>>> where N: Clone + Into<usize> {
+    fn column_headers() -> Vec<&'static str> {
+        ItemWithData::<Fraction<N>>::column_headers()
+    }
+    fn column_values(&self) -> Vec<String> {
+        self.item.as_ref()
+            .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+            .unwrap_or(vec![])
+    }
+}
+
+
+// impl<'a, T> CSVItem for ItemWithData<'a, Option<T>> where ItemWithData<'a, T>: CSVItem, T: Clone {
+//     fn column_headers() -> Vec<&'static str> {
+//         ItemWithData::<T>::column_headers()
+//     }
+//
+//     fn column_values(&self) -> Vec<String> {
+//         self.item.as_ref()
+//             .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+//             .unwrap_or(vec![])
+//     }
+// }
+
+impl<'a> CSVItem for ItemWithData<'a, usize> { // TODO all the other ones
+    fn column_headers() -> Vec<&'static str> {
+        usize::column_headers()
+    }
+    fn column_values(&self) -> Vec<String> {
+        self.item.column_values()
+    }
+}
+
+// FIXME could we make GroupIter also work with this directly? (right now one needs to ungroup)
 
 #[derive(Debug)]
 pub enum Error {

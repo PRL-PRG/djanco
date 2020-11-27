@@ -138,7 +138,7 @@ impl Event {
                 format!("Finished {} ({} and {} in memory)", self.event, elapsed, memory)
             }
             (Some(elapsed), None, None) => {
-                format!("Finished {} ({}s)", self.event, elapsed)
+                format!("Finished {} ({})", self.event, elapsed)
             }
         }
     }

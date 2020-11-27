@@ -1,3 +1,4 @@
+mod fraction;
 mod ordf64;
 pub mod commandline;
              pub mod weights_and_measures;

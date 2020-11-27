@@ -19,6 +19,11 @@ impl<'a, T> ItemWithData<'a, T> {
         ItemWithData { data, item }
     }
 }
+impl<'a, T> Clone for ItemWithData<'a, T> where T: Clone {
+    fn clone(&self) -> Self {
+        ItemWithData::new(self.data, self.item.clone())
+    }
+}
 
 impl<'a> Into<Project> for ItemWithData<'a, Project> { fn into(self) -> Project { self.item } }
 impl<'a> Into<Commit> for ItemWithData<'a, Commit> { fn into(self) -> Commit { self.item } }

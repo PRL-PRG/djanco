@@ -388,7 +388,7 @@ impl ProjectMetadataSource {
     pub fn created          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, created,       store, pirate, key)           }
     pub fn updated          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
     pub fn pushed           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
-    pub fn master           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
+    pub fn master           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, master,        store, pirate, key)           }
 }
 
 impl MetadataSource for ProjectMetadataSource {

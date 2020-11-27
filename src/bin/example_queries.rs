@@ -23,8 +23,36 @@ fn stars<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl 
         .projects()
         .group_by_attrib(project::Language)
         .sort_by_attrib(project::Stars)
-        .sample(Random(10, Seed(42)))
-        .sample(sample::Distinct(sample::Top(5), sample::Ratio(project::Commits, 0.9)))
+        .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
+        .ungroup()
+}
+
+fn mean_changed_paths<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .group_by_attrib(project::Language)
+        .sort_by_attrib(stats::Mean(get::FromEach(project::Commits, stats::Count(commit::Paths))))
+        .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
+        .ungroup()
+}
+
+fn median_changed_paths<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .group_by_attrib(project::Language)
+        .sort_by_attrib(stats::Median(get::FromEach(project::Commits, stats::Count(commit::Paths))))
+        .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
+        .ungroup()
+}
+
+fn experienced_authors_ratio<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .group_by_attrib(project::Language)
+        .filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
+        //FIXME
+        //.filter_by_attrib(require::AtLeast(stats::Ratio(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))), 0.5))
+        .sample(sample::Distinct(sample::Random(50, Seed(42)), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }
 
@@ -38,5 +66,8 @@ fn main() {
     let store = DatastoreView::new(config.dataset_path(), now);
     let database = Database::from_store(store, config.cache_path(), log.clone());
 
-    stars(&config, &log, &database).into_csv(config.output_csv_path("stars")).unwrap()
+    stars(&config, &log, &database).into_csv(config.output_csv_path("stars")).unwrap();
+    mean_changed_paths(&config, &log, &database).into_csv(config.output_csv_path("mean_changed_paths")).unwrap();
+    median_changed_paths(&config, &log, &database).into_csv(config.output_csv_path("median_changed_paths")).unwrap();
+
 }

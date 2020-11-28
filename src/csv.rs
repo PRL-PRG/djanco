@@ -300,7 +300,7 @@ impl<'a> CSVItem for ItemWithData<'a, Commit> {
             self.parent_ids().to_space_separated_string(), self.parent_count().to_string(),
             self.author_timestamp().to_string_or_empty(), self.committer_timestamp().to_string_or_empty(),
             self.changed_path_ids().to_space_separated_string(), self.changed_snapshot_count().to_string_or_empty(),
-            self.message().to_string_or_empty(), self.message_length().to_string_or_empty()]
+            self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()]
     }
 }
 

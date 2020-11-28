@@ -35,3 +35,5 @@ fn main() {
     database.projects().select_by_attrib(stats::Median(get::FromEach(project::Commits, commit::MessageLength))).into_csv(config.output_csv_path("select_median_commit_messages_length")).unwrap();
 
 }
+
+

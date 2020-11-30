@@ -16,7 +16,7 @@ fn main() {
     let store = DatastoreView::new(config.dataset_path(), now);
     let database = Database::from_store(store, config.cache_path(), log);
 
-    database.projects().into_csv("projects.csv").unwrap();
+
 
 
     // let snapshot1 =

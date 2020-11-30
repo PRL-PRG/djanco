@@ -40,4 +40,21 @@ impl Configuration {
         path.set_extension("csv");
         path.to_str().unwrap().to_owned()
     }
+
+    pub fn output_path_in_subdir<Sa, Sb, Sc>(&self, subdir: Sa, file: Sb, extension: Sc) -> std::io::Result<String>
+        where Sa: Into<String>, Sb: Into<String>, Sc: Into<String> {
+
+        let mut path: PathBuf = self.output_path.clone();
+        path.push(subdir.into());
+        match std::fs::create_dir_all(path.clone()) {
+            Ok(()) => {
+                path.push(file.into());
+                path.set_extension(extension.into());
+                Ok(path.to_str().unwrap().to_owned())
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }
+    }
 }

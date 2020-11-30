@@ -13,6 +13,8 @@ use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
 use djanco::commandline::*;
+use std::fs::File;
+use std::io::Write;
 
 // TODO
 // * snapshots aka file contents
@@ -63,6 +65,17 @@ fn main() {
         let selected_snapshot_ids: Vec<SnapshotId> =
             SnapshotId::from_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap();
         BTreeSet::from_iter(selected_snapshot_ids.into_iter())
+    });
+
+    let (export_snapshots_secs) = with_elapsed_secs!("export snapshots", {
+        for snapshot_id in selected_snapshot_ids.iter() {
+            if let Some(snapshot) = database.snapshot(snapshot_id) {
+                //snapshot.raw_contents()
+                let path = config.output_path_in_subdir("snapshots", snapshot_id.to_string(), "txt").unwrap();
+                let mut file = File::create(path).unwrap();
+                file.write(snapshot.raw_contents()).unwrap();
+            }
+        }
     });
 
     let (selected_projects, select_projects_secs) = with_elapsed_secs!("select projects", {

@@ -17,13 +17,9 @@ fn main() {
     let store = DatastoreView::new(config.dataset_path(), now);
     let database = Database::from_store(store, config.cache_path(), log);
 
-    database.projects().filter(|p| {
-        p.url().contains("hlavacs") ||
-            p.url().contains("mart-common" ) ||
-            p.url().contains("MBalszun") ||
-            p.url().contains("SchrodingerZhu")
-    }).for_each(|p| println!("{:?} {:?}",  p.id(),  p.url()))
+    database.commits().take(10).map(|c| c.hash()).for_each(|e| println!("{:?}", e))
 
+    //database.projects().filter(|p| p.id() == )
     // let x: Vec<(String, String, /*String,*/ SnapshotId)> =
     // database.projects().take(10).flat_map(|project| {
     //     let project_id = project.url().clone();

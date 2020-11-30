@@ -691,8 +691,8 @@ impl MapExtractor for CommitHashExtractor {
 impl SingleMapExtractor for CommitHashExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        store.commits().map(|(id, commit)| {
-            (CommitId::from(id), String::new()) // FIXME hashes are not stored in CommitInfo? Need to ask Peta about this.
+        store.commit_hashes().map(|(id, commit_hash)| {
+            (CommitId::from(id), commit_hash.to_string())
         }).collect()
     }
 }

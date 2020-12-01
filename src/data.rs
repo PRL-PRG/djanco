@@ -75,7 +75,7 @@ impl Database {
         )
     }
     pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
-        self.store.contents().map(|(id, _)| SnapshotId::from(id))
+        self.store.contents().map(|(id, _hash_id)| SnapshotId::from(id))
     }
     // pub fn snapshots_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=Snapshot> + 'a
     //     where F: Fn(&Snapshot) -> bool + 'a {
@@ -733,7 +733,9 @@ impl MapExtractor for CommitChangesExtractor {
 impl SingleMapExtractor for CommitChangesExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        let hash_id_to_content_id_map: BTreeMap<u64, u64> = store.contents().collect();
+        let hash_id_to_content_id_map: BTreeMap<u64, u64> = store.contents()
+            .map(|(content_id, hash_id)| (hash_id, content_id))
+            .collect();
 
         store.commits().map(|(id, commit)| {
             let commit_id = CommitId::from(id);

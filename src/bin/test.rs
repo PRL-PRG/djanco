@@ -18,30 +18,53 @@ fn main() {
     let config = Configuration::from_args();
     let log = Log::new(Verbosity::Debug);
 
+    let wanted_commit_id = 46349u64;
+
     let store = DatastoreView::new(config.dataset_path(), now);
 
-    // let database = Database::from_store(store, config.cache_path(), log);
+    let database = Database::from_store(store, config.cache_path(), log);
 
+    //println!("{}", database.snapshot(&SnapshotId::from(91851u64)).unwrap().contents());
 
-    let hash_id_to_content_id_map: BTreeMap<u64, u64> = store.contents().collect();
+    database.projects().filter(|p| p.id().0 == 1u64)
+        .for_each(|project| {
+            project.commits().unwrap().iter()
+                .filter(|c| c.hash(project.data).unwrap().to_string() == "f42ad929576723db1af0f416886f57e4cb057d48".to_owned())
+                .for_each(|c| c.changed_snapshots(project.data).unwrap().iter().for_each(|s| println!("-----------------\n{}\n{}\n=================\n", s.id(), s.contents())))
+        })
 
-    let content_ids: Vec<(u64, Option<u64>)> =
-        store.commits().flat_map(|(id, commit)| {
-            commit.changes.iter().map(|(path_id, hash_id)| {
-                let content_id: Option<&u64> = hash_id_to_content_id_map.get(hash_id);
-                (id, content_id.map(|e| *e))
-            }).collect::<Vec<(u64, Option<u64>)>>()
-        }).collect();
-
-    content_ids.into_iter()
-        .filter(|(id, content_id)| *id == 46344u64)
-        .for_each(|(id, content_id)| {
-            println!("{} {:?}", id, content_id);
-            let content = store.content_data(content_id.unwrap()).unwrap();
-            //println!("{}", content.unwrap());
-            let mut file = File::create("kill_me_now.txt").unwrap();
-            file.write(content.as_slice()).unwrap();
-        });
+    // store.commit_hashes()
+    //     .filter(|(commit_id, hash)| {
+    //         hash.to_string() == "f42ad929576723db1af0f416886f57e4cb057d48".to_owned()
+    //     })
+    //     .for_each(|(commit_id, hash)| {
+    //         println!("commit_id {} -> {}", commit_id, hash.to_string())
+    //     });
+    //
+    //
+    // let hash_id_to_content_id_map: BTreeMap<u64, u64> = store.contents().map(|(a, b)| (b, a)).collect();
+    //
+    // let content_ids: Vec<(u64, Option<u64>)> =
+    //     store.commits().flat_map(|(id, commit)| {
+    //         commit.changes.iter().map(|(path_id, hash_id)| {
+    //             let content_id: Option<&u64> = hash_id_to_content_id_map.get(hash_id);
+    //             (id, content_id.map(|e| *e))
+    //         }).collect::<Vec<(u64, Option<u64>)>>()
+    //     }).collect();
+    //
+    // content_ids.into_iter()
+    //     .filter(|(id, content_id)| *id == wanted_commit_id)
+    //     .for_each(|(id, content_id)| {
+    //         println!("{} {:?}", id, content_id);
+    //         if content_id.is_some() {
+    //             let content = store.content_data(content_id.unwrap());
+    //             //println!("{}", content.unwrap());
+    //             let mut file = File::create(format!("{}.txt", content_id.unwrap()).unwrap();
+    //             if content.is_some() {
+    //                 file.write(content.unwrap().as_slice()).unwrap();
+    //             }
+    //         }
+    //     });
 
     // // FIXME i think path retrieval is screwed up: needs testing
     // database.snapshots().filter(|snapshot|{

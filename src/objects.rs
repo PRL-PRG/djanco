@@ -373,6 +373,25 @@ impl Head {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Change {
+    pub(crate) path: PathId,
+    pub(crate) hash: u64, // TODO could change into HeadId
+    pub(crate) snapshot: Option<SnapshotId>,
+}
+
+impl Change {
+    pub fn new(path: PathId, hash: u64, snapshot: Option<SnapshotId>) -> Self {
+        Change { path, hash, snapshot }
+    }
+    pub fn snapshot_id(&self) -> Option<SnapshotId> {
+        self.snapshot.clone()
+    }
+    pub fn path_id(&self) -> PathId {
+        self.path.clone()
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User { pub(crate) id: UserId, /*pub(crate) name: String,*/ pub(crate) email: String }
 impl User {
     pub fn new                   (id: UserId, email: String) -> Self                  { User { id, email }                                 }
@@ -434,9 +453,9 @@ impl Commit {
     pub fn author_timestamp   (&self, store: &Database) -> Option<i64>                        {  store.commit_author_timestamp(&self.id)            }
     pub fn committer_timestamp(&self, store: &Database) -> Option<i64>                        {  store.commit_committer_timestamp(&self.id)         }
 
-    pub fn change_ids          (&self, store: &Database) -> Option<Vec<(PathId, SnapshotId)>> {  store.commit_change_ids(&self.id)                  }
-    pub fn changed_path_ids    (&self, store: &Database) -> Option<Vec<PathId>>               {  store.commit_change_ids(&self.id).left().map(|v| v.into_iter().unique().collect())     }
-    pub fn changed_snapshot_ids(&self, store: &Database) -> Option<Vec<SnapshotId>>           {  store.commit_change_ids(&self.id).right().map(|v| v.into_iter().unique().collect()) }
+    pub fn changes             (&self, store: &Database) -> Option<Vec<Change>>               {  store.commit_changes(&self.id)                  }
+    pub fn changed_path_ids    (&self, store: &Database) -> Option<Vec<PathId>>               {  store.commit_changes(&self.id).map(|v| v.into_iter().map(|change| change.path_id()).unique().collect())     }
+    pub fn changed_snapshot_ids(&self, store: &Database) -> Option<Vec<SnapshotId>>           {  store.commit_changes(&self.id).map(|v| v.into_iter().flat_map(|change| change.snapshot_id()).unique().collect())     }
 
     pub fn changed_paths       (&self, store: &Database) -> Option<Vec<Path>>                 {  store.commit_changed_paths(&self.id)               }
     pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
@@ -508,6 +527,8 @@ impl Snapshot {
     pub fn contents(&self) -> Cow<str> { self.contents.to_str_lossy() }
     pub fn contents_owned(&self) -> String { self.contents.to_str_lossy().to_string() }
     pub fn contains(&self, needle: &str) -> bool { self.contents().contains(needle) }
+
+    // FIXME add hashes
 }
 impl Identifiable for Snapshot {
     type Identity = SnapshotId;
@@ -603,7 +624,7 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn message_length     (&self) -> Option<usize>                      { self.item.message_length(&self.data)       }
     pub fn author_timestamp   (&self) -> Option<i64>                        { self.item.author_timestamp(&self.data)     }
     pub fn committer_timestamp(&self) -> Option<i64>                        { self.item.committer_timestamp(&self.data)  }
-    pub fn change_ids          (&self) -> Option<Vec<(PathId, SnapshotId)>> { self.item.change_ids(&self.data)           }
+    pub fn changes            (&self) -> Option<Vec<Change>>                { self.item.changes(&self.data)                    }
     pub fn changed_path_ids    (&self) -> Option<Vec<PathId>>               { self.item.changed_path_ids(&self.data)     }
     pub fn changed_snapshot_ids(&self) -> Option<Vec<SnapshotId>>           { self.item.changed_snapshot_ids(&self.data) }
     pub fn changed_paths       (&self) -> Option<Vec<Path>>                 { self.item.changed_paths(&self.data)        }

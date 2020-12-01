@@ -52,7 +52,7 @@ impl<I> Iterator for OptionIter<I> where I: Iterator {
 
 // Quincunx
 impl Database {
-    pub fn projects(&self)  -> QuincunxIter<Project>  { QuincunxIter::<Project>::new(&self ) }
+    pub fn projects(&self)  -> QuincunxIter<Project>  { QuincunxIter::<Project>::new(&self)  }
     pub fn commits(&self)   -> QuincunxIter<Commit>   { QuincunxIter::<Commit>::new(&self)   }
     pub fn users(&self)     -> QuincunxIter<User>     { QuincunxIter::<User>::new(&self)     }
     pub fn paths(&self)     -> QuincunxIter<Path>     { QuincunxIter::<Path>::new(&self)     }
@@ -61,14 +61,14 @@ impl Database {
 // Uncached stuff
 impl Database {
     pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
-        self.store.content(id.into())
+        self.store.content_data(id.into())
             .map(|content| Snapshot::new(id.clone(), content))
     }
     pub fn snapshots<'a>(&'a self) -> impl Iterator<Item=Snapshot> + 'a {
         LogIter::new(
             "reading snapshots",
             &self.log,Verbosity::Log,
-            self.store.contents()
+            self.store.contents_data()
                 .map(|(id, content)| {
                     Snapshot::new(SnapshotId::from(id), content)
                 })
@@ -216,7 +216,7 @@ impl Database {
     pub fn project_snapshots(&self, id: &ProjectId) -> Option<Vec<Snapshot>> {
         self.project_snapshot_ids(id).map(|vector| {
             vector.into_iter().flat_map(|id| {
-                self.store.content(id.into()).map(|content| {
+                self.store.content_data(id.into()).map(|content| {
                     Snapshot::new(id, content)
                 })
             }).collect::<Vec<Snapshot>>()
@@ -267,8 +267,8 @@ impl Database {
     pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<i64> {
         self.data.borrow_mut().commit_committer_timestamp(&self.store, id)
     }
-    pub fn commit_change_ids(&self, id: &CommitId) -> Option<Vec<(PathId, SnapshotId)>> {
-        self.data.borrow_mut().commit_change_ids(&self.store, id).pirate()
+    pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<Change>> {
+        self.data.borrow_mut().commit_changes(&self.store, id).pirate()
     }
     pub fn commit_changed_paths(&self, id: &CommitId) -> Option<Vec<Path>> {
         self.data.borrow_mut().commit_changed_paths(&self.store, id)
@@ -361,7 +361,7 @@ impl MapExtractor for ProjectSnapshotsExtractor {
 }
 impl DoubleMapExtractor for ProjectSnapshotsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, Vec<(PathId, SnapshotId)>>;
+    type B = BTreeMap<CommitId, Vec<Change>>;
 
     fn extract(project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commit_ids.iter().map(|(project_id, commit_ids)| {
@@ -370,8 +370,8 @@ impl DoubleMapExtractor for ProjectSnapshotsExtractor {
                     let path_ids_option =
                         commit_change_ids.get(commit_id).map(|changes| {
                             let vector: Vec<SnapshotId> =
-                                changes.iter().map(|(_, snapshot_id)| {
-                                    snapshot_id.clone()
+                                changes.iter().flat_map(|change| {
+                                    change.snapshot_id()
                                 }).collect();
                             vector
                         });
@@ -389,7 +389,7 @@ impl MapExtractor for ProjectPathsExtractor {
 }
 impl DoubleMapExtractor for ProjectPathsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, Vec<(PathId, SnapshotId)>>;
+    type B = BTreeMap<CommitId, Vec<Change>>;
 
     fn extract(project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commit_ids.iter().map(|(project_id, commit_ids)| {
@@ -398,8 +398,8 @@ impl DoubleMapExtractor for ProjectPathsExtractor {
                     let path_ids_option =
                         commit_change_ids.get(commit_id).map(|changes| {
                             let vector: Vec<PathId> =
-                                changes.iter().map(|(path_id, _)| {
-                                    path_id.clone()
+                                changes.iter().map(|change| {
+                                    change.path_id()
                                 }).collect();
                             vector
                         });
@@ -663,7 +663,7 @@ impl MapExtractor for SnapshotExtractor {
 impl SingleMapExtractor for SnapshotExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        store.contents().map(|(id, contents)| {
+        store.contents_data().map(|(id, contents)| {
             (SnapshotId::from(id), Snapshot::new(SnapshotId::from(id), contents))
         }).collect()
     }
@@ -728,15 +728,23 @@ impl SingleMapExtractor for CommitterTimestampExtractor {
 struct CommitChangesExtractor {}
 impl MapExtractor for CommitChangesExtractor {
     type Key = CommitId;
-    type Value = Vec<(PathId, SnapshotId)>;
+    type Value = Vec<Change>;
 }
 impl SingleMapExtractor for CommitChangesExtractor {
     type A = DatastoreView;
     fn extract(store: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        let hash_id_to_content_id_map: BTreeMap<u64, u64> = store.contents().collect();
+
         store.commits().map(|(id, commit)| {
-            (CommitId::from(id), commit.changes.iter().map(|(path_id, snapshot_id)|
-                (PathId::from(path_id), SnapshotId::from(snapshot_id))).collect())
-        }).collect() // TODO maybe return iter?
+            let commit_id = CommitId::from(id);
+            let changes = commit.changes.iter()
+                .map(|(path_id, hash_id)| {
+                    let snapshot_id = hash_id_to_content_id_map.get(hash_id)
+                        .map(|content_id| SnapshotId::from(content_id));
+                    Change::new(PathId::from(path_id), *hash_id, snapshot_id)
+                }).collect::<Vec<Change>>();
+            (commit_id, changes)
+        }).collect()
     }
 }
 
@@ -804,7 +812,7 @@ pub(crate) struct Data {
     commit_committer_timestamps: PersistentMap<CommitterTimestampExtractor>,
     commit_changes:              PersistentMap<CommitChangesExtractor>,
 
-    commit_change_count:         PersistentMap<CountPerKeyExtractor<CommitId, (PathId, SnapshotId)>>,
+    commit_change_count:         PersistentMap<CountPerKeyExtractor<CommitId, Change>>,
 
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
@@ -1068,12 +1076,12 @@ impl Data {
     pub fn commit_committer_timestamp(&mut self, store: &DatastoreView, id: &CommitId) -> Option<i64> {
         self.smart_load_commit_committer_timestamps(store).get(id).pirate()
     }
-    pub fn commit_change_ids(&mut self, store: &DatastoreView, id: &CommitId) -> Option<&Vec<(PathId, SnapshotId)>> {
+    pub fn commit_changes(&mut self, store: &DatastoreView, id: &CommitId) -> Option<&Vec<Change>> {
         self.smart_load_commit_changes(store).get(id)
     }
     pub fn commit_changed_paths(&mut self, store: &DatastoreView, id: &CommitId) -> Option<Vec<Path>> {
         self.smart_load_commit_changes(store).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|(path_id, _)| self.path(store, path_id).pirate()).collect()
+            ids.iter().flat_map(|change| self.path(store, &change.path_id()).pirate()).collect()
         })
     }
     pub fn commit_change_count(&mut self, store: &DatastoreView, id: &CommitId) -> Option<usize> {
@@ -1241,7 +1249,7 @@ impl Data {
     fn smart_load_commit_author_timestamps(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, i64> {
         load_from_store!(self, commit_author_timestamps, store)
     }
-    fn smart_load_commit_changes(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, Vec<(PathId, SnapshotId)>> {
+    fn smart_load_commit_changes(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, Vec<Change>> {
         load_from_store!(self, commit_changes, store)
     }
     fn smart_load_commit_change_count(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, usize> {

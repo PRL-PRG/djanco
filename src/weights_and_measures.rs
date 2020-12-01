@@ -72,6 +72,7 @@ quick_impl_countable!(Commit);
 quick_impl_countable!(Path);
 quick_impl_countable!(Snapshot);
 quick_impl_countable!(Head);
+quick_impl_countable!(Change);
 quick_impl_countable!(Language);
 
 quick_impl_countable!(UserId);
@@ -133,7 +134,7 @@ quick_impl_weighed!(ProjectId);
 quick_impl_weighed!(CommitId);
 quick_impl_weighed!(PathId);
 quick_impl_weighed!(SnapshotId);
-
+quick_impl_weighed!(Change);
 quick_impl_weighed!(Language);
 
 macro_rules! quick_impl_weighed_static_collection {

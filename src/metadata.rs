@@ -238,8 +238,8 @@ trait MetadataSource {
                 })
                 .map(|(project_id, content_id)| (content_id, project_id))
                 .collect();
-
-        store.contents()
+        // FIXME random access will probably work better
+        store.contents_data()
             .filter(|(content_id, _)| content_project_ids.contains_key(content_id))
             .flat_map(|(content_id, contents)| {
                 serde_json::from_slice(contents.as_slice())

@@ -226,14 +226,14 @@ impl<T,M> MetadataVec<M> where M: MetadataFieldExtractor<Value=T>, T: Clone + Pe
 }
 
 trait MetadataSource {
-    fn load_metadata(&mut self, store: &DatastoreView) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
+    fn _load_metadata(&mut self, store: &DatastoreView) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
         let content_project_ids: HashMap<u64, u64> =
             store.projects_metadata()
                 .filter(|(_, meta)| meta.key == "github_metadata")
                 .map(|(id, metadata)| {
                     let value = metadata.value.parse::<u64>()
                         .expect(&format!("Could not parse {} as u64", metadata.value));
-                    eprintln!("metadata project_id={}->content_id={}", id, value); // FIXME! remove! hasty debug!
+                    //eprintln!("metadata project_id={}->content_id={}", id, value); // FIXME! remove! hasty debug!
                     (id, value)
                 })
                 .map(|(project_id, content_id)| (content_id, project_id))
@@ -262,6 +262,47 @@ trait MetadataSource {
                             })
                     }).flatten()
             }).collect()
+    }
+
+    // Rewritten to use content_data instead of contents_data
+    fn load_metadata(&mut self, store: &DatastoreView) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
+        store.projects_metadata()
+            .filter(|(_, meta)| meta.key == "github_metadata")
+            .map(|(project_id, metadata)| {
+                (project_id, metadata.value)
+            })
+            .map(|(project_id, content_id_as_string)| {
+                let content_id = content_id_as_string.parse::<u64>()
+                    .expect(&format!("Could not parse {} as u64", content_id_as_string));
+                eprintln!("metadata project_id={}->content_id={}", project_id, content_id); // FIXME! remove! hasty debug!
+                (project_id, content_id)
+            })
+            //.map(|(project_id, content_id)| {
+            //    (ProjectId::from(project_id), SnapshotId::from(content_id))
+            //})
+            .flat_map(|(project_id, content_id)| {
+                store.content_data(content_id).map(|content_data| {
+                    (project_id, content_id, content_data)
+                })
+            })
+            .flat_map(|(project_id, content_id, content_data)| {
+                let json: Option<JSON> =
+                    serde_json::from_slice(content_data.as_slice())
+                        .warn(&format!("Failed to parse JSON for content ID {} and content:\n>> {}\n",
+                                       content_id, content_data.to_str_lossy().replace("\n", "\n>> ")))
+                        .map_or_else(|_| None, |value| Some(value));
+                json.map(|json| (project_id, json))
+            })
+            .map(|(project_id, json)|
+                match json {
+                    JSON::Object(map) => (project_id, map),
+                    value => panic!("Unexpected JSON value for project ID {} for metadata: {:?}", project_id, value),
+                }
+            )
+            .map(|(project_id, map)|
+                (ProjectId::from(project_id), map)
+            )
+            .collect()
     }
 
     fn load_all_from_store(&mut self, store: &DatastoreView) {

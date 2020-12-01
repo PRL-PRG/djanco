@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use crate::iterators::ItemWithData;
 
 pub trait Pick {
     type Ta;
@@ -6,6 +7,11 @@ pub trait Pick {
     fn left(self)  -> Self::Ta;
     fn right(self) -> Self::Tb;
 }
+
+// pub trait MapLeftOrRight<Ta, Tb>: IntoIter<(Ta, Tb)> {
+//     fn map_left<Fn>(self, F:) -> Iterator<Ta>;
+//     fn map_right(self) -> Iterator<Ta>;
+// }
 
 impl<Ta, Tb> Pick for (Ta, Tb) {
     type Ta = Ta;

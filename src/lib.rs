@@ -1,3 +1,4 @@
+#![type_length_limit="1405002"]
 mod fraction;
 mod ordf64;
 pub mod commandline;

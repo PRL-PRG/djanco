@@ -67,7 +67,7 @@ fn main() {
         BTreeSet::from_iter(selected_snapshot_ids.into_iter())
     });
 
-    let (export_snapshots_secs) = with_elapsed_secs!("export snapshots", {
+    let export_snapshots_secs = elapsed_secs!("export snapshots", {
         for snapshot_id in selected_snapshot_ids.iter() {
             if let Some(snapshot) = database.snapshot(snapshot_id) {
                 //snapshot.raw_contents()
@@ -100,6 +100,7 @@ fn main() {
     //eprintln!("   find snapshots:         {}s", find_snapshots_secs);
     //eprintln!("   save snapshots:         {}s", save_snapshots_secs);
     eprintln!("   load snapshots:         {}s", load_snapshots_secs);
+    eprintln!("   export snapshots:       {}s", export_snapshots_secs);
     eprintln!("   select projects:        {}s", select_projects_secs);
     eprintln!("   save selected projects: {}s", save_selected_projects_secs);
 }

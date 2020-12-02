@@ -168,7 +168,7 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
         -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
         where S: Sampler<T> {
         let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
-            self.map(|(key, mut vector)| {
+            self.map(|(key, vector)| {
                 (key, sampler.sample_from(vector))
             }).collect();
         vector.into_iter()

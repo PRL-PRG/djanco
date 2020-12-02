@@ -7,7 +7,6 @@ use bstr::ByteSlice;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
-use crate::tuples::Pick;
 use crate::data::Database;
 use crate::iterators::ItemWithData;
 use crate::weights_and_measures::Weighed;
@@ -38,7 +37,7 @@ impl Duration {
         let years = abs_months / YEAR;
         (years, months, days, hours, minutes, seconds)
     }
-    fn to_pretty_string(&self) -> String {
+    pub fn to_pretty_string(&self) -> String {
         if self.seconds == 0 { return "0 seconds".to_owned() }
 
         let (years, months, days, hours, minutes, seconds) = self.as_components();
@@ -52,11 +51,11 @@ impl Duration {
 
         return format!("{}{}{}{}{}{}", years, months, days, hours, minutes, seconds)
     }
-    fn as_seconds(&self) -> u64 {
+    pub fn as_seconds(&self) -> u64 {
         self.seconds
     }
-    fn as_duration(&self) -> chrono::Duration {
-        chrono::Duration::seconds(self.seconds as i64)
+    pub fn as_duration(&self) -> chrono::Duration {
+         chrono::Duration::seconds(self.seconds as i64)
     }
 }
 

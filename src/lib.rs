@@ -1,7 +1,8 @@
 #![type_length_limit="1405002"]
-mod fraction;
-mod ordf64;
-pub mod commandline;
+
+             pub mod fraction;
+             pub mod ordf64;
+             pub mod commandline;
              pub mod weights_and_measures;
 #[macro_use] pub mod log;
              pub mod query;

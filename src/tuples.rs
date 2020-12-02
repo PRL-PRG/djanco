@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashMap};
-use crate::iterators::ItemWithData;
 
 pub trait Pick {
     type Ta;

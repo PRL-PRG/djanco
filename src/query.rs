@@ -379,13 +379,8 @@ pub mod stats {
     #[allow(unused_imports)] use crate::attrib::*;
     use crate::query::*;
     use crate::fraction::*;
-    use crate::iterators::*;
-    use crate::ordf64::OrdF64;
 
     use std::iter::Sum;
-    use std::ops::Add;
-    use std::convert::*;
-    use std::fmt::Display;
     use itertools::Itertools;
 
     pub struct Count<A: Attribute>(pub A);

@@ -1,12 +1,7 @@
-use std::collections::BTreeSet;
-use std::iter::FromIterator;
-
 use structopt::StructOpt;
-use itertools::Itertools;
 
 use dcd::DatastoreView;
 
-use djanco::*;
 use djanco::data::*;
 use djanco::time;
 use djanco::objects::*;
@@ -18,7 +13,7 @@ use djanco::query::*;
 use djanco::iterators::*;
 use djanco::query::sample::*;
 
-fn stars<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn stars<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by_attrib(project::Language)
@@ -27,7 +22,7 @@ fn stars<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl 
         .ungroup()
 }
 
-fn mean_changed_paths<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn mean_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by_attrib(project::Language)
@@ -36,7 +31,7 @@ fn mean_changed_paths<'a>(config: &Configuration, log: &Log, database: &'a Datab
         .ungroup()
 }
 
-fn median_changed_paths<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn median_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by_attrib(project::Language)
@@ -45,7 +40,7 @@ fn median_changed_paths<'a>(config: &Configuration, log: &Log, database: &'a Dat
         .ungroup()
 }
 
-fn experienced_authors_ratio<'a>(config: &Configuration, log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn experienced_authors_ratio<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by_attrib(project::Language)
@@ -69,5 +64,6 @@ fn main() {
     stars(&config, &log, &database).into_csv(config.output_csv_path("stars")).unwrap();
     mean_changed_paths(&config, &log, &database).into_csv(config.output_csv_path("mean_changed_paths")).unwrap();
     median_changed_paths(&config, &log, &database).into_csv(config.output_csv_path("median_changed_paths")).unwrap();
+    experienced_authors_ratio(&config, &log, &database).into_csv(config.output_csv_path("experienced_authors_ratio")).unwrap();
 
 }

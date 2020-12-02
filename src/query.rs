@@ -14,13 +14,13 @@ macro_rules! impl_attribute_getter {
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl Getter for $attribute {
             type IntoItem = $small_type;
-            fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl OptionGetter for $attribute {
             type IntoItem = $small_type;
-            fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.$getter())
             }
         }
@@ -28,13 +28,13 @@ macro_rules! impl_attribute_getter {
     [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl Getter for $attribute {
             type IntoItem = Option<$small_type>;
-            fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl OptionGetter for $attribute {
             type IntoItem = $small_type;
-            fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
                 object.$getter()
             }
         }
@@ -44,19 +44,19 @@ macro_rules! impl_attribute_getter {
 macro_rules! impl_attribute_count {
     [! $object:ty, $attribute:ident, $counter:ident] => {
         impl Countable for $attribute {
-            fn count(object: &ItemWithData<Self::Object>) -> usize {
+            fn count(&self, object: &ItemWithData<Self::Object>) -> usize {
                 object.$counter()
             }
         }
         impl OptionCountable for $attribute {
-            fn count(object: &ItemWithData<Self::Object>) -> Option<usize> {
+            fn count(&self, object: &ItemWithData<Self::Object>) -> Option<usize> {
                 Some(object.$counter())
             }
         }
     };
     [? $object:ty, $attribute:ident, $counter:ident] => {
         impl OptionCountable for $attribute {
-            fn count(object: &ItemWithData<Self::Object>) -> Option<usize> {
+            fn count(&self, object: &ItemWithData<Self::Object>) -> Option<usize> {
                 object.$counter()
             }
         }
@@ -68,7 +68,7 @@ macro_rules! impl_attribute_filter {
         impl Filter for $attribute {
             type Item = $object;
             fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-                Self::get(item_with_data).unwrap_or(false)
+                self.get(item_with_data).unwrap_or(false)
             }
         }
     }
@@ -198,7 +198,7 @@ pub mod require {
             impl<A, N, T> Filter for $name<A, N> where A: OptionGetter<IntoItem=N> + Attribute<Object=T>, N: $trait_limit {
                 type Item = T;
                 fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-                    A::get_opt(item_with_data).map_or($default, |n| n.$comparator(&self.1))
+                    self.0.get_opt(item_with_data).map_or($default, |n| n.$comparator(&self.1))
                 }
             }
         }
@@ -246,7 +246,7 @@ pub mod require {
             impl<A, T> Filter for $name<A> where A: OptionGetter, A: Attribute<Object=T> {
                 type Item = T;
                 fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-                    A::get_opt(item_with_data).$method()
+                    self.0.get_opt(item_with_data).$method()
                 }
             }
         }
@@ -259,7 +259,7 @@ pub mod require {
     impl<'a, A, T> Filter for Same<'a, A> where A: OptionGetter<IntoItem=String>, A: Attribute<Object=T> {
         type Item = T;
         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get_opt(item_with_data).map_or(false, |e| e.as_str() == self.1)
+            self.0.get_opt(item_with_data).map_or(false, |e| e.as_str() == self.1)
         }
     }
 
@@ -267,7 +267,7 @@ pub mod require {
     impl<'a, A, T> Filter for Contains<'a, A> where A: OptionGetter<IntoItem=String>, A: Attribute<Object=T> {
         type Item = T;
         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get_opt(item_with_data).map_or(false, |e| e.contains(self.1))
+            self.0.get_opt(item_with_data).map_or(false, |e| e.contains(self.1))
         }
     }
 
@@ -276,7 +276,7 @@ pub mod require {
     impl<A, T> Filter for  Matches<A> where A: OptionGetter<IntoItem=String>, A: Attribute<Object=T> {
         type Item = T;
         fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool {
-            A::get_opt(item_with_data).map_or(false, |e| self.1.is_match(&e))
+            self.0.get_opt(item_with_data).map_or(false, |e| self.1.is_match(&e))
         }
     }
 }
@@ -355,7 +355,7 @@ pub mod sample {
         type Similarity = MinRatio<Self::IntoItem>;
 
         fn from<'a>(&self, object: &ItemWithData<'a, Self::Item>) -> Self::Similarity {
-            let items = A::get_opt(object).map(|e| {
+            let items = self.0.get_opt(object).map(|e| {
                 BTreeSet::from_iter(e.into_iter())
             });
             MinRatio { min_ratio: self.1, items }
@@ -389,14 +389,14 @@ pub mod stats {
     }
     impl<A, T> Getter for Count<A> where A: Attribute<Object=T> + OptionCountable {
         type IntoItem = usize;
-        fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-            A::count(object).unwrap_or(0)
+        fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            self.0.count(object).unwrap_or(0)
         }
     }
     impl<A, T> OptionGetter for Count<A> where A: Attribute<Object=T> + OptionCountable {
         type IntoItem = usize;
-        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            A::count(object)
+        fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            self.0.count(object)
         }
     }
 
@@ -414,15 +414,15 @@ pub mod stats {
             impl<A, N, T> Getter for $name<A>
                 where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<N>>, N: $($requirements +)+ {
                 type IntoItem = Option<$result>;
-                fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-                    A::get_opt(object).map(|object| Self::calculate(object)).flatten()
+                fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+                    self.0.get_opt(object).map(|object| Self::calculate(object)).flatten()
                 }
             }
             impl<A, N, T> OptionGetter for $name<A>
                 where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<N>>, N: $($requirements +)+  { //$n: $(as_item!($requirements) +)+ {
                 type IntoItem = $result;
-                fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-                    A::get_opt(object).map(|object| Self::calculate(object)).flatten()
+                fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+                    self.0.get_opt(object).map(|object| Self::calculate(object)).flatten()
                 }
             }
             impl<A, N, T> CalculateStat<N, Option<$result>> for $name<A> where A: Attribute<Object=T>, N: $($requirements +)+  {
@@ -495,16 +495,16 @@ pub mod get {
          where O: Attribute<Object=T> + OptionGetter<IntoItem=I>,
                A: Attribute<Object=I> + Getter<IntoItem=E> {
          type IntoItem = Option<E>;
-         fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-            O::get_opt_with_data(object).map(|object| A::get(&object))
+         fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+             self.0.get_opt_with_data(object).map(|object| self.1.get(&object))
          }
     }
     impl<O, A, T, I, E> OptionGetter for From<O, A>
         where O: Attribute<Object=T> + OptionGetter<IntoItem=I>,
               A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
         type IntoItem = E;
-        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            O::get_opt_with_data(object).map(|object| A::get_opt(&object)).flatten()
+        fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            self.0.get_opt_with_data(object).map(|object| self.1.get_opt(&object)).flatten()
         }
     }
 
@@ -517,9 +517,9 @@ pub mod get {
         where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
               A: Attribute<Object=I> + Getter<IntoItem=E> {
         type IntoItem = Option<Vec<E>>;
-        fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-            O::get_opt_each_with_data(object).map(|v| {
-                v.iter().map(|object| { A::get(object) }).collect()
+        fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            self.0.get_opt_each_with_data(object).map(|v| {
+                v.iter().map(|object| { self.1.get(object) }).collect()
             })
         }
     }
@@ -527,10 +527,84 @@ pub mod get {
         where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
               A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
         type IntoItem = Vec<E>;
-        fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            O::get_opt_each_with_data(object).map(|v| {
-                v.iter().flat_map(|object| { A::get_opt(object) }).collect()
+        fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            self.0.get_opt_each_with_data(object).map(|v| {
+                v.iter().flat_map(|object| { self.1.get_opt(object) }).collect()
             })
+        }
+    }
+
+    // pub struct FromEachWith<O: Attribute, A: Attribute, P: Filter> (pub O, pub A, pub P);
+    // impl<O, A, P, T, I> Attribute for FromEachWith<O, A, P>
+    //     where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+    //           P: Filter<Item=I>,
+    //           A: Attribute<Object=I> {
+    //     type Object = T;
+    // }
+    // impl<O, A, P, T, I, E> OptionGetter for FromEachWith<O, A, P>
+    //     where O: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+    //           P: Filter<Item=I>,
+    //           A: Attribute<Object=I> + OptionGetter<IntoItem=E> {
+    //     type IntoItem = Vec<E>;
+    //     fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+    //         O::get_opt_each_with_data(object).map(|v| {
+    //             v.iter().
+    //                 flat_map(|object| { A::get_opt(object) }).collect()
+    //         })
+    //     }
+    // }
+}
+
+pub mod with {
+    use crate::attrib::*;
+    use crate::iterators::{ItemWithData, DropData};
+
+    pub struct Requirement<A: Attribute, P: Filter> (pub A, pub P);
+    impl<A, P, T, I> Attribute for Requirement<A, P>
+        where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+              P: Filter<Item=I> {
+        type Object = T;
+    }
+    impl<A, P, T, I> OptionGetter for Requirement<A, P>
+        where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+              P: Filter<Item=I> {
+        type IntoItem = Vec<I>;
+        fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            self.0.get_opt_each_with_data(object).map(|items|{
+                items.into_iter()
+                    .filter(|item| self.1.accept(item))
+                    .drop_database()
+                    .collect()
+            })
+        }
+    }
+    impl<A, P, T, I> Getter for Requirement<A, P>
+        where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+              P: Filter<Item=I> {
+        type IntoItem = Option<Vec<I>>;
+        fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            self.0.get_opt_each_with_data(object).map(|items|{
+                items.into_iter()
+                    .filter(|item| self.1.accept(item))
+                    .drop_database()
+                    .collect()
+            })
+        }
+    }
+    impl<A, P, T, I> Countable for Requirement<A, P>
+        where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+              P: Filter<Item=I> {
+        fn count(&self, object: &ItemWithData<Self::Object>) -> usize {
+            self.0.get_opt(object).map_or(0, |vector| vector.len())
+            // Could potentially count straight from iter, but would have to reimplement all of
+            // get_opt. It would save allocating the vector.
+        }
+    }
+    impl<A, P, T, I> OptionCountable for Requirement<A, P>
+        where A: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>>,
+              P: Filter<Item=I> {
+        fn count(&self, object: &ItemWithData<Self::Object>) -> Option<usize> {
+            self.0.get_opt(object).map(|vector| vector.len())
         }
     }
 }

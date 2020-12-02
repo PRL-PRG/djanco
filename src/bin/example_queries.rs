@@ -47,6 +47,7 @@ fn experienced_authors_ratio<'a>(_config: &Configuration, _log: &Log, database: 
         .filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
         //FIXME
         //.filter_by_attrib(require::AtLeast(stats::Ratio(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))), 0.5))
+        //.filter_by_attrib()
         .sample(sample::Distinct(sample::Random(50, Seed(42)), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }

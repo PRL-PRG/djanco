@@ -11,24 +11,24 @@ pub trait Attribute {
 }
 pub trait Getter: Attribute {
     type IntoItem;
-    fn get(object: &ItemWithData<Self::Object>) -> Self::IntoItem;
-    fn get_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> ItemWithData<'a, Self::IntoItem> {
-        ItemWithData::new(object.data, Self::get(object))
+    fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem;
+    fn get_with_data<'a>(&self, object: &ItemWithData<'a, Self::Object>) -> ItemWithData<'a, Self::IntoItem> {
+        ItemWithData::new(object.data, self.get(object))
     }
 }
 pub trait OptionGetter: Attribute {
     type IntoItem;
-    fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem>;
-    fn get_opt_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
-        Self::get_opt(object).map(|result| {
+    fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem>;
+    fn get_opt_with_data<'a>(&self, object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
+        self.get_opt(object).map(|result| {
             ItemWithData::new(object.data, result)
         })
     }
 }
 
 pub trait CollectionGetter<T,I>: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {
-    fn get_opt_each_with_data<'a>(object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
-        Self::get_opt(object).map(|v| {
+    fn get_opt_each_with_data<'a>(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
+        self.get_opt(object).map(|v| {
             v.into_iter().map(|e| {
                 ItemWithData::new(object.data, e)
             }).collect()
@@ -38,26 +38,26 @@ pub trait CollectionGetter<T,I>: Attribute<Object=T> + OptionGetter<IntoItem=Vec
 impl<G, T, I> CollectionGetter<T,I> for G where G: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {}
 
 pub trait Countable: Attribute { // TODO Option? // FIXME needed?
-    fn count(object: &ItemWithData<Self::Object>) -> usize;
+    fn count(&self, object: &ItemWithData<Self::Object>) -> usize;
 }
 
 pub trait OptionCountable: Attribute { // TODO Option? // FIXME needed?
-    fn count(object: &ItemWithData<Self::Object>) -> Option<usize>;
+    fn count(&self, object: &ItemWithData<Self::Object>) -> Option<usize>;
 }
 
 pub trait Group<T, I: Hash + Eq>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn select_key(&self, object: &ItemWithData<T>) -> I { Self::get(object) }
+    fn select_key(&self, object: &ItemWithData<T>) -> I { self.get(object) }
 }
 impl<T, I, A> Group<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I>, I: Hash + Eq {}
 
 pub trait Select<T, I>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn select(&self, object: &ItemWithData<T>) -> I { Self::get(object) }
+    fn select(&self, object: &ItemWithData<T>) -> I { self.get(object) }
 }
 impl<T, I, A> Select<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I> {}
 
 pub trait Sort<T,I: Ord>: Attribute<Object=T> + Getter<IntoItem=I> {
     fn sort(&self, direction: sort::Direction, vector: &mut Vec<ItemWithData<T>>) {
-        vector.sort_by_key(|object| Self::get(object));
+        vector.sort_by_key(|object| self.get(object));
         if direction == sort::Direction::Descending {
             vector.reverse()
         }

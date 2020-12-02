@@ -33,7 +33,7 @@ fn main() {
     database.projects().sort_by_attrib(stats::Count(project::Commits)).into_csv(config.output_csv_path("sort_by_commit_count")).unwrap();
     database.projects().select_by_attrib(stats::Mean(get::FromEach(project::Commits, commit::MessageLength))).into_csv(config.output_csv_path("select_mean_commit_messages_length")).unwrap();
     database.projects().select_by_attrib(stats::Median(get::FromEach(project::Commits, commit::MessageLength))).into_csv(config.output_csv_path("select_median_commit_messages_length")).unwrap();
-
+    database.projects().select_by_attrib(stats::Count(with::Requirement(project::Commits, require::Exactly(commit::MessageLength, 0)))).into_csv(config.output_csv_path("select_projects_with_empty_commits")).unwrap();
 }
 
 

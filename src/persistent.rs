@@ -75,8 +75,8 @@ pub trait PersistentCollection {
 
     fn name(&self) -> String;
     fn log(&self) -> &Log;
-    fn cache_path(&self) -> &PathBuf;
-    fn cache_dir(&self) -> &PathBuf;
+    fn cache_path(&self) -> &Option<PathBuf>;
+    fn cache_dir(&self) -> &Option<PathBuf>;
     fn collection(&self) -> &Option<Self::Collection>;
     //fn weigh(&self) -> usize;
     fn set_collection(&mut self, collection: Self::Collection);
@@ -88,17 +88,20 @@ pub trait PersistentCollection {
         self.collection().is_some()
     }
     fn already_cached(&self) -> bool {
-        self.cache_path().is_file()
+        self.cache_path().as_ref().map(|p| p.is_file()).unwrap_or(false)
+    }
+    fn skip_caching(&self) -> bool {
+        self.cache_path().is_none()
     }
 
     fn load_from_cache(&mut self) -> Result<(), Box<dyn Error>> {
-        let reader = File::open(&self.cache_path())?;
+        let reader = File::open(&self.cache_path().as_ref().unwrap())?; // Probably ot the best solution to unwrap
         self.set_collection(serde_cbor::from_reader(reader)?);
         Ok(())
     }
     fn store_to_cache(&mut self) -> Result<(), Box<dyn Error>> {
-        create_dir_all(&self.cache_dir())?;
-        let writer = File::create(&self.cache_path())?;
+        create_dir_all(&self.cache_dir().as_ref().unwrap())?; // Probably ot the best solution to unwrap
+        let writer = File::create(&self.cache_path().as_ref().unwrap())?; // Probably ot the best solution to unwrap
         serde_cbor::to_writer(writer, &self.grab_collection())?;
         Ok(())
     }
@@ -107,7 +110,7 @@ pub trait PersistentCollection {
 
         if self.collection().is_none() {
             if self.already_cached() {
-                let mut event = self.log().start(Verbosity::Log, format!("loading {} from cache at {}", self.name(), self.cache_path().to_str().unwrap()));
+                let mut event = self.log().start(Verbosity::Log, format!("loading {} from cache {}", self.name(), self.cache_path().as_ref().unwrap().to_str().unwrap()));
                 self.load_from_cache().unwrap();
                 event.counted(self.collection().as_ref().map_or(0, |c| c.count_items()));
                 event.weighed(self.collection().as_ref().unwrap());
@@ -119,9 +122,11 @@ pub trait PersistentCollection {
                 event.weighed(self.collection().as_ref().unwrap());
                 self.log().end(event);
 
-                let event = self.log().start(Verbosity::Log, format!("storing {} into cache at {}", self.name(), self.cache_path().to_str().unwrap()));
-                self.store_to_cache().unwrap();
-                self.log().end(event);
+                if !self.skip_caching() {
+                    let event = self.log().start(Verbosity::Log, format!("storing {} into cache at {}", self.name(), self.cache_path().as_ref().unwrap().to_str().unwrap()));
+                    self.store_to_cache().unwrap();
+                    self.log().end(event);
+                }
             }
         }
         self.grab_collection()
@@ -131,8 +136,8 @@ pub trait PersistentCollection {
 pub struct PersistentVector<E: VectorExtractor> {
     log: Log,
     name: String,
-    cache_path: PathBuf,
-    cache_dir: PathBuf,
+    cache_path: Option<PathBuf>,
+    cache_dir: Option<PathBuf>,
     vector: Option<Vec<E::Value>>,
     extractor: PhantomData<E>,
 }
@@ -142,8 +147,8 @@ impl<E> PersistentCollection for PersistentVector<E> where E: VectorExtractor {
     //fn weigh(&self) -> usize { Self.weight_in_bytes() }
     fn name(&self) -> String { self.name.clone() }
     fn log(&self) -> &Log { &self.log }
-    fn cache_path(&self) -> &PathBuf { &self.cache_path }
-    fn cache_dir(&self) -> &PathBuf { &self.cache_dir }
+    fn cache_path(&self) -> &Option<PathBuf> { &self.cache_path }
+    fn cache_dir(&self) -> &Option<PathBuf> { &self.cache_dir }
     fn collection(&self) -> &Option<Self::Collection> { &self.vector }
     fn set_collection(&mut self, vector: Self::Collection) { self.vector = Some(vector) }
 }
@@ -152,7 +157,15 @@ impl<E> PersistentVector<E> where E: VectorExtractor {
     pub fn new<Sa, Sb>(name: Sa, dir: Sb, log: &Log) -> Self where Sa: Into<String>, Sb: Into<String> {
         let name = name.into();
         let (cache_dir, cache_path) = Self::setup_files(name.clone(), dir);
-        PersistentVector { name, log: log.clone(), cache_path, cache_dir, vector: None, extractor: PhantomData }
+        PersistentVector { name, log: log.clone(), cache_path: Some(cache_path), cache_dir: Some(cache_dir), vector: None, extractor: PhantomData }
+    }
+    pub fn new_without_cache<S>(name: S, log: &Log) -> Self where S: Into<String> {
+        PersistentVector { name: name.into(), log: log.clone(), cache_path: None, cache_dir: None, vector: None, extractor: PhantomData }
+    }
+    pub fn without_cache(mut self) -> Self {
+        self.cache_dir = None;
+        self.cache_path = None;
+        self
     }
 }
 
@@ -177,8 +190,8 @@ impl<E,A,B,C> PersistentVector<E> where E: TripleVectorExtractor<A=A, B=B, C=C> 
 pub struct PersistentMap<E: MapExtractor> {
     log: Log,
     name: String,
-    cache_path: PathBuf,
-    cache_dir: PathBuf,
+    cache_path: Option<PathBuf>,
+    cache_dir: Option<PathBuf>,
     map: Option<BTreeMap<E::Key, E::Value>>,
     extractor: PhantomData<E>,
 }
@@ -188,8 +201,8 @@ impl<E> PersistentCollection for PersistentMap<E> where E: MapExtractor {
     //fn weigh(&self) -> usize { Self.weight_in_bytes() }
     fn name(&self) -> String { self.name.clone() }
     fn log(&self) -> &Log { &self.log }
-    fn cache_path(&self) -> &PathBuf { &self.cache_path }
-    fn cache_dir(&self) -> &PathBuf { &self.cache_dir }
+    fn cache_path(&self) -> &Option<PathBuf> { &self.cache_path }
+    fn cache_dir(&self) -> &Option<PathBuf> { &self.cache_dir }
     fn collection(&self) -> &Option<Self::Collection> { &self.map }
     fn set_collection(&mut self, map: Self::Collection) { self.map = Some(map) }
 }
@@ -198,7 +211,15 @@ impl<E> PersistentMap<E> where E: MapExtractor {
     pub fn new<Sa, Sb>(name: Sa, log: &Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
         let name = name.into();
         let (cache_dir, cache_path) = Self::setup_files(name.clone(), dir);
-        PersistentMap { name, log: log.clone(), cache_path, cache_dir, map: None, extractor: PhantomData }
+        PersistentMap { name, log: log.clone(), cache_path: Some(cache_path), cache_dir: Some(cache_dir), map: None, extractor: PhantomData }
+    }
+    pub fn new_without_cache<S>(name: S, log: &Log) -> Self where S: Into<String> {
+        PersistentMap { name: name.into(), log: log.clone(), cache_path: None, cache_dir: None, map: None, extractor: PhantomData }
+    }
+    pub fn without_cache(mut self) -> Self {
+        self.cache_dir = None;
+        self.cache_path = None;
+        self
     }
 }
 

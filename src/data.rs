@@ -857,7 +857,7 @@ impl Data {
 
             commits:                     PersistentMap::new("commits",                     log, dir.clone()),
             commit_hashes:               PersistentMap::new("commit_hashes",               log, dir.clone()),
-            commit_messages:             PersistentMap::new("commit_messages",             log, dir.clone()),
+            commit_messages:             PersistentMap::new("commit_messages",             log, dir.clone()).without_cache(),
             commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    log, dir.clone()),
             commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", log, dir.clone()),
             commit_changes:              PersistentMap::new("commit_changes",              log, dir.clone()),

@@ -26,12 +26,7 @@ fn main() {
 
     //println!("{}", database.snapshot(&SnapshotId::from(91851u64)).unwrap().contents());
 
-    database.projects().filter(|p| p.id().0 == 1u64)
-        .for_each(|project| {
-            project.commits().unwrap().iter()
-                .filter(|c| c.hash(project.data).unwrap().to_string() == "f42ad929576723db1af0f416886f57e4cb057d48".to_owned())
-                .for_each(|c| c.changed_snapshots(project.data).unwrap().iter().for_each(|s| println!("-----------------\n{}\n{}\n=================\n", s.id(), s.contents())))
-        })
+    database.commits().map(|commit| commit.message()).count();
 
     // store.commit_hashes()
     //     .filter(|(commit_id, hash)| {

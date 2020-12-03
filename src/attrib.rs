@@ -91,10 +91,10 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
         AttributeFilterIter { iterator: self, attribute }
     }
 
-    fn select_by_attrib<A, Ta, Tb>(self, attribute: A)
-        -> AttributeSelectIter<Self, A, Ta, Tb>
+    fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
+                                  -> AttributeMapIter<Self, A, Ta, Tb>
         where A: Select<Ta, Tb> {
-        AttributeSelectIter { iterator: self, attribute, function: PhantomData }
+        AttributeMapIter { iterator: self, attribute, function: PhantomData }
     }
 
     fn sort_by_attrib<A: 'a, I>(self, attribute: A)
@@ -140,10 +140,10 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
     }
     // TODO filter_key
 
-    fn select_by_attrib<A, Ta, Tb>(self, attribute: A)
-        -> AttributeGroupSelectIter<Self, A, Ta, Tb>
+    fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
+                                  -> AttributeGroupMapIter<Self, A, Ta, Tb>
         where A: Select<Ta, Tb> {
-        AttributeGroupSelectIter { iterator: self, attribute, function: PhantomData }
+        AttributeGroupMapIter { iterator: self, attribute, function: PhantomData }
     }
 
     fn sort_by_attrib<A: 'a, I>(self, attribute: A)
@@ -214,8 +214,8 @@ impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
     }
 }
 
-pub struct AttributeSelectIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
-impl<'a,I,A,Ta,Tb> Iterator for AttributeSelectIter<I, A, Ta, Tb>
+pub struct AttributeMapIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
+impl<'a,I,A,Ta,Tb> Iterator for AttributeMapIter<I, A, Ta, Tb>
     where I: Iterator<Item=ItemWithData<'a, Ta>>, A: Select<Ta, Tb> {
     type Item = ItemWithData<'a, Tb>;
     fn next(&mut self) -> Option<Self::Item> {
@@ -226,8 +226,8 @@ impl<'a,I,A,Ta,Tb> Iterator for AttributeSelectIter<I, A, Ta, Tb>
     }
 }
 
-pub struct AttributeGroupSelectIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
-impl<'a,I,A,K,Ta,Tb> Iterator for AttributeGroupSelectIter<I, A, Ta, Tb>
+pub struct AttributeGroupMapIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
+impl<'a,I,A,K,Ta,Tb> Iterator for AttributeGroupMapIter<I, A, Ta, Tb>
     where I: Iterator<Item=(K, Vec<ItemWithData<'a, Ta>>)>, A: Select<Ta, Tb> {
     type Item = (K, Vec<ItemWithData<'a, Tb>>);
     fn next(&mut self) -> Option<Self::Item> {

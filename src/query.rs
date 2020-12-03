@@ -480,6 +480,37 @@ pub mod stats {
             }
         }
     );
+
+    pub struct Ratio<A: Attribute<Object=T>, P: Attribute<Object=T>, T>(pub A, pub P);
+    impl<A, P, T> Attribute for Ratio<A, P, T>
+        where A: Attribute<Object=T>,
+              P: Attribute<Object=T> {
+
+        type Object = T;
+    }
+    impl<A, P, T> OptionGetter for Ratio<A, P, T>
+        where A: Attribute<Object=T> + OptionCountable,
+              P: Attribute<Object=T> + OptionCountable {
+        type IntoItem = Fraction<usize>;
+        fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            match (self.0.count(object), self.1.count(object)) {
+                (Some(n), Some(m)) => Some(Fraction::new(n, m)),
+                _ => None,
+            }
+        }
+    }
+
+    impl<A, P, T> Getter for Ratio<A, P, T>
+        where A: Attribute<Object=T> + OptionCountable,
+              P: Attribute<Object=T> + OptionCountable {
+        type IntoItem = Option<Fraction<usize>>;
+        fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            match (self.0.count(object), self.1.count(object)) {
+                (Some(n), Some(m)) => Some(Fraction::new(n, m)),
+                _ => None,
+            }
+        }
+    }
 }
 
 pub mod get {

@@ -57,6 +57,13 @@ impl Duration {
     pub fn as_duration(&self) -> chrono::Duration {
          chrono::Duration::seconds(self.seconds as i64)
     }
+
+    pub fn from_years(years: u64) -> Self { Duration::new(years * YEAR) }
+    pub fn from_months(months: u64) -> Self { Duration::new(months * MONTH) }
+    pub fn from_days(days: u64) -> Self { Duration::new(days * DAY) }
+    pub fn from_hours(hours: u64) -> Self { Duration::new(hours * HOUR) }
+    pub fn from_minutes(minutes: u64) -> Self { Duration::new(minutes * MINUTE) }
+    pub fn from_seconds(seconds: u64) -> Self { Duration::new(seconds * SECOND) }
 }
 
 impl From<u64> for Duration { fn from(seconds: u64) -> Self { Duration::new(seconds) } }

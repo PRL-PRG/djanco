@@ -274,7 +274,7 @@ trait MetadataSource {
             .map(|(project_id, content_id_as_string)| {
                 let content_id = content_id_as_string.parse::<u64>()
                     .expect(&format!("Could not parse {} as u64", content_id_as_string));
-                eprintln!("metadata project_id={}->content_id={}", project_id, content_id); // FIXME! remove! hasty debug!
+                //eprintln!("metadata project_id={}->content_id={}", project_id, content_id);
                 (project_id, content_id)
             })
             //.map(|(project_id, content_id)| {

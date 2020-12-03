@@ -44,7 +44,7 @@ fn experienced_author<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
     database
         .projects()
         .group_by_attrib(project::Language)
-        .filter_by_attrib(require::Exists(with::Requirement(project::Users, require::AtLeast(user::Experience, Duration::from_years(2)))))
+        .filter_by_attrib(require::AtLeast(stats::Count(with::Requirement(project::Users, require::AtLeast(user::Experience, Duration::from_years(2)))), 1))
         //.filter_by_attrib(require::Exists(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))))
         .sort_by_attrib(stats::Count(project::Commits))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
@@ -109,5 +109,4 @@ fn main() {
     mean_commit_message_sizes(&config, &log, &database).into_csv(path!("mean_commit_message_sizes")).unwrap();
     median_commit_message_sizes(&config, &log, &database).into_csv(path!("median_commit_message_sizes")).unwrap();
     commits(&config, &log, &database).into_csv(path!("commits")).unwrap();
-
 }

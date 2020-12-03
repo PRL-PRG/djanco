@@ -744,7 +744,7 @@ impl SingleMapExtractor for CommitChangesExtractor {
                 .map(|(path_id, hash_id)| {
                     let snapshot_id = hash_id_to_content_id_map.get(hash_id)
                         .map(|content_id| SnapshotId::from(content_id));
-                    /*Change::new*/(PathId::from(path_id), /**hash_id,*/ snapshot_id)
+                    (PathId::from(path_id), snapshot_id)
                 }).collect::<Vec<ChangeTuple>>();
             (commit_id, changes)
         }).collect()
@@ -833,7 +833,7 @@ impl Data {
             project_snapshot_count:      PersistentMap::new("project_snapshot_count",      log, dir.clone()),
             project_users:               PersistentMap::new("project_users",               log, dir.clone()),
             project_user_count:          PersistentMap::new("project_user_count",          log, dir.clone()),
-            project_authors:             PersistentMap::new("project_authors",             log, dir.clone(),),
+            project_authors:             PersistentMap::new("project_authors",             log, dir.clone()),
             project_author_count:        PersistentMap::new("project_author_count",        log, dir.clone()),
             project_committers:          PersistentMap::new("project_committers",          log, dir.clone()),
             project_committer_count:     PersistentMap::new("project_committer_count",     log, dir.clone()),

@@ -2,6 +2,7 @@ use structopt::StructOpt;
 
 use dcd::DatastoreView;
 
+use djanco::*;
 use djanco::data::*;
 use djanco::time;
 //use djanco::csv::*;
@@ -18,7 +19,9 @@ fn main() {
     let store = DatastoreView::new(config.dataset_path(), now);
     let database = Database::from_store(store, config.cache_path(), log);
 
-    database.commits().map(|commit| commit.message()).count();
+    with_elapsed_secs!("hello?", {
+        database.commits().map(|commit| commit.changes()).count();
+    });
 
 
 }

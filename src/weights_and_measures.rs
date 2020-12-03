@@ -81,6 +81,8 @@ quick_impl_countable!(CommitId);
 quick_impl_countable!(PathId);
 quick_impl_countable!(SnapshotId);
 
+//quick_impl_countable!(ChangeTuple);
+
 const PEBI: (usize, &'static str) = (TEBI.0 * 1024, "PB");
 const TEBI: (usize, &'static str) = (GIBI.0 * 1024, "TB");
 const GIBI: (usize, &'static str) = (MEBI.0 * 1024, "GB");
@@ -134,7 +136,7 @@ quick_impl_weighed!(ProjectId);
 quick_impl_weighed!(CommitId);
 quick_impl_weighed!(PathId);
 quick_impl_weighed!(SnapshotId);
-quick_impl_weighed!(Change);
+// quick_impl_weighed!(Change);
 quick_impl_weighed!(Language);
 
 macro_rules! quick_impl_weighed_static_collection {

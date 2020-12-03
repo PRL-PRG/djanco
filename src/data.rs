@@ -268,7 +268,7 @@ impl Database {
         self.data.borrow_mut().commit_committer_timestamp(&self.store, id)
     }
     pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<Change>> {
-        self.data.borrow_mut().commit_changes(&self.store, id).pirate()
+        self.data.borrow_mut().commit_changes(&self.store, id)
     }
     pub fn commit_changed_paths(&self, id: &CommitId) -> Option<Vec<Path>> {
         self.data.borrow_mut().commit_changed_paths(&self.store, id)
@@ -361,7 +361,7 @@ impl MapExtractor for ProjectSnapshotsExtractor {
 }
 impl DoubleMapExtractor for ProjectSnapshotsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, Vec<Change>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
 
     fn extract(project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commit_ids.iter().map(|(project_id, commit_ids)| {
@@ -371,7 +371,7 @@ impl DoubleMapExtractor for ProjectSnapshotsExtractor {
                         commit_change_ids.get(commit_id).map(|changes| {
                             let vector: Vec<SnapshotId> =
                                 changes.iter().flat_map(|change| {
-                                    change.snapshot_id()
+                                    change.1/*snapshot_id()*/
                                 }).collect();
                             vector
                         });
@@ -389,7 +389,7 @@ impl MapExtractor for ProjectPathsExtractor {
 }
 impl DoubleMapExtractor for ProjectPathsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, Vec<Change>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
 
     fn extract(project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commit_ids.iter().map(|(project_id, commit_ids)| {
@@ -399,7 +399,7 @@ impl DoubleMapExtractor for ProjectPathsExtractor {
                         commit_change_ids.get(commit_id).map(|changes| {
                             let vector: Vec<PathId> =
                                 changes.iter().map(|change| {
-                                    change.path_id()
+                                    change.0//path_id()
                                 }).collect();
                             vector
                         });
@@ -725,10 +725,11 @@ impl SingleMapExtractor for CommitterTimestampExtractor {
     }
 }
 
+pub type ChangeTuple = (PathId, Option<SnapshotId>);
 struct CommitChangesExtractor {}
 impl MapExtractor for CommitChangesExtractor {
     type Key = CommitId;
-    type Value = Vec<Change>;
+    type Value = Vec<ChangeTuple>;
 }
 impl SingleMapExtractor for CommitChangesExtractor {
     type A = DatastoreView;
@@ -743,8 +744,8 @@ impl SingleMapExtractor for CommitChangesExtractor {
                 .map(|(path_id, hash_id)| {
                     let snapshot_id = hash_id_to_content_id_map.get(hash_id)
                         .map(|content_id| SnapshotId::from(content_id));
-                    Change::new(PathId::from(path_id), *hash_id, snapshot_id)
-                }).collect::<Vec<Change>>();
+                    /*Change::new*/(PathId::from(path_id), /**hash_id,*/ snapshot_id)
+                }).collect::<Vec<ChangeTuple>>();
             (commit_id, changes)
         }).collect()
     }
@@ -814,7 +815,7 @@ pub(crate) struct Data {
     commit_committer_timestamps: PersistentMap<CommitterTimestampExtractor>,
     commit_changes:              PersistentMap<CommitChangesExtractor>,
 
-    commit_change_count:         PersistentMap<CountPerKeyExtractor<CommitId, Change>>,
+    commit_change_count:         PersistentMap<CountPerKeyExtractor<CommitId, ChangeTuple>>,
 
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
@@ -1078,12 +1079,16 @@ impl Data {
     pub fn commit_committer_timestamp(&mut self, store: &DatastoreView, id: &CommitId) -> Option<i64> {
         self.smart_load_commit_committer_timestamps(store).get(id).pirate()
     }
-    pub fn commit_changes(&mut self, store: &DatastoreView, id: &CommitId) -> Option<&Vec<Change>> {
-        self.smart_load_commit_changes(store).get(id)
+    pub fn commit_changes(&mut self, store: &DatastoreView, id: &CommitId) -> Option<Vec<Change>> {
+        self.smart_load_commit_changes(store).get(id).map(|vector| {
+            vector.iter().map(|(path_id, snapshot_id)| {
+                Change::new(path_id.clone(), snapshot_id.clone())
+            }).collect()
+        })
     }
     pub fn commit_changed_paths(&mut self, store: &DatastoreView, id: &CommitId) -> Option<Vec<Path>> {
         self.smart_load_commit_changes(store).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|change| self.path(store, &change.path_id()).pirate()).collect()
+            ids.iter().flat_map(|change| self.path(store, &change.0/*path_id()*/).pirate()).collect()
         })
     }
     pub fn commit_change_count(&mut self, store: &DatastoreView, id: &CommitId) -> Option<usize> {
@@ -1251,7 +1256,7 @@ impl Data {
     fn smart_load_commit_author_timestamps(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, i64> {
         load_from_store!(self, commit_author_timestamps, store)
     }
-    fn smart_load_commit_changes(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, Vec<Change>> {
+    fn smart_load_commit_changes(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, Vec<ChangeTuple>> {
         load_from_store!(self, commit_changes, store)
     }
     fn smart_load_commit_change_count(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, usize> {

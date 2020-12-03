@@ -374,13 +374,13 @@ impl Head {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Change {
     pub(crate) path: PathId,
-    pub(crate) hash: u64, // TODO could change into HeadId
+    //pub(crate) hash: u64, // TODO could change into HeadId
     pub(crate) snapshot: Option<SnapshotId>,
 }
 
 impl Change {
-    pub fn new(path: PathId, hash: u64, snapshot: Option<SnapshotId>) -> Self {
-        Change { path, hash, snapshot }
+    pub fn new(path: PathId, /*hash: u64,*/ snapshot: Option<SnapshotId>) -> Self {
+        Change { path, snapshot }
     }
     pub fn snapshot_id(&self) -> Option<SnapshotId> {
         self.snapshot.clone()

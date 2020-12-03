@@ -43,7 +43,6 @@ fn main() {
     database.projects().map_into_attrib(stats::Ratio(project::Authors, project::Users)).into_csv(path!("select_project_ratio_of_authors_to_users")).unwrap();
 }
 
-
 // TODO
 // CSV export
 // dump
@@ -52,4 +51,9 @@ fn main() {
 // Git commit as version
 // with_id
 // commit frequency
-//
+// fill in CSV-capable objects
+// maybe length for all strings
+// maybe nopn-empty for vectors
+// buckets
+// ItemWithData should return ItemWithData from getters where appropriate
+// Fraction vs f64

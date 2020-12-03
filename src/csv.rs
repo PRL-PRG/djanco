@@ -335,7 +335,6 @@ impl<'a> CSVItem for ItemWithData<'a, Path> {
     }
 }
 
-
 impl<'a> CSVItem for ItemWithData<'a, Option<Project>> { // FIXME implement a full complement of types, do a macro
     fn column_headers() -> Vec<&'static str> {
         ItemWithData::<Project>::column_headers()

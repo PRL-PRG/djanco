@@ -375,6 +375,39 @@ pub mod sample {
     }
 }
 
+pub mod select {
+    #[allow(unused_imports)] use crate::attrib::*;
+    use crate::query::*;
+
+    pub struct Select2<A0: Attribute, A1: Attribute>(pub A0, pub A1);
+    impl<T, A0, A1> Attribute for Select2<A0, A1>
+        where A0: Attribute<Object=T>,
+              A1: Attribute<Object=T> {
+
+        type Object = T;
+    }
+    impl<T, A0, A1> OptionGetter for Select2<A0, A1>
+        where A0: Attribute<Object=T> + OptionGetter,
+              A1: Attribute<Object=T> + OptionGetter {
+
+        type IntoItem = (Option<A0::IntoItem>, Option<A1::IntoItem>);
+
+        fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+            Some((self.0.get_opt(object), self.1.get_opt(object)))
+        }
+    }
+    impl<T, A0, A1> Getter for Select2<A0, A1>
+        where A0: Attribute<Object=T> + Getter,
+              A1: Attribute<Object=T> + Getter {
+
+        type IntoItem = (A0::IntoItem, A1::IntoItem);
+
+        fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+            (self.0.get(object), self.1.get(object))
+        }
+    }
+}
+
 pub mod stats {
     #[allow(unused_imports)] use crate::attrib::*;
     use crate::query::*;

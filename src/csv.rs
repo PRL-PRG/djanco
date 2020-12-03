@@ -45,7 +45,8 @@ impl<T> JoinConvenience for Vec<T> where T: Display {
         self.iter().map(|s| s.to_string()).join(" ")
     }
     fn to_comma_separated_string(&self) -> String {
-        self.iter().map(|s| s.to_string()).join(",")
+        self.iter().map(|s| s.to_string()).join(","
+        )
     }
 }
 
@@ -63,7 +64,7 @@ impl<T> JoinConvenience for &Vec<T> where T: Display {
         self.iter().map(|s| s.to_string()).join(" ")
     }
     fn to_comma_separated_string(&self) -> String {
-        self.iter().map(|s| s.to_string()).join(" ")
+        self.iter().map(|s| s.to_string()).join(",")
     }
 }
 
@@ -102,10 +103,10 @@ pub trait CSVItem {
     fn column_headers() -> Vec<&'static str>;
     fn column_values(&self) -> Vec<String>;
     fn csv_header() -> String {
-        Self::column_headers().into_iter().map(|header| header.to_owned()).join(",")
+        Self::column_headers().to_comma_separated_string()
     }
     fn to_csv_item(&self) -> String {
-        self.column_values().join(",")
+        self.column_values().to_comma_separated_string()
     }
 }
 
@@ -218,7 +219,7 @@ impl CSVItem for Commit {
     }
     fn column_values(&self) -> Vec<String>  {
         vec![ self.id().to_string(),
-              self.parent_ids().into_iter().map(|id| id.to_string()).join(" "),
+              self.parent_ids().to_space_separated_string().quoted(),
               self.author_id().to_string(),
               self.committer_id().to_string() ]
     }
@@ -297,9 +298,9 @@ impl<'a> CSVItem for ItemWithData<'a, Commit> {
     fn column_values(&self) -> Vec<String> {
         vec![self.id().to_string(), self.hash().to_string_or_empty(),
             self.committer_id().to_string(), self.author_id().to_string(),
-            self.parent_ids().to_space_separated_string(), self.parent_count().to_string(),
+            self.parent_ids().to_space_separated_string().quoted(), self.parent_count().to_string(),
             self.author_timestamp().to_string_or_empty(), self.committer_timestamp().to_string_or_empty(),
-            self.changed_path_ids().to_space_separated_string(), self.changed_snapshot_count().to_string_or_empty(),
+            self.changed_path_ids().to_space_separated_string().quoted(), self.changed_snapshot_count().to_string_or_empty(),
             self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()]
     }
 }

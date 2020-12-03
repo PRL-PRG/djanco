@@ -237,7 +237,7 @@ impl CSVItem for Snapshot {
 
 impl<'a> CSVItem for ItemWithData<'a, Project> {
     fn column_headers() -> Vec<&'static str> {
-        vec!["id", "url",
+        vec!["project_id", "url",
              "is_fork", "is_archived", "is_disabled",
              "stars", "watchers", "size", "open_issues", "forks", "subscribers",
              "language",
@@ -286,7 +286,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
 
 impl<'a> CSVItem for ItemWithData<'a, Commit> {
     fn column_headers() -> Vec<&'static str> {
-        vec!["id", "hash",
+        vec!["commit_id", "hash",
              "committer_id", "author_id",
              "parent_ids", "parent_count",
              "author_timestamp", "committer_timestamp",
@@ -307,7 +307,7 @@ impl<'a> CSVItem for ItemWithData<'a, Commit> {
 
 impl<'a> CSVItem for ItemWithData<'a, User> {
     fn column_headers() -> Vec<&'static str> {
-        vec!["id", "email",
+        vec!["user_id", "email",
              "authored_commits", "committed_committs",
              "author_experience", "committer_experience", "experience"]
     }
@@ -320,6 +320,17 @@ impl<'a> CSVItem for ItemWithData<'a, User> {
              self.author_experience().to_string_or_empty(),
              self.committer_experience().to_string_or_empty(),
              self.experience().to_string_or_empty()]
+    }
+}
+
+
+impl<'a> CSVItem for ItemWithData<'a, Path> {
+    fn column_headers() -> Vec<&'static str> {
+        Path::column_headers()
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        self.item.column_values()
     }
 }
 

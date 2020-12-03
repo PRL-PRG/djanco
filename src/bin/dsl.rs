@@ -10,6 +10,7 @@ use djanco::commandline::*;
 use djanco::query::*;
 use djanco::attrib::*;
 use djanco::csv::CSV;
+use djanco::objects::Language;
 
 // works with downloader from commit 5e4e9d5deb0fe8f9c8bb3bae0ca6947633701346
 // `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
@@ -34,6 +35,9 @@ fn main() {
     database.projects().select_by_attrib(stats::Mean(get::FromEach(project::Commits, commit::MessageLength))).into_csv(config.output_csv_path("select_mean_commit_messages_length")).unwrap();
     database.projects().select_by_attrib(stats::Median(get::FromEach(project::Commits, commit::MessageLength))).into_csv(config.output_csv_path("select_median_commit_messages_length")).unwrap();
     database.projects().select_by_attrib(stats::Count(with::Requirement(project::Commits, require::Exactly(commit::MessageLength, 0)))).into_csv(config.output_csv_path("select_projects_with_empty_commits")).unwrap();
+    database.users().sort_by_attrib(user::Experience).sample(sample::Top(100)).into_csv(config.output_csv_path("sample_top_100_experienced_users")).unwrap();
+    database.paths().filter_by_attrib(require::Exactly(path::Language, Language::Haskell)).into_csv(config.output_csv_path("filter_haskell_paths")).unwrap();
+    database.commits().sample(sample::Random(100, sample::Seed(42))).into_csv(config.output_csv_path("sample_100_commits")).unwrap();
 }
 
 

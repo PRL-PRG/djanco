@@ -853,7 +853,7 @@ impl Data {
             user_authored_commit_count:  PersistentMap::new("user_authored_commit_count",  log, dir.clone()),
             user_committed_commit_count: PersistentMap::new("user_committed_commit_count", log, dir.clone()),
 
-            paths:                       PersistentMap::new("paths",                       log, dir.clone()),
+            paths:                       PersistentMap::new("paths",                       log, dir.clone()), // TODO candidate for not caching
             //snapshots:                   PersistentMap::new("snapshots",                   dir.clone()),
 
             commits:                     PersistentMap::new("commits",                     log, dir.clone()),

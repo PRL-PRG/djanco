@@ -11,7 +11,6 @@ use djanco::commandline::*;
 use djanco::attrib::*;
 use djanco::query::*;
 use djanco::iterators::*;
-use djanco::query::sample::*;
 use djanco::fraction::Fraction;
 
 fn stars<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
@@ -41,17 +40,27 @@ fn median_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a D
         .ungroup()
 }
 
+fn experienced_author<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .group_by_attrib(project::Language)
+        .filter_by_attrib(require::Exists(with::Requirement(project::Users, require::AtLeast(user::Experience, Duration::from_years(2)))))
+        //.filter_by_attrib(require::Exists(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))))
+        .sort_by_attrib(stats::Count(project::Commits))
+        .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
+        .ungroup()
+}
+
 fn experienced_authors_ratio<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by_attrib(project::Language)
         .filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
-        //FIXME
         .filter_by_attrib(require::AtLeast(stats::Ratio(with::Requirement(project::Users, require::AtLeast(user::Experience, Duration::from_years(2))), project::Users), Fraction::new(1,2)))
-        .sample(sample::Distinct(sample::Random(50, Seed(42)), sample::Ratio(project::Commits, 0.9)))
+        //.sample(sample::Distinct(sample::Random(50, Seed(42)), sample::Ratio(project::Commits, 0.9)))
+        .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }
-
 
 fn mean_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
@@ -71,6 +80,15 @@ fn median_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database
         .ungroup()
 }
 
+fn commits<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .group_by_attrib(project::Language)
+        .sort_by_attrib(stats::Count(project::Commits))
+        .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
+        .ungroup()
+}
+
 // works with downloader from commit 5e4e9d5deb0fe8f9c8bb3bae0ca6947633701346 
 // `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
@@ -86,7 +104,10 @@ fn main() {
     stars(&config, &log, &database).into_csv(path!("stars")).unwrap();
     mean_changed_paths(&config, &log, &database).into_csv(path!("mean_changed_paths")).unwrap();
     median_changed_paths(&config, &log, &database).into_csv(path!("median_changed_paths")).unwrap();
+    experienced_author(&config, &log, &database).into_csv(path!("experienced_author")).unwrap();
     experienced_authors_ratio(&config, &log, &database).into_csv(path!("experienced_authors_ratio")).unwrap();
     mean_commit_message_sizes(&config, &log, &database).into_csv(path!("mean_commit_message_sizes")).unwrap();
     median_commit_message_sizes(&config, &log, &database).into_csv(path!("median_commit_message_sizes")).unwrap();
+    commits(&config, &log, &database).into_csv(path!("commits")).unwrap();
+
 }

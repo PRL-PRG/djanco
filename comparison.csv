@@ -1,32 +1,32 @@
-table,                      load from store, store to cache, load from cache
-project_urls,                             0, 0, 0
-project_heads,                            0, 0, 0
-project_paths,                            0, 0, 0
-project_path_count,                       0, 0, 0
-project_snapshots,                        0, 1, 0
-project_snapshot_count,                   0, 0, 0
-project_users,                            0, 0, 0
-project_user_count,                       0, 0, 0
-project_authors,                          0, 0, 0
-project_author_count,                     0, 0, 0
-project_committers,                       0, 0, 0
-project_committer_count,                  0, 0, 0
-project_commits,                          5, 0, 3
-project_commit_count,                     0, 0, 0
-project_lifetimes,                        0, 0, 0
-users,                                    0, 0, 0
-user_authored_commits,                    0, 0, 0
-user_committed_commits,                   0, 0, 0
-user_author_experience,                   0, 0, 0
-user_committer_experience,                0, 0, 0
-user_experience,                          0, 0, 0
-user_authored_commit_count,               0, 0, 0
-user_committed_commit_count,              0, 0, 0
-paths,                                    0, 2, 1
-commits,                                  6, 0, 3
-commit_hashes,                            0, 1, 0
-commit_messages,                          6, NA, NA
-commit_author_timestamps,                 6, 1, 0
-commit_committer_timestamps,              6, 1, 0
-commit_changes,                           8, 67, 20
-commit_change_count,
+table,                       load from store, store to cache, load from cache, time profit on 2nd run, size,  opinion,
+project_urls,                0s,              0s,             0s,              0s,                     7.5MB, UNNECESSARY,
+project_heads,               37s,             5s,             2s,              30s,                    26M,   ok,
+project_paths,               19m,             2m 22s,         3m 58s,          10m,                    795MB, good,
+project_path_count,          0s,              0s,             0s,              0s,                     660K,  counter,
+project_snapshots,           38m 26s,         2m 22s,         7m 22s,          30m,                    2.4GB, very good,
+project_snapshot_count,      0s,              0s,             0s,              0s,                     660K,  counter,
+project_users,               0s,              9s,             6s,              -10s,                   27MB,  NOT GOOD,
+project_user_count,          0s,              0s,             0s,              0s,                     660K,  counter,
+project_authors,             2m 10s,          10s,            6s,              2m,                     26MB,  ok,
+project_author_count,        0s,              0s,             0s,              0s,                     660KB, counter,
+project_committers,          2m 9s,           2s,             1s,              2m,                     6.3MB, ok,
+project_committer_count,     0s,              0s,             0s,              0s,                     660KB, counter,
+project_commits,             1h 8m 33s,       5m 29s,         3m 25s,          1h,                     1.1GB, very good,
+project_commit_count,        0s,              0s,             0s,              0s,                     796KB, counter,
+project_lifetimes,           1m 29s,          0s,             0s,              1m,                     1.3MB, ok,
+users,                       1s,              7s,             3s,              -10s,                   30MB,  NOT GOOD,
+user_authored_commits,       14s,             1m 1s,          39s,             -2m,                    213MB, BAD,
+user_committed_commits,      15s,             57s,            39s,             -2m,                    213MB, BAD,
+user_author_experience,      18s,             1s,             1s,              15s,                    5.5MB, ok,
+user_committer_experience,   19s,             1s,             1s,              15s,                    5.6MB, ok,
+user_experience,             44s,             1s,             1s,              40s,                    5.7MB, ok,
+user_authored_commit_count,  0s,              1s,             1s,              -1s,                    4MB,   counter,
+user_committed_commit_count, 0s,              1s,             1s,              -1s,                    4MB,   counter,
+paths,                       4m 55s,          19m 58s,        10m 24s,         -30m,                   8.5GB, VERY BAD,
+commits,                     1h 21m 28s,      35m 16s,        7m 25s,          1h,                     2.3GB, very good,
+commit_hashes,               1m 8s,           3m 10s,         2m 10s,          -5m,                    2GB,   BAD,
+commit_messages,             41m 24s,         NA,             NA,              NA,                     NA,    ?,
+commit_author_timestamps,    42m 12s,         1m 56s,         1m 21s,          40m,                    418MB, VERY BAD,
+commit_committer_timestamps, 41m 49s,         1m 55s,         1m 21s,          40m,                    418MB, very good,
+commit_changes,              52m 29s,         NA,             NA,              NA,                     NA,    ?,
+commit_change_count,         0s,              0s,             0s,              NA,                     NA,    counter,

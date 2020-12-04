@@ -78,6 +78,8 @@ fn main() {
         }
     });
 
+    
+
     let (selected_projects, select_projects_secs) = with_elapsed_secs!("select projects", {
         database.projects().filter(|project| {
             project.snapshot_ids()

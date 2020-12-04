@@ -379,33 +379,100 @@ pub mod select {
     #[allow(unused_imports)] use crate::attrib::*;
     use crate::query::*;
 
-    pub struct Select2<A0: Attribute, A1: Attribute>(pub A0, pub A1);
-    impl<T, A0, A1> Attribute for Select2<A0, A1>
-        where A0: Attribute<Object=T>,
-              A1: Attribute<Object=T> {
-
-        type Object = T;
+    mashup! {
+        m["A" 0] = A0;
+        m["A" 1] = A1;
+        m["A" 2] = A2;
+        m["A" 3] = A3;
+        m["A" 4] = A4;
+        m["A" 5] = A5;
+        m["A" 6] = A6;
+        m["A" 7] = A7;
+        m["A" 8] = A8;
+        m["A" 9] = A9;
+        m["A" 10] = A10;
+        m["A" 11] = A11;
+        m["A" 12] = A12;
+        m["A" 13] = A13;
+        m["A" 14] = A14;
+        m["A" 15] = A15;
+        m["A" 16] = A16;
+        m["A" 17] = A17;
+        m["A" 18] = A18;
+        m["A" 19] = A19;
     }
-    impl<T, A0, A1> OptionGetter for Select2<A0, A1>
-        where A0: Attribute<Object=T> + OptionGetter,
-              A1: Attribute<Object=T> + OptionGetter {
 
-        type IntoItem = (Option<A0::IntoItem>, Option<A1::IntoItem>);
+    macro_rules! impl_select {
+        ($n:ident, $($i:tt),+) => {
+            m! {
+                pub struct $n<$("A" $i: Attribute,)+> ($(pub "A" $i,)+);
+            }
+            m! {
+                impl<T, $("A" $i,)+> Attribute for $n<$("A" $i,)+>
+                    where $("A" $i: Attribute<Object=T>,)+ {
+                    type Object = T;
+                }
+            }
+            m! {
+                impl<T, $("A" $i,)+> OptionGetter for $n<$("A" $i,)+>
+                    where $("A" $i: Attribute<Object=T> + OptionGetter,)+ {
+                    type IntoItem = ($(Option<"A" $i::IntoItem>,)+);
+                    fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+                        Some(($(self.$i.get_opt(object),)+))
+                    }
+                }
+            }
+            m! {
+                impl<T, $("A" $i,)+> Getter for $n<$("A" $i,)+>
+                    where $("A" $i: Attribute<Object=T> + Getter,)+ {
+                    type IntoItem = ($("A" $i::IntoItem,)+);
 
-        fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
-            Some((self.0.get_opt(object), self.1.get_opt(object)))
+                    fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+                        ($(self.$i.get(object),)+)
+                    }
+                }
+            }
         }
     }
-    impl<T, A0, A1> Getter for Select2<A0, A1>
-        where A0: Attribute<Object=T> + Getter,
-              A1: Attribute<Object=T> + Getter {
 
-        type IntoItem = (A0::IntoItem, A1::IntoItem);
+    impl_select!(Select1,  0);
+    impl_select!(Select2,  0, 1);
+    impl_select!(Select3,  0, 1, 2);
+    impl_select!(Select4,  0, 1, 2, 3);
+    impl_select!(Select5,  0, 1, 2, 3, 4);
+    impl_select!(Select6,  0, 1, 2, 3, 4, 5);
+    impl_select!(Select7,  0, 1, 2, 3, 4, 5, 6);
+    impl_select!(Select8,  0, 1, 2, 3, 4, 5, 6, 7);
+    impl_select!(Select9,  0, 1, 2, 3, 4, 5, 6, 7, 8);
+    impl_select!(Select10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+    // impl_select!(Select11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    // impl_select!(Select12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+    // impl_select!(Select13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+    // impl_select!(Select14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+    // impl_select!(Select15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+    // impl_select!(Select16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+    // impl_select!(Select17, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+    // impl_select!(Select18, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);
+    // impl_select!(Select19, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18);
+    // impl_select!(Select20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
 
-        fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
-            (self.0.get(object), self.1.get(object))
-        }
-    }
+    // pub type SelectI = Select1;
+    // pub type SelectII = Select2;
+    // pub type SelectIII = Select3;
+    // pub type SelectIIII = Select4;
+    // pub type SelectIIIII = Select5;
+    // pub type SelectIIIIII = Select6;
+    // pub type SelectIIIIIII = Select7;
+    // pub type SelectIIIIIIII = Select8;
+    // pub type SelectIIIIIIIII = Select9;
+    // pub type SelectIIIIIIIIII = Select10;
+
+    // #[macro_export]
+    // macro_rules! select {
+    //     ($($attribute:expr),+) => {
+    //         ( $($attribute, )+ )
+    //     }
+    // }
 }
 
 pub mod stats {

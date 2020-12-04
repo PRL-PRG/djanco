@@ -377,6 +377,21 @@ impl<'a, N> CSVItem for ItemWithData<'a, Option<Fraction<N>>> where N: Clone + I
     }
 }
 
+impl<'a, Ta, Tb> CSVItem for ItemWithData<'a, (Ta, Tb)> where Ta: CSVItem, Tb: CSVItem {
+    fn column_headers() -> Vec<&'static str> {
+        let mut combined = Vec::new();
+        combined.append(&mut Ta::column_headers());
+        combined.append(&mut Tb::column_headers());
+        combined
+    }
+    fn column_values(&self) -> Vec<String> {
+        let mut combined = Vec::new();
+        combined.append(&mut self.item.0.column_values());
+        combined.append(&mut self.item.1.column_values()); // FIXME provide .data to .item.0 and .item.1
+        combined
+    }
+}
+
 
 // impl<'a, T> CSVItem for ItemWithData<'a, Option<T>> where ItemWithData<'a, T>: CSVItem, T: Clone {
 //     fn column_headers() -> Vec<&'static str> {

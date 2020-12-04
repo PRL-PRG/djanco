@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::iter::FromIterator;
 
 use itertools::{Itertools, MinMaxResult};
 
@@ -12,7 +13,6 @@ use crate::persistent::*;
 use crate::iterators::*;
 use crate::metadata::*;
 use crate::log::*;
-use std::iter::FromIterator;
 use crate::weights_and_measures::Weighed;
 
 // Internally Mutable Data

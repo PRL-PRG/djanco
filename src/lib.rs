@@ -1,4 +1,6 @@
 #![type_length_limit="1405002"]
+#![recursion_limit="512"] // For Select10 in query
+//#![recursion_limit="1024"] // For Select20 in query
 
              pub mod fraction;
              pub mod ordf64;

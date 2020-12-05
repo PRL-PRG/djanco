@@ -34,7 +34,7 @@ fn main() {
 
     with_elapsed_secs!("executing query", {
         database.projects()
-            .filter_by_attrib(require::Exactly(project::Language, Language::Python))
+            .filter_by_attrib(require::Equal(project::Language, Language::Python))
             .flat_map(|project| {
                 let all_commits =
                     project.commits().unwrap_or(vec![]);

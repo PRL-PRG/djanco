@@ -7,10 +7,28 @@ macro_rules! impl_attribute_definition {
     [$object:ty, $attribute:ident] => {
         #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct $attribute;
         impl Attribute for $attribute { type Object = $object; }
+    };
+    [$object:ty, $attribute:ident] => {
+        #[derive(Eq, PartialEq, Copy, Clone, Hash)] pub struct $attribute;
+        impl Attribute for $attribute { type Object = $object; }
     }
 }
 
 macro_rules! impl_attribute_getter {
+    [! $object:ty, $attribute:ident] => {
+        impl Getter for $attribute {
+            type IntoItem = Self::Object;
+            fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem {
+                object.item.clone()
+            }
+        }
+        impl OptionGetter for $attribute {
+            type IntoItem = Self::Object;
+            fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+                Some(object.item.clone())
+            }
+        }
+    };
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl Getter for $attribute {
             type IntoItem = $small_type;
@@ -75,6 +93,10 @@ macro_rules! impl_attribute_filter {
 }
 
 macro_rules! impl_attribute {
+    [! $object:ty, $attribute:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![! $object, $attribute];
+    };
     [! $object:ty, $attribute:ident, bool, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, bool, $getter];
@@ -107,6 +129,7 @@ macro_rules! impl_attribute {
 
 pub mod project {
     use crate::query::*;
+    impl_attribute![!   objects::Project, Itself];
     impl_attribute![!   objects::Project, Id, objects::ProjectId, id];
     impl_attribute![!   objects::Project, URL, String, url];
     impl_attribute![?   objects::Project, Issues, usize, issue_count];
@@ -206,7 +229,7 @@ pub mod require {
                                                /* vs None */
     impl_comparison!(LessThan, PartialOrd, lt, false);
     impl_comparison!(AtMost,   PartialOrd, le, false);
-    impl_comparison!(Exactly,  Eq,         eq, false);
+    impl_comparison!(Equal,    Eq,         eq, false);
     impl_comparison!(AtLeast,  PartialOrd, ge, true);
     impl_comparison!(MoreThan, PartialOrd, gt, true);
 
@@ -279,6 +302,8 @@ pub mod require {
             self.0.get_opt(item_with_data).map_or(false, |e| self.1.is_match(&e))
         }
     }
+
+    // TODO any all
 }
 
 pub mod sample {

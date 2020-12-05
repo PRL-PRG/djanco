@@ -825,7 +825,7 @@ impl Data {
     pub fn new<S>(/*store: DatastoreView,*/ cache_dir: S, log: &Log) -> Data where S: Into<String> {
         let dir = cache_dir.into();
         Data {
-            project_urls:                PersistentMap::new("project_urls",                log, dir.clone()),
+            project_urls:                PersistentMap::new("project_urls",                log, dir.clone()).without_cache(),
             project_heads:               PersistentMap::new("project_heads",               log, dir.clone()),
             project_paths:               PersistentMap::new("project_paths",               log, dir.clone()),
             project_path_count:          PersistentMap::new("project_path_count",          log, dir.clone()),
@@ -843,7 +843,7 @@ impl Data {
 
             project_metadata:            ProjectMetadataSource::new("project",             log, dir.clone()),
 
-            users:                       PersistentMap::new("users",                       log, dir.clone()),
+            users:                       PersistentMap::new("users",                       log, dir.clone()).without_cache(),
             user_authored_commits:       PersistentMap::new("user_authored_commits",       log, dir.clone()),
             user_committed_commits:      PersistentMap::new("user_committed_commits",      log, dir.clone()),
             user_author_experience:      PersistentMap::new("user_author_experience",      log, dir.clone()),
@@ -853,11 +853,11 @@ impl Data {
             user_authored_commit_count:  PersistentMap::new("user_authored_commit_count",  log, dir.clone()),
             user_committed_commit_count: PersistentMap::new("user_committed_commit_count", log, dir.clone()),
 
-            paths:                       PersistentMap::new("paths",                       log, dir.clone()), // TODO candidate for not caching
+            paths:                       PersistentMap::new("paths",                       log, dir.clone()).without_cache(),
             //snapshots:                   PersistentMap::new("snapshots",                   dir.clone()),
 
             commits:                     PersistentMap::new("commits",                     log, dir.clone()),
-            commit_hashes:               PersistentMap::new("commit_hashes",               log, dir.clone()),
+            commit_hashes:               PersistentMap::new("commit_hashes",               log, dir.clone()).without_cache(),
             commit_messages:             PersistentMap::new("commit_messages",             log, dir.clone()).without_cache(),
             commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    log, dir.clone()),
             commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", log, dir.clone()),

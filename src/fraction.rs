@@ -6,24 +6,71 @@ use serde::export::Formatter;
 pub struct Fraction<N> { numerator: N, denominator: usize }
 impl<N> Fraction<N> {
     pub fn new(numerator: N, denominator: usize) -> Self {
-        Fraction{ numerator, denominator }
+        Fraction { numerator, denominator }
     }
     pub fn divide(&self, denominator: usize) -> Self where N: Clone {
         Fraction { numerator: self.numerator.clone(), denominator: denominator * self.denominator }
     }
-    pub fn as_fraction_string(&self) -> String where N: Clone + Into<usize> {
-        let numerator: usize = self.numerator.clone().into();
-        let whole: usize = numerator / self.denominator;
-        let rest: usize = numerator % self.denominator;
-        if whole > 0 && rest > 0 {
-            format!("{}+{}/{}", whole, rest, self.denominator)
-        } else if rest > 0 {
-            format!("{}/{}", rest, self.denominator)
-        } else {
-            whole.to_string()
+}
+impl<N> Fraction<N> where N: Fractionable {
+    pub fn as_fraction_string(&self) -> String {
+        self.numerator.fraction_string(self.denominator)
+    }
+}
+
+pub trait Fractionable: Sized {
+    fn fraction_string(&self, denominator: usize) -> String;
+}
+macro_rules! impl_fractionable_for_a_bigger_type {
+    ($type:tt) => {
+        impl Fractionable for $type {
+            fn fraction_string(&self, denominator: usize) -> String {
+                let whole = self / denominator as $type;
+                let rest = self % denominator as $type;
+                if whole != 0 && rest != 0 {
+                    let sign = if rest > 0 { "+" } else { "" };
+                    format!("{}{}{}/{}", whole, sign, rest, denominator)
+                } else if rest != 0 {
+                    format!("{}/{}", rest, denominator)
+                } else {
+                    whole.to_string()
+                }
+            }
         }
     }
 }
+macro_rules! impl_fractionable_for_a_smaller_type {
+    ($type:tt) => {
+        impl Fractionable for $type {
+            fn fraction_string(&self, denominator: usize) -> String {
+                let whole = *self as i128 / denominator as i128;
+                let rest = *self as i128 % denominator as i128;
+                if whole != 0 && rest != 0 {
+                    let sign = if rest > 0 { "+" } else { "" };
+                    format!("{}{}{}/{}", whole, sign, rest, denominator)
+                } else if rest != 0 {
+                    format!("{}/{}", rest, denominator)
+                } else {
+                    whole.to_string()
+                }
+            }
+        }
+    }
+}
+
+impl_fractionable_for_a_bigger_type!(usize);
+
+impl_fractionable_for_a_bigger_type!(u128);
+impl_fractionable_for_a_bigger_type!(u64);
+impl_fractionable_for_a_smaller_type!(u32);
+impl_fractionable_for_a_smaller_type!(u16);
+impl_fractionable_for_a_smaller_type!(u8);
+
+impl_fractionable_for_a_bigger_type!(i128);
+impl_fractionable_for_a_smaller_type!(i64);
+impl_fractionable_for_a_smaller_type!(i32);
+impl_fractionable_for_a_smaller_type!(i16);
+impl_fractionable_for_a_smaller_type!(i8);
 
 impl<N> Into<f64> for Fraction<N> where N: Into<f64> {
     fn into(self) -> f64 { self.numerator.into() / self.denominator as f64 }

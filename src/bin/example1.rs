@@ -16,14 +16,7 @@ use djanco::commandline::*;
 use std::fs::File;
 use std::io::Write;
 
-// TODO
-// * snapshots aka file contents
-// * keep and produce receipt snippets
-// * fix load filters, maybe base on git commit hash of query
-// * logging everywhere
-
-// works with downloader from commit 5e4e9d5deb0fe8f9c8bb3bae0ca6947633701346 
-// `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
+// `cargo run --bin example1 --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let now = time::now();
     let config = Configuration::from_args();
@@ -78,7 +71,7 @@ fn main() {
         }
     });
 
-    
+
 
     let (selected_projects, select_projects_secs) = with_elapsed_secs!("select projects", {
         database.projects().filter(|project| {

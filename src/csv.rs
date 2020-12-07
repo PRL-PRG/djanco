@@ -35,69 +35,6 @@ impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
     }
 }
 
-pub trait JoinConvenience {
-    fn to_space_separated_string(&self) -> String;
-    fn to_comma_separated_string(&self) -> String;
-}
-
-impl<T> JoinConvenience for Vec<T> where T: Display {
-    fn to_space_separated_string(&self) -> String {
-        self.iter().map(|s| s.to_string()).join(" ")
-    }
-    fn to_comma_separated_string(&self) -> String {
-        self.iter().map(|s| s.to_string()).join(","
-        )
-    }
-}
-
-impl<T> JoinConvenience for Option<T> where T: JoinConvenience {
-    fn to_space_separated_string(&self) -> String {
-        self.as_ref().map_or(String::new(),|v| v.to_space_separated_string())
-    }
-    fn to_comma_separated_string(&self) -> String {
-        self.as_ref().map_or(String::new(),|v| v.to_comma_separated_string())
-    }
-}
-
-impl<T> JoinConvenience for &Vec<T> where T: Display {
-    fn to_space_separated_string(&self) -> String {
-        self.iter().map(|s| s.to_string()).join(" ")
-    }
-    fn to_comma_separated_string(&self) -> String {
-        self.iter().map(|s| s.to_string()).join(",")
-    }
-}
-
-pub trait StringConvenience {
-    fn escape_quotes(&self) -> String;
-    fn quoted(&self) -> String;
-}
-
-impl StringConvenience for String {
-    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
-    fn quoted(&self) -> String { format!("\"{}\"", self) }
-}
-
-impl StringConvenience for &String {
-    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
-    fn quoted(&self) -> String { format!("\"{}\"", self) }
-}
-
-impl StringConvenience for &str {
-    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
-    fn quoted(&self) -> String { format!("\"{}\"", self) }
-}
-
-pub trait Missing {
-    fn to_string_or_empty(&self) -> String;
-}
-
-impl<T> Missing for Option<T> where T: Display {
-    fn to_string_or_empty(&self) -> String {
-        self.as_ref().map_or(String::new(), |e| e.to_string())
-    }
-}
-
 #[allow(non_snake_case)]
 pub trait CSVItem {
     fn column_headers() -> Vec<&'static str>;
@@ -110,9 +47,23 @@ pub trait CSVItem {
     }
 }
 
+//--- CG macros ------------------------------------------------------------------------------------
+
 macro_rules! impl_csv_item {
     ($type:ident, $header:expr, $to_string:expr) => {
         impl CSVItem for $type {
+            fn column_headers() -> Vec<&'static str> { vec![$header] }
+            fn column_values(&self) -> Vec<String> { $to_string(self) }
+        }
+    };
+    ($type:tt<$($generic:tt),+>, $header:expr, $to_string:expr) => {
+        impl<$($generic,)+> CSVItem for $type<$($generic,)+> {
+            fn column_headers() -> Vec<&'static str> { vec![$header] }
+            fn column_values(&self) -> Vec<String> { $to_string(self) }
+        }
+    };
+    ($type:tt<$($generic:tt),+> where $($type_req:tt: $($type_req_def:tt),+);+-> $header:expr, $to_string:expr) => {
+        impl<$($generic,)+> CSVItem for $type<$($generic,)+> where $($type_req: $($type_req_def+)+)+ {
             fn column_headers() -> Vec<&'static str> { vec![$header] }
             fn column_values(&self) -> Vec<String> { $to_string(self) }
         }
@@ -126,39 +77,121 @@ macro_rules! impl_csv_item_quoted {
 }
 
 macro_rules! impl_csv_item_to_string {
-    ($type:ident, $header:expr) => {
+    ($type:tt, $header:expr) => {
         impl_csv_item!($type, $header, |selfie: &$type| vec![selfie.to_string()]);
     }
 }
 
 macro_rules! impl_csv_item_inner {
-    ($type:ident, $header:expr) => {
+    ($type:tt, $header:expr) => {
         impl_csv_item!($type, $header, |selfie: &$type| selfie.0.column_values());
     }
 }
 
-impl_csv_item_to_string!(bool, "b");
-impl_csv_item_to_string!(u64, "n");
-impl_csv_item_to_string!(i64, "n");
-impl_csv_item_to_string!(u32, "n");
-impl_csv_item_to_string!(i32, "n");
-impl_csv_item_to_string!(f64, "n");
-impl_csv_item_to_string!(f32, "n");
-impl_csv_item_to_string!(usize, "n");
-
-impl_csv_item_quoted!(String, "string");
-
-// FIXME more typess of N
-impl<N> CSVItem for Fraction<N> where N: Clone + Into<usize> {
-    fn column_headers() -> Vec<&'static str> { vec!["n"] }
-    fn column_values(&self) -> Vec<String> { vec![self.as_fraction_string()] }
+macro_rules! impl_csv_item_with_data_inner {
+    ($type:tt) => {
+        impl<'a> CSVItem for ItemWithData<'a, $type> {
+            fn column_headers() -> Vec<&'static str> {
+                $type::column_headers()
+            }
+            fn column_values(&self) -> Vec<String> {
+                self.item.column_values()
+            }
+        }
+        impl<'a> CSVItem for ItemWithData<'a, Option<$type>> {
+            fn column_headers() -> Vec<&'static str> {
+                ItemWithData::<$type>::column_headers()
+            }
+            fn column_values(&self) -> Vec<String> {
+                self.item.as_ref()
+                    .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+                    .unwrap_or(vec![])
+            }
+        }
+    };
+    ($type:tt<$($generic:tt),+>) => {
+        impl<'a, $($generic,)+> CSVItem for ItemWithData<'a, $type<$($generic,)+>> {
+            fn column_headers() -> Vec<&'static str> {
+                $type::<$($generic,)+>::column_headers()
+            }
+            fn column_values(&self) -> Vec<String> {
+                self.item.column_values()
+            }
+        }
+        impl<'a, $($generic,)+> CSVItem for ItemWithData<'a, Option<$type<$($generic,)+>>> {
+            fn column_headers() -> Vec<&'static str> {
+                ItemWithData::<$type<$($generic,)+>>::column_headers()
+            }
+            fn column_values(&self) -> Vec<String> {
+                self.item.as_ref()
+                    .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+                    .unwrap_or(vec![])
+            }
+        }
+    };
+    ($type:tt<$($generic:tt),+> where $($type_req:tt: $($type_req_def:tt),+);+) => {
+        impl<'a, $($generic,)+> CSVItem for ItemWithData<'a, $type<$($generic,)+>> where $($type_req: $($type_req_def+)+)+ {
+            fn column_headers() -> Vec<&'static str> {
+                $type::<$($generic,)+>::column_headers()
+            }
+            fn column_values(&self) -> Vec<String> {
+                self.item.column_values()
+            }
+        }
+        impl<'a, $($generic,)+> CSVItem for ItemWithData<'a, Option<$type<$($generic,)+>>> where $($type_req: $($type_req_def+)+)+ {
+            fn column_headers() -> Vec<&'static str> {
+                ItemWithData::<$type<$($generic,)+>>::column_headers()
+            }
+            fn column_values(&self) -> Vec<String> {
+                self.item.as_ref()
+                    .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+                    .unwrap_or(vec![])
+            }
+        }
+    }
 }
 
-impl_csv_item_inner!(ProjectId, "project_id");
-impl_csv_item_inner!(CommitId, "commit_id");
-impl_csv_item_inner!(UserId, "user_id");
-impl_csv_item_inner!(PathId, "path_id");
-impl_csv_item_inner!(SnapshotId, "snapshot_id");
+macro_rules! impl_csv_item_tuple {
+    ($($types:tt -> $indices:tt),+) => {
+        impl<$($types,)+> CSVItem for ($($types,)+) where $($types: CSVItem,)+ {
+            fn column_headers() -> Vec<&'static str> {
+                let mut combined = Vec::new();
+                $(combined.append(&mut $types::column_headers());)+
+                combined
+            }
+            fn column_values(&self) -> Vec<String> {
+                let mut combined = Vec::new();
+                $(combined.append(&mut self.$indices.column_values());)+
+                combined
+            }
+        }
+        // On one hand this is incorrect since the inner iter should be provided with data so
+        //     self.item.$indices.column_values())
+        // should be
+        //     ItemWithData::new(self.data, self.item.$indices).column_values()
+        //
+        // On the other hand, I've failed to implement it without causing infinite recursion during
+        // type checking, so for now I guess it has to stay like this.
+        //
+        // If the inner types are individually wrapped, it should still work correctly though.
+        impl<'a, $($types,)+> CSVItem for ItemWithData<'a, ($($types,)+)> where $(/*ItemWithData<'a,*/ $types/*>*/: CSVItem,)+ $($types: Clone,)+ {
+            fn column_headers() -> Vec<&'static str> {
+                let mut combined = Vec::new();
+                //$(combined.append(&mut ItemWithData::<$types>::column_headers());)+
+                $(combined.append(&mut $types::column_headers());)+
+                combined
+            }
+            fn column_values(&self) -> Vec<String> {
+                let mut combined = Vec::new();
+                //$(combined.append(&mut ItemWithData::new(self.data, self.item.$indices.clone()).column_values() );)+
+                $(combined.append(&mut self.item.$indices.column_values());)+
+                combined
+            }
+        }
+    }
+}
+
+//--- generic CSV items ----------------------------------------------------------------------------
 
 impl<T> CSVItem for Option<T> where T: CSVItem {
     fn column_headers() -> Vec<&'static str> { T::column_headers() }
@@ -167,20 +200,80 @@ impl<T> CSVItem for Option<T> where T: CSVItem {
     }
 }
 
-impl<Ta, Tb> CSVItem for (Ta, Tb) where Ta: CSVItem, Tb: CSVItem {
-    fn column_headers() -> Vec<&'static str> {
-        let mut combined = Vec::new();
-        combined.append(&mut Ta::column_headers());
-        combined.append(&mut Tb::column_headers());
-        combined
-    }
-    fn column_values(&self) -> Vec<String> {
-        let mut combined = Vec::new();
-        combined.append(&mut self.0.column_values());
-        combined.append(&mut self.1.column_values());
-        combined
-    }
-}
+//impl_csv_item_tuple!(Ta -> 0);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9);
+
+//--- easy CSV Items -------------------------------------------------------------------------------
+
+impl_csv_item_to_string!(bool, "b");
+
+impl_csv_item_to_string!(usize, "n");
+impl_csv_item_to_string!(u128,  "n");
+impl_csv_item_to_string!(u64,   "n");
+impl_csv_item_to_string!(u32,   "n");
+impl_csv_item_to_string!(u16,   "n");
+impl_csv_item_to_string!(u8,    "n");
+
+impl_csv_item_to_string!(i128, "n");
+impl_csv_item_to_string!(i64,  "n");
+impl_csv_item_to_string!(i32,  "n");
+impl_csv_item_to_string!(i16,  "n");
+impl_csv_item_to_string!(i8,   "n");
+
+impl_csv_item_to_string!(f64, "n");
+impl_csv_item_to_string!(f32, "n");
+
+impl_csv_item_quoted!(String, "string");
+
+impl_csv_item!(Fraction<N> where N: Fractionable -> "n", |selfie: &Fraction<N>| vec![selfie.as_fraction_string()]);
+
+//--- item with data where it doesn't matter -------------------------------------------------------
+
+impl_csv_item_with_data_inner!(bool);
+
+impl_csv_item_with_data_inner!(usize);
+impl_csv_item_with_data_inner!(u128);
+impl_csv_item_with_data_inner!(u64);
+impl_csv_item_with_data_inner!(u32);
+impl_csv_item_with_data_inner!(u16);
+impl_csv_item_with_data_inner!(u8);
+
+impl_csv_item_with_data_inner!(i128);
+impl_csv_item_with_data_inner!(i64);
+impl_csv_item_with_data_inner!(i32);
+impl_csv_item_with_data_inner!(i16);
+impl_csv_item_with_data_inner!(i8);
+
+impl_csv_item_with_data_inner!(f64);
+impl_csv_item_with_data_inner!(f32);
+
+impl_csv_item_with_data_inner!(String);
+
+impl_csv_item_with_data_inner!(Fraction<N> where N: Fractionable, Clone);
+
+//--- IDs as CSV items -----------------------------------------------------------------------------
+
+impl_csv_item_inner!(ProjectId, "project_id");
+impl_csv_item_inner!(CommitId, "commit_id");
+impl_csv_item_inner!(UserId, "user_id");
+impl_csv_item_inner!(PathId, "path_id");
+impl_csv_item_inner!(SnapshotId, "snapshot_id");
+
+impl_csv_item_with_data_inner!(ProjectId);
+impl_csv_item_with_data_inner!(CommitId);
+impl_csv_item_with_data_inner!(UserId);
+impl_csv_item_with_data_inner!(PathId);
+impl_csv_item_with_data_inner!(SnapshotId);
+
+//--- entities as CSV items ------------------------------------------------------------------------
 
 impl CSVItem for Project {
     fn column_headers() -> Vec<&'static str> {
@@ -189,50 +282,6 @@ impl CSVItem for Project {
     fn column_values(&self) -> Vec<String>  {
         vec![ self.id().to_string(),
               self.url().to_string() ]
-    }
-}
-
-impl CSVItem for User {
-    fn column_headers() -> Vec<&'static str> {
-        vec![ "user_id", "email" ]
-    }
-    fn column_values(&self) -> Vec<String>  {
-        vec![ self.id().to_string(),
-              self.email().to_string() ]
-    }
-}
-
-impl CSVItem for Path {
-    fn column_headers() -> Vec<&'static str> {
-        vec![ "path_id", "path", "language" ]
-    }
-    fn column_values(&self) -> Vec<String>  {
-        vec![ self.id().to_string(),
-              self.location().to_string(),
-              self.language().to_string_or_empty() ]
-    }
-}
-
-impl CSVItem for Commit {
-    fn column_headers() -> Vec<&'static str> {
-        vec![ "commit_id", "parent_id", "author_id", "committer_id" ]
-    }
-    fn column_values(&self) -> Vec<String>  {
-        vec![ self.id().to_string(),
-              self.parent_ids().to_space_separated_string().quoted(),
-              self.author_id().to_string(),
-              self.committer_id().to_string() ]
-    }
-}
-
-
-impl CSVItem for Snapshot {
-    fn column_headers() -> Vec<&'static str> {
-        vec!["snapshot_id", "content"]
-    }
-    fn column_values(&self) -> Vec<String>  {
-        vec![ self.id().to_string(),
-              self.contents().to_string().escape_quotes().quoted() ]
     }
 }
 
@@ -285,26 +334,15 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
     }
 }
 
-impl<'a> CSVItem for ItemWithData<'a, Commit> {
+impl CSVItem for User {
     fn column_headers() -> Vec<&'static str> {
-        vec!["commit_id", "hash",
-             "committer_id", "author_id",
-             "parent_ids", "parent_count",
-             "author_timestamp", "committer_timestamp",
-             "changed_paths", "changed_path_count" ,
-             "message", "message_length"]
+        vec![ "user_id", "email" ]
     }
-
-    fn column_values(&self) -> Vec<String> {
-        vec![self.id().to_string(), self.hash().to_string_or_empty(),
-            self.committer_id().to_string(), self.author_id().to_string(),
-            self.parent_ids().to_space_separated_string().quoted(), self.parent_count().to_string(),
-            self.author_timestamp().to_string_or_empty(), self.committer_timestamp().to_string_or_empty(),
-            self.changed_path_ids().to_space_separated_string().quoted(), self.changed_snapshot_count().to_string_or_empty(),
-            self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()]
+    fn column_values(&self) -> Vec<String>  {
+        vec![ self.id().to_string(),
+              self.email().to_string() ]
     }
 }
-
 
 impl<'a> CSVItem for ItemWithData<'a, User> {
     fn column_headers() -> Vec<&'static str> {
@@ -324,6 +362,16 @@ impl<'a> CSVItem for ItemWithData<'a, User> {
     }
 }
 
+impl CSVItem for Path {
+    fn column_headers() -> Vec<&'static str> {
+        vec![ "path_id", "path", "language" ]
+    }
+    fn column_values(&self) -> Vec<String>  {
+        vec![ self.id().to_string(),
+              self.location().to_string(),
+              self.language().to_string_or_empty() ]
+    }
+}
 
 impl<'a> CSVItem for ItemWithData<'a, Path> {
     fn column_headers() -> Vec<&'static str> {
@@ -335,86 +383,51 @@ impl<'a> CSVItem for ItemWithData<'a, Path> {
     }
 }
 
-impl<'a> CSVItem for ItemWithData<'a, Option<Project>> { // FIXME implement a full complement of types, do a macro
+impl CSVItem for Commit {
     fn column_headers() -> Vec<&'static str> {
-        ItemWithData::<Project>::column_headers()
+        vec![ "commit_id", "parent_id", "author_id", "committer_id" ]
     }
-    fn column_values(&self) -> Vec<String> {
-        self.item.as_ref()
-            .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
-            .unwrap_or(vec![])
+    fn column_values(&self) -> Vec<String>  {
+        vec![ self.id().to_string(),
+              self.parent_ids().to_space_separated_string().quoted(),
+              self.author_id().to_string(),
+              self.committer_id().to_string() ]
     }
 }
 
-impl<'a> CSVItem for ItemWithData<'a, Option<usize>> {
+impl<'a> CSVItem for ItemWithData<'a, Commit> {
     fn column_headers() -> Vec<&'static str> {
-        ItemWithData::<usize>::column_headers()
+        vec!["commit_id", "hash",
+             "committer_id", "author_id",
+             "parent_ids", "parent_count",
+             "author_timestamp", "committer_timestamp",
+             "changed_paths", "changed_path_count" ,
+             "message", "message_length"]
     }
+
     fn column_values(&self) -> Vec<String> {
-        self.item.as_ref()
-            .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
-            .unwrap_or(vec![])
+        vec![self.id().to_string(), self.hash().to_string_or_empty(),
+             self.committer_id().to_string(), self.author_id().to_string(),
+             self.parent_ids().to_space_separated_string().quoted(), self.parent_count().to_string(),
+             self.author_timestamp().to_string_or_empty(), self.committer_timestamp().to_string_or_empty(),
+             self.changed_path_ids().to_space_separated_string().quoted(), self.changed_snapshot_count().to_string_or_empty(),
+             self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()]
     }
 }
 
-impl<'a, N> CSVItem for ItemWithData<'a, Fraction<N>> where N: Clone + Into<usize> {
+impl CSVItem for Snapshot {
     fn column_headers() -> Vec<&'static str> {
-        Fraction::<N>::column_headers()
+        vec!["snapshot_id", "content"]
     }
-    fn column_values(&self) -> Vec<String> {
-        self.item.column_values()
-    }
-}
-
-impl<'a, N> CSVItem for ItemWithData<'a, Option<Fraction<N>>> where N: Clone + Into<usize> {
-    fn column_headers() -> Vec<&'static str> {
-        ItemWithData::<Fraction<N>>::column_headers()
-    }
-    fn column_values(&self) -> Vec<String> {
-        self.item.as_ref()
-            .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
-            .unwrap_or(vec![])
-    }
-}
-
-impl<'a, Ta, Tb> CSVItem for ItemWithData<'a, (Ta, Tb)> where Ta: CSVItem, Tb: CSVItem {
-    fn column_headers() -> Vec<&'static str> {
-        let mut combined = Vec::new();
-        combined.append(&mut Ta::column_headers());
-        combined.append(&mut Tb::column_headers());
-        combined
-    }
-    fn column_values(&self) -> Vec<String> {
-        let mut combined = Vec::new();
-        combined.append(&mut self.item.0.column_values());
-        combined.append(&mut self.item.1.column_values()); // FIXME provide .data to .item.0 and .item.1
-        combined
-    }
-}
-
-
-// impl<'a, T> CSVItem for ItemWithData<'a, Option<T>> where ItemWithData<'a, T>: CSVItem, T: Clone {
-//     fn column_headers() -> Vec<&'static str> {
-//         ItemWithData::<T>::column_headers()
-//     }
-//
-//     fn column_values(&self) -> Vec<String> {
-//         self.item.as_ref()
-//             .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
-//             .unwrap_or(vec![])
-//     }
-// }
-
-impl<'a> CSVItem for ItemWithData<'a, usize> { // TODO all the other ones
-    fn column_headers() -> Vec<&'static str> {
-        usize::column_headers()
-    }
-    fn column_values(&self) -> Vec<String> {
-        self.item.column_values()
+    fn column_values(&self) -> Vec<String>  {
+        vec![ self.id().to_string(),
+              self.contents().to_string().escape_quotes().quoted() ]
     }
 }
 
 // FIXME could we make GroupIter also work with this directly? (right now one needs to ungroup)
+
+// --- loading from CSV ----------------------------------------------------------------------------
 
 #[derive(Debug)]
 pub enum Error {
@@ -515,5 +528,81 @@ impl FromCSV for CommitId {
 impl FromCSV for SnapshotId {
     fn item_from_csv_row(values: HashMap<String, String, RandomState>) -> Result<Self, Error> {
         from_single_column!(Self, values, u64)
+    }
+}
+
+// --- convenience functions -----------------------------------------------------------------------
+
+pub trait JoinConvenience {
+    fn to_space_separated_string(&self) -> String;
+    fn to_comma_separated_string(&self) -> String;
+    fn to_newline_separated_string(&self) -> String;
+}
+
+impl<T> JoinConvenience for Vec<T> where T: Display {
+    fn to_space_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join(" ")
+    }
+    fn to_comma_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join(","
+        )
+    }
+    fn to_newline_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join("\n"
+        )
+    }
+}
+
+impl<T> JoinConvenience for Option<T> where T: JoinConvenience {
+    fn to_space_separated_string(&self) -> String {
+        self.as_ref().map_or(String::new(),|v| v.to_space_separated_string())
+    }
+    fn to_comma_separated_string(&self) -> String {
+        self.as_ref().map_or(String::new(),|v| v.to_comma_separated_string())
+    }
+    fn to_newline_separated_string(&self) -> String {
+        self.as_ref().map_or(String::new(),|v| v.to_newline_separated_string())
+    }
+}
+
+impl<T> JoinConvenience for &Vec<T> where T: Display {
+    fn to_space_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join(" ")
+    }
+    fn to_comma_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join(",")
+    }
+    fn to_newline_separated_string(&self) -> String {
+        self.iter().map(|s| s.to_string()).join("\n")
+    }
+}
+
+pub trait StringConvenience {
+    fn escape_quotes(&self) -> String;
+    fn quoted(&self) -> String;
+}
+
+impl StringConvenience for String {
+    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
+    fn quoted(&self) -> String { format!("\"{}\"", self) }
+}
+
+impl StringConvenience for &String {
+    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
+    fn quoted(&self) -> String { format!("\"{}\"", self) }
+}
+
+impl StringConvenience for &str {
+    fn escape_quotes(&self) -> String { self.replace("\"", "\"\"") }
+    fn quoted(&self) -> String { format!("\"{}\"", self) }
+}
+
+pub trait Missing {
+    fn to_string_or_empty(&self) -> String;
+}
+
+impl<T> Missing for Option<T> where T: Display {
+    fn to_string_or_empty(&self) -> String {
+        self.as_ref().map_or(String::new(), |e| e.to_string())
     }
 }

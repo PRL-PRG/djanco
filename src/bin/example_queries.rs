@@ -89,8 +89,7 @@ fn commits<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> i
         .ungroup()
 }
 
-// works with downloader from commit 5e4e9d5deb0fe8f9c8bb3bae0ca6947633701346 
-// `cargo run --bin example --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
+// `cargo run --bin example_queries --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let now = time::now();
     let config = Configuration::from_args();

@@ -11,7 +11,6 @@ use djanco::log::*;
 use djanco::commandline::*;
 use djanco::attrib::*;
 use djanco::query::*;
-use djanco::iterators::ItemWithData;
 
 // `cargo run --bin example3 --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {

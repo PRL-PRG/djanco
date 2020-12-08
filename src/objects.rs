@@ -8,7 +8,7 @@ use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
 use crate::data::Database;
-use crate::iterators::ItemWithData;
+use crate::iterators::*;
 use crate::weights_and_measures::Weighed;
 
 
@@ -467,6 +467,8 @@ impl Commit {
     pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
     pub fn changed_snapshots   (&self, store: &Database) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
     pub fn changed_snapshot_count (&self, store: &Database) -> Option<usize>                  {  self.changed_snapshot_ids(store).map(|v| v.len() ) }
+
+
 }
 
 impl Identifiable for Commit {
@@ -592,6 +594,19 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn updated          (&self)    -> Option<i64>                     { self.item.updated(&self.data)                }
     pub fn pushed           (&self)    -> Option<i64>                     { self.item.pushed(&self.data)                 }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)           }
+
+    pub fn commits_with_data(&self) -> Option<Vec<ItemWithData<Commit>>> {
+        self.item.commits(&self.data).attach_data_to_each(self.data)
+    }
+    pub fn authors_with_data(&self) -> Option<Vec<ItemWithData<User>>> {
+        self.item.authors(&self.data).attach_data_to_each(self.data)
+    }
+    pub fn committers_with_data(&self) -> Option<Vec<ItemWithData<User>>> {
+        self.item.committers(&self.data).attach_data_to_each(self.data)
+    }
+    pub fn users_with_data(&self) -> Option<Vec<ItemWithData<User>>> {
+        self.item.users(&self.data).attach_data_to_each(self.data)
+    }
 }
 impl<'a> ItemWithData<'a, Snapshot> {
     pub fn raw_contents(&self) -> &Vec<u8> { self.item.raw_contents() }
@@ -614,6 +629,14 @@ impl<'a> ItemWithData<'a, User> {
     pub fn committer_experience  (&self)   -> Option<Duration>      { self.item.committer_experience(&self.data)   }
     pub fn author_experience     (&self)   -> Option<Duration>      { self.item.author_experience(&self.data)      }
     pub fn experience            (&self)   -> Option<Duration>      { self.item.experience(&self.data)             }
+
+    pub fn authored_commits_with_data<'b> (&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
+        self.item.authored_commits(&self.data).attach_data_to_each(self.data)
+    }
+
+    pub fn committed_commits_with_data<'b> (&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
+        self.item.committed_commits(&self.data).attach_data_to_each(self.data)
+    }
 }
 
 impl<'a> ItemWithData<'a, Commit> {
@@ -637,6 +660,10 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn changed_path_count  (&self) -> Option<usize>                     { self.item.changed_path_count(&self.data)   }
     pub fn changed_snapshots   (&self) -> Option<Vec<Snapshot>>             { self.item.changed_snapshots(&self.data)    }
     pub fn changed_snapshot_count (&self) -> Option<usize>                  { self.item.changed_snapshot_count(&self.data) }
+
+    pub fn author_with_data<'b> (&'b self) -> ItemWithData<'a, User>        { self.item.author(self.data).attach_data(self.data) }
+    pub fn committer_with_data<'b> (&'b self) -> ItemWithData<'a, User>     { self.item.committer(self.data).attach_data(self.data) }
+    pub fn parents_with_data<'b> (&'b self) -> Vec<ItemWithData<'a, Commit>> { self.item.parents(self.data).attach_data_to_each(self.data) }
 }
 impl<'a> ItemWithData<'a, Path> {
     pub fn id      (&self) -> PathId           { self.item.id()       }
@@ -648,4 +675,6 @@ impl<'a> ItemWithData<'a, Head> {
     pub fn name(&self) -> String { self.item.name() }
     pub fn commit_id(&self) -> CommitId { self.item.commit_id() }
     pub fn commit(&self) -> Commit { self.item.commit(&self.data) }
+
+    pub fn commit_with_data<'b> (&'b self) -> ItemWithData<'a, Commit>     { self.item.commit(self.data).attach_data(self.data) }
 }

@@ -13,12 +13,60 @@ impl<'a, T, I> Iterator for IterWithData<'a, T, I> where I: Iterator<Item=T> {
     }
 }
 
+pub trait IterWithoutData<T> where Self: Iterator<Item=T> + Sized {
+    fn attach_data_to_each<'a>(self, data: &'a Database) -> IterWithData<'a, T, Self>;
+}
+impl<I, T> IterWithoutData<T> for I where I: Iterator<Item=T> + Sized {
+    fn attach_data_to_each<'a>(self, data: &'a Database) -> IterWithData<'a, T, Self> {
+        IterWithData { data, iterator: self }
+    }
+}
+
+pub trait CollectionWithoutData<'a> {
+    type IntoCollection;
+    fn attach_data_to_each(self, data: &'a Database) -> Self::IntoCollection;
+}
+impl<'a, T: 'a> CollectionWithoutData<'a> for Vec<T> where T: Sized {
+    type IntoCollection = Vec<ItemWithData<'a, T>>;
+    fn attach_data_to_each(self, data: &'a Database) -> Self::IntoCollection {
+        self.into_iter().attach_data_to_each(data).collect()
+    }
+}
+impl<'a, T: 'a> CollectionWithoutData<'a> for Option<Vec<T>> where T: Sized {
+    type IntoCollection = Option<Vec<ItemWithData<'a, T>>>;
+    fn attach_data_to_each(self, data: &'a Database) -> Self::IntoCollection {
+        self.map(|vector| vector.into_iter().attach_data_to_each(data).collect())
+    }
+}
+
+
+pub trait ItemWithoutData where Self: Sized {
+    fn attach_data<'a>(self, data: &'a Database) -> ItemWithData<'a, Self>;
+}
+impl<T> ItemWithoutData for T where T: Sized {
+    fn attach_data<'a>(self, data: &'a Database) -> ItemWithData<'a, Self> {
+        ItemWithData { data, item: self }
+    }
+}
+
+pub trait OptionWithoutData<T> where T: ItemWithoutData {
+    fn attach_data_to_inner<'a>(self, data: &'a Database) -> Option<ItemWithData<'a, T>>;
+}
+impl<T> OptionWithoutData<T> for Option<T> where T: ItemWithoutData {
+    fn attach_data_to_inner<'a>(self, data: &'a Database) -> Option<ItemWithData<'a, T>> {
+        self.map(|inner| inner.attach_data(data) )
+    }
+}
+
 pub struct ItemWithData<'a, T> { pub data: &'a Database, pub item: T }
 impl<'a, T> ItemWithData<'a, T> {
     pub fn new(data: &'a Database, item: T) -> Self {
         ItemWithData { data, item }
     }
     //pub fn as_ref(&self) -> ItemWithData<&T> { Self::new(self.data, self.item) }
+    pub fn rewrap<Tb>(&self, object: Tb) -> ItemWithData<Tb> {
+        ItemWithData::<Tb>::new(self.data, object)
+    }
 }
 impl<'a, T> Clone for ItemWithData<'a, T> where T: Clone {
     fn clone(&self) -> Self {

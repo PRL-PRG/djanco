@@ -1,5 +1,4 @@
 use structopt::StructOpt;
-use itertools::Itertools;
 
 use dcd::DatastoreView;
 

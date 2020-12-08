@@ -9,6 +9,7 @@ use itertools::Itertools;
 use crate::objects::*;
 use crate::iterators::*;
 use crate::fraction::*;
+use crate::product::*;
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -29,7 +30,11 @@ impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
         eprintln!("Writing to CSV file at {}", location);
         let mut file = create_file!(location)?;
         writeln!(file, "{}", T::csv_header())?;
-        for element in self { writeln!(file, "{}", element.to_csv_item())?; }
+        for element in self {
+            for item in element.to_csv_items() {
+                writeln!(file, "{}", item)?;
+            }
+        }
         eprintln!("Done writing to CSV file at {}", location);
         Ok(())
     }
@@ -38,12 +43,15 @@ impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
 #[allow(non_snake_case)]
 pub trait CSVItem {
     fn column_headers() -> Vec<&'static str>;
-    fn column_values(&self) -> Vec<String>;
+    fn row(&self) -> Vec<String>;
+    fn rows(&self) -> Vec<Vec<String>>; //{ vec![self.row()] }
     fn csv_header() -> String {
         Self::column_headers().to_comma_separated_string()
     }
-    fn to_csv_item(&self) -> String {
-        self.column_values().to_comma_separated_string()
+    fn to_csv_items(&self) -> Vec<String> {
+        self.rows().into_iter().map(|row: Vec<String>| {
+            row.to_comma_separated_string()
+        }).collect()
     }
 }
 
@@ -53,19 +61,22 @@ macro_rules! impl_csv_item {
     ($type:ident, $header:expr, $to_string:expr) => {
         impl CSVItem for $type {
             fn column_headers() -> Vec<&'static str> { vec![$header] }
-            fn column_values(&self) -> Vec<String> { $to_string(self) }
+            fn row(&self) -> Vec<String> { $to_string(self) }
+            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
         }
     };
     ($type:tt<$($generic:tt),+>, $header:expr, $to_string:expr) => {
         impl<$($generic,)+> CSVItem for $type<$($generic,)+> {
             fn column_headers() -> Vec<&'static str> { vec![$header] }
-            fn column_values(&self) -> Vec<String> { $to_string(self) }
+            fn row(&self) -> Vec<String> { $to_string(self) }
+            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
         }
     };
     ($type:tt<$($generic:tt),+> where $($type_req:tt: $($type_req_def:tt),+);+-> $header:expr, $to_string:expr) => {
         impl<$($generic,)+> CSVItem for $type<$($generic,)+> where $($type_req: $($type_req_def+)+)+ {
             fn column_headers() -> Vec<&'static str> { vec![$header] }
-            fn column_values(&self) -> Vec<String> { $to_string(self) }
+            fn row(&self) -> Vec<String> { $to_string(self) }
+            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
         }
     }
 }
@@ -84,7 +95,7 @@ macro_rules! impl_csv_item_to_string {
 
 macro_rules! impl_csv_item_inner {
     ($type:tt, $header:expr) => {
-        impl_csv_item!($type, $header, |selfie: &$type| selfie.0.column_values());
+        impl_csv_item!($type, $header, |selfie: &$type| selfie.0.row());
     }
 }
 
@@ -94,17 +105,25 @@ macro_rules! impl_csv_item_with_data_inner {
             fn column_headers() -> Vec<&'static str> {
                 $type::column_headers()
             }
-            fn column_values(&self) -> Vec<String> {
-                self.item.column_values()
+            fn row(&self) -> Vec<String> {
+                self.item.row()
+            }
+            fn rows(&self) -> Vec<Vec<String>> {
+                self.item.rows()
             }
         }
         impl<'a> CSVItem for ItemWithData<'a, Option<$type>> {
             fn column_headers() -> Vec<&'static str> {
                 ItemWithData::<$type>::column_headers()
             }
-            fn column_values(&self) -> Vec<String> {
+            fn row(&self) -> Vec<String> {
                 self.item.as_ref()
-                    .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+                    .map(|object| ItemWithData::new(self.data, object.clone()).row())
+                    .unwrap_or(vec![])
+            }
+            fn rows(&self) -> Vec<Vec<String>> {
+                self.item.as_ref()
+                    .map(|object| ItemWithData::new(self.data, object.clone()).rows())
                     .unwrap_or(vec![])
             }
         }
@@ -114,17 +133,17 @@ macro_rules! impl_csv_item_with_data_inner {
             fn column_headers() -> Vec<&'static str> {
                 $type::<$($generic,)+>::column_headers()
             }
-            fn column_values(&self) -> Vec<String> {
-                self.item.column_values()
+            fn row(&self) -> Vec<String> {
+                self.item.row()
             }
         }
         impl<'a, $($generic,)+> CSVItem for ItemWithData<'a, Option<$type<$($generic,)+>>> {
             fn column_headers() -> Vec<&'static str> {
                 ItemWithData::<$type<$($generic,)+>>::column_headers()
             }
-            fn column_values(&self) -> Vec<String> {
+            fn row(&self) -> Vec<String> {
                 self.item.as_ref()
-                    .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+                    .map(|object| ItemWithData::new(self.data, object.clone()).row())
                     .unwrap_or(vec![])
             }
         }
@@ -134,17 +153,25 @@ macro_rules! impl_csv_item_with_data_inner {
             fn column_headers() -> Vec<&'static str> {
                 $type::<$($generic,)+>::column_headers()
             }
-            fn column_values(&self) -> Vec<String> {
-                self.item.column_values()
+            fn row(&self) -> Vec<String> {
+                self.item.row()
+            }
+            fn rows(&self) -> Vec<Vec<String>> {
+                self.item.rows()
             }
         }
         impl<'a, $($generic,)+> CSVItem for ItemWithData<'a, Option<$type<$($generic,)+>>> where $($type_req: $($type_req_def+)+)+ {
             fn column_headers() -> Vec<&'static str> {
                 ItemWithData::<$type<$($generic,)+>>::column_headers()
             }
-            fn column_values(&self) -> Vec<String> {
+            fn row(&self) -> Vec<String> {
                 self.item.as_ref()
-                    .map(|object| ItemWithData::new(self.data, object.clone()).column_values())
+                    .map(|object| ItemWithData::new(self.data, object.clone()).row())
+                    .unwrap_or(vec![])
+            }
+            fn rows(&self) -> Vec<Vec<String>> {
+                self.item.as_ref()
+                    .map(|object| ItemWithData::new(self.data, object.clone()).rows())
                     .unwrap_or(vec![])
             }
         }
@@ -159,16 +186,20 @@ macro_rules! impl_csv_item_tuple {
                 $(combined.append(&mut $types::column_headers());)+
                 combined
             }
-            fn column_values(&self) -> Vec<String> {
+            fn row(&self) -> Vec<String> {
                 let mut combined = Vec::new();
-                $(combined.append(&mut self.$indices.column_values());)+
+                $(combined.append(&mut self.$indices.row());)+
                 combined
             }
+            fn rows(&self) -> Vec<Vec<String>> {
+                vec![$(self.$indices.rows(),)+].into_iter().into_megaproduct().collect()
+            }
         }
+
         // On one hand this is incorrect since the inner iter should be provided with data so
-        //     self.item.$indices.column_values())
+        //     self.item.$indices.row())
         // should be
-        //     ItemWithData::new(self.data, self.item.$indices).column_values()
+        //     ItemWithData::new(self.data, self.item.$indices).row()
         //
         // On the other hand, I've failed to implement it without causing infinite recursion during
         // type checking, so for now I guess it has to stay like this.
@@ -181,22 +212,29 @@ macro_rules! impl_csv_item_tuple {
                 $(combined.append(&mut $types::column_headers());)+
                 combined
             }
-            fn column_values(&self) -> Vec<String> {
+            fn row(&self) -> Vec<String> {
                 let mut combined = Vec::new();
-                //$(combined.append(&mut ItemWithData::new(self.data, self.item.$indices.clone()).column_values() );)+
-                $(combined.append(&mut self.item.$indices.column_values());)+
+                //$(combined.append(&mut ItemWithData::new(self.data, self.item.$indices.clone()).row() );)+
+                $(combined.append(&mut self.item.$indices.row());)+
                 combined
+            }
+            fn rows(&self) -> Vec<Vec<String>> {
+               vec![$(self.item.$indices.rows(),)+].into_iter().into_megaproduct().collect()
             }
         }
     }
 }
 
+
 //--- generic CSV items ----------------------------------------------------------------------------
 
 impl<T> CSVItem for Option<T> where T: CSVItem {
     fn column_headers() -> Vec<&'static str> { T::column_headers() }
-    fn column_values(&self) -> Vec<String> {
-        self.as_ref().map_or(vec![], |e| e.column_values())
+    fn row(&self) -> Vec<String> {
+        self.as_ref().map_or(vec![], |e| e.row())
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        self.as_ref().map_or(vec![], |e| e.rows())
     }
 }
 
@@ -210,6 +248,20 @@ impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg ->
 impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7);
 impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8);
 impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9);
+
+impl<T> CSVItem for Vec<T> where T: CSVItem {
+    fn column_headers() -> Vec<&'static str> {
+       T::column_headers()
+    }
+
+    fn row(&self) -> Vec<String> {
+        unimplemented!()
+    }
+
+    fn rows(&self) -> Vec<Vec<String>> {
+        self.iter().flat_map(|e| e.rows()).collect()
+    }
+}
 
 //--- easy CSV Items -------------------------------------------------------------------------------
 
@@ -279,9 +331,17 @@ impl CSVItem for Project {
     fn column_headers() -> Vec<&'static str> {
         vec![ "project_id", "url" ]
     }
-    fn column_values(&self) -> Vec<String>  {
-        vec![ self.id().to_string(),
-              self.url().to_string() ]
+    fn row(&self) -> Vec<String>  {
+        vec![
+            self.id().to_string(),
+            self.url().to_string()
+        ]
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id().to_string(),
+            self.url().to_string()
+        ]]
     }
 }
 
@@ -299,7 +359,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "license", "homepage", "description"]
     }
 
-    fn column_values(&self) -> Vec<String> {
+    fn row(&self) -> Vec<String> {
         vec![self.id().to_string(),
              self.url(),
              self.is_fork().to_string_or_empty(),
@@ -332,15 +392,59 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.homepage().to_string_or_empty().escape_quotes().quoted(),
              self.description().to_string_or_empty().escape_quotes().quoted()]
     }
+
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id().to_string(),
+            self.url(),
+            self.is_fork().to_string_or_empty(),
+            self.is_archived().to_string_or_empty(),
+            self.is_disabled().to_string_or_empty(),
+            self.star_count().to_string_or_empty(),
+            self.watcher_count().to_string_or_empty(),
+            self.size().to_string_or_empty(),
+            self.open_issue_count().to_string_or_empty(),
+            self.fork_count().to_string_or_empty(),
+            self.subscriber_count().to_string_or_empty(),
+            self.language().to_string_or_empty(),
+            self.head_count().to_string_or_empty(),
+            self.commit_count().to_string_or_empty(),
+            self.author_count().to_string_or_empty(),
+            self.path_count().to_string_or_empty(),
+            self.snapshot_count().to_string_or_empty(),
+            self.committer_count().to_string_or_empty(),
+            self.user_count().to_string_or_empty(),
+            self.lifetime().to_string_or_empty(),
+            self.has_issues().to_string_or_empty(),
+            self.has_downloads().to_string_or_empty(),
+            self.has_wiki().to_string_or_empty(),
+            self.has_pages().to_string_or_empty(),
+            self.created().to_string_or_empty(),
+            self.updated().to_string_or_empty(),
+            self.pushed().to_string_or_empty(),
+            self.default_branch().to_string_or_empty().escape_quotes().quoted(),
+            self.license().to_string_or_empty().escape_quotes().quoted(),
+            self.homepage().to_string_or_empty().escape_quotes().quoted(),
+            self.description().to_string_or_empty().escape_quotes().quoted(),
+        ]]
+    }
 }
 
 impl CSVItem for User {
     fn column_headers() -> Vec<&'static str> {
         vec![ "user_id", "email" ]
     }
-    fn column_values(&self) -> Vec<String>  {
-        vec![ self.id().to_string(),
-              self.email().to_string() ]
+    fn row(&self) -> Vec<String>  {
+        vec![
+            self.id().to_string(),
+            self.email().to_string()
+        ]
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id().to_string(),
+            self.email().to_string()
+        ]]
     }
 }
 
@@ -351,14 +455,28 @@ impl<'a> CSVItem for ItemWithData<'a, User> {
              "author_experience", "committer_experience", "experience"]
     }
 
-    fn column_values(&self) -> Vec<String> {
-        vec![self.id().to_string(),
-             self.email().to_string(),
-             self.authored_commit_count().to_string_or_empty(),
-             self.committed_commit_count().to_string_or_empty(),
-             self.author_experience().to_string_or_empty(),
-             self.committer_experience().to_string_or_empty(),
-             self.experience().to_string_or_empty()]
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.id().to_string(),
+            self.email().to_string(),
+            self.authored_commit_count().to_string_or_empty(),
+            self.committed_commit_count().to_string_or_empty(),
+            self.author_experience().to_string_or_empty(),
+            self.committer_experience().to_string_or_empty(),
+            self.experience().to_string_or_empty(),
+        ]
+    }
+
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id().to_string(),
+            self.email().to_string(),
+            self.authored_commit_count().to_string_or_empty(),
+            self.committed_commit_count().to_string_or_empty(),
+            self.author_experience().to_string_or_empty(),
+            self.committer_experience().to_string_or_empty(),
+            self.experience().to_string_or_empty(),
+        ]]
     }
 }
 
@@ -366,10 +484,19 @@ impl CSVItem for Path {
     fn column_headers() -> Vec<&'static str> {
         vec![ "path_id", "path", "language" ]
     }
-    fn column_values(&self) -> Vec<String>  {
-        vec![ self.id().to_string(),
-              self.location().to_string(),
-              self.language().to_string_or_empty() ]
+    fn row(&self) -> Vec<String>  {
+        vec![
+            self.id().to_string(),
+            self.location().to_string(),
+            self.language().to_string_or_empty()
+        ]
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id().to_string(),
+            self.location().to_string(),
+            self.language().to_string_or_empty()
+        ]]
     }
 }
 
@@ -377,9 +504,11 @@ impl<'a> CSVItem for ItemWithData<'a, Path> {
     fn column_headers() -> Vec<&'static str> {
         Path::column_headers()
     }
-
-    fn column_values(&self) -> Vec<String> {
-        self.item.column_values()
+    fn row(&self) -> Vec<String> {
+        self.item.row()
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        self.item.rows()
     }
 }
 
@@ -387,11 +516,21 @@ impl CSVItem for Commit {
     fn column_headers() -> Vec<&'static str> {
         vec![ "commit_id", "parent_id", "author_id", "committer_id" ]
     }
-    fn column_values(&self) -> Vec<String>  {
-        vec![ self.id().to_string(),
-              self.parent_ids().to_space_separated_string().quoted(),
-              self.author_id().to_string(),
-              self.committer_id().to_string() ]
+    fn row(&self) -> Vec<String>  {
+        vec![
+            self.id().to_string(),
+            self.parent_ids().to_space_separated_string().quoted(),
+            self.author_id().to_string(),
+            self.committer_id().to_string()
+        ]
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id().to_string(),
+            self.parent_ids().to_space_separated_string().quoted(),
+            self.author_id().to_string(),
+            self.committer_id().to_string(),
+        ]]
     }
 }
 
@@ -405,7 +544,7 @@ impl<'a> CSVItem for ItemWithData<'a, Commit> {
              "message", "message_length"]
     }
 
-    fn column_values(&self) -> Vec<String> {
+    fn row(&self) -> Vec<String> {
         vec![self.id().to_string(), self.hash().to_string_or_empty(),
              self.committer_id().to_string(), self.author_id().to_string(),
              self.parent_ids().to_space_separated_string().quoted(), self.parent_count().to_string(),
@@ -413,15 +552,32 @@ impl<'a> CSVItem for ItemWithData<'a, Commit> {
              self.changed_path_ids().to_space_separated_string().quoted(), self.changed_snapshot_count().to_string_or_empty(),
              self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()]
     }
+
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id().to_string(), self.hash().to_string_or_empty(),
+            self.committer_id().to_string(), self.author_id().to_string(),
+            self.parent_ids().to_space_separated_string().quoted(), self.parent_count().to_string(),
+            self.author_timestamp().to_string_or_empty(), self.committer_timestamp().to_string_or_empty(),
+            self.changed_path_ids().to_space_separated_string().quoted(), self.changed_snapshot_count().to_string_or_empty(),
+            self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()
+        ]]
+    }
 }
 
 impl CSVItem for Snapshot {
     fn column_headers() -> Vec<&'static str> {
         vec!["snapshot_id", "content"]
     }
-    fn column_values(&self) -> Vec<String>  {
+    fn row(&self) -> Vec<String>  {
         vec![ self.id().to_string(),
               self.contents().to_string().escape_quotes().quoted() ]
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id().to_string(),
+            self.contents().to_string().escape_quotes().quoted(),
+        ]]
     }
 }
 

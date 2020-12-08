@@ -30,14 +30,15 @@ fn main() {
             .map_into_attrib(select::Select2(project::Itself, with::Requirement(project::Commits, require::Contains(commit::Message, "performance"))))
 
             // dirty hack starts here
-            .flat_map(|ItemWithData{ item: (project, commits), data }| commits.map_or(vec![], |commits| {
-                commits.into_iter().map(|commit| {
-                    (ItemWithData { item: project.clone(), data }, ItemWithData { item: commit, data })
-                }).collect::<Vec<(ItemWithData<Project>, ItemWithData<Commit>)>>()
-            }))
+            // .flat_map(|ItemWithData{ item: (project, commits), data }| commits.map_or(vec![], |commits| {
+            //     commits.into_iter().map(|commit| {
+            //         (ItemWithData { item: project.clone(), data }, ItemWithData { item: commit, data })
+            //     }).collect::<Vec<(ItemWithData<Project>, ItemWithData<Commit>)>>()
+            // }))
             // dirty hack end here
+            //.map(|ItemWithData{ item: (project, commits), data }| (project, commit))
 
-            .into_csv(config.output_csv_path("project_commits_with_the_word_performance_1")).unwrap();
+            .into_csv(config.output_csv_path("project_commits_with_the_word_performance_C")).unwrap();
     });
 
     // with_elapsed_secs!("executing query", {

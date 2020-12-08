@@ -27,14 +27,16 @@ pub fn megaproduct<T>(mut vector_of_objects: Vec<Vec<Vec<T>>>) -> Vec<Vec<T>> wh
         return vector_of_objects.pop().unwrap()
     }
 
-    let number_of_items_from_each_object: Vec<usize> =
-        vector_of_objects.iter().map(|v| v.len()).collect();
-    if number_of_items_from_each_object.iter().all(|length| *length == 1usize) {
-        return vector_of_objects.into_iter().flat_map(|v| v).collect()
-    }
-    if number_of_items_from_each_object.iter().all(|length| *length == 0usize) {
-        return Vec::new()
-    }
+    // let number_of_items_from_each_object: Vec<usize> =
+    //     vector_of_objects.iter().map(|v| v.len()).collect();
+    // // if number_of_items_from_each_object.iter().all(|length| *length == 1usize) { // this part is broken
+    // //     return vector_of_objects.into_iter().map(|v| {
+    // //         //v.into_iter().flat_map(|v| v).collect::<Vec<T>>()
+    // //     }).collect()
+    // // }
+    // if number_of_items_from_each_object.iter().all(|length| *length == 0usize) {
+    //     return Vec::new()
+    // }
 
     let mut first: bool = true;
     let mut accumulator: Vec<Vec<T>> = vec![];
@@ -53,52 +55,55 @@ pub fn megaproduct<T>(mut vector_of_objects: Vec<Vec<Vec<T>>>) -> Vec<Vec<T>> wh
     accumulator
 }
 
-
-
-
-
-// fn cartesian_product<T>(mut vector_of_objects: Vec<Vec<Row>>) -> Vec<Row> {
-//
-//     let number_of_objects = vector_of_objects.len();
-//     if number_of_objects == 0usize {
-//         return Vec::new()
-//     }
-//     if number_of_objects == 1usize {
-//         return vector_of_objects.pop().unwrap()
-//     }
-//
-//     let number_of_items_from_each_object: Vec<usize> =
-//         vector_of_objects.iter().map(|v| v.len()).collect();
-//     if number_of_items_from_each_object.iter().all(|length| *length == 1usize) {
-//         return vector_of_objects.into_iter().flat_map(|v| v).collect()
-//     }
-//     if number_of_items_from_each_object.iter().all(|length| *length == 0usize) {
-//         return Vec::new()
-//     }
-//
-//     let mut first: bool = true;
-//     let mut accumulator: Vec<Row> = vec![];
-//     for vector_of_rows in vector_of_objects {
-//         accumulator = if first {
-//             first = false;
-//             vector_of_rows
-//         } else {
-//             accumulator.into_iter()
-//                 .cartesian_product(vector_of_rows.into_iter())
-//                 .map(|(accumulator_element, row_element)| {
-//                     combine_rows(accumulator_element, row_element)
-//                 }).collect::<Vec<Row>>()
-//         }
-//     }
-//     accumulator
-// }
-
 #[cfg(test)]
 mod test {
     use crate::product::CartesianMegaproduct;
 
     #[test]
-    fn test() {
+    fn test1() {
+        let object_1_row_1 = vec!["1".to_owned()];
+        let object_1_row_2 = vec!["2".to_owned()];
+        let object_1_row_3 = vec!["3".to_owned()];
+        let object_1 = vec![object_1_row_1, object_1_row_2, object_1_row_3];
+
+        let test = vec![object_1];
+        let product: Vec<Vec<String>> = test.into_iter().into_megaproduct().collect();
+        for row in product.iter() {
+            println!("{:?}", row);
+        }
+
+        let expected_result = vec![
+            vec!["1".to_owned()],
+            vec!["2".to_owned()],
+            vec!["3".to_owned()],
+        ];
+
+        assert_eq!(expected_result, product);
+    }
+
+    #[test]
+    fn test2() {
+        let object_1_row_1 = vec!["1".to_owned()];
+        let object_1 = vec![object_1_row_1];
+
+        let object_2_row_1 = vec!["a".to_owned()];
+        let object_2 = vec![object_2_row_1];
+
+        let test = vec![object_1, object_2];
+        let product: Vec<Vec<String>> = test.into_iter().into_megaproduct().collect();
+        for row in product.iter() {
+            println!("{:?}", row);
+        }
+
+        let expected_result = vec![
+            vec!["1".to_owned(), "a".to_owned()],
+        ];
+
+        assert_eq!(expected_result, product);
+    }
+
+    #[test]
+    fn test3() {
         let object_1_row_1 = vec!["1".to_owned()];
         let object_1_row_2 = vec!["2".to_owned()];
         let object_1_row_3 = vec!["3".to_owned()];

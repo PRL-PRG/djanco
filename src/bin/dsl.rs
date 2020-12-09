@@ -48,7 +48,7 @@ fn main() {
     database.commits().map_into_attrib(commit::Author)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_author_experience")).unwrap();
     database.commits().map_into_attrib(commit::Committer)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_committer_experience")).unwrap();
     database.commits().map_into_attrib(commit::Parents).into_csv(path!("commit_parents")).unwrap();
-    database.projects().map_into_attrib(project::Commits)/*.map_into_attrib(get::FromEach(project::Commits, commit::MessageLength))*/.collect();//.into_iter().into_csv(path!("project_commit_message_length")).unwrap();
+    database.projects().map_into_attrib(get::FromEach(project::Commits, commit::MessageLength)).into_iter().into_csv(path!("project_commit_message_length")).unwrap();
 }
 
 // TODO

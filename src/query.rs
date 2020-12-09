@@ -59,13 +59,13 @@ macro_rules! impl_attribute_getter {
     };
     [!+ $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
-            type IntoItem = <ItemWith<'a, $small_type>;
+            type IntoItem = ItemWithData<'a, $small_type>;
             fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = $small_type;
+            type IntoItem = ItemWithData<'a, $small_type>;
             fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.$getter())
             }
@@ -73,18 +73,46 @@ macro_rules! impl_attribute_getter {
     };
     [?+ $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
-            type IntoItem = Option<ItemWith<'a, $small_type>>;
+            type IntoItem = Option<ItemWithData<'a, $small_type>>;
             fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = ItemWith<'a, $small_type>;
+            type IntoItem = ItemWithData<'a, $small_type>;
             fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 object.$getter()
             }
         }
-    }
+    };
+    [!+.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+        impl<'a> Getter<'a> for $attribute {
+            type IntoItem = Vec<ItemWithData<'a, $small_type>>;
+            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+                object.$getter()
+            }
+        }
+        impl<'a> OptionGetter<'a> for $attribute {
+            type IntoItem = Vec<ItemWithData<'a, $small_type>>;
+            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+                Some(object.$getter())
+            }
+        }
+    };
+    [?+.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+        impl<'a> Getter<'a> for $attribute {
+            type IntoItem = Option<Vec<ItemWithData<'a, $small_type>>>;
+            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+                object.$getter()
+            }
+        }
+        impl<'a> OptionGetter<'a> for $attribute {
+            type IntoItem = Vec<ItemWithData<'a, $small_type>>;
+            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+                object.$getter()
+            }
+        }
+    };
 }
 
 macro_rules! impl_attribute_count {
@@ -156,9 +184,19 @@ macro_rules! impl_attribute {
         impl_attribute_getter![! $object, $attribute, Vec<$small_type>, $getter];
         impl_attribute_count![! $object, $attribute, $counter];
     };
+    [!+.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![!+.. $object, $attribute, $small_type, $getter];
+        impl_attribute_count![! $object, $attribute, $counter];
+    };
     [?.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, Vec<$small_type>, $getter];
+        impl_attribute_count![? $object, $attribute, $counter];
+    };
+    [?+.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![?+.. $object, $attribute, $small_type, $getter];
         impl_attribute_count![? $object, $attribute, $counter];
     };
 }
@@ -205,7 +243,7 @@ pub mod commit {
     use crate::query::*;
     impl_attribute![!   objects::Commit, Id, objects::CommitId, id];
     impl_attribute![!   objects::Commit, Committer, objects::User, committer];
-    impl_attribute![!   objects::Commit, Author, objects::User, author];
+    impl_attribute![!+  objects::Commit, Author, objects::User, author_with_data];
     impl_attribute![?   objects::Commit, Hash, String, hash];
     impl_attribute![?   objects::Commit, Message, String, message];
     impl_attribute![?   objects::Commit, MessageLength, usize, message_length];

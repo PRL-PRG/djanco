@@ -217,11 +217,11 @@ impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
 pub struct AttributeMapIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
 impl<'a, I, A, Ta, Tb> Iterator for AttributeMapIter<I, A, Ta, Tb>
     where I: Iterator<Item=ItemWithData<'a, Ta>>, A: Select<'a, Ta, Tb> {
-    type Item = ItemWithData<'a, Tb>;
+    type Item = Tb; //ItemWithData<'a, Tb>;
     fn next(&mut self) -> Option<Self::Item> {
         let attribute = &self.attribute;
         self.iterator.next().map(|item_with_data| {
-            ItemWithData::new(item_with_data.data,attribute.select(&item_with_data))
+            attribute.select(&item_with_data)
         })
     }
 }
@@ -229,14 +229,15 @@ impl<'a, I, A, Ta, Tb> Iterator for AttributeMapIter<I, A, Ta, Tb>
 pub struct AttributeGroupMapIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
 impl<'a, I, A, K, Ta, Tb> Iterator for AttributeGroupMapIter<I, A, Ta, Tb>
     where I: Iterator<Item=(K, Vec<ItemWithData<'a, Ta>>)>, A: Select<'a, Ta, Tb> {
-    type Item = (K, Vec<ItemWithData<'a, Tb>>);
+    type Item = (K, Vec<Tb>);
     fn next(&mut self) -> Option<Self::Item> {
         let attribute = &self.attribute;
         let next_group = self.iterator.next();
         next_group.map(|(key, vector)| {
-            let mapped_vector: Vec<ItemWithData<Tb>> =
+            let mapped_vector: Vec<Tb> =
                 vector.into_iter().map(|item_with_data| {
-                    ItemWithData::new(item_with_data.data,attribute.select(&item_with_data))
+                    //ItemWithData::new(item_with_data.data,
+                    attribute.select(&item_with_data)
                 }).collect();
             (key, mapped_vector)
         })

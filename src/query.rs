@@ -736,47 +736,43 @@ pub mod with {
         type Object = T;
     }
     impl<'a, A, P, T, I> OptionGetter<'a> for Requirement<A, P>
-        where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
+        where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               P: Filter<'a, Item=I> {
-        type IntoItem = Vec<I>;
+        type IntoItem = Vec<ItemWithData<'a, I>>;
         fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
-            unimplemented!()
-            // self.0.get_opt_each_with_data(object).map(|items|{
-            //     items.into_iter()
-            //         .filter(|item| self.1.accept(item))
-            //         .drop_database()
-            //         .collect()
-            // })
+            self.0.get_opt(object).map(|items| {
+                 items.into_iter()
+                     .filter(|item| self.1.accept(item))
+                     .collect()
+            })
         }
     }
     impl<'a, A, P, T, I> Getter<'a> for Requirement<A, P>
-        where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
+        where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               P: Filter<'a, Item=I> {
-        type IntoItem = Option<Vec<I>>;
+        type IntoItem = Option<Vec<ItemWithData<'a, I>>>;
         fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
-            unimplemented!()
-            // self.0.get_opt_each_with_data(object).map(|items|{
-            //     items.into_iter()
-            //         .filter(|item| self.1.accept(item))
-            //         .drop_database()
-            //         .collect()
-            // })
+            self.0.get_opt(object).map(|items|{
+                items.into_iter()
+                    .filter(|item| self.1.accept(item))
+                    .collect()
+            })
         }
     }
     impl<'a, A, P, T, I> Countable<'a> for Requirement<A, P>
-        where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
+        where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               P: Filter<'a, Item=I> {
         fn count(&self, object: &ItemWithData<'a, Self::Object>) -> usize {
-            self.0.get_opt(object).map_or(0, |vector| vector.len()) // FIXME
+            self.get_opt(object).map_or(0, |vector| vector.len())
             // Could potentially count straight from iter, but would have to reimplement all of
             // get_opt. It would save allocating the vector.
         }
     }
     impl<'a, A, P, T, I> OptionCountable<'a> for Requirement<A, P>
-        where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
+        where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               P: Filter<'a, Item=I> {
         fn count(&self, object: &ItemWithData<'a, Self::Object>) -> Option<usize> {
-            self.0.get_opt(object).map(|vector| vector.len()) // FIXME
+            self.get_opt(object).map(|vector| vector.len())
         }
     }
 }

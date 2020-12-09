@@ -34,12 +34,9 @@ fn main() {
     database.projects().filter_by_attrib(require::Matches(project::Homepage, regex!("\\.org/?$"))).into_csv(path!("filter_by_homepage_regex")).unwrap();
     database.projects().filter_by_attrib(project::HasIssues).into_csv(path!("filter_by_has_issues")).unwrap();
     database.projects().sort_by_attrib(stats::Count(project::Commits)).into_csv(path!("sort_by_commit_count")).unwrap();
-    // FIXME bring back vvvv
-    //database.projects().map_into_attrib(stats::Mean(get::FromEach(project::Commits, commit::MessageLength))).into_csv(path!("select_mean_commit_messages_length")).unwrap();
-    //FIXME bring back vvvv
-    //database.projects().map_into_attrib(stats::Median(get::FromEach(project::Commits, commit::MessageLength))).into_csv(path!("select_median_commit_messages_length")).unwrap();
-    //FIXME vvvvv
-    //database.projects().map_into_attrib(stats::Count(with::Requirement(project::Commits, require::Equal(commit::MessageLength, 0)))).into_csv(path!("select_projects_with_empty_commits")).unwrap();
+    database.projects().map_into_attrib(stats::Mean(get::FromEach(project::Commits, commit::MessageLength))).into_csv(path!("select_mean_commit_messages_length")).unwrap();
+    database.projects().map_into_attrib(stats::Median(get::FromEach(project::Commits, commit::MessageLength))).into_csv(path!("select_median_commit_messages_length")).unwrap();
+    database.projects().map_into_attrib(stats::Count(with::Requirement(project::Commits, require::Equal(commit::MessageLength, 0)))).into_csv(path!("select_projects_with_empty_commits")).unwrap();
     database.users().sort_by_attrib(user::Experience).sample(sample::Top(100)).into_csv(path!("sample_top_100_experienced_users")).unwrap();
     database.paths().filter_by_attrib(require::Equal(path::Language, Language::Haskell)).into_csv(path!("filter_haskell_paths")).unwrap();
     database.commits().sample(sample::Random(100, sample::Seed(42))).into_csv(path!("sample_100_commits")).unwrap();

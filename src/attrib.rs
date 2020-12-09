@@ -16,18 +16,18 @@ pub trait Getter<'a>: Attribute {
         ItemWithData::new(object.data, self.get(object))
     }
 }
-pub trait OptionGetter: Attribute {
+pub trait OptionGetter<'a>: Attribute {
     type IntoItem;
-    fn get_opt(&self, object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem>;
-    fn get_opt_with_data<'a>(&self, object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
+    fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem>;
+    fn get_opt_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
         self.get_opt(object).map(|result| {
             ItemWithData::new(object.data, result)
         })
     }
 }
 
-pub trait CollectionGetter<T,I>: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {
-    fn get_opt_each_with_data<'a>(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
+pub trait CollectionGetter<'a, T, I>: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>> {
+    fn get_opt_each_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
         self.get_opt(object).map(|v| {
             v.into_iter().map(|e| {
                 ItemWithData::new(object.data, e)
@@ -35,14 +35,14 @@ pub trait CollectionGetter<T,I>: Attribute<Object=T> + OptionGetter<IntoItem=Vec
         })
     }
 }
-impl<G, T, I> CollectionGetter<T,I> for G where G: Attribute<Object=T> + OptionGetter<IntoItem=Vec<I>> {}
+impl<'a, G, T, I> CollectionGetter<'a, T, I> for G where G: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>> {}
 
-pub trait Countable: Attribute { // TODO Option? // FIXME needed?
-    fn count(&self, object: &ItemWithData<Self::Object>) -> usize;
+pub trait Countable<'a>: Attribute { // TODO Option? // FIXME needed?
+    fn count(&self, object: &ItemWithData<'a, Self::Object>) -> usize;
 }
 
-pub trait OptionCountable: Attribute { // TODO Option? // FIXME needed?
-    fn count(&self, object: &ItemWithData<Self::Object>) -> Option<usize>;
+pub trait OptionCountable<'a>: Attribute { // TODO Option? // FIXME needed?
+    fn count(&self, object: &ItemWithData<'a, Self::Object>) -> Option<usize>;
 }
 
 pub trait Group<'a, T, I: Hash + Eq>: Attribute<Object=T> + Getter<'a, IntoItem=I> { // XXX
@@ -65,18 +65,18 @@ pub trait Sort<'a, T,I: Ord>: Attribute<Object=T> + Getter<'a, IntoItem=I> {
 }
 impl<'a, A, I, T> Sort<'a, T, I> for A where A: Getter<'a, IntoItem=I> + Attribute<Object=T>, I: Ord {}
 
-pub trait Sampler<T> {
+pub trait Sampler<'a, T> {
 //    type Item;
-    fn sample<'a, I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
+    fn sample<I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
         where I: Iterator<Item=ItemWithData<'a, T>>;
-    fn sample_from<'a>(&self, vector: Vec<ItemWithData<'a, T>>) -> Vec<ItemWithData<'a, T>> {
+    fn sample_from(&self, vector: Vec<ItemWithData<'a, T>>) -> Vec<ItemWithData<'a, T>> {
         self.sample(vector.into_iter())
     }
 }
 
-pub trait Filter {
+pub trait Filter<'a> {
     type Item;
-    fn accept(&self, item_with_data: &ItemWithData<Self::Item>) -> bool;
+    fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool;
 }
 
 pub mod sort {
@@ -87,7 +87,7 @@ pub mod sort {
 pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     fn filter_by_attrib<A>(self, attribute: A)
         -> AttributeFilterIter<Self, A>
-        where A: Filter<Item=T> {
+        where A: Filter<'a, Item=T> {
         AttributeFilterIter { iterator: self, attribute }
     }
 
@@ -113,7 +113,7 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
 
     fn sample<S>(self, sampler: S)
         -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where S: Sampler<T> {
+        where S: Sampler<'a, T> {
         sampler.sample(self).into_iter()
     }
 
@@ -135,7 +135,7 @@ impl<'a, T, I> AttributeIterator<'a, T> for I
 pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {
     fn filter_by_attrib<A>(self, attribute: A)
         -> AttributeGroupFilterIter<Self, A>
-        where A: Filter<Item=T> {
+        where A: Filter<'a, Item=T> {
         AttributeGroupFilterIter { iterator: self, attribute }
     }
     // TODO filter_key
@@ -166,7 +166,7 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
 
     fn sample<S>(self, sampler: S)
         -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where S: Sampler<T> {
+        where S: Sampler<'a, T> {
         let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
             self.map(|(key, vector)| {
                 (key, sampler.sample_from(vector))
@@ -187,7 +187,7 @@ impl<'a, K, T, I> AttributeGroupIterator<'a, K, T> for I
 
 pub struct AttributeFilterIter<I, A> { iterator: I, attribute: A }
 impl<'a,I,A,T> Iterator for AttributeFilterIter<I, A>
-    where I: Iterator<Item=ItemWithData<'a, T>>, A: Filter<Item=T> {
+    where I: Iterator<Item=ItemWithData<'a, T>>, A: Filter<'a, Item=T> {
     type Item = ItemWithData<'a, T>;
     fn next(&mut self) -> Option<Self::Item> {
         let attribute = &self.attribute;
@@ -199,7 +199,7 @@ impl<'a,I,A,T> Iterator for AttributeFilterIter<I, A>
 
 pub struct AttributeGroupFilterIter<I, A> { iterator: I, attribute: A }
 impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
-    where I: Iterator<Item=(K, Vec<ItemWithData<'a, T>>)>, A: Filter<Item=T> {
+    where I: Iterator<Item=(K, Vec<ItemWithData<'a, T>>)>, A: Filter<'a, Item=T> {
     type Item = (K, Vec<ItemWithData<'a, T>>);
     fn next(&mut self) -> Option<Self::Item> {
         let attribute = &self.attribute;

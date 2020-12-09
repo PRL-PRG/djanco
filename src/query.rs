@@ -728,7 +728,7 @@ pub mod get {
 
 pub mod with {
     use crate::attrib::*;
-    use crate::iterators::{ItemWithData, DropData};
+    use crate::iterators::*;
 
     pub struct Requirement<A: Attribute, P> (pub A, pub P);
     impl<'a, A, P, T> Attribute for Requirement<A, P>

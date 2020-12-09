@@ -311,6 +311,8 @@ impl_csv_item_with_data_inner!(f32);
 
 impl_csv_item_with_data_inner!(String);
 
+impl_csv_item_with_data_inner!(Language);
+impl_csv_item_with_data_inner!(Duration);
 impl_csv_item_with_data_inner!(Fraction<N> where N: Fractionable, Clone);
 
 //--- IDs as CSV items -----------------------------------------------------------------------------

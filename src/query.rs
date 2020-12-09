@@ -43,6 +43,20 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
+    [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+        impl<'a> Getter<'a> for $attribute {
+            type IntoItem = Option<$small_type>;
+            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+                object.$getter()
+            }
+        }
+        impl<'a> OptionGetter<'a> for $attribute {
+            type IntoItem = $small_type;
+            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+                object.$getter()
+            }
+        }
+    };
     [!+ $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = <ItemWith<'a, $small_type>;
@@ -57,15 +71,15 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+    [?+ $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
-            type IntoItem = Option<$small_type>;
+            type IntoItem = Option<ItemWith<'a, $small_type>>;
             fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = $small_type;
+            type IntoItem = ItemWith<'a, $small_type>;
             fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 object.$getter()
             }
@@ -132,6 +146,10 @@ macro_rules! impl_attribute {
     [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![? $object, $attribute, $small_type, $getter];
+    };
+    [?+ $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![?+ $object, $attribute, $small_type, $getter];
     };
     [!.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute_definition![$object, $attribute];

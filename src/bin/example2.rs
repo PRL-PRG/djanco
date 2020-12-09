@@ -1,5 +1,4 @@
 use structopt::StructOpt;
-use itertools::Itertools;
 
 use dcd::DatastoreView;
 
@@ -12,7 +11,6 @@ use djanco::log::*;
 use djanco::commandline::*;
 use djanco::attrib::*;
 use djanco::query::*;
-use djanco::iterators::ItemWithData;
 
 // `cargo run --bin example3 --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
@@ -28,25 +26,12 @@ fn main() {
     with_elapsed_secs!("executing query", {
         database.projects()
             .filter_by_attrib(require::Equal(project::Language, Language::Python))
-            .flat_map(|project| {
-                let all_commits =
-                    project.commits().unwrap_or(vec![]);
+            .filter_by_attrib(require::AtLeast(stats::Count(with::Requirement(project::Commits, require::Matches(commit::Message, bug_regex.clone()))), 1))
+            .sort_by_attrib(project::Stars)
+            .map_into_attrib(select::Select2(project::Itself, with::Requirement(project::Commits, require::Matches(commit::Message, bug_regex.clone()))))
 
-                let issues_closers = all_commits.into_iter()
-                    .filter(|commit| {
-                        commit.message(project.data)
-                            .map_or(false, |message| bug_regex.is_match(&message))
-                    });
+            // no hack!
 
-                let project_commit_mapping = issues_closers
-                    .map(|commit| (project.clone(), ItemWithData::new(&project.data, commit)))
-                    .collect::<Vec<(ItemWithData<Project>, ItemWithData<Commit>)>>();
-
-                project_commit_mapping
-            })
-            .sorted_by_key(|(project, commit)| {
-                (project.star_count(), project.id(), commit.author_timestamp(), commit.id())
-            })
-            .into_iter().into_csv(config.output_csv_path("project_issue_closers")).unwrap();
+            .into_csv(config.output_csv_path("project_issue_closers")).unwrap();
     });
 }

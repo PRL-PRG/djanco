@@ -705,19 +705,19 @@ pub mod get {
         }
     }
 
-    // pub struct FromEachWith<O: Attribute, A: Attribute, P: Filter> (pub O, pub A, pub P);
-    // impl<O, A, P, T, I> Attribute for FromEachWith<O, A, P>
-    //     where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
+    // pub struct FromEachWith<O: Attribute, A: Attribute, P> (pub O, pub A, pub P);
+    // impl<'a, O, A, P, T, I> Attribute for FromEachWith<O, A, P>
+    //     where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
     //           P: Filter<Item=I>,
     //           A: Attribute<Object=I> {
     //     type Object = T;
     // }
     // impl<'a, O, A, P, T, I, E> OptionGetter<'a> for FromEachWith<O, A, P>
-    //     where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
+    //     where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
     //           P: Filter<Item=I>,
     //           A: Attribute<Object=I> + OptionGetter<'a, IntoItem=E> {
     //     type IntoItem = Vec<E>;
-    //     fn get_opt(object: &ItemWithData<Self::Object>) -> Option<Self::IntoItem> {
+    //     fn get_opt(object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
     //         O::get_opt_each_with_data(object).map(|v| {
     //             v.iter().
     //                 flat_map(|object| { A::get_opt(object) }).collect()

@@ -41,6 +41,7 @@ fn main() {
     database.commits().sample(sample::Random(100, sample::Seed(42))).into_csv(path!("sample_100_commits")).unwrap();
     database.projects().map_into_attrib(stats::Ratio(project::Authors, project::Users)).into_csv(path!("select_project_ratio_of_authors_to_users")).unwrap();
     database.projects().map_into_attrib(select::Select2(project::Id, project::URL)).into_csv(path!("select_project_ids_and_urls")).unwrap();
+    database.commits().map_into_attrib(commit::Author).map_into_attrib(user::Experience).into_csv(path!("commit_author_experience")).unwrap();
 }
 
 // TODO

@@ -9,10 +9,10 @@ use crate::iterators::*;
 pub trait Attribute {
     type Object;
 }
-pub trait Getter: Attribute {
+pub trait Getter<'a>: Attribute {
     type IntoItem;
-    fn get(&self, object: &ItemWithData<Self::Object>) -> Self::IntoItem;
-    fn get_with_data<'a>(&self, object: &ItemWithData<'a, Self::Object>) -> ItemWithData<'a, Self::IntoItem> {
+    fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem;
+    fn get_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> ItemWithData<'a, Self::IntoItem> {
         ItemWithData::new(object.data, self.get(object))
     }
 }
@@ -45,25 +45,25 @@ pub trait OptionCountable: Attribute { // TODO Option? // FIXME needed?
     fn count(&self, object: &ItemWithData<Self::Object>) -> Option<usize>;
 }
 
-pub trait Group<T, I: Hash + Eq>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn select_key(&self, object: &ItemWithData<T>) -> I { self.get(object) }
+pub trait Group<'a, T, I: Hash + Eq>: Attribute<Object=T> + Getter<'a, IntoItem=I> { // XXX
+    fn select_key(&self, object: &ItemWithData<'a, T>) -> I { self.get(object) }
 }
-impl<T, I, A> Group<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I>, I: Hash + Eq {}
+impl<'a, T, I, A> Group<'a, T, I> for A where A: Attribute<Object=T> + Getter<'a, IntoItem=I>, I: Hash + Eq {}
 
-pub trait Select<T, I>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn select(&self, object: &ItemWithData<T>) -> I { self.get(object) }
+pub trait Select<'a, T, I>: Attribute<Object=T> + Getter<'a, IntoItem=I> { // XXX
+    fn select(&self, object: &ItemWithData<'a, T>) -> I { self.get(object) }
 }
-impl<T, I, A> Select<T, I> for A where A: Attribute<Object=T> + Getter<IntoItem=I> {}
+impl<'a, T, I, A> Select<'a, T, I> for A where A: Attribute<Object=T> + Getter<'a, IntoItem=I> {}
 
-pub trait Sort<T,I: Ord>: Attribute<Object=T> + Getter<IntoItem=I> {
-    fn sort(&self, direction: sort::Direction, vector: &mut Vec<ItemWithData<T>>) {
+pub trait Sort<'a, T,I: Ord>: Attribute<Object=T> + Getter<'a, IntoItem=I> {
+    fn sort(&self, direction: sort::Direction, vector: &mut Vec<ItemWithData<'a, T>>) {
         vector.sort_by_key(|object| self.get(object));
         if direction == sort::Direction::Descending {
             vector.reverse()
         }
     }
 }
-impl<A, I, T> Sort<T, I> for A where A: Getter<IntoItem=I> + Attribute<Object=T>, I: Ord {}
+impl<'a, A, I, T> Sort<'a, T, I> for A where A: Getter<'a, IntoItem=I> + Attribute<Object=T>, I: Ord {}
 
 pub trait Sampler<T> {
 //    type Item;
@@ -93,19 +93,19 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
 
     fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
                                   -> AttributeMapIter<Self, A, Ta, Tb>
-        where A: Select<Ta, Tb> {
+        where A: Select<'a, Ta, Tb> {
         AttributeMapIter { iterator: self, attribute, function: PhantomData }
     }
 
     fn sort_by_attrib<A: 'a, I>(self, attribute: A)
         -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where A: Sort<T, I>, I: Ord {
+        where A: Sort<'a, T, I>, I: Ord {
         self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
     }
 
     fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
                              -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where A: Sort<T, I>, I: Ord {
+        where A: Sort<'a, T, I>, I: Ord {
         let mut vector = Vec::from_iter(self);
         attribute.sort(direction, &mut vector);
         vector.into_iter()
@@ -119,7 +119,7 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
 
     fn group_by_attrib<A, K>(self, attribute: A)
         -> std::collections::hash_map::IntoIter<K, Vec<ItemWithData<'a, T>>>
-        where A: Group<T, K>, K: Hash + Eq {
+        where A: Group<'a, T, K>, K: Hash + Eq {
         self.map(|item_with_data| {
             let key = attribute.select_key(&item_with_data);
             (key, item_with_data)
@@ -142,19 +142,19 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
 
     fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
                                   -> AttributeGroupMapIter<Self, A, Ta, Tb>
-        where A: Select<Ta, Tb> {
+        where A: Select<'a, Ta, Tb> {
         AttributeGroupMapIter { iterator: self, attribute, function: PhantomData }
     }
 
     fn sort_by_attrib<A: 'a, I>(self, attribute: A)
         -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where A: Sort<T, I>, I: Ord {
+        where A: Sort<'a, T, I>, I: Ord {
         self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
     }
 
     fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
         -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where A: Sort<T, I>, I: Ord {
+        where A: Sort<'a, T, I>, I: Ord {
         let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
             self.map(|(key, mut vector)| {
                 attribute.sort(direction, &mut vector);
@@ -215,8 +215,8 @@ impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
 }
 
 pub struct AttributeMapIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
-impl<'a,I,A,Ta,Tb> Iterator for AttributeMapIter<I, A, Ta, Tb>
-    where I: Iterator<Item=ItemWithData<'a, Ta>>, A: Select<Ta, Tb> {
+impl<'a, I, A, Ta, Tb> Iterator for AttributeMapIter<I, A, Ta, Tb>
+    where I: Iterator<Item=ItemWithData<'a, Ta>>, A: Select<'a, Ta, Tb> {
     type Item = ItemWithData<'a, Tb>;
     fn next(&mut self) -> Option<Self::Item> {
         let attribute = &self.attribute;
@@ -227,8 +227,8 @@ impl<'a,I,A,Ta,Tb> Iterator for AttributeMapIter<I, A, Ta, Tb>
 }
 
 pub struct AttributeGroupMapIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
-impl<'a,I,A,K,Ta,Tb> Iterator for AttributeGroupMapIter<I, A, Ta, Tb>
-    where I: Iterator<Item=(K, Vec<ItemWithData<'a, Ta>>)>, A: Select<Ta, Tb> {
+impl<'a, I, A, K, Ta, Tb> Iterator for AttributeGroupMapIter<I, A, Ta, Tb>
+    where I: Iterator<Item=(K, Vec<ItemWithData<'a, Ta>>)>, A: Select<'a, Ta, Tb> {
     type Item = (K, Vec<ItemWithData<'a, Tb>>);
     fn next(&mut self) -> Option<Self::Item> {
         let attribute = &self.attribute;

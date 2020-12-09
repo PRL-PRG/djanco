@@ -24,11 +24,9 @@ fn main() {
     with_elapsed_secs!("executing query", {
         database.projects()
             .filter_by_attrib(require::Equal(project::Language, Language::Python))
-            //FIXME vvvvv
-            //.filter_by_attrib(require::AtLeast(stats::Count(with::Requirement(project::Commits, require::Contains(commit::Message, "performance"))), 1))
+            .filter_by_attrib(require::AtLeast(stats::Count(with::Requirement(project::Commits, require::Contains(commit::Message, "performance"))), 1))
             .sort_by_attrib(project::Stars)
-            //FIXME vvvvv
-            //.map_into_attrib(select::Select2(project::Itself, with::Requirement(project::Commits, require::Contains(commit::Message, "performance"))))
+            .map_into_attrib(select::Select2(project::Itself, with::Requirement(project::Commits, require::Contains(commit::Message, "performance"))))
 
             // dirty hack starts here
             // .flat_map(|ItemWithData{ item: (project, commits), data }| commits.map_or(vec![], |commits| {

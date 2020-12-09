@@ -45,21 +45,25 @@ fn main() {
     database.commits().map_into_attrib(commit::Author)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_author_experience")).unwrap();
     database.commits().map_into_attrib(commit::Committer)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_committer_experience")).unwrap();
     database.commits().map_into_attrib(commit::Parents).into_csv(path!("commit_parents")).unwrap();
-    database.projects().map_into_attrib(get::FromEach(project::Commits, commit::MessageLength)).into_iter().into_csv(path!("project_commit_message_length")).unwrap();
+    database.projects().map_into_attrib(get::FromEach(project::Commits, commit::MessageLength)).into_csv(path!("project_commit_message_length")).unwrap();
+    database.users().sort_by_attrib(user::Experience).map_into_attrib(user::Experience).into_csv(path!("user_experience")).unwrap();
+    database.projects().group_by_attrib(project::Language).map_into_attrib(get::FromEach(project::Commits, commit::MessageLength)).into_csv(path!("language/project_commit_message_length")).unwrap();
 }
 
-// TODO
+// TODO features
 // CSV export
 // dump
-// selectN
+// selectN macro
 // receipts
 // Git commit as version
 // with_id
 // commit frequency
 // fill in CSV-capable objects
 // maybe length for all strings
-// maybe nopn-empty for vectors
+// maybe non-empty precicate for vectors
 // buckets
 // ItemWithData should return ItemWithData from getters where appropriate
 // Fraction vs f64
 // unit tests
+// print out fractions as decimals
+// flat_map select

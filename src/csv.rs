@@ -285,6 +285,8 @@ impl_csv_item_to_string!(f32, "n");
 
 impl_csv_item_quoted!(String, "string");
 
+impl_csv_item_to_string!(Language, "language");
+impl_csv_item_to_string!(Duration, "duration");
 impl_csv_item!(Fraction<N> where N: Fractionable -> "n", |selfie: &Fraction<N>| vec![selfie.as_fraction_string()]);
 
 //--- item with data where it doesn't matter -------------------------------------------------------
@@ -310,8 +312,6 @@ impl_csv_item_with_data_inner!(f32);
 impl_csv_item_with_data_inner!(String);
 
 impl_csv_item_with_data_inner!(Fraction<N> where N: Fractionable, Clone);
-
-
 
 //--- IDs as CSV items -----------------------------------------------------------------------------
 

@@ -203,55 +203,55 @@ macro_rules! impl_attribute {
 
 pub mod project {
     use crate::query::*;
-    impl_attribute![!   objects::Project, Itself];
-    impl_attribute![!   objects::Project, Id, objects::ProjectId, id];
-    impl_attribute![!   objects::Project, URL, String, url];
-    impl_attribute![?   objects::Project, Issues, usize, issue_count];
-    impl_attribute![?   objects::Project, BuggyIssues, usize, buggy_issue_count];
-    impl_attribute![?   objects::Project, IsFork, bool, is_fork];
-    impl_attribute![?   objects::Project, IsArchived, bool, is_archived];
-    impl_attribute![?   objects::Project, IsDisabled, bool, is_disabled];
-    impl_attribute![?   objects::Project, Stars, usize, star_count];
-    impl_attribute![?   objects::Project, Watchers, usize, watcher_count];
-    impl_attribute![?   objects::Project, Size, usize, size];
-    impl_attribute![?   objects::Project, OpenIssues, usize, open_issue_count];
-    impl_attribute![?   objects::Project, Forks, usize, fork_count];
-    impl_attribute![?   objects::Project, Subscribers, usize, subscriber_count];
-    impl_attribute![?   objects::Project, License, String, license];
-    impl_attribute![?   objects::Project, Language, objects::Language, language];
-    impl_attribute![?   objects::Project, Description, String, description];
-    impl_attribute![?   objects::Project, Homepage, String, homepage];
-    impl_attribute![?   objects::Project, HasIssues, bool, has_issues];
-    impl_attribute![?   objects::Project, HasDownloads, bool, has_downloads];
-    impl_attribute![?   objects::Project, HasWiki, bool, has_wiki];
-    impl_attribute![?   objects::Project, HasPages, bool, has_pages];
-    impl_attribute![?   objects::Project, Created, i64, created];
-    impl_attribute![?   objects::Project, Updated, i64, updated];
-    impl_attribute![?   objects::Project, Pushed, i64, pushed];
-    impl_attribute![?   objects::Project, DefaultBranch, String, default_branch];
-    impl_attribute![?   objects::Project, Age, Duration, lifetime];
-    impl_attribute![?.. objects::Project, Heads, objects::Head, heads, head_count];
-    impl_attribute![?.. objects::Project, Commits, objects::Commit, commits, commit_count];
-    impl_attribute![?.. objects::Project, Authors, objects::User, authors, author_count];
-    impl_attribute![?.. objects::Project, Committers, objects::User, committers, committer_count];
-    impl_attribute![?.. objects::Project, Users, objects::User, users, user_count];
-    impl_attribute![?.. objects::Project, Paths, objects::Path, paths, path_count];
-    impl_attribute![?.. objects::Project, Snapshots, objects::Snapshot, snapshots, snapshot_count];
+    impl_attribute![!    objects::Project, Itself];
+    impl_attribute![!    objects::Project, Id, objects::ProjectId, id];
+    impl_attribute![!    objects::Project, URL, String, url];
+    impl_attribute![?    objects::Project, Issues, usize, issue_count];
+    impl_attribute![?    objects::Project, BuggyIssues, usize, buggy_issue_count];
+    impl_attribute![?    objects::Project, IsFork, bool, is_fork];
+    impl_attribute![?    objects::Project, IsArchived, bool, is_archived];
+    impl_attribute![?    objects::Project, IsDisabled, bool, is_disabled];
+    impl_attribute![?    objects::Project, Stars, usize, star_count];
+    impl_attribute![?    objects::Project, Watchers, usize, watcher_count];
+    impl_attribute![?    objects::Project, Size, usize, size];
+    impl_attribute![?    objects::Project, OpenIssues, usize, open_issue_count];
+    impl_attribute![?    objects::Project, Forks, usize, fork_count];
+    impl_attribute![?    objects::Project, Subscribers, usize, subscriber_count];
+    impl_attribute![?    objects::Project, License, String, license];
+    impl_attribute![?    objects::Project, Language, objects::Language, language];
+    impl_attribute![?    objects::Project, Description, String, description];
+    impl_attribute![?    objects::Project, Homepage, String, homepage];
+    impl_attribute![?    objects::Project, HasIssues, bool, has_issues];
+    impl_attribute![?    objects::Project, HasDownloads, bool, has_downloads];
+    impl_attribute![?    objects::Project, HasWiki, bool, has_wiki];
+    impl_attribute![?    objects::Project, HasPages, bool, has_pages];
+    impl_attribute![?    objects::Project, Created, i64, created];
+    impl_attribute![?    objects::Project, Updated, i64, updated];
+    impl_attribute![?    objects::Project, Pushed, i64, pushed];
+    impl_attribute![?    objects::Project, DefaultBranch, String, default_branch];
+    impl_attribute![?    objects::Project, Age, Duration, lifetime];
+    impl_attribute![?..  objects::Project, Heads, objects::Head, heads, head_count];
+    impl_attribute![?+.. objects::Project, Commits, objects::Commit, commits_with_data, commit_count];
+    impl_attribute![?..  objects::Project, Authors, objects::User, authors, author_count];
+    impl_attribute![?..  objects::Project, Committers, objects::User, committers, committer_count];
+    impl_attribute![?+.. objects::Project, Users, objects::User, users_with_data, user_count];
+    impl_attribute![?..  objects::Project, Paths, objects::Path, paths, path_count];
+    impl_attribute![?..  objects::Project, Snapshots, objects::Snapshot, snapshots, snapshot_count];
 }
 
 pub mod commit {
     use crate::query::*;
-    impl_attribute![!   objects::Commit, Id, objects::CommitId, id];
-    impl_attribute![!   objects::Commit, Committer, objects::User, committer];
-    impl_attribute![!+  objects::Commit, Author, objects::User, author_with_data];
-    impl_attribute![?   objects::Commit, Hash, String, hash];
-    impl_attribute![?   objects::Commit, Message, String, message];
-    impl_attribute![?   objects::Commit, MessageLength, usize, message_length];
-    impl_attribute![?   objects::Commit, AuthoredTimestamp, i64, author_timestamp];
-    impl_attribute![?   objects::Commit, CommittedTimestamp, i64, committer_timestamp];
-    impl_attribute![?.. objects::Commit, Paths, objects::Path, changed_paths, changed_path_count];
-    impl_attribute![?.. objects::Commit, Snapshots, objects::Snapshot, changed_snapshots, changed_snapshot_count];
-    impl_attribute![!.. objects::Commit, Parents, objects::Commit, parents, parent_count];
+    impl_attribute![!    objects::Commit, Id, objects::CommitId, id];
+    impl_attribute![!+   objects::Commit, Committer, objects::User, committer_with_data];
+    impl_attribute![!+   objects::Commit, Author, objects::User, author_with_data];
+    impl_attribute![?    objects::Commit, Hash, String, hash];
+    impl_attribute![?    objects::Commit, Message, String, message];
+    impl_attribute![?    objects::Commit, MessageLength, usize, message_length];
+    impl_attribute![?    objects::Commit, AuthoredTimestamp, i64, author_timestamp];
+    impl_attribute![?    objects::Commit, CommittedTimestamp, i64, committer_timestamp];
+    impl_attribute![?..  objects::Commit, Paths, objects::Path, changed_paths, changed_path_count];
+    impl_attribute![?..  objects::Commit, Snapshots, objects::Snapshot, changed_snapshots, changed_snapshot_count];
+    impl_attribute![!+.. objects::Commit, Parents, objects::Commit, parents_with_data, parent_count];
 }
 
 pub mod head {
@@ -262,13 +262,13 @@ pub mod head {
 
 pub mod user {
     use crate::query::*;
-    impl_attribute![!   objects::User, Id, objects::UserId, id];
-    impl_attribute![!   objects::User, Email, String, email];
-    impl_attribute![?   objects::User, AuthorExperience, Duration, author_experience];
-    impl_attribute![?   objects::User, CommitterExperience, Duration, committer_experience];
-    impl_attribute![?   objects::User, Experience, Duration, experience];
-    impl_attribute![?.. objects::User, AuthoredCommits, objects::Commit, authored_commits, authored_commit_count];
-    impl_attribute![?.. objects::User, CommittedCommits, objects::Commit, committed_commits, committed_commit_count];
+    impl_attribute![!    objects::User, Id, objects::UserId, id];
+    impl_attribute![!    objects::User, Email, String, email];
+    impl_attribute![?    objects::User, AuthorExperience, Duration, author_experience];
+    impl_attribute![?    objects::User, CommitterExperience, Duration, committer_experience];
+    impl_attribute![?    objects::User, Experience, Duration, experience];
+    impl_attribute![?+.. objects::User, AuthoredCommits, objects::Commit, authored_commits_with_data, authored_commit_count];
+    impl_attribute![?+.. objects::User, CommittedCommits, objects::Commit, committed_commits_with_data, committed_commit_count];
 }
 
 pub mod path {
@@ -657,49 +657,49 @@ pub mod get {
     use crate::attrib::*;
     use crate::iterators::ItemWithData;
 
-    pub struct From<O: Attribute, A: Attribute> (pub O, pub A);
-    impl<'a, O, A, T, I> Attribute for From<O, A>
-        where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>, A: Attribute<Object=I> {
-        type Object = T;
-    }
-    impl<'a, O, A, T, I, E> Getter<'a> for From<O, A>
-         where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>,
-               A: Attribute<Object=I> + Getter<'a, IntoItem=E> {
-         type IntoItem = Option<E>;
-         fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
-             self.0.get_opt_with_data(object).map(|object| self.1.get(&object))
-         }
-    }
-    impl<'a, O, A, T, I, E> OptionGetter<'a> for From<O, A>
-        where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>,
-              A: Attribute<Object=I> + OptionGetter<'a, IntoItem=E> {
-        type IntoItem = E;
-        fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
-            self.0.get_opt_with_data(object).map(|object| self.1.get_opt(&object)).flatten()
-        }
-    }
+    // pub struct From<O: Attribute, A: Attribute> (pub O, pub A);
+    // impl<'a, O, A, T, I> Attribute for From<O, A>
+    //     where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>, A: Attribute<Object=I> {
+    //     type Object = T;
+    // }
+    // impl<'a, O, A, T, I, E> Getter<'a> for From<O, A>
+    //      where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>,
+    //            A: Attribute<Object=I> + Getter<'a, IntoItem=E> {
+    //      type IntoItem = Option<E>;
+    //      fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+    //          self.0.get_opt_with_data(object).map(|object| self.1.get(&object))
+    //      }
+    // }
+    // impl<'a, O, A, T, I, E> OptionGetter<'a> for From<O, A>
+    //     where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>,
+    //           A: Attribute<Object=I> + OptionGetter<'a, IntoItem=E> {
+    //     type IntoItem = E;
+    //     fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+    //         self.0.get_opt_with_data(object).map(|object| self.1.get_opt(&object)).flatten()
+    //     }
+    // }
 
     pub struct FromEach<O: Attribute, A: Attribute> (pub O, pub A);
-    impl<'a, O, A, T, I> Attribute for FromEach<O, A>
-        where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>, A: Attribute<Object=I> {
+    impl<'a, O, A, T> Attribute for FromEach<O, A>
+        where O: Attribute<Object=T> /*+ OptionGetter<'a, IntoItem=Vec<I>>)*/, A: Attribute { //<Object=I>*/ {
         type Object = T;
     }
     impl<'a, O, A, T, I, E> Getter<'a> for FromEach<O, A>
-        where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
+        where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               A: Attribute<Object=I> + Getter<'a, IntoItem=E> {
         type IntoItem = Option<Vec<E>>;
         fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
-            self.0.get_opt_each_with_data(object).map(|v| {
+            self.0.get_opt(object).map(|v| {
                 v.iter().map(|object| { self.1.get(object) }).collect()
             })
         }
     }
     impl<'a, O, A, T, I, E> OptionGetter<'a> for FromEach<O, A>
-        where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
+        where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               A: Attribute<Object=I> + OptionGetter<'a, IntoItem=E> {
         type IntoItem = Vec<E>;
         fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
-            self.0.get_opt_each_with_data(object).map(|v| {
+            self.0.get_opt(object).map(|v| {
                 v.iter().flat_map(|object| { self.1.get_opt(object) }).collect()
             })
         }
@@ -740,12 +740,13 @@ pub mod with {
               P: Filter<'a, Item=I> {
         type IntoItem = Vec<I>;
         fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
-            self.0.get_opt_each_with_data(object).map(|items|{
-                items.into_iter()
-                    .filter(|item| self.1.accept(item))
-                    .drop_database()
-                    .collect()
-            })
+            unimplemented!()
+            // self.0.get_opt_each_with_data(object).map(|items|{
+            //     items.into_iter()
+            //         .filter(|item| self.1.accept(item))
+            //         .drop_database()
+            //         .collect()
+            // })
         }
     }
     impl<'a, A, P, T, I> Getter<'a> for Requirement<A, P>
@@ -753,19 +754,20 @@ pub mod with {
               P: Filter<'a, Item=I> {
         type IntoItem = Option<Vec<I>>;
         fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
-            self.0.get_opt_each_with_data(object).map(|items|{
-                items.into_iter()
-                    .filter(|item| self.1.accept(item))
-                    .drop_database()
-                    .collect()
-            })
+            unimplemented!()
+            // self.0.get_opt_each_with_data(object).map(|items|{
+            //     items.into_iter()
+            //         .filter(|item| self.1.accept(item))
+            //         .drop_database()
+            //         .collect()
+            // })
         }
     }
     impl<'a, A, P, T, I> Countable<'a> for Requirement<A, P>
         where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
               P: Filter<'a, Item=I> {
         fn count(&self, object: &ItemWithData<'a, Self::Object>) -> usize {
-            self.0.get_opt(object).map_or(0, |vector| vector.len())
+            self.0.get_opt(object).map_or(0, |vector| vector.len()) // FIXME
             // Could potentially count straight from iter, but would have to reimplement all of
             // get_opt. It would save allocating the vector.
         }
@@ -774,7 +776,7 @@ pub mod with {
         where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>,
               P: Filter<'a, Item=I> {
         fn count(&self, object: &ItemWithData<'a, Self::Object>) -> Option<usize> {
-            self.0.get_opt(object).map(|vector| vector.len())
+            self.0.get_opt(object).map(|vector| vector.len()) // FIXME
         }
     }
 }

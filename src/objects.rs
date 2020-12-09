@@ -595,16 +595,16 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn pushed           (&self)    -> Option<i64>                     { self.item.pushed(&self.data)                 }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)           }
 
-    pub fn commits_with_data(&self) -> Option<Vec<ItemWithData<Commit>>> {
+    pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)
     }
-    pub fn authors_with_data(&self) -> Option<Vec<ItemWithData<User>>> {
+    pub fn authors_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, User>>> {
         self.item.authors(&self.data).attach_data_to_each(self.data)
     }
-    pub fn committers_with_data(&self) -> Option<Vec<ItemWithData<User>>> {
+    pub fn committers_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, User>>> {
         self.item.committers(&self.data).attach_data_to_each(self.data)
     }
-    pub fn users_with_data(&self) -> Option<Vec<ItemWithData<User>>> {
+    pub fn users_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, User>>> {
         self.item.users(&self.data).attach_data_to_each(self.data)
     }
 }
@@ -630,11 +630,11 @@ impl<'a> ItemWithData<'a, User> {
     pub fn author_experience     (&self)   -> Option<Duration>      { self.item.author_experience(&self.data)      }
     pub fn experience            (&self)   -> Option<Duration>      { self.item.experience(&self.data)             }
 
-    pub fn authored_commits_with_data<'b> (&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
+    pub fn authored_commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.authored_commits(&self.data).attach_data_to_each(self.data)
     }
 
-    pub fn committed_commits_with_data<'b> (&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
+    pub fn committed_commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.committed_commits(&self.data).attach_data_to_each(self.data)
     }
 }
@@ -661,9 +661,9 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn changed_snapshots   (&self) -> Option<Vec<Snapshot>>             { self.item.changed_snapshots(&self.data)    }
     pub fn changed_snapshot_count (&self) -> Option<usize>                  { self.item.changed_snapshot_count(&self.data) }
 
-    pub fn author_with_data<'b> (&'b self) -> ItemWithData<'a, User>        { self.item.author(self.data).attach_data(self.data) }
-    pub fn committer_with_data<'b> (&'b self) -> ItemWithData<'a, User>     { self.item.committer(self.data).attach_data(self.data) }
-    pub fn parents_with_data<'b> (&'b self) -> Vec<ItemWithData<'a, Commit>> { self.item.parents(self.data).attach_data_to_each(self.data) }
+    pub fn author_with_data<'b>(&'b self) -> ItemWithData<'a, User>         { self.item.author(self.data).attach_data(self.data) }
+    pub fn committer_with_data<'b>(&'b self) -> ItemWithData<'a, User>      { self.item.committer(self.data).attach_data(self.data) }
+    pub fn parents_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Commit>> { self.item.parents(self.data).attach_data_to_each(self.data) }
 }
 impl<'a> ItemWithData<'a, Path> {
     pub fn id      (&self) -> PathId           { self.item.id()       }

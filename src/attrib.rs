@@ -12,14 +12,14 @@ pub trait Attribute {
 pub trait Getter<'a>: Attribute {
     type IntoItem;
     fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem;
-    fn get_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> ItemWithData<'a, Self::IntoItem> {
+    fn _get_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> ItemWithData<'a, Self::IntoItem> {
         ItemWithData::new(object.data, self.get(object))
     }
 }
 pub trait OptionGetter<'a>: Attribute {
     type IntoItem;
     fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem>;
-    fn get_opt_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
+    fn _get_opt_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> Option<ItemWithData<'a, Self::IntoItem>> {
         self.get_opt(object).map(|result| {
             ItemWithData::new(object.data, result)
         })
@@ -27,7 +27,7 @@ pub trait OptionGetter<'a>: Attribute {
 }
 
 pub trait CollectionGetter<'a, T, I>: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>> {
-    fn get_opt_each_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
+    fn _get_opt_each_with_data(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Vec<ItemWithData<'a, I>>> {
         self.get_opt(object).map(|v| {
             v.into_iter().map(|e| {
                 ItemWithData::new(object.data, e)

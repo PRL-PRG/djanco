@@ -3,6 +3,8 @@ use std::iter::Map;
 
 use crate::objects::*;
 use crate::data::*;
+use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 pub struct IterWithData<'a, T, I: Iterator<Item=T> + 'a> { data: &'a Database, iterator: I }
 
@@ -71,6 +73,32 @@ impl<'a, T> ItemWithData<'a, T> {
 impl<'a, T> Clone for ItemWithData<'a, T> where T: Clone {
     fn clone(&self) -> Self {
         ItemWithData::new(self.data, self.item.clone())
+    }
+}
+
+impl<'a, T> PartialEq for ItemWithData<'a, T> where T: PartialEq {
+    fn eq(&self, other: &Self) -> bool {
+        self.item.eq(&other.item)
+    }
+}
+
+impl<'a, T> Eq for ItemWithData<'a, T> where ItemWithData<'a, T>: PartialEq, T: Eq {}
+
+impl<'a, T> PartialOrd for ItemWithData<'a, T> where T: PartialOrd {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.item.partial_cmp(&other.item)
+    }
+}
+
+impl<'a, T> Ord for ItemWithData<'a, T> where T: Ord, ItemWithData<'a, T>: Eq {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.item.cmp(&other.item)
+    }
+}
+
+impl<'a, T> Hash for ItemWithData<'a, T> where T: Hash {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.item.hash(state)
     }
 }
 

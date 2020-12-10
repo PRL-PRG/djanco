@@ -29,6 +29,20 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
+    [!+ $object:ty, $attribute:ident] => {
+        impl<'a> Getter<'a> for $attribute {
+            type IntoItem = ItemWithData<'a, Self::Object>;
+            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+                object.clone()
+            }
+        }
+        impl<'a> OptionGetter<'a> for $attribute {
+            type IntoItem = ItemWithData<'a, Self::Object>;
+            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+                Some(object.clone())
+            }
+        }
+    };
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = $small_type;
@@ -153,6 +167,10 @@ macro_rules! impl_attribute {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute];
     };
+    [!+ $object:ty, $attribute:ident] => {
+        impl_attribute_definition![$object, $attribute];
+        impl_attribute_getter![!+ $object, $attribute];
+    };
     [! $object:ty, $attribute:ident, bool, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, bool, $getter];
@@ -203,7 +221,8 @@ macro_rules! impl_attribute {
 
 pub mod project {
     use crate::query::*;
-    impl_attribute![!     objects::Project, Itself];
+    impl_attribute![!+    objects::Project, Itself];
+    impl_attribute![!     objects::Project, Raw];
     impl_attribute![!     objects::Project, Id, objects::ProjectId, id];
     impl_attribute![!     objects::Project, URL, String, url];
     impl_attribute![?     objects::Project, Issues, usize, issue_count];
@@ -241,10 +260,11 @@ pub mod project {
 
 pub mod commit {
     use crate::query::*;
-    impl_attribute![!    objects::Commit, Itself];
+    impl_attribute![!+   objects::Commit, Itself];
+    impl_attribute![!    objects::Commit, Raw];
     impl_attribute![!    objects::Commit, Id, objects::CommitId, id];
-    impl_attribute![!+   objects::Commit, Committer, objects::User, committer_with_data];
-    impl_attribute![!+   objects::Commit, Author, objects::User, author_with_data];
+    impl_attribute![?+   objects::Commit, Committer, objects::User, committer_with_data];
+    impl_attribute![?+   objects::Commit, Author, objects::User, author_with_data];
     impl_attribute![?    objects::Commit, Hash, String, hash];
     impl_attribute![?    objects::Commit, Message, String, message];
     impl_attribute![?    objects::Commit, MessageLength, usize, message_length];
@@ -257,14 +277,16 @@ pub mod commit {
 
 pub mod head {
     use crate::query::*;
-    impl_attribute![!   objects::Head, Itself];
+    impl_attribute![!+  objects::Head, Itself];
+    impl_attribute![!   objects::Head, Raw];
     impl_attribute![!   objects::Head, Name, String, name];
     impl_attribute![?+  objects::Head, Commit, objects::Commit, commit_with_data];
 }
 
 pub mod change {
     use crate::query::*;
-    impl_attribute![!   objects::Change, Itself];
+    impl_attribute![!+  objects::Change, Itself];
+    impl_attribute![!   objects::Change, Raw];
     impl_attribute![!   objects::Change, PathId, objects::PathId, path_id];
     impl_attribute![?   objects::Change, SnapshotId, objects::SnapshotId, snapshot_id];
     impl_attribute![?+  objects::Change, Path, objects::Path, path_with_data];
@@ -273,7 +295,8 @@ pub mod change {
 
 pub mod user {
     use crate::query::*;
-    impl_attribute![!    objects::User, Itself];
+    impl_attribute![!+   objects::User, Itself];
+    impl_attribute![!    objects::User, Raw];
     impl_attribute![!    objects::User, Id, objects::UserId, id];
     impl_attribute![!    objects::User, Email, String, email];
     impl_attribute![?    objects::User, AuthorExperience, Duration, author_experience];
@@ -285,7 +308,8 @@ pub mod user {
 
 pub mod path {
     use crate::query::*;
-    impl_attribute![!   objects::Path, Itself];
+    impl_attribute![!+  objects::Path, Itself];
+    impl_attribute![!   objects::Path, Raw];
     impl_attribute![!   objects::Path, Id, objects::PathId, id];
     impl_attribute![!   objects::Path, Location, String, location];
     impl_attribute![?   objects::Path, Language, objects::Language, language];
@@ -293,7 +317,8 @@ pub mod path {
 
 pub mod snapshot {
     use crate::query::*;
-    impl_attribute![!   objects::Snapshot, Itself];
+    impl_attribute![!+  objects::Snapshot, Itself];
+    impl_attribute![!   objects::Snapshot, Raw];
     impl_attribute![!   objects::Snapshot, Id, objects::SnapshotId, id];
     impl_attribute![!   objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned];
     impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];

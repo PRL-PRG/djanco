@@ -450,8 +450,8 @@ impl Commit {
     pub fn parent_ids         (&self)                   -> &Vec<CommitId>                     { &self.parents                 }
     pub fn parent_count       (&self)                   -> usize                              {  self.parents.len()           }
 
-    pub fn committer          (&self, store: &Database) -> User                               {  self.committer.reify(store)  }
-    pub fn author             (&self, store: &Database) -> User                               {  self.author.reify(store)     }
+    pub fn committer          (&self, store: &Database) -> Option<User>                       {  store.user(&self.committer) }
+    pub fn author             (&self, store: &Database) -> Option<User>                       {  store.user(&self.committer) }
     pub fn parents            (&self, store: &Database) -> Vec<Commit>                        {  self.parents.reify(store)    }
 
     pub fn hash               (&self, store: &Database) -> Option<String>                     {  store.commit_hash(&self.id)                        }
@@ -656,8 +656,8 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn author_id          (&self) -> UserId                             { self.item.author_id()    }
     pub fn parent_ids         (&self) -> &Vec<CommitId>                     { self.item.parent_ids()   }
     pub fn parent_count       (&self) -> usize                              { self.item.parent_count() }
-    pub fn committer          (&self) -> User                               { self.item.committer(&self.data)            }
-    pub fn author             (&self) -> User                               { self.item.author(self.data)                }
+    pub fn committer          (&self) -> Option<User>                       { self.item.committer(&self.data)            }
+    pub fn author             (&self) -> Option<User>                       { self.item.author(self.data)                }
     pub fn parents            (&self) -> Vec<Commit>                        { self.item.parents(self.data)               }
     pub fn hash               (&self) -> Option<String>                     { self.item.hash(&self.data)                 }
     pub fn message            (&self) -> Option<String>                     { self.item.message(&self.data)              }
@@ -672,11 +672,11 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn changed_snapshots   (&self) -> Option<Vec<Snapshot>>             { self.item.changed_snapshots(&self.data)    }
     pub fn changed_snapshot_count (&self) -> Option<usize>                  { self.item.changed_snapshot_count(&self.data) }
 
-    pub fn author_with_data<'b>(&'b self) -> ItemWithData<'a, User> {
-        self.item.author(self.data).attach_data(self.data)
+    pub fn author_with_data<'b>(&'b self) -> Option<ItemWithData<'a, User>> {
+        self.item.author(self.data).attach_data_to_inner(self.data)
     }
-    pub fn committer_with_data<'b>(&'b self) -> ItemWithData<'a, User> {
-        self.item.committer(self.data).attach_data(self.data)
+    pub fn committer_with_data<'b>(&'b self) -> Option<ItemWithData<'a, User>> {
+        self.item.committer(self.data).attach_data_to_inner(self.data)
     }
     pub fn parents_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Commit>> {
         self.item.parents(self.data).attach_data_to_each(self.data)

@@ -7,10 +7,6 @@ macro_rules! impl_attribute_definition {
     [$object:ty, $attribute:ident] => {
         #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] pub struct $attribute;
         impl Attribute for $attribute { type Object = $object; }
-    };
-    [$object:ty, $attribute:ident] => {
-        #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] pub struct $attribute;
-        impl Attribute for $attribute { type Object = $object; }
     }
 }
 

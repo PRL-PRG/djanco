@@ -654,7 +654,7 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn id                 (&self) -> CommitId                           { self.item.id()           }
     pub fn committer_id       (&self) -> UserId                             { self.item.committer_id() }
     pub fn author_id          (&self) -> UserId                             { self.item.author_id()    }
-    pub fn parent_ids         (&self) -> &Vec<CommitId>                     { self.item.parent_ids()   }
+    pub fn parent_ids         (&self) -> Vec<CommitId>                      { self.item.parent_ids().clone() }
     pub fn parent_count       (&self) -> usize                              { self.item.parent_count() }
     pub fn committer          (&self) -> Option<User>                       { self.item.committer(&self.data)            }
     pub fn author             (&self) -> Option<User>                       { self.item.author(self.data)                }

@@ -250,6 +250,12 @@ pub mod project {
     impl_attribute![?     objects::Project, DefaultBranch, String, default_branch];
     impl_attribute![?     objects::Project, Age, Duration, lifetime];
     impl_attribute![?+..  objects::Project, Heads, objects::Head, heads_with_data, head_count];
+    impl_attribute![?..   objects::Project, CommitIds, objects::CommitId, commit_ids, commit_count];
+    impl_attribute![?..   objects::Project, AuthorIds, objects::UserId, author_ids, author_count];
+    impl_attribute![?..   objects::Project, CommitterIds, objects::UserId, committer_ids, committer_count];
+    impl_attribute![?..   objects::Project, UserIds, objects::UserId, user_ids, user_count];
+    impl_attribute![?..   objects::Project, PathIds, objects::PathId, path_ids, path_count];
+    impl_attribute![?..   objects::Project, SnapshotIds, objects::SnapshotId, snapshot_ids, snapshot_count];
     impl_attribute![?+..  objects::Project, Commits, objects::Commit, commits_with_data, commit_count];
     impl_attribute![?+..  objects::Project, Authors, objects::User, authors_with_data, author_count];
     impl_attribute![?+..  objects::Project, Committers, objects::User, committers_with_data, committer_count];
@@ -263,6 +269,8 @@ pub mod commit {
     impl_attribute![!+   objects::Commit, Itself];
     impl_attribute![!    objects::Commit, Raw];
     impl_attribute![!    objects::Commit, Id, objects::CommitId, id];
+    impl_attribute![!    objects::Commit, CommitterId, objects::UserId, committer_id];
+    impl_attribute![!    objects::Commit, AuthorId, objects::UserId, author_id];
     impl_attribute![?+   objects::Commit, Committer, objects::User, committer_with_data];
     impl_attribute![?+   objects::Commit, Author, objects::User, author_with_data];
     impl_attribute![?    objects::Commit, Hash, String, hash];
@@ -270,6 +278,9 @@ pub mod commit {
     impl_attribute![?    objects::Commit, MessageLength, usize, message_length];
     impl_attribute![?    objects::Commit, AuthoredTimestamp, i64, author_timestamp];
     impl_attribute![?    objects::Commit, CommittedTimestamp, i64, committer_timestamp];
+    impl_attribute![?..  objects::Commit, PathIds, objects::PathId, changed_path_ids, changed_path_count];
+    impl_attribute![?..  objects::Commit, SnapshotIds, objects::SnapshotId, changed_snapshot_ids, changed_snapshot_count];
+    impl_attribute![!..  objects::Commit, ParentIds, objects::CommitId, parent_ids, parent_count];
     impl_attribute![?+.. objects::Commit, Paths, objects::Path, changed_paths_with_data, changed_path_count];
     impl_attribute![?+.. objects::Commit, Snapshots, objects::Snapshot, changed_snapshots_with_data, changed_snapshot_count];
     impl_attribute![!+.. objects::Commit, Parents, objects::Commit, parents_with_data, parent_count];
@@ -280,6 +291,7 @@ pub mod head {
     impl_attribute![!+  objects::Head, Itself];
     impl_attribute![!   objects::Head, Raw];
     impl_attribute![!   objects::Head, Name, String, name];
+    impl_attribute![!   objects::Head, CommitId, objects::CommitId, commit_id];
     impl_attribute![?+  objects::Head, Commit, objects::Commit, commit_with_data];
 }
 
@@ -302,6 +314,8 @@ pub mod user {
     impl_attribute![?    objects::User, AuthorExperience, Duration, author_experience];
     impl_attribute![?    objects::User, CommitterExperience, Duration, committer_experience];
     impl_attribute![?    objects::User, Experience, Duration, experience];
+    impl_attribute![?..  objects::User, AuthoredCommitIds, objects::CommitId, authored_commit_ids, authored_commit_count];
+    impl_attribute![?..  objects::User, CommittedCommitIds, objects::CommitId, committed_commit_ids, committed_commit_count];
     impl_attribute![?+.. objects::User, AuthoredCommits, objects::Commit, authored_commits_with_data, authored_commit_count];
     impl_attribute![?+.. objects::User, CommittedCommits, objects::Commit, committed_commits_with_data, committed_commit_count];
 }

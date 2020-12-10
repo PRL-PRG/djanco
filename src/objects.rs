@@ -375,7 +375,7 @@ impl Head {
     pub fn new(name: String, commit: CommitId) -> Self { Head { name, commit } }
     pub fn name(&self) -> String { self.name.to_string() }
     pub fn commit_id(&self) -> CommitId { self.commit.clone() }
-    pub fn commit(&self, store: &Database) -> Commit { self.commit.reify(store) }
+    pub fn commit(&self, store: &Database) -> Option<Commit> { store.commit(&self.commit) }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -395,6 +395,8 @@ impl Change {
     pub fn path_id(&self) -> PathId {
         self.path.clone()
     }
+    pub fn snapshot(&self, store: &Database) -> Option<Snapshot> { self.snapshot.map(|id| store.snapshot(&id)).flatten() }
+    pub fn path(&self, store: &Database) -> Option<Path> { store.path(&self.path) }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -607,6 +609,15 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn users_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, User>>> {
         self.item.users(&self.data).attach_data_to_each(self.data)
     }
+    pub fn snapshots_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Snapshot>>> {
+        self.item.snapshots(&self.data).attach_data_to_each(self.data)
+    }
+    pub fn heads_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Head>>> {
+        self.item.heads(&self.data).attach_data_to_each(self.data)
+    }
+    pub fn paths_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Path>>> {
+        self.item.paths(&self.data).attach_data_to_each(self.data)
+    }
 }
 impl<'a> ItemWithData<'a, Snapshot> {
     pub fn raw_contents(&self) -> &Vec<u8> { self.item.raw_contents() }
@@ -661,9 +672,25 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn changed_snapshots   (&self) -> Option<Vec<Snapshot>>             { self.item.changed_snapshots(&self.data)    }
     pub fn changed_snapshot_count (&self) -> Option<usize>                  { self.item.changed_snapshot_count(&self.data) }
 
-    pub fn author_with_data<'b>(&'b self) -> ItemWithData<'a, User>         { self.item.author(self.data).attach_data(self.data) }
-    pub fn committer_with_data<'b>(&'b self) -> ItemWithData<'a, User>      { self.item.committer(self.data).attach_data(self.data) }
-    pub fn parents_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Commit>> { self.item.parents(self.data).attach_data_to_each(self.data) }
+    pub fn author_with_data<'b>(&'b self) -> ItemWithData<'a, User> {
+        self.item.author(self.data).attach_data(self.data)
+    }
+    pub fn committer_with_data<'b>(&'b self) -> ItemWithData<'a, User> {
+        self.item.committer(self.data).attach_data(self.data)
+    }
+    pub fn parents_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Commit>> {
+        self.item.parents(self.data).attach_data_to_each(self.data)
+    }
+    pub fn changes_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Change>>> {
+        self.item.changes(self.data).attach_data_to_each(self.data)
+    }
+    pub fn changed_paths_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Path>>> {
+        self.item.changed_paths(self.data).attach_data_to_each(self.data)
+    }
+    pub fn changed_snapshots_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Snapshot>>> {
+        self.item.changed_snapshots(self.data).attach_data_to_each(self.data)
+    }
+
 }
 impl<'a> ItemWithData<'a, Path> {
     pub fn id      (&self) -> PathId           { self.item.id()       }
@@ -674,7 +701,24 @@ impl<'a> ItemWithData<'a, Path> {
 impl<'a> ItemWithData<'a, Head> {
     pub fn name(&self) -> String { self.item.name() }
     pub fn commit_id(&self) -> CommitId { self.item.commit_id() }
-    pub fn commit(&self) -> Commit { self.item.commit(&self.data) }
+    pub fn commit(&self) -> Option<Commit> { self.item.commit(&self.data) }
 
-    pub fn commit_with_data<'b> (&'b self) -> ItemWithData<'a, Commit>     { self.item.commit(self.data).attach_data(self.data) }
+    pub fn commit_with_data<'b> (&'b self) -> Option<ItemWithData<'a, Commit>> {
+        self.item.commit(self.data).attach_data_to_inner(self.data)
+    }
+}
+
+
+impl<'a> ItemWithData<'a, Change> {
+    pub fn path_id(&self) -> PathId { self.item.path_id() }
+    pub fn snapshot_id(&self) -> Option<SnapshotId> { self.item.snapshot_id() }
+    pub fn path(&self) -> Option<Path> { self.item.path(&self.data) }
+    pub fn snapshot(&self) -> Option<Snapshot> { self.item.snapshot(&self.data) }
+
+    pub fn path_with_data<'b> (&'b self) -> Option<ItemWithData<'a, Path>> {
+        self.item.path(self.data).attach_data_to_inner(self.data)
+    }
+    pub fn snapshot_with_data<'b> (&'b self) -> Option<ItemWithData<'a, Snapshot>> {
+        self.item.snapshot(self.data).attach_data_to_inner(self.data)
+    }
 }

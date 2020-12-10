@@ -41,13 +41,16 @@ fn main() {
     database.paths().filter_by_attrib(require::Equal(path::Language, Language::Haskell)).into_csv(path!("filter_haskell_paths")).unwrap();
     database.commits().sample(sample::Random(100, sample::Seed(42))).into_csv(path!("sample_100_commits")).unwrap();
     database.projects().map_into_attrib(stats::Ratio(project::Authors, project::Users)).into_csv(path!("select_project_ratio_of_authors_to_users")).unwrap();
-    database.projects().map_into_attrib(select::Select2(project::Id, project::URL)).into_csv(path!("select_project_ids_and_urls")).unwrap();
+    database.projects().map_into_attrib(get::Select2(project::Id, project::URL)).into_csv(path!("select_project_ids_and_urls")).unwrap();
     database.commits().map_into_attrib(commit::Author)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_author_experience")).unwrap();
     database.commits().map_into_attrib(commit::Committer)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_committer_experience")).unwrap();
     database.commits().map_into_attrib(commit::Parents).into_csv(path!("commit_parents")).unwrap();
     database.projects().map_into_attrib(get::FromEach(project::Commits, commit::MessageLength)).into_csv(path!("project_commit_message_length")).unwrap();
     database.users().sort_by_attrib(user::Experience).map_into_attrib(user::Experience).into_csv(path!("user_experience")).unwrap();
     database.projects().group_by_attrib(project::Language).map_into_attrib(get::FromEach(project::Commits, commit::MessageLength)).into_csv(path!("language/project_commit_message_length")).unwrap();
+    database.projects().filter_by_attrib(require::Member(project::Homepage, vec!["http://manasource.org/"].iter().map(|e| e.to_string()).collect::<Vec<String>>()));
+    database.projects().filter_by_attrib(require::AnyIn(get::FromEach(project::Commits, commit::Id), vec![objects::CommitId::from(42u64), objects::CommitId::from(666u64)]));
+    database.projects().filter_by_attrib(require::AllIn(get::FromEach(project::Commits, commit::Id), vec![objects::CommitId::from(42u64), objects::CommitId::from(666u64)]));
 }
 
 // TODO features
@@ -56,7 +59,6 @@ fn main() {
 // selectN macro
 // receipts
 // Git commit as version
-// with_id
 // commit frequency
 // fill in CSV-capable objects
 // maybe length for all strings
@@ -67,3 +69,6 @@ fn main() {
 // unit tests
 // print out fractions as decimals
 // flat_map select
+// explore parallelism
+// query
+// prefiltering

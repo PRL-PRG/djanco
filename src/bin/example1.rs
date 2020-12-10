@@ -47,7 +47,7 @@ fn main() {
             })
         })
         // end of hack
-        // TODO .filter_by_attrib(require::Member(project::Snapshots, selected_snapshot_ids))
+        //.filter_by_attrib(require::AnyIn(get::FromEach(project::Snapshots, snapshot::Id), selected_snapshot_ids))
         .sort_by_attrib(project::Stars)
         .into_csv(config.output_csv_path("projects_with_memory_resource")).unwrap()
 }

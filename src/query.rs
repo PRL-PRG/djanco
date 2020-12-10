@@ -230,17 +230,18 @@ pub mod project {
     impl_attribute![?     objects::Project, Pushed, i64, pushed];
     impl_attribute![?     objects::Project, DefaultBranch, String, default_branch];
     impl_attribute![?     objects::Project, Age, Duration, lifetime];
-    impl_attribute![?..   objects::Project, Heads, objects::Head, heads, head_count];
+    impl_attribute![?+..  objects::Project, Heads, objects::Head, heads_with_data, head_count];
     impl_attribute![?+..  objects::Project, Commits, objects::Commit, commits_with_data, commit_count];
     impl_attribute![?+..  objects::Project, Authors, objects::User, authors_with_data, author_count];
     impl_attribute![?+..  objects::Project, Committers, objects::User, committers_with_data, committer_count];
     impl_attribute![?+..  objects::Project, Users, objects::User, users_with_data, user_count];
-    impl_attribute![?..   objects::Project, Paths, objects::Path, paths, path_count];
-    impl_attribute![?..   objects::Project, Snapshots, objects::Snapshot, snapshots, snapshot_count];
+    impl_attribute![?+..  objects::Project, Paths, objects::Path, paths_with_data, path_count];
+    impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
 }
 
 pub mod commit {
     use crate::query::*;
+    impl_attribute![!    objects::Commit, Itself];
     impl_attribute![!    objects::Commit, Id, objects::CommitId, id];
     impl_attribute![!+   objects::Commit, Committer, objects::User, committer_with_data];
     impl_attribute![!+   objects::Commit, Author, objects::User, author_with_data];
@@ -249,19 +250,30 @@ pub mod commit {
     impl_attribute![?    objects::Commit, MessageLength, usize, message_length];
     impl_attribute![?    objects::Commit, AuthoredTimestamp, i64, author_timestamp];
     impl_attribute![?    objects::Commit, CommittedTimestamp, i64, committer_timestamp];
-    impl_attribute![?..  objects::Commit, Paths, objects::Path, changed_paths, changed_path_count];
-    impl_attribute![?..  objects::Commit, Snapshots, objects::Snapshot, changed_snapshots, changed_snapshot_count];
+    impl_attribute![?+.. objects::Commit, Paths, objects::Path, changed_paths_with_data, changed_path_count];
+    impl_attribute![?+.. objects::Commit, Snapshots, objects::Snapshot, changed_snapshots_with_data, changed_snapshot_count];
     impl_attribute![!+.. objects::Commit, Parents, objects::Commit, parents_with_data, parent_count];
 }
 
 pub mod head {
     use crate::query::*;
+    impl_attribute![!   objects::Head, Itself];
     impl_attribute![!   objects::Head, Name, String, name];
-    impl_attribute![!   objects::Head, Commit, objects::Commit, commit];
+    impl_attribute![?+  objects::Head, Commit, objects::Commit, commit_with_data];
+}
+
+pub mod change {
+    use crate::query::*;
+    impl_attribute![!   objects::Change, Itself];
+    impl_attribute![!   objects::Change, PathId, objects::PathId, path_id];
+    impl_attribute![?   objects::Change, SnapshotId, objects::SnapshotId, snapshot_id];
+    impl_attribute![?+  objects::Change, Path, objects::Path, path_with_data];
+    impl_attribute![?+  objects::Change, Snapshot, objects::Snapshot, snapshot_with_data];
 }
 
 pub mod user {
     use crate::query::*;
+    impl_attribute![!    objects::User, Itself];
     impl_attribute![!    objects::User, Id, objects::UserId, id];
     impl_attribute![!    objects::User, Email, String, email];
     impl_attribute![?    objects::User, AuthorExperience, Duration, author_experience];
@@ -273,6 +285,7 @@ pub mod user {
 
 pub mod path {
     use crate::query::*;
+    impl_attribute![!   objects::Path, Itself];
     impl_attribute![!   objects::Path, Id, objects::PathId, id];
     impl_attribute![!   objects::Path, Location, String, location];
     impl_attribute![?   objects::Path, Language, objects::Language, language];
@@ -280,6 +293,7 @@ pub mod path {
 
 pub mod snapshot {
     use crate::query::*;
+    impl_attribute![!   objects::Snapshot, Itself];
     impl_attribute![!   objects::Snapshot, Id, objects::SnapshotId, id];
     impl_attribute![!   objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned];
     impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];
@@ -288,6 +302,8 @@ pub mod snapshot {
 pub mod require {
     use crate::query::*;
     use crate::iterators::ItemWithData;
+    use std::collections::*;
+    use std::hash::Hash;
 
     macro_rules! impl_comparison {
         ($name:ident, $trait_limit:ident, $comparator:ident, $default:expr) => {
@@ -377,7 +393,50 @@ pub mod require {
         }
     }
 
-    // TODO any all
+    macro_rules! impl_collection_membership {
+        ($collection_type:tt<I> where I: $($requirements:tt),+) => {
+            impl<'a, A, T, I> Filter<'a> for Member<A, $collection_type<I>>
+                where A: OptionGetter<'a, IntoItem=I>,
+                A: Attribute<Object=T>,
+                I: $($requirements+)+ {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    self.0.get_opt(item_with_data).map_or(false, |e| self.1.contains(&e))
+                }
+            }
+            impl<'a, A, T, I> Filter<'a> for AnyIn<A, $collection_type<I>>
+                where A: OptionGetter<'a, IntoItem=Vec<I>>,
+                      A: Attribute<Object=T>,
+                      I: $($requirements+)+ {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    self.0.get_opt(item_with_data).map_or(false, |vector| {
+                        vector.iter().any(|e| self.1.contains(e))
+                    })
+                }
+            }
+            impl<'a, A, T, I> Filter<'a> for AllIn<A, $collection_type<I>>
+                where A: OptionGetter<'a, IntoItem=Vec<I>>,
+                      A: Attribute<Object=T>,
+                      I: $($requirements+)+ {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    self.0.get_opt(item_with_data).map_or(false, |vector| {
+                        vector.iter().all(|e| self.1.contains(e))
+                    })
+                }
+            }
+        }
+    }
+
+
+
+    pub struct Member<A, C>(pub A, pub C);
+    pub struct AnyIn<A, C>(pub A, pub C);
+    pub struct AllIn<A, C>(pub A, pub C);
+    impl_collection_membership!(Vec<I> where I: Eq);
+    impl_collection_membership!(BTreeSet<I> where I: Ord);
+    impl_collection_membership!(HashSet<I> where I: Hash, Eq);
 }
 
 pub mod sample {
@@ -474,47 +533,6 @@ pub mod sample {
     }
 }
 
-pub mod select {
-    #[allow(unused_imports)] use crate::attrib::*;
-    use crate::query::*;
-
-    macro_rules! impl_select {
-        ($n:ident, $($ti:ident -> $i:tt),+) => {
-            pub struct $n<$($ti: Attribute,)+> ($(pub $ti,)+);
-            impl<T, $($ti,)+> Attribute for $n<$($ti,)+>
-                where $($ti: Attribute<Object=T>,)+ {
-                type Object = T;
-            }
-            impl<'a, T, $($ti,)+> OptionGetter<'a> for $n<$($ti,)+>
-                where $($ti: Attribute<Object=T> + OptionGetter<'a>,)+ {
-                type IntoItem = ($(Option<$ti::IntoItem>,)+);
-                fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
-                    Some(($(self.$i.get_opt(object),)+))
-                }
-            }
-            impl<'a, T, $($ti,)+> Getter<'a> for $n<$($ti,)+>
-                where $($ti: Attribute<Object=T> + Getter<'a>,)+ {
-                type IntoItem = ($($ti::IntoItem,)+);
-
-                fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
-                    ($(self.$i.get(object),)+)
-                }
-            }
-        }
-    }
-
-    impl_select!(Select1,  Ta -> 0);
-    impl_select!(Select2,  Ta -> 0, Tb -> 1);
-    impl_select!(Select3,  Ta -> 0, Tb -> 1, Tc -> 2);
-    impl_select!(Select4,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3);
-    impl_select!(Select5,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4);
-    impl_select!(Select6,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5);
-    impl_select!(Select7,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6);
-    impl_select!(Select8,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7);
-    impl_select!(Select9,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8);
-    impl_select!(Select10, Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9);
-}
-
 pub mod stats {
     #[allow(unused_imports)] use crate::attrib::*;
     use crate::query::*;
@@ -522,6 +540,23 @@ pub mod stats {
 
     use std::iter::Sum;
     use itertools::Itertools;
+
+    pub struct Length<A: Attribute>(pub A);
+    impl<A, T> Attribute for Length<A> where A: Attribute<Object=T> {
+        type Object = T;
+    }
+    impl<'a, A, T> Getter<'a> for Length<A> where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=String> {
+        type IntoItem = Option<usize>;
+        fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            self.0.get_opt(object).map(|s| s.len())
+        }
+    }
+    impl<'a, A, T> OptionGetter<'a> for Length<A> where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=String> {
+        type IntoItem = usize;
+        fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            self.0.get_opt(object).map(|s| s.len())
+        }
+    }
 
     pub struct Count<A: Attribute>(pub A);
     impl<A, T> Attribute for Count<A> where A: Attribute<Object=T> {
@@ -570,7 +605,7 @@ pub mod stats {
             }
         }
     }
-    //
+
     // trait Unwrap<T,I> { fn unwrap(&self) -> I; }
     // impl Unwrap<usize, f64> for std::result::Result<f64, <usize as TryInto<f64>>::Err> {
     //     fn unwrap(&self) -> f64 {
@@ -724,6 +759,42 @@ pub mod get {
     //         })
     //     }
     // }
+
+    macro_rules! impl_select {
+        ($n:ident, $($ti:ident -> $i:tt),+) => {
+            pub struct $n<$($ti: Attribute,)+> ($(pub $ti,)+);
+            impl<T, $($ti,)+> Attribute for $n<$($ti,)+>
+                where $($ti: Attribute<Object=T>,)+ {
+                type Object = T;
+            }
+            impl<'a, T, $($ti,)+> OptionGetter<'a> for $n<$($ti,)+>
+                where $($ti: Attribute<Object=T> + OptionGetter<'a>,)+ {
+                type IntoItem = ($(Option<$ti::IntoItem>,)+);
+                fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+                    Some(($(self.$i.get_opt(object),)+))
+                }
+            }
+            impl<'a, T, $($ti,)+> Getter<'a> for $n<$($ti,)+>
+                where $($ti: Attribute<Object=T> + Getter<'a>,)+ {
+                type IntoItem = ($($ti::IntoItem,)+);
+
+                fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+                    ($(self.$i.get(object),)+)
+                }
+            }
+        }
+    }
+
+    impl_select!(Select1,  Ta -> 0);
+    impl_select!(Select2,  Ta -> 0, Tb -> 1);
+    impl_select!(Select3,  Ta -> 0, Tb -> 1, Tc -> 2);
+    impl_select!(Select4,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3);
+    impl_select!(Select5,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4);
+    impl_select!(Select6,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5);
+    impl_select!(Select7,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6);
+    impl_select!(Select8,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7);
+    impl_select!(Select9,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8);
+    impl_select!(Select10, Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9);
 }
 
 pub mod with {

@@ -10,6 +10,7 @@ use crate::objects::*;
 use crate::fraction::*;
 use crate::product::*;
 use crate::time::Duration;
+use crate::metadata::ProjectMetadata;
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -64,6 +65,11 @@ macro_rules! impl_csv_item {
             fn row(&self) -> Vec<String> { $to_string(self) }
             fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
         }
+        impl CSVItem for &$type {
+            fn column_headers() -> Vec<&'static str> { vec![$header] }
+            fn row(&self) -> Vec<String> { $to_string(self) }
+            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
+        }
     };
     ($type:tt<$($generic:tt),+>, $header:expr, $to_string:expr) => {
         impl<$($generic,)+> CSVItem for $type<$($generic,)+> {
@@ -71,9 +77,19 @@ macro_rules! impl_csv_item {
             fn row(&self) -> Vec<String> { $to_string(self) }
             fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
         }
+        impl<$($generic,)+> CSVItem for &$type<$($generic,)+> {
+            fn column_headers() -> Vec<&'static str> { vec![$header] }
+            fn row(&self) -> Vec<String> { $to_string(self) }
+            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
+        }
     };
     ($type:tt<$($generic:tt),+> where $($type_req:tt: $($type_req_def:tt),+);+-> $header:expr, $to_string:expr) => {
         impl<$($generic,)+> CSVItem for $type<$($generic,)+> where $($type_req: $($type_req_def+)+)+ {
+            fn column_headers() -> Vec<&'static str> { vec![$header] }
+            fn row(&self) -> Vec<String> { $to_string(self) }
+            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
+        }
+        impl<$($generic,)+> CSVItem for &$type<$($generic,)+> where $($type_req: $($type_req_def+)+)+ {
             fn column_headers() -> Vec<&'static str> { vec![$header] }
             fn row(&self) -> Vec<String> { $to_string(self) }
             fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
@@ -253,11 +269,21 @@ impl<T> CSVItem for Vec<T> where T: CSVItem {
     fn column_headers() -> Vec<&'static str> {
        T::column_headers()
     }
-
     fn row(&self) -> Vec<String> {
         unimplemented!()
     }
+    fn rows(&self) -> Vec<Vec<String>> {
+        self.iter().flat_map(|e| e.rows()).collect()
+    }
+}
 
+impl<T> CSVItem for &Vec<T> where T: CSVItem {
+    fn column_headers() -> Vec<&'static str> {
+        T::column_headers()
+    }
+    fn row(&self) -> Vec<String> {
+        unimplemented!()
+    }
     fn rows(&self) -> Vec<Vec<String>> {
         self.iter().flat_map(|e| e.rows()).collect()
     }
@@ -581,6 +607,67 @@ impl CSVItem for Snapshot {
         vec![vec![
             self.id().to_string(),
             self.contents().to_string().escape_quotes().quoted(),
+        ]]
+    }
+}
+
+impl CSVItem for ProjectMetadata {
+    fn column_headers() -> Vec<&'static str> { vec![
+        "project_id", "is_fork", "is_archived", "is_disabled", "star_gazers", "watchers", "size",
+        "open_issues", "forks", "subscribers", "license", "description", "homepage", "language",
+        "has_issues", "has_downloads", "has_wiki", "has_pages", "created", "updated", "pushed",
+        "master",
+    ] }
+    fn row(&self) -> Vec<String>  {
+        vec![
+            self.id.to_string(),
+            self.is_fork.to_string_or_empty(),
+            self.is_archived.to_string_or_empty(),
+            self.is_disabled.to_string_or_empty(),
+            self.star_gazers.to_string_or_empty(),
+            self.watchers.to_string_or_empty(),
+            self.size.to_string_or_empty(),
+            self.open_issues.to_string_or_empty(),
+            self.forks.to_string_or_empty(),
+            self.subscribers.to_string_or_empty(),
+            self.license.to_string_or_empty(),
+            self.description.to_string_or_empty(),
+            self.homepage.to_string_or_empty(),
+            self.language.to_string_or_empty(),
+            self.has_issues.to_string_or_empty(),
+            self.has_downloads.to_string_or_empty(),
+            self.has_wiki.to_string_or_empty(),
+            self.has_pages.to_string_or_empty(),
+            self.created.to_string_or_empty(),
+            self.updated.to_string_or_empty(),
+            self.pushed.to_string_or_empty(),
+            self.master.to_string_or_empty(),
+        ]
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.id.to_string(),
+            self.is_fork.to_string_or_empty(),
+            self.is_archived.to_string_or_empty(),
+            self.is_disabled.to_string_or_empty(),
+            self.star_gazers.to_string_or_empty(),
+            self.watchers.to_string_or_empty(),
+            self.size.to_string_or_empty(),
+            self.open_issues.to_string_or_empty(),
+            self.forks.to_string_or_empty(),
+            self.subscribers.to_string_or_empty(),
+            self.license.to_string_or_empty(),
+            self.description.to_string_or_empty(),
+            self.homepage.to_string_or_empty(),
+            self.language.to_string_or_empty(),
+            self.has_issues.to_string_or_empty(),
+            self.has_downloads.to_string_or_empty(),
+            self.has_wiki.to_string_or_empty(),
+            self.has_pages.to_string_or_empty(),
+            self.created.to_string_or_empty(),
+            self.updated.to_string_or_empty(),
+            self.pushed.to_string_or_empty(),
+            self.master.to_string_or_empty(),
         ]]
     }
 }

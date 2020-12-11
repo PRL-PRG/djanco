@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, BTreeSet};
 use std::error::Error;
 use std::fs::{File, create_dir_all};
 
@@ -147,6 +147,11 @@ impl<M> MetadataVec<M> where M: MetadataFieldExtractor {
         cache_path.set_extension(PERSISTENT_EXTENSION);
 
         Self { name, extractor, vector: None, cache_dir, cache_path, log: log.clone() }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=(&ProjectId, &M::Value)> {
+        self.vector.as_ref().map(|vector| vector.iter())
+            .expect("Attempted to iterate over metadata vector before initializing it")
     }
 
     pub fn already_loaded(&self) -> bool { self.vector.is_some() }
@@ -337,6 +342,17 @@ macro_rules! gimme {
     }}
 }
 
+macro_rules! gimme_iter {
+    ($self:expr, $vector:ident, $store:expr) => {{
+        if !$self.loaded && !$self.$vector.already_loaded() && !$self.$vector.already_cached() {
+            $self.load_all_from_store($store);
+            $self.store_all_to_cache().unwrap();
+            $self.loaded = true;
+        }
+        $self.$vector.iter()
+    }}
+}
+
 macro_rules! run_and_consolidate_errors {
     ($($statements:expr),*) => {{
         let mut outcomes = vec![];
@@ -430,6 +446,94 @@ impl ProjectMetadataSource {
     pub fn updated          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
     pub fn pushed           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
     pub fn master           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, master,        store, pirate, key)           }
+}
+
+// A glorified tuple
+pub struct ProjectMetadata {
+    pub id: ProjectId,
+    pub is_fork: Option<bool>,
+    pub is_archived: Option<bool>,
+    pub is_disabled: Option<bool>,
+    pub star_gazers: Option<usize>,
+    pub watchers: Option<usize>,
+    pub size: Option<usize>,
+    pub open_issues: Option<usize>,
+    pub forks: Option<usize>,
+    pub subscribers: Option<usize>,
+    pub license: Option<String>,
+    pub description: Option<String>,
+    pub homepage: Option<String>,
+    pub language: Option<Language>,
+    pub has_issues: Option<bool>,
+    pub has_downloads: Option<bool>,
+    pub has_wiki: Option<bool>,
+    pub has_pages: Option<bool>,
+    pub created: Option<i64>,
+    pub updated: Option<i64>,
+    pub pushed: Option<i64>,
+    pub master: Option<String>,
+}
+
+impl ProjectMetadataSource {
+    pub fn keys(&mut self, store: &DatastoreView) -> impl Iterator<Item=ProjectId> {
+        let mut keys = BTreeSet::new();
+        keys.append(&mut gimme_iter!(self, are_forks,     store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, are_archived,  store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, are_disabled,  store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, star_gazers,   store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, watchers,      store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, size,          store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, open_issues,   store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, forks,         store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, subscribers,   store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, languages,     store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, descriptions,  store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, homepages,     store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, licenses,      store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, has_issues,    store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, has_downloads, store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, has_wiki,      store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, has_pages,     store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, created,       store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, updated,       store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, pushed,        store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, master,        store).map(|(id, _)| id.clone()).collect());
+        keys.into_iter()
+    }
+
+    pub fn all_metadata(&mut self, store: &DatastoreView, key: &ProjectId) -> ProjectMetadata {
+        ProjectMetadata {
+            id: key.clone(),
+            is_fork: self.is_fork(store, key),
+            is_archived: self.is_archived(store, key),
+            is_disabled: self.is_disabled(store, key),
+            star_gazers: self.star_gazers(store, key),
+            watchers: self.watchers(store, key),
+            size: self.size(store, key),
+            open_issues: self.open_issues(store, key),
+            forks: self.forks(store, key),
+            subscribers: self.subscribers(store, key),
+            license: self.license(store, key),
+            description: self.description(store, key),
+            homepage: self.homepage(store, key),
+            language: self.language(store, key),
+            has_issues: self.has_issues(store, key),
+            has_downloads: self.has_downloads(store, key),
+            has_wiki: self.has_wiki(store, key),
+            has_pages: self.has_pages(store, key),
+            created: self.created(store, key),
+            updated: self.updated(store, key),
+            pushed: self.pushed(store, key),
+            master: self.master(store, key),
+        }
+    }
+
+    pub fn iter<'a>(&'a mut self, store: &'a DatastoreView) -> impl Iterator<Item=ProjectMetadata> + 'a {
+        self.keys(store)
+            .map(|project_id| self.all_metadata(store, &project_id))
+            .collect::<Vec<ProjectMetadata>>()
+            .into_iter()
+    }
 }
 
 impl MetadataSource for ProjectMetadataSource {

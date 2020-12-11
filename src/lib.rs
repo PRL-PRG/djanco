@@ -16,7 +16,7 @@
              pub mod receipt;
              pub mod spec;
              pub mod time;
-             pub mod piracy;
+             mod piracy;
              mod product;
 
 #[macro_use] extern crate mashup;

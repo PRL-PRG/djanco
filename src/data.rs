@@ -15,6 +15,7 @@ use crate::metadata::*;
 use crate::log::*;
 use crate::weights_and_measures::Weighed;
 use crate::time::Duration;
+use crate::csv::*;
 
 // Internally Mutable Data
 pub struct Database { data: RefCell<Data>, store: DatastoreView, log: Log }
@@ -1262,5 +1263,32 @@ impl Data {
     }
     fn smart_load_commit_change_count(&mut self, store: &DatastoreView) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, store, one, commit_changes)
+    }
+}
+
+impl Data {
+    pub fn export_all_to_csv<S>(&mut self, store: &DatastoreView, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
+        self.project_metadata.iter(store).into_csv("project_metadata")?;
+
+        self.smart_load_project_urls(store).iter().into_csv("project_urls")?;
+        //self.smart_load_project_heads(store).iter().into_csv("project_heads")?; FIXME
+        //self.smart_load_users(store).iter().into_csv("users")?; FIXME
+        //self.smart_load_paths(store).iter().into_csv("paths")?; FIXME
+        //self.smart_load_commits(store).iter().into_csv("commits")?; FIXME
+        self.smart_load_commit_hashes(store).iter().into_csv("commit_hashes")?;
+        self.smart_load_commit_messages(store).iter().into_csv("commit_messages")?;
+        self.smart_load_commit_committer_timestamps(store).iter().into_csv("commit_committer_timestamps")?;
+        self.smart_load_commit_author_timestamps(store).iter().into_csv("commit_author_timestamps")?;
+        self.smart_load_commit_changes(store).iter().into_csv("commit_changes")?;
+
+        // FIXME snapshots
+
+        Ok(())
+    }
+}
+
+impl Database {
+    pub fn export_all_to_csv<S>(&self, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
+        self.data.borrow_mut().export_all_to_csv(&self.store, dir)
     }
 }

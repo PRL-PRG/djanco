@@ -1,10 +1,12 @@
-use serde::Serialize;
-use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::marker::PhantomData;
 use std::fs::{File, create_dir_all};
 use std::error::Error;
+
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+
 use crate::log::{Log, Verbosity};
 use crate::weights_and_measures::*;
 
@@ -167,6 +169,10 @@ impl<E> PersistentVector<E> where E: VectorExtractor {
         self.cache_path = None;
         self
     }
+    pub fn iter(&self) -> impl Iterator<Item=&E::Value> {
+        self.vector.as_ref().map(|vector| vector.iter())
+            .expect("Attempted to iterate over persistent vector before initializing it")
+    }
 }
 
 impl<E,A> PersistentVector<E> where E: SingleVectorExtractor<A=A> {
@@ -221,6 +227,10 @@ impl<E> PersistentMap<E> where E: MapExtractor {
         self.cache_path = None;
         self
     }
+    pub fn iter(&self) -> impl Iterator<Item=(&E::Key, &E::Value)> {
+        self.map.as_ref().map(|vector| vector.iter())
+            .expect("Attempted to iterate over persistent map before initializing it")
+    }
 }
 
 impl<E,A> PersistentMap<E> where E: SingleMapExtractor<A=A> {
@@ -240,6 +250,15 @@ impl<E,A,B,C> PersistentMap<E> where E: TripleMapExtractor<A=A,B=B,C=C> {
         self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
     }
 }
+
+// impl<E> IntoIterator for PersistentMap<E> where E: MapExtractor {
+//     type Item = (E::Key, E::Value);
+//     type IntoIter = ();
+//
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.map.as_ref().
+//     }
+// }
 
 // impl<E,A,B,C,D> PersistentMap<E> where E: QuadrupleExtractor<A=A,B=B,C=C,D=D>{
 //     #[allow(dead_code)] pub fn load_from_four(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d: &D) -> &BTreeMap<E::Key, E::Value> {

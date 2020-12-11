@@ -1,7 +1,7 @@
 use std::hash::Hash;
 use std::marker::PhantomData;
 
-use crate::iterators::*;
+use crate::objects::ItemWithData;
 
 pub trait Attribute {
     type Object;

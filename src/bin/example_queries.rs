@@ -4,12 +4,11 @@ use dcd::DatastoreView;
 
 use djanco::*;
 use djanco::data::*;
-use djanco::time;
+use djanco::time::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
 use djanco::commandline::*;
-use djanco::iterators::*;
 use djanco::fraction::Fraction;
 
 fn stars<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {

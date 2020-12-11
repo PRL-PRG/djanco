@@ -26,15 +26,13 @@ use std::hash::{Hash, Hasher};
 use std::collections::*;
 
 use itertools::Itertools;
-
+use serde::export::PhantomData;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
 
 use crate::attrib::*;
-use crate::iterators::*;
 use crate::fraction::*;
-use serde::export::PhantomData;
 
 macro_rules! impl_attribute_definition {
     [$object:ty, $attribute:ident] => {
@@ -47,27 +45,27 @@ macro_rules! impl_attribute_getter {
     [! $object:ty, $attribute:ident] => {
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = Self::Object;
-            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.item.clone()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
             type IntoItem = Self::Object;
-            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.item.clone())
             }
         }
     };
     [!+ $object:ty, $attribute:ident] => {
         impl<'a> Getter<'a> for $attribute {
-            type IntoItem = ItemWithData<'a, Self::Object>;
-            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            type IntoItem = objects::ItemWithData<'a, Self::Object>;
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.clone()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = ItemWithData<'a, Self::Object>;
-            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            type IntoItem = objects::ItemWithData<'a, Self::Object>;
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.clone())
             }
         }
@@ -75,13 +73,13 @@ macro_rules! impl_attribute_getter {
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = $small_type;
-            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
             type IntoItem = $small_type;
-            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.$getter())
             }
         }
@@ -89,69 +87,69 @@ macro_rules! impl_attribute_getter {
     [? $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = Option<$small_type>;
-            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
             type IntoItem = $small_type;
-            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 object.$getter()
             }
         }
     };
     [!+ $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
-            type IntoItem = ItemWithData<'a, $small_type>;
-            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            type IntoItem = objects::ItemWithData<'a, $small_type>;
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = ItemWithData<'a, $small_type>;
-            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            type IntoItem = objects::ItemWithData<'a, $small_type>;
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.$getter())
             }
         }
     };
     [?+ $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
-            type IntoItem = Option<ItemWithData<'a, $small_type>>;
-            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            type IntoItem = Option<objects::ItemWithData<'a, $small_type>>;
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = ItemWithData<'a, $small_type>;
-            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            type IntoItem = objects::ItemWithData<'a, $small_type>;
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 object.$getter()
             }
         }
     };
     [!+.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
-            type IntoItem = Vec<ItemWithData<'a, $small_type>>;
-            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            type IntoItem = Vec<objects::ItemWithData<'a, $small_type>>;
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = Vec<ItemWithData<'a, $small_type>>;
-            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            type IntoItem = Vec<objects::ItemWithData<'a, $small_type>>;
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.$getter())
             }
         }
     };
     [?+.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl<'a> Getter<'a> for $attribute {
-            type IntoItem = Option<Vec<ItemWithData<'a, $small_type>>>;
-            fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            type IntoItem = Option<Vec<objects::ItemWithData<'a, $small_type>>>;
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.$getter()
             }
         }
         impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = Vec<ItemWithData<'a, $small_type>>;
-            fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+            type IntoItem = Vec<objects::ItemWithData<'a, $small_type>>;
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 object.$getter()
             }
         }
@@ -161,19 +159,19 @@ macro_rules! impl_attribute_getter {
 macro_rules! impl_attribute_count {
     [! $object:ty, $attribute:ident, $counter:ident] => {
         impl<'a> Countable<'a> for $attribute {
-            fn count(&self, object: &ItemWithData<'a, Self::Object>) -> usize {
+            fn count(&self, object: &objects::ItemWithData<'a, Self::Object>) -> usize {
                 object.$counter()
             }
         }
         impl<'a> OptionCountable<'a> for $attribute {
-            fn count(&self, object: &ItemWithData<'a, Self::Object>) -> Option<usize> {
+            fn count(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<usize> {
                 Some(object.$counter())
             }
         }
     };
     [? $object:ty, $attribute:ident, $counter:ident] => {
         impl<'a> OptionCountable<'a> for $attribute {
-            fn count(&self, object: &ItemWithData<'a, Self::Object>) -> Option<usize> {
+            fn count(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<usize> {
                 object.$counter()
             }
         }
@@ -184,7 +182,7 @@ macro_rules! impl_attribute_filter {
     [$object:ty, $attribute:ident] => {
         impl<'a> Filter<'a> for $attribute {
             type Item = $object;
-            fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+            fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
                 self.get(item_with_data).unwrap_or(false)
             }
         }
@@ -250,8 +248,8 @@ macro_rules! impl_attribute {
 
 pub mod project {
     use crate::objects;
+    use crate::time;
     use crate::attrib::*;
-    use crate::iterators::*;
 
     impl_attribute![!+    objects::Project, Itself];
     impl_attribute![!     objects::Project, Raw];
@@ -280,7 +278,7 @@ pub mod project {
     impl_attribute![?     objects::Project, Updated, i64, updated];
     impl_attribute![?     objects::Project, Pushed, i64, pushed];
     impl_attribute![?     objects::Project, DefaultBranch, String, default_branch];
-    impl_attribute![?     objects::Project, Age, objects::Duration, lifetime];
+    impl_attribute![?     objects::Project, Age, time::Duration, lifetime];
     impl_attribute![?+..  objects::Project, Heads, objects::Head, heads_with_data, head_count];
     impl_attribute![?..   objects::Project, CommitIds, objects::CommitId, commit_ids, commit_count];
     impl_attribute![?..   objects::Project, AuthorIds, objects::UserId, author_ids, author_count];
@@ -299,7 +297,6 @@ pub mod project {
 pub mod commit {
     use crate::objects;
     use crate::attrib::*;
-    use crate::iterators::*;
 
     impl_attribute![!+   objects::Commit, Itself];
     impl_attribute![!    objects::Commit, Raw];
@@ -324,7 +321,6 @@ pub mod commit {
 pub mod head {
     use crate::objects;
     use crate::attrib::*;
-    use crate::iterators::*;
 
     impl_attribute![!+  objects::Head, Itself];
     impl_attribute![!   objects::Head, Raw];
@@ -336,7 +332,6 @@ pub mod head {
 pub mod change {
     use crate::objects;
     use crate::attrib::*;
-    use crate::iterators::*;
 
     impl_attribute![!+  objects::Change, Itself];
     impl_attribute![!   objects::Change, Raw];
@@ -348,16 +343,16 @@ pub mod change {
 
 pub mod user {
     use crate::objects;
+    use crate::time;
     use crate::attrib::*;
-    use crate::iterators::*;
 
     impl_attribute![!+   objects::User, Itself];
     impl_attribute![!    objects::User, Raw];
     impl_attribute![!    objects::User, Id, objects::UserId, id];
     impl_attribute![!    objects::User, Email, String, email];
-    impl_attribute![?    objects::User, AuthorExperience, objects::Duration, author_experience];
-    impl_attribute![?    objects::User, CommitterExperience, objects::Duration, committer_experience];
-    impl_attribute![?    objects::User, Experience, objects::Duration, experience];
+    impl_attribute![?    objects::User, AuthorExperience, time::Duration, author_experience];
+    impl_attribute![?    objects::User, CommitterExperience, time::Duration, committer_experience];
+    impl_attribute![?    objects::User, Experience, time::Duration, experience];
     impl_attribute![?..  objects::User, AuthoredCommitIds, objects::CommitId, authored_commit_ids, authored_commit_count];
     impl_attribute![?..  objects::User, CommittedCommitIds, objects::CommitId, committed_commit_ids, committed_commit_count];
     impl_attribute![?+.. objects::User, AuthoredCommits, objects::Commit, authored_commits_with_data, authored_commit_count];
@@ -367,7 +362,6 @@ pub mod user {
 pub mod path {
     use crate::objects;
     use crate::attrib::*;
-    use crate::iterators::*;
 
     impl_attribute![!+  objects::Path, Itself];
     impl_attribute![!   objects::Path, Raw];
@@ -379,7 +373,6 @@ pub mod path {
 pub mod snapshot {
     use crate::objects;
     use crate::attrib::*;
-    use crate::iterators::*;
 
     impl_attribute![!+  objects::Snapshot, Itself];
     impl_attribute![!   objects::Snapshot, Raw];
@@ -388,7 +381,7 @@ pub mod snapshot {
     impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];
 }
 
-pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
+pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=objects::ItemWithData<'a, T>> {
     fn filter_by_attrib<A>(self, attribute: A)
                            -> AttributeFilterIter<Self, A>
         where A: Filter<'a, Item=T> {
@@ -402,13 +395,13 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     }
 
     fn sort_by_attrib<A: 'a, I>(self, attribute: A)
-                                -> std::vec::IntoIter<ItemWithData<'a, T>>
+                                -> std::vec::IntoIter<objects::ItemWithData<'a, T>>
         where A: Sort<'a, T, I>, I: Ord {
         self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
     }
 
     fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
-                                               -> std::vec::IntoIter<ItemWithData<'a, T>>
+                                               -> std::vec::IntoIter<objects::ItemWithData<'a, T>>
         where A: Sort<'a, T, I>, I: Ord {
         let mut vector = Vec::from_iter(self);
         attribute.sort(direction, &mut vector);
@@ -416,13 +409,13 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
     }
 
     fn sample<S>(self, sampler: S)
-                 -> std::vec::IntoIter<ItemWithData<'a, T>>
+                 -> std::vec::IntoIter<objects::ItemWithData<'a, T>>
         where S: Sampler<'a, T> {
         sampler.sample(self).into_iter()
     }
 
     fn group_by_attrib<A, K>(self, attribute: A)
-                             -> std::collections::hash_map::IntoIter<K, Vec<ItemWithData<'a, T>>>
+                             -> std::collections::hash_map::IntoIter<K, Vec<objects::ItemWithData<'a, T>>>
         where A: Group<'a, T, K>, K: Hash + Eq {
         self.map(|item_with_data| {
             let key = attribute.select_key(&item_with_data);
@@ -434,9 +427,9 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
 }
 
 impl<'a, T, I> AttributeIterator<'a, T> for I
-    where I: Sized + Iterator<Item=ItemWithData<'a, T>> {}
+    where I: Sized + Iterator<Item=objects::ItemWithData<'a, T>> {}
 
-pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {
+pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<objects::ItemWithData<'a, T>>)> {
     fn filter_by_attrib<A>(self, attribute: A)
                            -> AttributeGroupFilterIter<Self, A>
         where A: Filter<'a, Item=T> {
@@ -451,15 +444,15 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
     }
 
     fn sort_by_attrib<A: 'a, I>(self, attribute: A)
-                                -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
+                                -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where A: Sort<'a, T, I>, I: Ord {
         self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
     }
 
     fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
-                                               -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
+                                               -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where A: Sort<'a, T, I>, I: Ord {
-        let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
+        let vector: Vec<(K, Vec<objects::ItemWithData<'a, T>>)> =
             self.map(|(key, mut vector)| {
                 attribute.sort(direction, &mut vector);
                 (key, vector)
@@ -469,9 +462,9 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
     // TODO sort_key, sort_key_by, sort_key_with, sort_values, sort_values_by, sort_values_with
 
     fn sample<S>(self, sampler: S)
-                 -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
+                 -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where S: Sampler<'a, T> {
-        let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
+        let vector: Vec<(K, Vec<objects::ItemWithData<'a, T>>)> =
             self.map(|(key, vector)| {
                 (key, sampler.sample_from(vector))
             }).collect();
@@ -479,15 +472,15 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWi
     }
     // TODO sample_key
 
-    fn ungroup(self) -> std::vec::IntoIter<ItemWithData<'a, T>> {
-        let vector: Vec<ItemWithData<'a, T>> =
+    fn ungroup(self) -> std::vec::IntoIter<objects::ItemWithData<'a, T>> {
+        let vector: Vec<objects::ItemWithData<'a, T>> =
             self.flat_map(|(_, vector)| vector).collect();
         vector.into_iter()
     }
 }
 
 impl<'a, K, T, I> AttributeGroupIterator<'a, K, T> for I
-    where I: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {}
+    where I: Sized + Iterator<Item=(K, Vec<objects::ItemWithData<'a, T>>)> {}
 
 
 macro_rules! impl_comparison {
@@ -495,7 +488,7 @@ macro_rules! impl_comparison {
             pub struct $name<A, N>(pub A, pub N) where A: Attribute; // + OptionGetter<'a, IntoItem=N>;
             impl<'a, A, N, T> Filter<'a> for $name<A, N> where A: OptionGetter<'a, IntoItem=N> + Attribute<Object=T>, N: $trait_limit {
                 type Item = T;
-                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
                     self.0.get_opt(item_with_data).map_or($default, |n| n.$comparator(&self.1))
                 }
             }
@@ -513,7 +506,7 @@ macro_rules! impl_binary {
             pub struct $name<A, B>(pub A, pub B); // where A: Attribute, B: Attribute;
             impl<'a, A, B, T> Filter<'a> for $name<A, B> where A: Filter<'a, Item=T>, B: Filter<'a, Item=T> {
                 type Item = T;
-                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
                     $comparator(self.0.accept(item_with_data),
                                 self.1.accept(item_with_data))
                 }
@@ -529,7 +522,7 @@ macro_rules! impl_unary {
             pub struct $name<A>(pub A); // where A: Attribute;
             impl<'a, A, T> Filter<'a> for $name<A> where A: Filter<'a, Item=T> {
                 type Item = T;
-                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
                     $comparator(self.0.accept(item_with_data))
                 }
             }
@@ -543,7 +536,7 @@ macro_rules! impl_existential {
             pub struct $name<A>(pub A) where A: Attribute; // + OptionGetter<'a>;
             impl<'a, A, T> Filter<'a> for $name<A> where A: OptionGetter<'a>, A: Attribute<Object=T> {
                 type Item = T;
-                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
                     self.0.get_opt(item_with_data).$method()
                 }
             }
@@ -556,7 +549,7 @@ impl_existential!(Missing, is_none);
 pub struct Same<'a, A>(pub A, pub &'a str) where A: OptionGetter<'a>;
 impl<'a, A, T> Filter<'a> for Same<'a, A> where A: OptionGetter<'a, IntoItem=String>, A: Attribute<Object=T> {
     type Item = T;
-    fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+    fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
         self.0.get_opt(item_with_data).map_or(false, |e| e.as_str() == self.1)
     }
 }
@@ -564,7 +557,7 @@ impl<'a, A, T> Filter<'a> for Same<'a, A> where A: OptionGetter<'a, IntoItem=Str
 pub struct Contains<'a, A>(pub A, pub &'a str) where A: OptionGetter<'a>;
 impl<'a, A, T> Filter<'a> for Contains<'a, A> where A: OptionGetter<'a, IntoItem=String>, A: Attribute<Object=T> {
     type Item = T;
-    fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+    fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
         self.0.get_opt(item_with_data).map_or(false, |e| e.contains(self.1))
     }
 }
@@ -573,7 +566,7 @@ impl<'a, A, T> Filter<'a> for Contains<'a, A> where A: OptionGetter<'a, IntoItem
 pub struct Matches<A>(pub A, pub regex::Regex) where A: Attribute;
 impl<'a, A, T> Filter<'a> for  Matches<A> where A: OptionGetter<'a, IntoItem=String>, A: Attribute<Object=T> {
     type Item = T;
-    fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+    fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
         self.0.get_opt(item_with_data).map_or(false, |e| self.1.is_match(&e))
     }
 }
@@ -585,7 +578,7 @@ macro_rules! impl_collection_membership {
                 A: Attribute<Object=T>,
                 I: $($requirements+)+ {
                 type Item = T;
-                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
                     self.0.get_opt(item_with_data).map_or(false, |e| self.1.contains(&e))
                 }
             }
@@ -594,7 +587,7 @@ macro_rules! impl_collection_membership {
                       A: Attribute<Object=T>,
                       I: $($requirements+)+ {
                 type Item = T;
-                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
                     self.0.get_opt(item_with_data).map_or(false, |vector| {
                         vector.iter().any(|e| self.1.contains(e))
                     })
@@ -605,7 +598,7 @@ macro_rules! impl_collection_membership {
                       A: Attribute<Object=T>,
                       I: $($requirements+)+ {
                 type Item = T;
-                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
                     self.0.get_opt(item_with_data).map_or(false, |vector| {
                         vector.iter().all(|e| self.1.contains(e))
                     })
@@ -623,8 +616,8 @@ impl_collection_membership!(HashSet<I> where I: Hash, Eq);
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
 impl<'a, T> Sampler<'a, T> for Top {
-    fn sample<I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
-        where I: Iterator<Item=ItemWithData<'a, T>> {
+    fn sample<I>(&self, iter: I) -> Vec<objects::ItemWithData<'a, T>>
+        where I: Iterator<Item=objects::ItemWithData<'a, T>> {
 
         iter.take(self.0).collect()
     }
@@ -638,8 +631,8 @@ impl Seed {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Random(pub usize, pub Seed);
 impl<'a, T> Sampler<'a, T> for Random {
-    fn sample<I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
-        where I: Iterator<Item=ItemWithData<'a, T>> {
+    fn sample<I>(&self, iter: I) -> Vec<objects::ItemWithData<'a, T>>
+        where I: Iterator<Item=objects::ItemWithData<'a, T>> {
 
         let mut rng = Pcg64Mcg::from_seed(self.1.to_be_bytes());
         iter.choose_multiple(&mut rng, self.0)
@@ -650,7 +643,7 @@ pub trait SimilarityCriterion<'a> {
     type Item;
     type IntoItem;
     type Similarity: Similarity<Self::IntoItem>;
-    fn from(&self, object: &ItemWithData<'a, Self::Item>) -> Self::Similarity;
+    fn from(&self, object: &objects::ItemWithData<'a, Self::Item>) -> Self::Similarity;
 }
 pub trait Similarity<T>: Eq + Hash { }
 
@@ -683,7 +676,7 @@ impl<'a, A, T, I> SimilarityCriterion<'a> for MinRatio<A>
     type IntoItem = I;
     type Similarity = _MinRatio<Self::IntoItem>;
 
-    fn from(&self, object: &ItemWithData<'a, Self::Item>) -> Self::Similarity {
+    fn from(&self, object: &objects::ItemWithData<'a, Self::Item>) -> Self::Similarity {
         let items = self.0.get_opt(object).map(|e| {
             BTreeSet::from_iter(e.into_iter())
         });
@@ -693,8 +686,8 @@ impl<'a, A, T, I> SimilarityCriterion<'a> for MinRatio<A>
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Distinct<S, C>(pub S, pub C);
 impl<'a, T, S, C> Sampler<'a, T> for Distinct<S, C> where S: Sampler<'a, T>, C: SimilarityCriterion<'a, Item=T> {
-    fn sample<I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
-        where I: Iterator<Item=ItemWithData<'a, T>> {
+    fn sample<I>(&self, iter: I) -> Vec<objects::ItemWithData<'a, T>>
+        where I: Iterator<Item=objects::ItemWithData<'a, T>> {
         let filtered_iter = iter.unique_by(|object| {
             self.1.from(object)
         });
@@ -708,13 +701,13 @@ impl<A, T> Attribute for Length<A> where A: Attribute<Object=T> {
 }
 impl<'a, A, T> Getter<'a> for Length<A> where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=String> {
     type IntoItem = Option<usize>;
-    fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+    fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
         self.0.get_opt(object).map(|s| s.len())
     }
 }
 impl<'a, A, T> OptionGetter<'a> for Length<A> where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=String> {
     type IntoItem = usize;
-    fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+    fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
         self.0.get_opt(object).map(|s| s.len())
     }
 }
@@ -725,13 +718,13 @@ impl<A, T> Attribute for Count<A> where A: Attribute<Object=T> {
 }
 impl<'a, A, T> Getter<'a> for Count<A> where A: Attribute<Object=T> + OptionCountable<'a> {
     type IntoItem = usize;
-    fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+    fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
         self.0.count(object).unwrap_or(0)
     }
 }
 impl<'a, A, T> OptionGetter<'a> for Count<A> where A: Attribute<Object=T> + OptionCountable<'a> {
     type IntoItem = usize;
-    fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+    fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
         self.0.count(object)
     }
 }
@@ -750,14 +743,14 @@ macro_rules! impl_calculator {
             impl<'a, A, N, T> Getter<'a> for $name<A>
                 where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<N>>, N: $($requirements +)+ {
                 type IntoItem = Option<$result>;
-                fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+                fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                     self.0.get_opt(object).map(|object| Self::calculate(object)).flatten()
                 }
             }
             impl<'a, A, N, T> OptionGetter<'a> for $name<A>
                 where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<N>>, N: $($requirements +)+  { //$n: $(as_item!($requirements) +)+ {
                 type IntoItem = $result;
-                fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+                fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                     self.0.get_opt(object).map(|object| Self::calculate(object)).flatten()
                 }
             }
@@ -828,7 +821,7 @@ impl<'a, A, P, T> OptionGetter<'a> for Ratio<A, P, T>
     where A: Attribute<Object=T> + OptionCountable<'a>,
           P: Attribute<Object=T> + OptionCountable<'a> {
     type IntoItem = Fraction<usize>;
-    fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+    fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
         match (self.0.count(object), self.1.count(object)) {
             (Some(n), Some(m)) => Some(Fraction::new(n, m)),
             _ => None,
@@ -840,7 +833,7 @@ impl<'a, A, P, T> Getter<'a> for Ratio<A, P, T>
     where A: Attribute<Object=T> + OptionCountable<'a>,
           P: Attribute<Object=T> + OptionCountable<'a> {
     type IntoItem = Option<Fraction<usize>>;
-    fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+    fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
         match (self.0.count(object), self.1.count(object)) {
             (Some(n), Some(m)) => Some(Fraction::new(n, m)),
             _ => None,
@@ -857,19 +850,19 @@ impl<'a, O, A, T, I> Attribute for From<O, A>
 }
 
 impl<'a, O, A, T, I, E> Getter<'a> for From<O, A>
-    where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=ItemWithData<'a, I>>,
+    where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=objects::ItemWithData<'a, I>>,
           A: Attribute<Object=I> + Getter<'a, IntoItem=E> {
     type IntoItem = Option<E>;
-    fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+    fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
         self.0.get_opt(object).map(|object| self.1.get(&object))
     }
 }
 
 impl<'a, O, A, T, I, E> OptionGetter<'a> for From<O, A>
-    where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=ItemWithData<'a, I>>,
+    where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=objects::ItemWithData<'a, I>>,
           A: Attribute<Object=I> + OptionGetter<'a, IntoItem=E> {
     type IntoItem = E;
-    fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+    fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
         self.0.get_opt(object).map(|object| self.1.get_opt(&object)).flatten()
     }
 }
@@ -884,10 +877,10 @@ impl<'a, O, A, T> Attribute for FromEach<O, A>
 }
 
 impl<'a, O, A, T, I, E> Getter<'a> for FromEach<O, A>
-    where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
+    where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<objects::ItemWithData<'a, I>>>,
           A: Attribute<Object=I> + Getter<'a, IntoItem=E> {
     type IntoItem = Option<Vec<E>>;
-    fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+    fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
         self.0.get_opt(object).map(|v| {
             v.iter().map(|object| { self.1.get(object) }).collect()
         })
@@ -895,10 +888,10 @@ impl<'a, O, A, T, I, E> Getter<'a> for FromEach<O, A>
 }
 
 impl<'a, O, A, T, I, E> OptionGetter<'a> for FromEach<O, A>
-    where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
+    where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<objects::ItemWithData<'a, I>>>,
           A: Attribute<Object=I> + OptionGetter<'a, IntoItem=E> {
     type IntoItem = Vec<E>;
-    fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+    fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
         self.0.get_opt(object).map(|v| {
             v.iter().flat_map(|object| { self.1.get_opt(object) }).collect()
         })
@@ -914,10 +907,10 @@ impl<'a, A, P, T> Attribute for FromEachIf<A, P>
 }
 
 impl<'a, A, P, T, I> OptionGetter<'a> for FromEachIf<A, P>
-    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<objects::ItemWithData<'a, I>>>,
           P: Filter<'a, Item=I> {
-    type IntoItem = Vec<ItemWithData<'a, I>>;
-    fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+    type IntoItem = Vec<objects::ItemWithData<'a, I>>;
+    fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
         self.0.get_opt(object).map(|items| {
             items.into_iter()
                 .filter(|item| self.1.accept(item))
@@ -927,10 +920,10 @@ impl<'a, A, P, T, I> OptionGetter<'a> for FromEachIf<A, P>
 }
 
 impl<'a, A, P, T, I> Getter<'a> for FromEachIf<A, P>
-    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<objects::ItemWithData<'a, I>>>,
           P: Filter<'a, Item=I> {
-    type IntoItem = Option<Vec<ItemWithData<'a, I>>>;
-    fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+    type IntoItem = Option<Vec<objects::ItemWithData<'a, I>>>;
+    fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
         self.0.get_opt(object).map(|items| {
             items.into_iter()
                 .filter(|item| self.1.accept(item))
@@ -940,9 +933,9 @@ impl<'a, A, P, T, I> Getter<'a> for FromEachIf<A, P>
 }
 
 impl<'a, A, P, T, I> Countable<'a> for FromEachIf<A, P>
-    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<objects::ItemWithData<'a, I>>>,
           P: Filter<'a, Item=I> {
-    fn count(&self, object: &ItemWithData<'a, Self::Object>) -> usize {
+    fn count(&self, object: &objects::ItemWithData<'a, Self::Object>) -> usize {
         self.get_opt(object).map_or(0, |vector| vector.len())
         // Could potentially count straight from iter, but would have to reimplement all of
         // get_opt. It would save allocating the vector.
@@ -950,9 +943,9 @@ impl<'a, A, P, T, I> Countable<'a> for FromEachIf<A, P>
 }
 
 impl<'a, A, P, T, I> OptionCountable<'a> for FromEachIf<A, P>
-    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<objects::ItemWithData<'a, I>>>,
           P: Filter<'a, Item=I> {
-    fn count(&self, object: &ItemWithData<'a, Self::Object>) -> Option<usize> {
+    fn count(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<usize> {
         self.get_opt(object).map(|vector| vector.len())
     }
 }
@@ -967,7 +960,7 @@ macro_rules! impl_select {
             impl<'a, T, $($ti,)+> OptionGetter<'a> for $n<$($ti,)+>
                 where $($ti: Attribute<Object=T> + OptionGetter<'a>,)+ {
                 type IntoItem = ($(Option<$ti::IntoItem>,)+);
-                fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+                fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                     Some(($(self.$i.get_opt(object),)+))
                 }
             }
@@ -975,7 +968,7 @@ macro_rules! impl_select {
                 where $($ti: Attribute<Object=T> + Getter<'a>,)+ {
                 type IntoItem = ($($ti::IntoItem,)+);
 
-                fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+                fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                     ($(self.$i.get(object),)+)
                 }
             }

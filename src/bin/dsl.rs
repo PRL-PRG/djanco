@@ -9,7 +9,6 @@ use djanco::log::*;
 use djanco::commandline::*;
 use djanco::csv::CSV;
 use djanco::objects::Language;
-//use djanco::iterators::*;
 
 // `cargo run --bin dsl --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
@@ -66,5 +65,4 @@ fn main() {
 // print out fractions as decimals
 // flat_map select
 // explore parallelism
-// query
 // prefiltering

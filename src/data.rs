@@ -14,6 +14,7 @@ use crate::iterators::*;
 use crate::metadata::*;
 use crate::log::*;
 use crate::weights_and_measures::Weighed;
+use crate::time::Duration;
 
 // Internally Mutable Data
 pub struct Database { data: RefCell<Data>, store: DatastoreView, log: Log }

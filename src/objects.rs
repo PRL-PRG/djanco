@@ -8,72 +8,9 @@ use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
 use crate::data::Database;
+use crate::time::Duration;
 use crate::iterators::*;
 use crate::weights_and_measures::Weighed;
-
-
-#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
-pub struct Duration { seconds: u64 }
-
-const YEAR: u64 = 12 * MONTH;
-const MONTH: u64 = 30 * DAY;
-const DAY: u64 = 24 * HOUR;
-const HOUR: u64 = 60 * MINUTE;
-const MINUTE: u64 = 60 * SECOND;
-const SECOND: u64 = 1;
-
-impl Duration {
-    pub fn new(seconds: u64) -> Self { Duration { seconds } }
-    pub fn as_components(&self) -> (u64, u64, u64, u64, u64, u64 ) {
-        let seconds = self.seconds % MINUTE;
-        let abs_minutes = self.seconds / MINUTE;
-        let minutes = abs_minutes % HOUR;
-        let abs_hours = abs_minutes / HOUR;
-        let hours = abs_hours % DAY;
-        let abs_days = abs_hours / DAY;
-        let days = abs_days / MONTH;
-        let abs_months = abs_days % MONTH;
-        let months = abs_months % YEAR;
-        let years = abs_months / YEAR;
-        (years, months, days, hours, minutes, seconds)
-    }
-    pub fn to_pretty_string(&self) -> String {
-        if self.seconds == 0 { return "0 seconds".to_owned() }
-
-        let (years, months, days, hours, minutes, seconds) = self.as_components();
-
-        let years   = if years == 0 { String::new() }   else { format!("{} years",   years)   };
-        let months  = if months == 0 { String::new() }  else { format!("{} months",  months)  };
-        let days    = if days == 0 { String::new() }    else { format!("{} days",    days)    };
-        let hours   = if hours == 0 { String::new() }   else { format!("{} hours",   hours)   };
-        let minutes = if minutes == 0 { String::new() } else { format!("{} minutes", minutes) };
-        let seconds = if seconds == 0 { String::new() } else { format!("{} seconds", seconds) };
-
-        return format!("{}{}{}{}{}{}", years, months, days, hours, minutes, seconds)
-    }
-    pub fn as_seconds(&self) -> u64 {
-        self.seconds
-    }
-    pub fn as_duration(&self) -> chrono::Duration {
-         chrono::Duration::seconds(self.seconds as i64)
-    }
-
-    pub fn from_years(years: u64) -> Self { Duration::new(years * YEAR) }
-    pub fn from_months(months: u64) -> Self { Duration::new(months * MONTH) }
-    pub fn from_days(days: u64) -> Self { Duration::new(days * DAY) }
-    pub fn from_hours(hours: u64) -> Self { Duration::new(hours * HOUR) }
-    pub fn from_minutes(minutes: u64) -> Self { Duration::new(minutes * MINUTE) }
-    pub fn from_seconds(seconds: u64) -> Self { Duration::new(seconds * SECOND) }
-}
-
-impl From<u64> for Duration { fn from(seconds: u64) -> Self { Duration::new(seconds) } }
-impl Into<u64> for Duration { fn into(self)         -> u64  { self.seconds           } }
-
-impl Display for Duration {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{}", self.seconds)
-    }
-}
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum Language {
@@ -547,6 +484,90 @@ impl Identifiable for Snapshot {
 impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &Database) -> Snapshot {
     store.snapshot(&self).unwrap().clone() }
 }
+
+pub trait ItemWithoutData where Self: Sized {
+    fn attach_data<'a>(self, data: &'a Database) -> ItemWithData<'a, Self>;
+}
+impl<T> ItemWithoutData for T where T: Sized {
+    fn attach_data<'a>(self, data: &'a Database) -> ItemWithData<'a, Self> {
+        ItemWithData { data, item: self }
+    }
+}
+
+pub trait OptionWithoutData<T> where T: ItemWithoutData {
+    fn attach_data_to_inner<'a>(self, data: &'a Database) -> Option<ItemWithData<'a, T>>;
+}
+impl<T> OptionWithoutData<T> for Option<T> where T: ItemWithoutData {
+    fn attach_data_to_inner<'a>(self, data: &'a Database) -> Option<ItemWithData<'a, T>> {
+        self.map(|inner| inner.attach_data(data) )
+    }
+}
+
+pub struct ItemWithData<'a, T> { pub data: &'a Database, pub item: T }
+impl<'a, T> ItemWithData<'a, T> {
+    pub fn new(data: &'a Database, item: T) -> Self {
+        ItemWithData { data, item }
+    }
+    //pub fn as_ref(&self) -> ItemWithData<&T> { Self::new(self.data, self.item) }
+    pub fn rewrap<Tb>(&self, object: Tb) -> ItemWithData<Tb> {
+        ItemWithData::<Tb>::new(self.data, object)
+    }
+}
+impl<'a, T> Clone for ItemWithData<'a, T> where T: Clone {
+    fn clone(&self) -> Self {
+        ItemWithData::new(self.data, self.item.clone())
+    }
+}
+
+impl<'a, T> PartialEq for ItemWithData<'a, T> where T: PartialEq {
+    fn eq(&self, other: &Self) -> bool {
+        self.item.eq(&other.item)
+    }
+}
+
+impl<'a, T> Eq for ItemWithData<'a, T> where ItemWithData<'a, T>: PartialEq, T: Eq {}
+
+impl<'a, T> PartialOrd for ItemWithData<'a, T> where T: PartialOrd {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.item.partial_cmp(&other.item)
+    }
+}
+
+impl<'a, T> Ord for ItemWithData<'a, T> where T: Ord, ItemWithData<'a, T>: Eq {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.item.cmp(&other.item)
+    }
+}
+
+impl<'a, T> Hash for ItemWithData<'a, T> where T: Hash {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.item.hash(state)
+    }
+}
+
+impl<'a> Into<Project> for ItemWithData<'a, Project> { fn into(self) -> Project { self.item } }
+impl<'a> Into<Commit> for ItemWithData<'a, Commit> { fn into(self) -> Commit { self.item } }
+impl<'a> Into<User> for ItemWithData<'a, User> { fn into(self) -> User { self.item } }
+impl<'a> Into<Path> for ItemWithData<'a, Path> { fn into(self) -> Path { self.item } }
+impl<'a> Into<Snapshot> for ItemWithData<'a, Snapshot> { fn into(self) -> Snapshot { self.item } }
+impl<'a> Into<Head> for ItemWithData<'a, Head> { fn into(self) -> Head { self.item } }
+
+impl<'a> Into<ProjectId> for ItemWithData<'a, ProjectId> { fn into(self) -> ProjectId { self.item } }
+impl<'a> Into<CommitId> for ItemWithData<'a, CommitId> { fn into(self) -> CommitId { self.item } }
+impl<'a> Into<UserId> for ItemWithData<'a, UserId> { fn into(self) -> UserId { self.item } }
+impl<'a> Into<PathId> for ItemWithData<'a, PathId> { fn into(self) -> PathId { self.item } }
+impl<'a> Into<SnapshotId> for ItemWithData<'a, SnapshotId> { fn into(self) -> SnapshotId { self.item } }
+
+impl<'a> Into<String> for ItemWithData<'a, String> { fn into(self) -> String { self.item } }
+impl<'a> Into<u64> for ItemWithData<'a, u64> { fn into(self) -> u64 { self.item } }
+impl<'a> Into<u32> for ItemWithData<'a, u32> { fn into(self) -> u32 { self.item } }
+impl<'a> Into<i64> for ItemWithData<'a, i64> { fn into(self) -> i64 { self.item } }
+impl<'a> Into<i32> for ItemWithData<'a, i32> { fn into(self) -> i32 { self.item } }
+impl<'a> Into<f64> for ItemWithData<'a, f64> { fn into(self) -> f64 { self.item } }
+impl<'a> Into<f32> for ItemWithData<'a, f32> { fn into(self) -> f32 { self.item } }
+impl<'a> Into<usize> for ItemWithData<'a, usize> { fn into(self) -> usize { self.item } }
+
+impl<'a,A,B> Into<(A,B)> for ItemWithData<'a, (A,B)> { fn into(self) -> (A,B) { self.item } }
 
 impl<'a> ItemWithData<'a, Project> {
     pub fn id               (&self)    -> ProjectId                       { self.item.id()                                     }

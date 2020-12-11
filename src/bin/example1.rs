@@ -2,7 +2,7 @@ use structopt::StructOpt;
 
 use dcd::DatastoreView;
 
-//use djanco::*;
+use djanco::*;
 use djanco::data::*;
 use djanco::time;
 use djanco::objects::*;
@@ -26,7 +26,7 @@ fn main() {
     if !PathBuf::from(config.output_csv_path("snapshots_with_memory_resource")).exists() {
         database.snapshots()
             .attach_data_to_each(&database) // dirty hack!
-            .filter_by_attrib(require::Contains(snapshot::Contents, "#include <memory_resource>"))
+            .filter_by_attrib(Contains(snapshot::Contents, "#include <memory_resource>"))
             .map_into_attrib(snapshot::Id)
             .into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap();
     }
@@ -47,7 +47,7 @@ fn main() {
             })
         })
         // end of hack
-        //.filter_by_attrib(require::AnyIn(get::FromEach(project::Snapshots, snapshot::Id), selected_snapshot_ids))
+        //.filter_by_attrib(AnyIn(get::FromEach(project::Snapshots, snapshot::Id), selected_snapshot_ids))
         .sort_by_attrib(project::Stars)
         .into_csv(config.output_csv_path("projects_with_memory_resource")).unwrap()
 }

@@ -24,7 +24,7 @@
 
 use std::iter::{Sum, FromIterator};
 use std::hash::{Hash, Hasher};
-use std::collections::BTreeSet;
+use std::collections::*;
 
 use itertools::Itertools;
 
@@ -36,10 +36,136 @@ use crate::attrib::*;
 use crate::iterators::*;
 use crate::fraction::*;
 
+macro_rules! impl_comparison {
+        ($name:ident, $trait_limit:ident, $comparator:ident, $default:expr) => {
+            pub struct $name<A, N>(pub A, pub N) where A: Attribute; // + OptionGetter<'a, IntoItem=N>;
+            impl<'a, A, N, T> Filter<'a> for $name<A, N> where A: OptionGetter<'a, IntoItem=N> + Attribute<Object=T>, N: $trait_limit {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    self.0.get_opt(item_with_data).map_or($default, |n| n.$comparator(&self.1))
+                }
+            }
+        }
+    }
 
+impl_comparison!(LessThan, PartialOrd, lt, false);
+impl_comparison!(AtMost,   PartialOrd, le, false);
+impl_comparison!(Equal,    Eq,         eq, false);
+impl_comparison!(AtLeast,  PartialOrd, ge, true);
+impl_comparison!(MoreThan, PartialOrd, gt, true);
 
-// #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Distinct<S, C>(pub S, pub C);
+macro_rules! impl_binary {
+        ($name:ident, $comparator:expr) => {
+            pub struct $name<A, B>(pub A, pub B); // where A: Attribute, B: Attribute;
+            impl<'a, A, B, T> Filter<'a> for $name<A, B> where A: Filter<'a, Item=T>, B: Filter<'a, Item=T> {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    $comparator(self.0.accept(item_with_data),
+                                self.1.accept(item_with_data))
+                }
+            }
+        }
+    }
 
+impl_binary!(And, |a, b| a && b); // TODO Effectively does not short circuit.
+impl_binary!(Or,  |a, b| a || b);
+
+macro_rules! impl_unary {
+        ($name:ident, $comparator:expr) => {
+            pub struct $name<A>(pub A); // where A: Attribute;
+            impl<'a, A, T> Filter<'a> for $name<A> where A: Filter<'a, Item=T> {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    $comparator(self.0.accept(item_with_data))
+                }
+            }
+        }
+    }
+
+impl_unary!(Not,  |a: bool| !a);
+
+macro_rules! impl_existential {
+        ($name:ident, $method:ident) => {
+            pub struct $name<A>(pub A) where A: Attribute; // + OptionGetter<'a>;
+            impl<'a, A, T> Filter<'a> for $name<A> where A: OptionGetter<'a>, A: Attribute<Object=T> {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    self.0.get_opt(item_with_data).$method()
+                }
+            }
+        }
+    }
+
+impl_existential!(Exists,  is_some);
+impl_existential!(Missing, is_none);
+
+pub struct Same<'a, A>(pub A, pub &'a str) where A: OptionGetter<'a>;
+impl<'a, A, T> Filter<'a> for Same<'a, A> where A: OptionGetter<'a, IntoItem=String>, A: Attribute<Object=T> {
+    type Item = T;
+    fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+        self.0.get_opt(item_with_data).map_or(false, |e| e.as_str() == self.1)
+    }
+}
+
+pub struct Contains<'a, A>(pub A, pub &'a str) where A: OptionGetter<'a>;
+impl<'a, A, T> Filter<'a> for Contains<'a, A> where A: OptionGetter<'a, IntoItem=String>, A: Attribute<Object=T> {
+    type Item = T;
+    fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+        self.0.get_opt(item_with_data).map_or(false, |e| e.contains(self.1))
+    }
+}
+
+#[macro_export] macro_rules! regex { ($str:expr) => { regex::Regex::new($str).unwrap() }}
+pub struct Matches<A>(pub A, pub regex::Regex) where A: Attribute;
+impl<'a, A, T> Filter<'a> for  Matches<A> where A: OptionGetter<'a, IntoItem=String>, A: Attribute<Object=T> {
+    type Item = T;
+    fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+        self.0.get_opt(item_with_data).map_or(false, |e| self.1.is_match(&e))
+    }
+}
+
+macro_rules! impl_collection_membership {
+        ($collection_type:tt<I> where I: $($requirements:tt),+) => {
+            impl<'a, A, T, I> Filter<'a> for Member<A, $collection_type<I>>
+                where A: OptionGetter<'a, IntoItem=I>,
+                A: Attribute<Object=T>,
+                I: $($requirements+)+ {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    self.0.get_opt(item_with_data).map_or(false, |e| self.1.contains(&e))
+                }
+            }
+            impl<'a, A, T, I> Filter<'a> for AnyIn<A, $collection_type<I>>
+                where A: OptionGetter<'a, IntoItem=Vec<I>>,
+                      A: Attribute<Object=T>,
+                      I: $($requirements+)+ {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    self.0.get_opt(item_with_data).map_or(false, |vector| {
+                        vector.iter().any(|e| self.1.contains(e))
+                    })
+                }
+            }
+            impl<'a, A, T, I> Filter<'a> for AllIn<A, $collection_type<I>>
+                where A: OptionGetter<'a, IntoItem=Vec<I>>,
+                      A: Attribute<Object=T>,
+                      I: $($requirements+)+ {
+                type Item = T;
+                fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool {
+                    self.0.get_opt(item_with_data).map_or(false, |vector| {
+                        vector.iter().all(|e| self.1.contains(e))
+                    })
+                }
+            }
+        }
+    }
+
+pub struct Member<A, C>(pub A, pub C);
+pub struct AnyIn<A, C>(pub A, pub C);
+pub struct AllIn<A, C>(pub A, pub C);
+impl_collection_membership!(Vec<I> where I: Eq);
+impl_collection_membership!(BTreeSet<I> where I: Ord);
+impl_collection_membership!(HashSet<I> where I: Hash, Eq);
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
 impl<'a, T> Sampler<'a, T> for Top {

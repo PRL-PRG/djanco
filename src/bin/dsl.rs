@@ -49,20 +49,3 @@ fn main() {
     database.projects().filter_by_attrib(AnyIn(FromEach(project::Commits, commit::Id), vec![objects::CommitId::from(42u64), objects::CommitId::from(666u64)]));
     database.projects().filter_by_attrib(AllIn(FromEach(project::Commits, commit::Id), vec![objects::CommitId::from(42u64), objects::CommitId::from(666u64)]));
 }
-
-// TODO features
-// CSV export
-// dump
-// receipts
-// Git commit as version
-// commit frequency
-// fill in CSV-capable objects
-// maybe length for all strings
-// maybe non-empty precicate for vectors
-// buckets
-// Fraction vs f64
-// unit tests
-// print out fractions as decimals
-// flat_map select
-// explore parallelism
-// prefiltering

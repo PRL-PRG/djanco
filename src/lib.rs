@@ -21,6 +21,23 @@
 
 #[macro_use] extern crate mashup;
 
+// TODO features
+// CSV export
+// dump
+// receipts
+// Git commit as version
+// commit frequency
+// fill in CSV-capable objects
+// maybe length for all strings
+// maybe non-empty precicate for vectors
+// buckets
+// Fraction vs f64
+// unit tests
+// print out fractions as decimals
+// flat_map select
+// explore parallelism
+// prefiltering
+
 use std::iter::{Sum, FromIterator};
 use std::hash::{Hash, Hasher};
 use std::collections::*;

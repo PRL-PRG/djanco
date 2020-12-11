@@ -37,9 +37,9 @@ fn main() {
     database.projects().map_into_attrib(Mean(FromEach(project::Commits, commit::MessageLength))).into_csv(path!("select_mean_commit_messages_length")).unwrap();
     database.projects().map_into_attrib(Median(FromEach(project::Commits, commit::MessageLength))).into_csv(path!("select_median_commit_messages_length")).unwrap();
     database.projects().map_into_attrib(Count(FromEachIf(project::Commits, require::Equal(commit::MessageLength, 0)))).into_csv(path!("select_projects_with_empty_commits")).unwrap();
-    database.users().sort_by_attrib(user::Experience).sample(sample::Top(100)).into_csv(path!("sample_top_100_experienced_users")).unwrap();
+    database.users().sort_by_attrib(user::Experience).sample(Top(100)).into_csv(path!("sample_top_100_experienced_users")).unwrap();
     database.paths().filter_by_attrib(require::Equal(path::Language, Language::Haskell)).into_csv(path!("filter_haskell_paths")).unwrap();
-    database.commits().sample(sample::Random(100, sample::Seed(42))).into_csv(path!("sample_100_commits")).unwrap();
+    database.commits().sample(Random(100, Seed(42))).into_csv(path!("sample_100_commits")).unwrap();
     database.projects().map_into_attrib(Ratio(project::Authors, project::Users)).into_csv(path!("select_project_ratio_of_authors_to_users")).unwrap();
     database.projects().map_into_attrib(Select!(project::Id, project::URL)).into_csv(path!("select_project_ids_and_urls")).unwrap();
     database.commits().map_into_attrib(commit::Author)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_author_experience")).unwrap();

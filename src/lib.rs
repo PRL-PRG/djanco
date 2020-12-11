@@ -22,12 +22,105 @@
 
 #[macro_use] extern crate mashup;
 
-use std::iter::Sum;
+use std::iter::{Sum, FromIterator};
+use std::hash::{Hash, Hasher};
+use std::collections::BTreeSet;
+
 use itertools::Itertools;
+
+use rand_pcg::Pcg64Mcg;
+use rand::SeedableRng;
+use rand::seq::IteratorRandom;
 
 use crate::attrib::*;
 use crate::iterators::*;
 use crate::fraction::*;
+
+
+
+// #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Distinct<S, C>(pub S, pub C);
+
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
+impl<'a, T> Sampler<'a, T> for Top {
+    fn sample<I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
+        where I: Iterator<Item=ItemWithData<'a, T>> {
+
+        iter.take(self.0).collect()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Ord, PartialOrd)] pub struct Seed(pub u128);
+impl Seed {
+    pub fn to_be_bytes(&self) -> [u8; 16] { self.0.to_be_bytes() }
+    pub fn to_le_bytes(&self) -> [u8; 16] { self.0.to_le_bytes() }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Random(pub usize, pub Seed);
+impl<'a, T> Sampler<'a, T> for Random {
+    fn sample<I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
+        where I: Iterator<Item=ItemWithData<'a, T>> {
+
+        let mut rng = Pcg64Mcg::from_seed(self.1.to_be_bytes());
+        iter.choose_multiple(&mut rng, self.0)
+    }
+}
+
+pub trait SimilarityCriterion<'a> {
+    type Item;
+    type IntoItem;
+    type Similarity: Similarity<Self::IntoItem>;
+    fn from(&self, object: &ItemWithData<'a, Self::Item>) -> Self::Similarity;
+}
+pub trait Similarity<T>: Eq + Hash { }
+
+// TODO hide
+pub struct _MinRatio<T> { min_ratio: f64, items: Option<BTreeSet<T>> }
+impl<T> Hash for _MinRatio<T> {
+    // Everything needs to be compared explicitly.
+    fn hash<H: Hasher>(&self, state: &mut H) { state.write_u64(42) }
+}
+impl<T> Eq for _MinRatio<T> where T: Ord {}
+impl<T> PartialEq for _MinRatio<T> where T: Ord {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.items, &other.items) {
+            (None, None) => true,
+            (Some(me), Some(them)) => {
+                let mine: f64 = me.len() as f64;
+                let same: f64 = me.intersection(&them).count() as f64;
+                same / mine > self.min_ratio
+            }
+            _ => false,
+        }
+    }
+}
+impl<T> Similarity<T> for _MinRatio<T> where T: Ord {}
+
+#[derive(Debug, Clone, Copy)] pub struct MinRatio<A: Attribute>(pub A, pub f64);
+impl<'a, A, T, I> SimilarityCriterion<'a> for MinRatio<A>
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<I>>, I: Ord {
+    type Item = T;
+    type IntoItem = I;
+    type Similarity = _MinRatio<Self::IntoItem>;
+
+    fn from(&self, object: &ItemWithData<'a, Self::Item>) -> Self::Similarity {
+        let items = self.0.get_opt(object).map(|e| {
+            BTreeSet::from_iter(e.into_iter())
+        });
+        _MinRatio { min_ratio: self.1, items }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Distinct<S, C>(pub S, pub C);
+impl<'a, T, S, C> Sampler<'a, T> for Distinct<S, C> where S: Sampler<'a, T>, C: SimilarityCriterion<'a, Item=T> {
+    fn sample<I>(&self, iter: I) -> Vec<ItemWithData<'a, T>>
+        where I: Iterator<Item=ItemWithData<'a, T>> {
+        let filtered_iter = iter.unique_by(|object| {
+            self.1.from(object)
+        });
+        self.0.sample(filtered_iter)
+    }
+}
 
 pub struct Length<A: Attribute>(pub A);
 impl<A, T> Attribute for Length<A> where A: Attribute<Object=T> {

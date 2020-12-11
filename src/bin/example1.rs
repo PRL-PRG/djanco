@@ -6,7 +6,6 @@ use djanco::*;
 use djanco::data::*;
 use djanco::time;
 use djanco::objects::*;
-use djanco::query::*;
 use djanco::csv::*;
 use djanco::log::*;
 use djanco::commandline::*;

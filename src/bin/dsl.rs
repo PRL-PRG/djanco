@@ -7,7 +7,6 @@ use djanco::data::*;
 use djanco::time;
 use djanco::log::*;
 use djanco::commandline::*;
-use djanco::query::*;
 use djanco::attrib::*;
 use djanco::csv::CSV;
 use djanco::objects::Language;

@@ -5,7 +5,7 @@
              pub mod commandline;
              pub mod weights_and_measures;
 #[macro_use] pub mod log;
-             pub mod query;
+#[macro_use] pub mod query;
              pub mod csv;
 #[macro_use] pub mod attrib;
              pub mod metadata;

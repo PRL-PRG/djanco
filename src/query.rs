@@ -738,18 +738,21 @@ pub mod get {
     use crate::iterators::*;
 
     pub struct From<O: Attribute, A: Attribute> (pub O, pub A);
+
     impl<'a, O, A, T, I> Attribute for From<O, A>
         where O: Attribute<Object=T>, A: Attribute<Object=I> {
         type Object = T;
     }
+
     impl<'a, O, A, T, I, E> Getter<'a> for From<O, A>
-         where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=ItemWithData<'a, I>>,
-               A: Attribute<Object=I> + Getter<'a, IntoItem=E> {
-         type IntoItem = Option<E>;
-         fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
-             self.0.get_opt(object).map(|object| self.1.get(&object))
-         }
+        where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=ItemWithData<'a, I>>,
+              A: Attribute<Object=I> + Getter<'a, IntoItem=E> {
+        type IntoItem = Option<E>;
+        fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+            self.0.get_opt(object).map(|object| self.1.get(&object))
+        }
     }
+
     impl<'a, O, A, T, I, E> OptionGetter<'a> for From<O, A>
         where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=ItemWithData<'a, I>>,
               A: Attribute<Object=I> + OptionGetter<'a, IntoItem=E> {
@@ -760,10 +763,13 @@ pub mod get {
     }
 
     pub struct FromEach<O: Attribute, A: Attribute> (pub O, pub A);
+
     impl<'a, O, A, T> Attribute for FromEach<O, A>
-        where O: Attribute<Object=T> /*+ OptionGetter<'a, IntoItem=Vec<I>>)*/, A: Attribute { //<Object=I>*/ {
+        where O: Attribute<Object=T> /*+ OptionGetter<'a, IntoItem=Vec<I>>)*/, A: Attribute {
+        //<Object=I>*/ {
         type Object = T;
     }
+
     impl<'a, O, A, T, I, E> Getter<'a> for FromEach<O, A>
         where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               A: Attribute<Object=I> + Getter<'a, IntoItem=E> {
@@ -774,6 +780,7 @@ pub mod get {
             })
         }
     }
+
     impl<'a, O, A, T, I, E> OptionGetter<'a> for FromEach<O, A>
         where O: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               A: Attribute<Object=I> + OptionGetter<'a, IntoItem=E> {
@@ -786,10 +793,12 @@ pub mod get {
     }
 
     pub struct FromEachIf<A: Attribute, P> (pub A, pub P);
+
     impl<'a, A, P, T> Attribute for FromEachIf<A, P>
         where A: Attribute<Object=T> {
         type Object = T;
     }
+
     impl<'a, A, P, T, I> OptionGetter<'a> for FromEachIf<A, P>
         where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               P: Filter<'a, Item=I> {
@@ -802,18 +811,20 @@ pub mod get {
             })
         }
     }
+
     impl<'a, A, P, T, I> Getter<'a> for FromEachIf<A, P>
         where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               P: Filter<'a, Item=I> {
         type IntoItem = Option<Vec<ItemWithData<'a, I>>>;
         fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
-            self.0.get_opt(object).map(|items|{
+            self.0.get_opt(object).map(|items| {
                 items.into_iter()
                     .filter(|item| self.1.accept(item))
                     .collect()
             })
         }
     }
+
     impl<'a, A, P, T, I> Countable<'a> for FromEachIf<A, P>
         where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               P: Filter<'a, Item=I> {
@@ -823,6 +834,7 @@ pub mod get {
             // get_opt. It would save allocating the vector.
         }
     }
+
     impl<'a, A, P, T, I> OptionCountable<'a> for FromEachIf<A, P>
         where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Vec<ItemWithData<'a, I>>>,
               P: Filter<'a, Item=I> {
@@ -866,4 +878,39 @@ pub mod get {
     impl_select!(Select8,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7);
     impl_select!(Select9,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8);
     impl_select!(Select10, Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9);
+
+#[macro_export]
+macro_rules! Select {
+    ($ta:expr) => {
+        get::Select1($ta)
+    };
+    ($ta:expr, $tb:expr) => {
+        get::Select2($ta, $tb)
+    };
+    ($ta:expr, $tb:expr, $tc:expr) => {
+        get::Select3($ta, $tb, $tc)
+    };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr) => {
+        get::Select4($ta, $tb, $tc, $td)
+    };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr) => {
+        get::Select5($ta, $tb, $tc, $td, $te)
+    };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr) => {
+        get::Select6($ta, $tb, $tc, $td, $te, $tf)
+    };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr, $tg:expr) => {
+        get::Select7($ta, $tb, $tc, $td, $te, $tf, $tg)
+    };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr, $tg:expr, $th:expr) => {
+        get::Select8($ta, $tb, $tc, $td, $te, $tf, $tg, $th)
+    };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr, $tg:expr, $th:expr, $ti:expr) => {
+        get::Select9($ta, $tb, $tc, $td, $te, $tf, $tg, $th, $ti)
+    };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr, $tg:expr, $th:expr, $ti:expr, $tj:expr) => {
+        get::Select10($ta, $tb, $tc, $td, $te, $tf, $tg, $th, $ti, $tj)
+    };
+}
+
 }

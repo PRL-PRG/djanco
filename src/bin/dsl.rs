@@ -41,7 +41,7 @@ fn main() {
     database.paths().filter_by_attrib(require::Equal(path::Language, Language::Haskell)).into_csv(path!("filter_haskell_paths")).unwrap();
     database.commits().sample(sample::Random(100, sample::Seed(42))).into_csv(path!("sample_100_commits")).unwrap();
     database.projects().map_into_attrib(stats::Ratio(project::Authors, project::Users)).into_csv(path!("select_project_ratio_of_authors_to_users")).unwrap();
-    database.projects().map_into_attrib(get::Select2(project::Id, project::URL)).into_csv(path!("select_project_ids_and_urls")).unwrap();
+    database.projects().map_into_attrib(Select!(project::Id, project::URL)).into_csv(path!("select_project_ids_and_urls")).unwrap();
     database.commits().map_into_attrib(commit::Author)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_author_experience")).unwrap();
     database.commits().map_into_attrib(commit::Committer)/*TODO .unique().map_into_attrib(user::IdTODO Experience*/.into_csv(path!("commit_committer_experience")).unwrap();
     database.commits().map_into_attrib(commit::Parents).into_csv(path!("commit_parents")).unwrap();
@@ -56,7 +56,6 @@ fn main() {
 // TODO features
 // CSV export
 // dump
-// selectN macro
 // receipts
 // Git commit as version
 // commit frequency
@@ -64,7 +63,6 @@ fn main() {
 // maybe length for all strings
 // maybe non-empty precicate for vectors
 // buckets
-// ItemWithData should return ItemWithData from getters where appropriate
 // Fraction vs f64
 // unit tests
 // print out fractions as decimals

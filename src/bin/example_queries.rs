@@ -27,7 +27,7 @@ fn mean_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
     database
         .projects()
         .group_by_attrib(project::Language)
-        .sort_by_attrib(stats::Mean(FromEach(project::Commits, stats::Count(commit::Paths))))
+        .sort_by_attrib(Mean(FromEach(project::Commits, Count(commit::Paths))))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }
@@ -36,7 +36,7 @@ fn median_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a D
     database
         .projects()
         .group_by_attrib(project::Language)
-        .sort_by_attrib(stats::Median(FromEach(project::Commits, stats::Count(commit::Paths))))
+        .sort_by_attrib(Median(FromEach(project::Commits, Count(commit::Paths))))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }
@@ -45,10 +45,10 @@ fn experienced_author<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
     database
         .projects()
         .group_by_attrib(project::Language)
-        //.filter_by_attrib(require::AtLeast(stats::Count(project::Users), 1))
-        .filter_by_attrib(require::AtLeast(stats::Count(FromEachIf(project::Users, require::AtLeast(user::Experience, Duration::from_years(2)))), 1))
+        //.filter_by_attrib(require::AtLeast(Count(project::Users), 1))
+        .filter_by_attrib(require::AtLeast(Count(FromEachIf(project::Users, require::AtLeast(user::Experience, Duration::from_years(2)))), 1))
         //.filter_by_attrib(require::Exists(project::UsersWith(require::MoreThan(user::Experience, Seconds::from_years(2)))))
-        .sort_by_attrib(stats::Count(project::Commits))
+        .sort_by_attrib(Count(project::Commits))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }
@@ -57,8 +57,8 @@ fn experienced_authors_ratio<'a>(_config: &Configuration, _log: &Log, database: 
     database
         .projects()
         .group_by_attrib(project::Language)
-        .filter_by_attrib(require::AtLeast(stats::Count(project::Users), 2))
-        .filter_by_attrib(require::AtLeast(stats::Ratio(FromEachIf(project::Users, require::AtLeast(user::Experience, Duration::from_years(2))), project::Users), Fraction::new(1,2)))
+        .filter_by_attrib(require::AtLeast(Count(project::Users), 2))
+        .filter_by_attrib(require::AtLeast(Ratio(FromEachIf(project::Users, require::AtLeast(user::Experience, Duration::from_years(2))), project::Users), Fraction::new(1,2)))
         //.sample(sample::Distinct(sample::Random(50, Seed(42)), sample::Ratio(project::Commits, 0.9)))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
@@ -68,7 +68,7 @@ fn mean_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database: 
     database
         .projects()
         .group_by_attrib(project::Language)
-        .sort_by_attrib(stats::Mean(FromEach(project::Commits, commit::MessageLength)))
+        .sort_by_attrib(Mean(FromEach(project::Commits, commit::MessageLength)))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }
@@ -77,7 +77,7 @@ fn median_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database
     database
         .projects()
         .group_by_attrib(project::Language)
-        .sort_by_attrib(stats::Median(FromEach(project::Commits, commit::MessageLength)))
+        .sort_by_attrib(Median(FromEach(project::Commits, commit::MessageLength)))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }
@@ -86,7 +86,7 @@ fn commits<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> i
     database
         .projects()
         .group_by_attrib(project::Language)
-        .sort_by_attrib(stats::Count(project::Commits))
+        .sort_by_attrib(Count(project::Commits))
         .sample(sample::Distinct(sample::Top(50), sample::Ratio(project::Commits, 0.9)))
         .ungroup()
 }

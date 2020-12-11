@@ -26,7 +26,7 @@ fn main() {
     with_elapsed_secs!("executing query", {
         database.projects()
             .filter_by_attrib(require::Equal(project::Language, Language::Python))
-            .filter_by_attrib(require::AtLeast(stats::Count(FromEachIf(project::Commits, require::Matches(commit::Message, bug_regex.clone()))), 1))
+            .filter_by_attrib(require::AtLeast(Count(FromEachIf(project::Commits, require::Matches(commit::Message, bug_regex.clone()))), 1))
             .sort_by_attrib(project::Stars)
             .map_into_attrib(Select!(project::Itself, FromEachIf(project::Commits, require::Matches(commit::Message, bug_regex.clone()))))
 

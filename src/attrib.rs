@@ -1,8 +1,5 @@
-use std::iter::FromIterator;
 use std::hash::Hash;
 use std::marker::PhantomData;
-
-use itertools::Itertools;
 
 use crate::iterators::*;
 
@@ -55,6 +52,11 @@ pub trait Select<'a, T, I>: Attribute<Object=T> + Getter<'a, IntoItem=I> { // XX
 }
 impl<'a, T, I, A> Select<'a, T, I> for A where A: Attribute<Object=T> + Getter<'a, IntoItem=I> {}
 
+pub mod sort {
+    #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
+    pub enum Direction { Ascending, Descending }
+}
+
 pub trait Sort<'a, T,I: Ord>: Attribute<Object=T> + Getter<'a, IntoItem=I> {
     fn sort(&self, direction: sort::Direction, vector: &mut Vec<ItemWithData<'a, T>>) {
         vector.sort_by_key(|object| self.get(object));
@@ -79,113 +81,10 @@ pub trait Filter<'a> {
     fn accept(&self, item_with_data: &ItemWithData<'a, Self::Item>) -> bool;
 }
 
-pub mod sort {
-    #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
-    pub enum Direction { Ascending, Descending }
+pub struct AttributeFilterIter<I, A> {
+    pub(crate) iterator: I,
+    pub(crate) attribute: A
 }
-
-pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
-    fn filter_by_attrib<A>(self, attribute: A)
-        -> AttributeFilterIter<Self, A>
-        where A: Filter<'a, Item=T> {
-        AttributeFilterIter { iterator: self, attribute }
-    }
-
-    fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
-                                  -> AttributeMapIter<Self, A, Ta, Tb>
-        where A: Select<'a, Ta, Tb> {
-        AttributeMapIter { iterator: self, attribute, function: PhantomData }
-    }
-
-    fn sort_by_attrib<A: 'a, I>(self, attribute: A)
-        -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where A: Sort<'a, T, I>, I: Ord {
-        self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
-    }
-
-    fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
-                             -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where A: Sort<'a, T, I>, I: Ord {
-        let mut vector = Vec::from_iter(self);
-        attribute.sort(direction, &mut vector);
-        vector.into_iter()
-    }
-
-    fn sample<S>(self, sampler: S)
-        -> std::vec::IntoIter<ItemWithData<'a, T>>
-        where S: Sampler<'a, T> {
-        sampler.sample(self).into_iter()
-    }
-
-    fn group_by_attrib<A, K>(self, attribute: A)
-        -> std::collections::hash_map::IntoIter<K, Vec<ItemWithData<'a, T>>>
-        where A: Group<'a, T, K>, K: Hash + Eq {
-        self.map(|item_with_data| {
-            let key = attribute.select_key(&item_with_data);
-            (key, item_with_data)
-        }).into_group_map().into_iter()
-    }
-
-    // TODO drop options
-}
-
-impl<'a, T, I> AttributeIterator<'a, T> for I
-    where I: Sized + Iterator<Item=ItemWithData<'a, T>> {}
-
-pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {
-    fn filter_by_attrib<A>(self, attribute: A)
-        -> AttributeGroupFilterIter<Self, A>
-        where A: Filter<'a, Item=T> {
-        AttributeGroupFilterIter { iterator: self, attribute }
-    }
-    // TODO filter_key
-
-    fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
-                                  -> AttributeGroupMapIter<Self, A, Ta, Tb>
-        where A: Select<'a, Ta, Tb> {
-        AttributeGroupMapIter { iterator: self, attribute, function: PhantomData }
-    }
-
-    fn sort_by_attrib<A: 'a, I>(self, attribute: A)
-        -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where A: Sort<'a, T, I>, I: Ord {
-        self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
-    }
-
-    fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
-        -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where A: Sort<'a, T, I>, I: Ord {
-        let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
-            self.map(|(key, mut vector)| {
-                attribute.sort(direction, &mut vector);
-                (key, vector)
-            }).collect();
-        vector.into_iter()
-    }
-    // TODO sort_key, sort_key_by, sort_key_with, sort_values, sort_values_by, sort_values_with
-
-    fn sample<S>(self, sampler: S)
-        -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
-        where S: Sampler<'a, T> {
-        let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
-            self.map(|(key, vector)| {
-                (key, sampler.sample_from(vector))
-            }).collect();
-        vector.into_iter()
-    }
-    // TODO sample_key
-
-    fn ungroup(self) -> std::vec::IntoIter<ItemWithData<'a, T>> {
-        let vector: Vec<ItemWithData<'a, T>> =
-            self.flat_map(|(_, vector)| vector).collect();
-        vector.into_iter()
-    }
-}
-
-impl<'a, K, T, I> AttributeGroupIterator<'a, K, T> for I
-    where I: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {}
-
-pub struct AttributeFilterIter<I, A> { iterator: I, attribute: A }
 impl<'a,I,A,T> Iterator for AttributeFilterIter<I, A>
     where I: Iterator<Item=ItemWithData<'a, T>>, A: Filter<'a, Item=T> {
     type Item = ItemWithData<'a, T>;
@@ -197,7 +96,10 @@ impl<'a,I,A,T> Iterator for AttributeFilterIter<I, A>
     }
 }
 
-pub struct AttributeGroupFilterIter<I, A> { iterator: I, attribute: A }
+pub struct AttributeGroupFilterIter<I, A> {
+    pub(crate) iterator: I,
+    pub(crate) attribute: A
+}
 impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
     where I: Iterator<Item=(K, Vec<ItemWithData<'a, T>>)>, A: Filter<'a, Item=T> {
     type Item = (K, Vec<ItemWithData<'a, T>>);
@@ -214,7 +116,11 @@ impl<'a,I,A,K,T> Iterator for AttributeGroupFilterIter<I, A>
     }
 }
 
-pub struct AttributeMapIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
+pub struct AttributeMapIter<I, A, Ta, Tb> {
+    pub(crate) iterator: I,
+    pub(crate) attribute: A,
+    pub(crate) function: PhantomData<(Ta, Tb)>
+}
 impl<'a, I, A, Ta, Tb> Iterator for AttributeMapIter<I, A, Ta, Tb>
     where I: Iterator<Item=ItemWithData<'a, Ta>>, A: Select<'a, Ta, Tb> {
     type Item = Tb; //ItemWithData<'a, Tb>;
@@ -226,7 +132,11 @@ impl<'a, I, A, Ta, Tb> Iterator for AttributeMapIter<I, A, Ta, Tb>
     }
 }
 
-pub struct AttributeGroupMapIter<I, A, Ta, Tb> { iterator: I, attribute: A, function: PhantomData<(Ta, Tb)> }
+pub struct AttributeGroupMapIter<I, A, Ta, Tb> {
+    pub(crate) iterator: I,
+    pub(crate) attribute: A,
+    pub(crate) function: PhantomData<(Ta, Tb)>
+}
 impl<'a, I, A, K, Ta, Tb> Iterator for AttributeGroupMapIter<I, A, Ta, Tb>
     where I: Iterator<Item=(K, Vec<ItemWithData<'a, Ta>>)>, A: Select<'a, Ta, Tb> {
     type Item = (K, Vec<Tb>);
@@ -241,31 +151,5 @@ impl<'a, I, A, K, Ta, Tb> Iterator for AttributeGroupMapIter<I, A, Ta, Tb>
                 }).collect();
             (key, mapped_vector)
         })
-    }
-}
-
-#[macro_export]
-macro_rules! impl_sort_by_key {
-    ($item:ident, $attrib:ident, $key_selection:expr) => {
-        impl Sort for $attrib {
-            type Item = $item;
-            fn sort(&self, vector: &mut Vec<ItemWithData<Self::Item>>) {
-                vector.sort_by_key($key_selection)
-            }
-        }
-    }
-}
-
-#[macro_export]
-macro_rules! impl_sort_by_key_with_db {
-    ($item:ident, $attrib:ident, $method:ident) => {
-        impl_sort_by_key!($item, $attrib, | ItemWithData { item, data } | item.$method(data));
-    }
-}
-
-#[macro_export]
-macro_rules! impl_sort_by_key_sans_db {
-    ($item:ident, $attrib:ident, $method:ident) => {
-        impl_sort_by_key!($item, $attrib, | ItemWithData { item, data: _ } | item.$method());
     }
 }

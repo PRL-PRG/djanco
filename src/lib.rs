@@ -34,6 +34,7 @@ use rand::seq::IteratorRandom;
 use crate::attrib::*;
 use crate::iterators::*;
 use crate::fraction::*;
+use serde::export::PhantomData;
 
 macro_rules! impl_attribute_definition {
     [$object:ty, $attribute:ident] => {
@@ -386,6 +387,108 @@ pub mod snapshot {
     impl_attribute![!   objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned];
     impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];
 }
+
+pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=ItemWithData<'a, T>> {
+    fn filter_by_attrib<A>(self, attribute: A)
+                           -> AttributeFilterIter<Self, A>
+        where A: Filter<'a, Item=T> {
+        AttributeFilterIter { iterator: self, attribute }
+    }
+
+    fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
+                                  -> AttributeMapIter<Self, A, Ta, Tb>
+        where A: Select<'a, Ta, Tb> {
+        AttributeMapIter { iterator: self, attribute, function: PhantomData }
+    }
+
+    fn sort_by_attrib<A: 'a, I>(self, attribute: A)
+                                -> std::vec::IntoIter<ItemWithData<'a, T>>
+        where A: Sort<'a, T, I>, I: Ord {
+        self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
+    }
+
+    fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
+                                               -> std::vec::IntoIter<ItemWithData<'a, T>>
+        where A: Sort<'a, T, I>, I: Ord {
+        let mut vector = Vec::from_iter(self);
+        attribute.sort(direction, &mut vector);
+        vector.into_iter()
+    }
+
+    fn sample<S>(self, sampler: S)
+                 -> std::vec::IntoIter<ItemWithData<'a, T>>
+        where S: Sampler<'a, T> {
+        sampler.sample(self).into_iter()
+    }
+
+    fn group_by_attrib<A, K>(self, attribute: A)
+                             -> std::collections::hash_map::IntoIter<K, Vec<ItemWithData<'a, T>>>
+        where A: Group<'a, T, K>, K: Hash + Eq {
+        self.map(|item_with_data| {
+            let key = attribute.select_key(&item_with_data);
+            (key, item_with_data)
+        }).into_group_map().into_iter()
+    }
+
+    // TODO drop options
+}
+
+impl<'a, T, I> AttributeIterator<'a, T> for I
+    where I: Sized + Iterator<Item=ItemWithData<'a, T>> {}
+
+pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {
+    fn filter_by_attrib<A>(self, attribute: A)
+                           -> AttributeGroupFilterIter<Self, A>
+        where A: Filter<'a, Item=T> {
+        AttributeGroupFilterIter { iterator: self, attribute }
+    }
+    // TODO filter_key
+
+    fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
+                                  -> AttributeGroupMapIter<Self, A, Ta, Tb>
+        where A: Select<'a, Ta, Tb> {
+        AttributeGroupMapIter { iterator: self, attribute, function: PhantomData }
+    }
+
+    fn sort_by_attrib<A: 'a, I>(self, attribute: A)
+                                -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
+        where A: Sort<'a, T, I>, I: Ord {
+        self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
+    }
+
+    fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
+                                               -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
+        where A: Sort<'a, T, I>, I: Ord {
+        let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
+            self.map(|(key, mut vector)| {
+                attribute.sort(direction, &mut vector);
+                (key, vector)
+            }).collect();
+        vector.into_iter()
+    }
+    // TODO sort_key, sort_key_by, sort_key_with, sort_values, sort_values_by, sort_values_with
+
+    fn sample<S>(self, sampler: S)
+                 -> std::vec::IntoIter<(K, Vec<ItemWithData<'a, T>>)>
+        where S: Sampler<'a, T> {
+        let vector: Vec<(K, Vec<ItemWithData<'a, T>>)> =
+            self.map(|(key, vector)| {
+                (key, sampler.sample_from(vector))
+            }).collect();
+        vector.into_iter()
+    }
+    // TODO sample_key
+
+    fn ungroup(self) -> std::vec::IntoIter<ItemWithData<'a, T>> {
+        let vector: Vec<ItemWithData<'a, T>> =
+            self.flat_map(|(_, vector)| vector).collect();
+        vector.into_iter()
+    }
+}
+
+impl<'a, K, T, I> AttributeGroupIterator<'a, K, T> for I
+    where I: Sized + Iterator<Item=(K, Vec<ItemWithData<'a, T>>)> {}
+
 
 macro_rules! impl_comparison {
         ($name:ident, $trait_limit:ident, $comparator:ident, $default:expr) => {

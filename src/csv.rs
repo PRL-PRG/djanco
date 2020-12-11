@@ -65,11 +65,6 @@ macro_rules! impl_csv_item {
             fn row(&self) -> Vec<String> { $to_string(self) }
             fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
         }
-        impl CSVItem for &$type {
-            fn column_headers() -> Vec<&'static str> { vec![$header] }
-            fn row(&self) -> Vec<String> { $to_string(self) }
-            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
-        }
     };
     ($type:tt<$($generic:tt),+>, $header:expr, $to_string:expr) => {
         impl<$($generic,)+> CSVItem for $type<$($generic,)+> {
@@ -77,19 +72,9 @@ macro_rules! impl_csv_item {
             fn row(&self) -> Vec<String> { $to_string(self) }
             fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
         }
-        impl<$($generic,)+> CSVItem for &$type<$($generic,)+> {
-            fn column_headers() -> Vec<&'static str> { vec![$header] }
-            fn row(&self) -> Vec<String> { $to_string(self) }
-            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
-        }
     };
     ($type:tt<$($generic:tt),+> where $($type_req:tt: $($type_req_def:tt),+);+-> $header:expr, $to_string:expr) => {
         impl<$($generic,)+> CSVItem for $type<$($generic,)+> where $($type_req: $($type_req_def+)+)+ {
-            fn column_headers() -> Vec<&'static str> { vec![$header] }
-            fn row(&self) -> Vec<String> { $to_string(self) }
-            fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
-        }
-        impl<$($generic,)+> CSVItem for &$type<$($generic,)+> where $($type_req: $($type_req_def+)+)+ {
             fn column_headers() -> Vec<&'static str> { vec![$header] }
             fn row(&self) -> Vec<String> { $to_string(self) }
             fn rows(&self) -> Vec<Vec<String>> { vec![$to_string(self)] }
@@ -277,16 +262,10 @@ impl<T> CSVItem for Vec<T> where T: CSVItem {
     }
 }
 
-impl<T> CSVItem for &Vec<T> where T: CSVItem {
-    fn column_headers() -> Vec<&'static str> {
-        T::column_headers()
-    }
-    fn row(&self) -> Vec<String> {
-        unimplemented!()
-    }
-    fn rows(&self) -> Vec<Vec<String>> {
-        self.iter().flat_map(|e| e.rows()).collect()
-    }
+impl<T> CSVItem for &T where T: CSVItem {
+    fn column_headers() -> Vec<&'static str> { T::column_headers() }
+    fn row(&self) -> Vec<String> { T::row(self) }
+    fn rows(&self) -> Vec<Vec<String>> { T::rows(self) }
 }
 
 //--- easy CSV Items -------------------------------------------------------------------------------

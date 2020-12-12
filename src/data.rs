@@ -79,28 +79,6 @@ impl Database {
     pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
         self.store.contents().map(|(id, _hash_id)| SnapshotId::from(id))
     }
-    // pub fn snapshots_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=Snapshot> + 'a
-    //     where F: Fn(&Snapshot) -> bool + 'a {
-    //     self.store.contents().flat_map(move |(id, content)| {
-    //         let snapshot = Snapshot::new(SnapshotId::from(id), content);
-    //         if filter(&snapshot) {
-    //             Some(snapshot)
-    //         } else {
-    //             None
-    //         }
-    //     })
-    // }
-    // pub fn snapshot_ids_where<'a, F>(&'a self, filter: F) -> impl Iterator<Item=SnapshotId> + 'a
-    //     where F: Fn(&Snapshot) -> bool + 'a {
-    //     self.store.contents().flat_map(move |(id, content)| {
-    //         let snapshot = Snapshot::new(SnapshotId::from(id), content);
-    //         if filter(&snapshot) {
-    //             Some(snapshot.id())
-    //         } else {
-    //             None
-    //         }
-    //     })
-    // }
 }
 
 impl Database {
@@ -1268,20 +1246,31 @@ impl Data {
 
 impl Data {
     pub fn export_all_to_csv<S>(&mut self, store: &DatastoreView, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
-        self.project_metadata.iter(store).into_csv("project_metadata")?;
+        let dir = dir.into();
+        std::fs::create_dir_all(&dir)?;
+        macro_rules! path {
+            ($filename:expr) => {
+                format!("{}/{}.csv", dir, $filename)
+            }
+        }
 
-        self.smart_load_project_urls(store).iter().into_csv("project_urls")?;
-        //self.smart_load_project_heads(store).iter().into_csv("project_heads")?; FIXME
-        //self.smart_load_users(store).iter().into_csv("users")?; FIXME
-        //self.smart_load_paths(store).iter().into_csv("paths")?; FIXME
-        //self.smart_load_commits(store).iter().into_csv("commits")?; FIXME
-        self.smart_load_commit_hashes(store).iter().into_csv("commit_hashes")?;
-        self.smart_load_commit_messages(store).iter().into_csv("commit_messages")?;
-        self.smart_load_commit_committer_timestamps(store).iter().into_csv("commit_committer_timestamps")?;
-        self.smart_load_commit_author_timestamps(store).iter().into_csv("commit_author_timestamps")?;
-        self.smart_load_commit_changes(store).iter().into_csv("commit_changes")?;
+        self.project_metadata.iter(store).into_csv(path!("project_metadata"))?;
 
-        // FIXME snapshots
+        self.smart_load_project_urls(store).iter().into_csv(path!("project_urls"))?;
+        self.smart_load_project_heads(store).iter().into_csv(path!("project_heads"))?;
+        self.smart_load_users(store).iter().into_csv(path!("users"))?;
+        self.smart_load_paths(store).iter().into_csv(path!("paths"))?;
+        self.smart_load_commits(store).iter().into_csv(path!("commits"))?;
+        self.smart_load_commit_hashes(store).iter().into_csv(path!("commit_hashes"))?;
+        self.smart_load_commit_messages(store).iter().into_csv(path!("commit_messages"))?;
+        self.smart_load_commit_committer_timestamps(store).iter().into_csv(path!("commit_committer_timestamps"))?;
+        self.smart_load_commit_author_timestamps(store).iter().into_csv(path!("commit_author_timestamps"))?;
+        self.smart_load_commit_changes(store).iter().into_csv(path!("commit_changes"))?;
+
+        store.contents_data()
+            .map(|(id, content)| {
+                Snapshot::new(SnapshotId::from(id), content)
+            }).into_csv(path!("snapshots"))?;
 
         Ok(())
     }

@@ -508,18 +508,7 @@ impl CSVItem for Path {
         ]]
     }
 }
-
-impl<'a> CSVItem for ItemWithData<'a, Path> {
-    fn column_headers() -> Vec<&'static str> {
-        Path::column_headers()
-    }
-    fn row(&self) -> Vec<String> {
-        self.item.row()
-    }
-    fn rows(&self) -> Vec<Vec<String>> {
-        self.item.rows()
-    }
-}
+impl_csv_item_with_data_inner!(Path);
 
 impl CSVItem for Commit {
     fn column_headers() -> Vec<&'static str> {
@@ -589,6 +578,7 @@ impl CSVItem for Snapshot {
         ]]
     }
 }
+impl_csv_item_with_data_inner!(Snapshot);
 
 impl CSVItem for ProjectMetadata {
     fn column_headers() -> Vec<&'static str> { vec![
@@ -650,8 +640,20 @@ impl CSVItem for ProjectMetadata {
         ]]
     }
 }
+impl_csv_item_with_data_inner!(ProjectMetadata);
 
-// FIXME could we make GroupIter also work with this directly? (right now one needs to ungroup)
+impl CSVItem for Head {
+    fn column_headers() -> Vec<&'static str> {
+        vec!["name", "commit_id"]
+    }
+    fn row(&self) -> Vec<String> {
+        vec![self.name(), self.commit_id().to_string()]
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![self.name(), self.commit_id().to_string()]]
+    }
+}
+impl_csv_item_with_data_inner!(Head);
 
 // --- loading from CSV ----------------------------------------------------------------------------
 

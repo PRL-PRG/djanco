@@ -449,6 +449,7 @@ impl ProjectMetadataSource {
 }
 
 // A glorified tuple
+#[derive(Hash, Clone, Debug)]
 pub struct ProjectMetadata {
     pub id: ProjectId,
     pub is_fork: Option<bool>,

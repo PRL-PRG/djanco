@@ -1245,7 +1245,7 @@ impl Data {
 }
 
 impl Data {
-    pub fn export_all_to_csv<S>(&mut self, store: &DatastoreView, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
+    pub fn export_to_csv<S>(&mut self, store: &DatastoreView, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
         let dir = dir.into();
         std::fs::create_dir_all(&dir)?;
         macro_rules! path {
@@ -1277,7 +1277,7 @@ impl Data {
 }
 
 impl Database {
-    pub fn export_all_to_csv<S>(&self, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
-        self.data.borrow_mut().export_all_to_csv(&self.store, dir)
+    pub fn export_to_csv<S>(&self, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
+        self.data.borrow_mut().export_to_csv(&self.store, dir)
     }
 }

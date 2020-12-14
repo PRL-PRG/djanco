@@ -16,6 +16,7 @@
              pub mod receipt;
              pub mod spec;
              pub mod time;
+             pub mod dump;
              mod piracy;
              mod product;
 

@@ -1281,3 +1281,162 @@ impl Database {
         self.data.borrow_mut().export_to_csv(&self.store, dir)
     }
 }
+
+#[cfg(test)]
+mod data {
+    use crate::log::{Log, Verbosity};
+    use dcd::DatastoreView;
+    use crate::data::Database;
+    use std::fs::{remove_dir_all, metadata};
+    use crate::objects::{ProjectId, Project, ItemWithData};
+    use std::collections::HashMap;
+
+    const DATASET_DIR: &'static str = "/dejacode/tiny-mk2";
+    const CACHE_DIR:   &'static str = "/dejacode/cache-mk2";
+    const TIME:                 i64 = 1607952032i64;
+
+    fn exists(path: &'static str) -> bool {
+        metadata(std::path::Path::new(path)).map_or(false, |_| true)
+    }
+
+    // fn dir_exists(path: &Path) -> bool {
+    //     metadata(path).map_or(false, |metadata| metadata.is_dir())
+    // }
+
+    fn setup_database(precached: bool) -> Database {
+        if !precached && exists(CACHE_DIR) {
+            remove_dir_all(CACHE_DIR)
+                .expect(&format!("Could not delete directory {}", CACHE_DIR));
+        }
+
+        let log: Log = Log::new(Verbosity::Debug);
+        let store = DatastoreView::new(DATASET_DIR, TIME);
+        let database =  Database::from_store(store, CACHE_DIR, log);
+
+        database
+    }
+
+    #[test]
+    fn projects_against_expected() {
+        let database = setup_database(false);
+
+        let expected: HashMap<ProjectId, String> = vec![
+            (0, "https://github.com/tosch/ruote-kit.git"),
+            (1, "https://github.com/kennethkalmer/ruote-kit.git"),
+            (2, "https://github.com/matplotlib/basemap.git"),
+            (3, "https://github.com/jswhit/basemap.git"),
+            (4, "https://github.com/rolandoam/cocos2d-x.git"),
+            (5, "https://github.com/cocos2d/cocos2d-x.git"),
+            (6, "https://github.com/pixonic/cocos2d-x.git"),
+            (7, "https://github.com/nubic/ncs_navigator_core.git"),
+            (8, "https://github.com/sgonyea/rake-compiler.git"),
+            (9, "https://github.com/chapuni/llvm.git"),
+            (10, "https://github.com/heroku/heroku-buildpack-scala.git"),
+            (11, "https://github.com/rafacm/heroku-buildpack-scala.git"),
+            (12, "https://github.com/fluttershy/locria.git"),
+            (13, "https://github.com/edvorg/cpp-drash.git"), // "drash" in file
+            (14, "https://github.com/abarocio80/clide.git"),
+            (15, "https://github.com/thorlax402/thor-cms.git"),
+            (16, "https://github.com/offsite/taskcodes.git"),
+            (17, "https://github.com/markpasc/gameshake.git"),
+            (18, "https://github.com/samuelclay/newsblur.git"),
+            (19, "https://github.com/chrisjaure/git-lava.git"),
+            (20, "https://github.com/es-doc/esdoc-questionnaire.git"), // "djanco-cim-forms" in file
+            (21, "https://github.com/adammark/markup.js.git"),
+            (22, "https://github.com/leoamigood/1stdibs_v2.1.git"),
+            (23, "https://github.com/pyrovski/large-scale-forward-regression-using-a-partitioned-linear-model.git"),
+            (24, "https://github.com/podarsmarty/cobertura-plugin.git"),
+            (25, "https://github.com/fbettag/scala-vs-erlang.git"),
+            (26, "https://github.com/rake-compiler/rake-compiler.git"),
+            (27, "https://github.com/opencv/opencv.git"),
+            (28, "https://github.com/jkammerl/opencv.git"),
+            (29, "https://github.com/gpjt/webgl-lessons.git"),
+            (30, "https://github.com/kerolasa/lelux-utiliteetit.git"),
+            (31, "https://github.com/snowblindfatal/glomes.git"),
+            (32, "https://github.com/pockethub/pockethub.git"),
+            (33, "https://github.com/mirocow/yii-easyapns.git"),
+            (34, "https://github.com/angular/angular.js.git"),
+            (35, "https://github.com/wallysalami/yii-easyapns.git"),
+            (36, "https://github.com/macmade/opencv-ios.git"),
+            (37, "https://github.com/powmedia/buildify.git"),
+            (38, "https://github.com/liberty-concepts/redmine_git_hosting.git"),
+            (39, "https://github.com/kubitron/redmine_git_hosting.git"),
+            (40, "https://github.com/hpc/iptablesbuild.git"),
+            (41, "https://github.com/chenniaoc/opencv-ios.git"),
+            (42, "https://github.com/tijsverkoyen/dotfiles.git"),
+            (43, "https://github.com/6a68/browserid.git"),
+            (44, "https://github.com/samtubbax/dotfiles.git"),
+            (45, "https://github.com/jman01/customizations.git"),
+            (46, "https://github.com/alexgorbatchev/syntaxhighlighter.git"),
+            (47, "https://github.com/fredwu/jquery-endless-scroll.git"),
+            (48, "https://github.com/kanishkaganguly/zero-requiem.git"),
+            (49, "https://github.com/bronsa/brochure.git"),
+            (50, "https://github.com/yui/yui3.git"),
+            (51, "https://github.com/jesperes/protobuf-cmake.git"),
+            (52, "https://github.com/pculture/unisubs.git"),
+            (53, "https://github.com/imtapps/django-request-signer.git"),
+            (54, "https://github.com/nadafigment/protobuf-cmake.git"),
+            (55, "https://github.com/libram/django-request-signer.git"),
+            (56, "https://github.com/fangpenlin/loso.git"),
+            (57, "https://github.com/lucaswei/loso.git"),
+            (58, "https://github.com/apipkin/yui3.git"),
+            (59, "https://github.com/doctag/doctag_java.git"),
+            (60, "https://github.com/llvm-mirror/llvm.git"),
+            (61, "https://github.com/gini/doctag_java.git"),
+            (62, "https://github.com/joyent/libuv.git"),
+            (63, "https://github.com/schatten/schatten.github.com.git"),
+            (64, "https://github.com/gosquared/nvm-cookbook.git"),
+            (65, "https://github.com/davewid/legacy-php-talk.git"),
+            (66, "https://github.com/mshk/data-journalism-handbook-ja.git"),
+            (67, "https://github.com/russellspitzer/sample_app.git"),
+            (68, "https://github.com/willdurand/willdurand.github.io.git"),
+            (69, "https://github.com/stof/willdurand.github.com.git"),
+            (70, "https://github.com/rxgx/dotfiles.git"),
+            (71, "https://github.com/ablu/manaserv.git"),
+            (72, "https://github.com/garyrussell/spring-integration.git"),
+            (73, "https://github.com/yomoyomo/data-journalism-handbook-ja.git"),
+            (74, "https://github.com/mana/manaserv.git"),
+            (75, "https://github.com/bjorn/manaserv.git"),
+            (76, "https://github.com/fnando/i18n-js.git"),
+            (77, "https://github.com/olegz/spring-integration.git"),
+            (78, "https://github.com/chapuni/llvm-project.git"),
+            (79, "https://github.com/neverabc/libuv.git"),
+            (80, "https://github.com/blinkbox/cucumber-js.git"),
+            (81, "https://github.com/elaird/supy.git"),
+            (82, "https://github.com/janrain/jump.ios.git"),
+            (83, "https://github.com/timblinkbox/cucumber-js.git"),
+            (84, "https://github.com/angular/angular-seed.git"),
+            (85, "https://github.com/mashiro/i18n-js.git"),
+            (86, "https://github.com/jakewharton/viewpagerindicator.git"),
+            (87, "https://github.com/evh27/angular-seed.git"),
+            (88, "https://github.com/leon/play-salat.git"),
+            (89, "https://github.com/bnoordhuis/libuv.git"),
+            (90, "https://github.com/oftc/libuv.git"),
+            (91, "https://github.com/shepheb/jotto.git"),
+            (92, "https://github.com/virgo-agent-toolkit/rackspace-monitoring-agent.git"),
+            (93, "https://github.com/incuna/django-extensible-profiles.git"),
+            (94, "https://github.com/redaemn/angular-seed.git"),
+            (95, "https://github.com/zorgleh/try_git.git"),
+            (96, "https://github.com/madrobby/zepto.git"),
+            (97, "https://github.com/ochameau/addon-sdk.git"),
+            (98, "https://github.com/brandonwamboldt/utilphp.git"),
+        ].into_iter().map(|(id, url): (u64, &str)| (ProjectId::from(id), url.to_owned())).collect();
+
+        database.projects().for_each(|project| {
+            let expected_url = expected.get(&project.id())
+                .expect(&format!("Not expected to see a project with id {}", project.id()))
+                .to_owned();
+            assert_eq!(expected_url, project.url())
+        });
+
+        let projects: HashMap<ProjectId, ItemWithData<Project>> = database.projects()
+            .map(|project| (project.id(), project)).collect();
+
+        expected.iter().for_each(|(id, url)| {
+            let project = projects.get(id)
+                .expect(&format!("Expected to see a project with id {}", id))
+                .to_owned();
+            assert_eq!(url.clone(), project.url())
+        })
+    }
+}

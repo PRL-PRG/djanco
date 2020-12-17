@@ -24,7 +24,6 @@
 
 // TODO features
 // CSV export
-// dump
 // receipts
 // Git commit as version
 // commit frequency
@@ -38,6 +37,7 @@
 // flat_map select
 // explore parallelism
 // prefiltering
+// dump metadata, also make raw metadata accessible from objects::Project
 
 use std::iter::{Sum, FromIterator};
 use std::hash::{Hash, Hasher};
@@ -51,6 +51,7 @@ use rand::seq::IteratorRandom;
 
 use crate::attrib::*;
 use crate::fraction::*;
+use crate::objects::ItemWithData;
 
 macro_rules! impl_attribute_definition {
     [$object:ty, $attribute:ident] => {
@@ -747,10 +748,6 @@ impl<'a, A, T> OptionGetter<'a> for Count<A> where A: Attribute<Object=T> + Opti
     }
 }
 
-// TODO bucket
-pub struct Bin;
-pub struct Bucket;
-
 trait CalculateStat<N, T>{ fn calculate(vector: Vec<N>) -> T; }
 macro_rules! impl_calculator {
         ($name:ident -> $result:ty where N: $($requirements:path),+; $calculate:item) => {
@@ -827,6 +824,31 @@ impl_calculator!(Median -> Fraction<N> where N: Ord, Clone, Sum;
             }
         }
     );
+
+pub trait BinningFunction: Clone {
+    type From;
+    type Into;
+    fn bin(&self, value: Self::From) -> Bin<Self>;
+}
+pub struct Bin<F: BinningFunction> { bin: F::Into, value: F::From, binning_function: F }
+pub struct Bucket<A: Attribute, F>(A, F);
+impl<A, F, T> Attribute for Bucket<A, F> where A: Attribute<Object=T> {
+    type Object = T;
+}
+impl<'a, A, F, T, I> OptionGetter<'a> for Bucket<A, F>
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>, F: BinningFunction<From=I> {
+    type IntoItem = Bin<F>;
+    fn get_opt(&self, object: &ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+        self.0.get_opt(object).map(|item| self.1.bin(item))
+    }
+}
+impl<'a, A, F, T, I> Getter<'a> for Bucket<A, F>
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>, F: BinningFunction<From=I> {
+    type IntoItem = Option<Bin<F>>;
+    fn get(&self, object: &ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+        self.0.get_opt(object).map(|item| self.1.bin(item))
+    }
+}
 
 pub struct Ratio<A: Attribute<Object=T>, P: Attribute<Object=T>, T>(pub A, pub P);
 impl<A, P, T> Attribute for Ratio<A, P, T>

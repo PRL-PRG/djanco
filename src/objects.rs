@@ -2,6 +2,9 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 use std::borrow::Cow;
+use std::io::Write;
+use std::fs::{File, create_dir_all};
+use std::path::PathBuf;
 
 use bstr::ByteSlice;
 use itertools::Itertools;
@@ -559,7 +562,20 @@ impl Snapshot {
     pub fn contents(&self) -> Cow<str> { self.contents.to_str_lossy() }
     pub fn contents_owned(&self) -> String { self.contents.to_str_lossy().to_string() }
     pub fn contains(&self, needle: &str) -> bool { self.contents().contains(needle) }
-
+    pub fn write_contents_to<'a, S>(&self, path: S) -> Result<(), std::io::Error> where S: Into<PathBuf> {
+        let path = path.into();
+        let dir = {
+            let mut dir = path.clone();
+            dir.pop();
+            dir
+        };
+        create_dir_all(dir)?;
+        let mut file = File::create(path)?;
+        self.write_contents_to_file(&mut file)
+    }
+    pub fn write_contents_to_file<F>(&self, file: &mut F) -> Result<(), std::io::Error> where F: Write {
+        file.write_all(self.contents.as_slice())
+    }
     // FIXME add hashes
 }
 impl Identifiable for Snapshot {

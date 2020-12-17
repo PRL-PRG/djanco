@@ -1,6 +1,7 @@
 use std::io::Write;
-use std::fs::File;
-use std::collections::HashMap;
+use std::fs::{File, create_dir_all};
+use std::path::PathBuf;
+use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 
 use serde::export::fmt::Display;
@@ -30,11 +31,9 @@ impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
         let location = location.into();
         eprintln!("Writing to CSV file at {}", location);
         let mut file = create_file!(location)?;
-        writeln!(file, "{}", T::csv_header())?;
+        T::write_column_headers_to(&mut file)?;
         for element in self {
-            for item in element.to_csv_items() {
-                writeln!(file, "{}", item)?;
-            }
+            element.write_csv_items_to(&mut file)?;
         }
         eprintln!("Done writing to CSV file at {}", location);
         Ok(())
@@ -53,6 +52,15 @@ pub trait CSVItem {
         self.rows().into_iter().map(|row: Vec<String>| {
             row.to_comma_separated_string()
         }).collect()
+    }
+    fn write_column_headers_to<F>(file: &mut F) -> Result<(), std::io::Error> where F: Write {
+        writeln!(file, "{}", Self::csv_header())
+    }
+    fn write_csv_items_to<F>(&self, file: &mut F) -> Result<(), std::io::Error> where F: Write {
+        for item in self.to_csv_items() {
+            writeln!(file, "{}", item)?;
+        }
+        Ok(())
     }
 }
 
@@ -510,6 +518,23 @@ impl CSVItem for Path {
 }
 impl_csv_item_with_data_inner!(Path);
 
+impl CSVItem for Change {
+    fn column_headers() -> Vec<&'static str> { vec!["path_id", "snapshot_id"] }
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.path.to_string(),
+            self.snapshot.to_string_or_empty(),
+        ]
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        vec![vec![
+            self.path.to_string(),
+            self.snapshot.to_string_or_empty(),
+        ]]
+    }
+}
+impl_csv_item_with_data_inner!(Change);
+
 impl CSVItem for Commit {
     fn column_headers() -> Vec<&'static str> {
         vec![ "commit_id", "parent_id", "author_id", "committer_id" ]
@@ -832,5 +857,130 @@ pub trait Missing {
 impl<T> Missing for Option<T> where T: Display {
     fn to_string_or_empty(&self) -> String {
         self.as_ref().map_or(String::new(), |e| e.to_string())
+    }
+}
+
+// ---- dump ---------------------------------------------------------------------------------------
+
+pub trait Dump {
+    fn dump_all_info_to<S>(self, location: S) -> Result<(), std::io::Error> where S: Into<String>;
+}
+
+impl<'a, I> Dump for I where I: Iterator<Item=ItemWithData<'a, Project>> {
+    fn dump_all_info_to<S>(self, location: S) -> Result<(), std::io::Error> where S: Into<String> {
+
+        let dir_path = PathBuf::from(location.into());
+        create_dir_all(&dir_path)?;
+
+        macro_rules! create_file {
+             ($location:expr) => {{
+                 let path = {
+                     let mut path = dir_path.clone();
+                     path.push($location.to_owned());
+                     path
+                 };
+                 std::fs::File::create(path)
+             }}
+        }
+
+        macro_rules! create_dir {
+             ($location:expr) => {{
+                 let dir_path = {
+                     let mut dir_path = dir_path.clone();
+                     dir_path.push($location.to_owned());
+                     dir_path
+                 };
+                 std::fs::create_dir_all(&dir_path)?;
+                 dir_path
+             }}
+        }
+
+        let mut project_sink            = create_file!("projects.csv")?;
+        let mut commit_sink             = create_file!("commits.csv")?;
+        let mut user_sink               = create_file!("users.csv")?;
+        let mut path_sink               = create_file!("paths.csv")?;
+
+        let snapshot_dir             = create_dir!("snapshots");
+
+        println!("--");
+
+        let mut project_commit_map_sink = create_file!("project_commit_map.csv")?;
+        let mut project_user_map_sink   = create_file!("project_user_map.csv")?;
+        let mut commit_parent_map_sink  = create_file!("commit_parent_map.csv")?;
+        let mut commit_change_map_sink  = create_file!("commit_change_map.csv")?;
+
+        println!("..");
+
+        let mut visited_commits:   HashSet<CommitId>   = HashSet::new();
+        let mut visited_users:     HashSet<UserId>     = HashSet::new();
+        let mut visited_paths:     HashSet<PathId>     = HashSet::new();
+        let mut visited_snapshots: HashSet<SnapshotId> = HashSet::new();
+
+        println!("<<");
+
+        eprintln!("Dumping to directory at {}", dir_path.as_os_str().to_str().unwrap_or("???"));
+        eprintln!("Initializing CSV files at {}", dir_path.as_os_str().to_str().unwrap_or("???"));
+
+        ItemWithData::<'a, Project>::write_column_headers_to(&mut project_sink)?;
+        ItemWithData::<'a, Commit>::write_column_headers_to(&mut commit_sink)?;
+        ItemWithData::<'a, Path>::write_column_headers_to(&mut path_sink)?;
+        ItemWithData::<'a, User>::write_column_headers_to(&mut user_sink)?;
+        //ItemWithData::<'a, Snapshot>::write_column_headers_to(&mut snapshot_sink)?;
+
+        <(ProjectId, CommitId)>::write_column_headers_to(&mut project_commit_map_sink)?;
+        <(ProjectId, UserId)>::write_column_headers_to(&mut project_user_map_sink)?;
+        <(CommitId, ItemWithData::<'a, Change>)>::write_column_headers_to(&mut commit_change_map_sink)?;
+        <(CommitId, ProjectId)>::write_column_headers_to(&mut commit_parent_map_sink)?;
+
+        println!(">>");
+
+        for project in self {
+            eprintln!("Dumping data for project {}", project.url());
+            eprintln!("  - project info");
+            project.write_csv_items_to(&mut project_sink)?;
+
+            let commits: Vec<ItemWithData<Commit>> = project.commits_with_data().unwrap_or(vec![]);
+            eprintln!("  - project-commit mapping & info");
+            for commit in commits {
+                (project.id(), commit.id()).write_csv_items_to(&mut project_commit_map_sink)?;
+                if !visited_commits.contains(&commit.id()) {
+                    commit.write_csv_items_to(&mut commit_sink)?;
+                    visited_commits.insert(commit.id());
+                }
+
+                let changes = commit.changes_with_data().unwrap_or(vec![]);
+                for change in changes {
+                    if let Some(path) = &change.path() {
+                        if !visited_paths.contains(&path.id()) {
+                            path.write_csv_items_to(&mut path_sink)?;
+                            visited_paths.insert(path.id());
+                        }
+                    }
+
+                    if let Some(snapshot) = &change.snapshot() {
+                        if !visited_snapshots.contains(&snapshot.id()) {
+                            let mut path = snapshot_dir.clone();
+                            path.push(snapshot.id().to_string());
+                            snapshot.write_contents_to(path)?;
+                            visited_snapshots.insert(snapshot.id());
+                        }
+                    }
+
+                    (project.id(), change).write_csv_items_to(&mut commit_change_map_sink)?;
+                }
+            }
+
+            let users: Vec<ItemWithData<User>> = project.users_with_data().unwrap_or(vec![]);
+            eprintln!("  - project-user mapping & info");
+            for user in users {
+                (project.id(), user.id()).write_csv_items_to(&mut project_user_map_sink)?;
+                if !visited_users.contains(&user.id()) {
+                    user.write_csv_items_to(&mut user_sink)?;
+                    visited_users.insert(user.id());
+                }
+            }
+        }
+        eprintln!("Done dumping to directory at {}", dir_path.as_os_str().to_str().unwrap_or("???"));
+        Ok(())
     }
 }

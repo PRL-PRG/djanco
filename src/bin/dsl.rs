@@ -9,13 +9,15 @@ use djanco::log::*;
 use djanco::commandline::*;
 use djanco::csv::CSV;
 use djanco::objects::Language;
+use itertools::Itertools;
+use djanco::time::Month;
 
 // `cargo run --bin dsl --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
-    let now = time::now();
+    let now = Month::December(2020);
     let config = Configuration::from_args();
     let log = Log::new(Verbosity::Debug);
-    let store = DatastoreView::new(config.dataset_path(), now);
+    let store = DatastoreView::new(config.dataset_path(), now.into());
     let database =  Database::from_store(store, config.cache_path(), log);
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
@@ -48,4 +50,5 @@ fn main() {
     database.projects().filter_by_attrib(Member(project::Homepage, vec!["http://manasource.org/"].iter().map(|e| e.to_string()).collect::<Vec<String>>()));
     database.projects().filter_by_attrib(AnyIn(FromEach(project::Commits, commit::Id), vec![objects::CommitId::from(42u64), objects::CommitId::from(666u64)]));
     database.projects().filter_by_attrib(AllIn(FromEach(project::Commits, commit::Id), vec![objects::CommitId::from(42u64), objects::CommitId::from(666u64)]));
+    // database.projects().map_into_attrib(Bucket(Count(project::Commits), Interval(1000))).into_csv(path!("bucket_1000")).unwrap();
 }

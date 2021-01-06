@@ -79,6 +79,9 @@ impl Database {
     pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
         self.store.contents().map(|(id, _hash_id)| SnapshotId::from(id))
     }
+    pub fn snapshots_with_data<'a>(&'a self) -> impl Iterator<Item=ItemWithData<'a, Snapshot>> + 'a {
+        self.snapshots().attach_data_to_each(self)
+    }
 }
 
 impl Database {

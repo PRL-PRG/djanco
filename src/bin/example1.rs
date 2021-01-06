@@ -9,7 +9,6 @@ use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
 use djanco::commandline::*;
-use djanco::iterators::*;
 use std::path::PathBuf;
 
 // `cargo run --bin example1 --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
@@ -22,8 +21,7 @@ fn main() {
 
     // If file does not exist, filter snapshots with required string and save to file.
     if !PathBuf::from(config.output_csv_path("snapshots_with_memory_resource")).exists() {
-        database.snapshots()
-            .attach_data_to_each(&database) // dirty hack!
+        database.snapshots_with_data()
             .filter_by_attrib(Contains(snapshot::Contents, "#include <memory_resource>"))
             .map_into_attrib(snapshot::Id)
             .into_csv(config.output_csv_path("snapshots_with_memory_resource")).unwrap();

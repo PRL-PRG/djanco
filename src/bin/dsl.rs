@@ -3,19 +3,16 @@ use structopt::StructOpt;
 use dcd::DatastoreView;
 
 use djanco::*;
-use djanco::data::*;
-use djanco::log::*;
 use djanco::commandline::*;
-use djanco::csv::CSV;
-use djanco::objects::Language;
-use djanco::time::Month;
+use djanco::objects::*;
+use djanco::csv::*;
 
 // `cargo run --bin dsl --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
-    let now = Month::December(2020);
     let config = Configuration::from_args();
-    let store = DatastoreView::new(config.dataset_path(), now.into());
-    let database =  Database::from_store(store, config.cache_path());
+    let database =
+        DatastoreView::new(config.dataset_path(), timestamp!(December 2020))
+            .with_cache(config.cache_path());
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 

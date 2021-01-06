@@ -53,6 +53,7 @@ use rand::seq::IteratorRandom;
 
 use crate::attrib::*;
 use crate::fraction::*;
+use crate::data::Database;
 
 macro_rules! impl_attribute_definition {
     [$object:ty, $attribute:ident] => {
@@ -1153,4 +1154,15 @@ macro_rules! Select {
     ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr, $tg:expr, $th:expr, $ti:expr, $tj:expr) => {
         Select10($ta, $tb, $tc, $td, $te, $tf, $tg, $th, $ti, $tj)
     };
+}
+
+pub trait DatabaseFactory {
+    fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String>;
+    //fn with<S>(self, cache_dir: S, log: log::Log) -> Database where S: Into<String>; // TODO figure out how to do this better
+}
+
+impl DatabaseFactory for dcd::DatastoreView {
+    fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String> {
+        Database::from_store(self, cache_dir)
+    }
 }

@@ -1291,12 +1291,13 @@ impl Database {
 
 #[cfg(test)]
 mod data {
-    use crate::log::{Log, Verbosity};
     use dcd::DatastoreView;
-    use crate::data::Database;
-    use std::fs::{remove_dir_all, metadata};
-    use crate::objects::{ProjectId, Project, ItemWithData};
+
     use std::collections::HashMap;
+    use std::fs::{remove_dir_all, metadata};
+
+    use crate::data::Database;
+    use crate::objects::{ProjectId, Project, ItemWithData};
 
     const DATASET_DIR: &'static str = "/dejacode/tiny-mk2";
     const CACHE_DIR:   &'static str = "/dejacode/cache-mk2";

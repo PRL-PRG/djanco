@@ -5,7 +5,6 @@ use chrono::DateTime;
 use dcd::DatastoreView;
 
 use crate::time;
-use crate::log::*;
 use crate::data::*;
 use crate::objects::*;
 

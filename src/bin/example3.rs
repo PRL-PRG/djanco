@@ -3,19 +3,17 @@ use structopt::StructOpt;
 use dcd::DatastoreView;
 
 use djanco::*;
-use djanco::data::*;
 use djanco::objects::*;
 use djanco::csv::*;
-use djanco::log::*;
 use djanco::commandline::*;
 
 // `cargo run --bin example3 --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let config = Configuration::from_args();
-    let log = Log::new(Verbosity::Debug);
 
-    let store = DatastoreView::new(config.dataset_path(), timestamp!(December 2020));
-    let database = Database::from_store(store, config.cache_path());
+    let database =
+        DatastoreView::new(config.dataset_path(), timestamp!(December 2020))
+            .with_cache(config.cache_path());
 
     with_elapsed_secs!("executing query", {
         database.projects()

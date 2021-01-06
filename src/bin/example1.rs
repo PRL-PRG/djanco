@@ -36,16 +36,7 @@ fn main() {
     // Select projects with at least one snapshot IDs from the list, sort them by stars and write to
     // CSV.
     database.projects()
-        // hack
-        .filter(|project| {
-            project.snapshot_ids().map_or(false, |snapshot_ids| {
-                snapshot_ids.iter().any(|snapshot_id| {
-                    selected_snapshot_ids.contains(snapshot_id)
-                })
-            })
-        })
-        // end of hack
-        //.filter_by_attrib(AnyIn(get::FromEach(project::Snapshots, snapshot::Id), selected_snapshot_ids))
+        .filter_by_attrib(AnyIn(project::SnapshotIds, selected_snapshot_ids))
         .sort_by_attrib(project::Stars)
         .into_csv(config.output_csv_path("projects_with_memory_resource")).unwrap()
 }

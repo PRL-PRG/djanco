@@ -90,13 +90,12 @@ fn commits<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> i
 
 // `cargo run --bin example_queries --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
-    let now = time::now();
     let config = Configuration::from_args();
     let log = Log::new(Verbosity::Debug);
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 
-    let store = DatastoreView::new(config.dataset_path(), now);
+    let store = DatastoreView::new(config.dataset_path(), timestamp!(December 2020));
     let database = Database::from_store(store, config.cache_path(), log.clone());
 
     stars(&config, &log, &database).into_csv(path!("stars")).unwrap();

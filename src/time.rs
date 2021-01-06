@@ -3,8 +3,6 @@ use std::fmt::{Display, Formatter};
 use chrono::{Date, Utc, DateTime, TimeZone};
 use serde::{Serialize, Deserialize};
 
-pub fn now() -> i64 { Utc::now().timestamp() }
-
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Seconds(pub u64);
 
@@ -38,6 +36,11 @@ impl Display for Seconds {
 // impl ToString for Seconds {
 //     fn to_string(&self) -> String { self.0.to_string() }
 // }
+
+#[macro_export]
+macro_rules! timestamp {
+    ($month:ident $year:expr) => { djanco::time::Month::$month($year).to_timestamp() }
+}
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Month {
@@ -87,6 +90,10 @@ impl Month {
     pub fn to_datetime(&self) -> DateTime<Utc> {
         Utc.ymd(self.year() as i32, self.month() as u32, 1 as u32)
             .and_hms(0, 0, 0)
+    }
+
+    pub fn to_timestamp(&self) -> i64 {
+        self.to_datetime().timestamp()
     }
 }
 

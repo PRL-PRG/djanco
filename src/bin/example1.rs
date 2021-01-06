@@ -15,7 +15,7 @@ fn main() {
     let config = Configuration::from_args();
     let log = Log::new(Verbosity::Debug);
     let store = DatastoreView::new(config.dataset_path(), timestamp!(December 2020));
-    let database = Database::from_store(store, config.cache_path(), log);
+    let database = Database::from_store(store, config.cache_path());
 
     // If file does not exist, filter snapshots with required string and save to file.
     if !PathBuf::from(config.output_csv_path("snapshots_with_memory_resource")).exists() {

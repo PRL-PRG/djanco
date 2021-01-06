@@ -96,7 +96,7 @@ fn main() {
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 
     let store = DatastoreView::new(config.dataset_path(), timestamp!(December 2020));
-    let database = Database::from_store(store, config.cache_path(), log.clone());
+    let database = Database::from(store, config.cache_path(), log.clone());
 
     stars(&config, &log, &database).into_csv(path!("stars")).unwrap();
     mean_changed_paths(&config, &log, &database).into_csv(path!("mean_changed_paths")).unwrap();

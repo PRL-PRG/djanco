@@ -214,13 +214,13 @@ impl<E> PersistentCollection for PersistentMap<E> where E: MapExtractor {
 }
 
 impl<E> PersistentMap<E> where E: MapExtractor {
-    pub fn new<Sa, Sb>(name: Sa, log: &Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
+    pub fn new<Sa, Sb>(name: Sa, log: Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
         let name = name.into();
         let (cache_dir, cache_path) = Self::setup_files(name.clone(), dir);
-        PersistentMap { name, log: log.clone(), cache_path: Some(cache_path), cache_dir: Some(cache_dir), map: None, extractor: PhantomData }
+        PersistentMap { name, log, cache_path: Some(cache_path), cache_dir: Some(cache_dir), map: None, extractor: PhantomData }
     }
-    pub fn new_without_cache<S>(name: S, log: &Log) -> Self where S: Into<String> {
-        PersistentMap { name: name.into(), log: log.clone(), cache_path: None, cache_dir: None, map: None, extractor: PhantomData }
+    pub fn new_without_cache<S>(name: S, log: Log) -> Self where S: Into<String> {
+        PersistentMap { name: name.into(), log, cache_path: None, cache_dir: None, map: None, extractor: PhantomData }
     }
     pub fn without_cache(mut self) -> Self {
         self.cache_dir = None;

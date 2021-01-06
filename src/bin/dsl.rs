@@ -14,9 +14,8 @@ use djanco::time::Month;
 fn main() {
     let now = Month::December(2020);
     let config = Configuration::from_args();
-    let log = Log::new(Verbosity::Debug);
     let store = DatastoreView::new(config.dataset_path(), now.into());
-    let database =  Database::from_store(store, config.cache_path(), log);
+    let database =  Database::from_store(store, config.cache_path());
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 

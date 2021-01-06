@@ -13,10 +13,9 @@ use djanco::commandline::*;
 fn main() {
     let now = timestamp!(December 2020);
     let config = Configuration::from_args();
-    let log = Log::new(Verbosity::Debug);
 
     let store = DatastoreView::new(config.dataset_path(), now);
-    let database = Database::from_store(store, config.cache_path(), log);
+    let database = Database::from_store(store, config.cache_path());
 
     let bug_regex = regex!("(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s+#[0-9]+");
 

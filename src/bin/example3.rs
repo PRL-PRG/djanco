@@ -15,7 +15,7 @@ fn main() {
     let log = Log::new(Verbosity::Debug);
 
     let store = DatastoreView::new(config.dataset_path(), timestamp!(December 2020));
-    let database = Database::from_store(store, config.cache_path(), log);
+    let database = Database::from_store(store, config.cache_path());
 
     with_elapsed_secs!("executing query", {
         database.projects()

@@ -11,9 +11,8 @@ use crate::objects::*;
 
 fn database() -> Database {
     let now = time::Month::December(2020);
-    let log = Log::new(Verbosity::Debug);
     let store = DatastoreView::new("/dejacode/testing/10b", now.into());
-    let database =  Database::from_store(store, "/dejacode/testing/10b", log);
+    let database =  Database::from_store(store, "/dejacode/testing/10b");
 
     database
 }

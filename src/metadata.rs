@@ -394,7 +394,7 @@ pub struct ProjectMetadataSource {
 }
 
 impl ProjectMetadataSource {
-    pub fn new<Sa, Sb>(name: Sa, log: &Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
+    pub fn new<Sa, Sb>(name: Sa, log: Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
         let dir = Self::prepare_dir(name, dir);
         ProjectMetadataSource {
             are_forks:     MetadataVec::new("fork",              dir.as_str(), &log, BoolExtractor),

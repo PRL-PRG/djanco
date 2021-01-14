@@ -17,10 +17,10 @@ fn main() {
 
     with_elapsed_secs!("executing query", {
         database.projects()
-            .filter_by_attrib(Equal(project::Language, Language::Python))
-            .filter_by_attrib(AtLeast(Count(FromEachIf(project::Commits, Contains(commit::Message, "performance"))), 1))
-            .sort_by_attrib(project::Stars)
-            .map_into_attrib(Select!(project::Itself, FromEachIf(project::Commits, Contains(commit::Message, "performance"))))
+            .filter_by(Equal(project::Language, Language::Python))
+            .filter_by(AtLeast(Count(FromEachIf(project::Commits, Contains(commit::Message, "performance"))), 1))
+            .sort_by(project::Stars)
+            .map_into(Select!(project::Itself, FromEachIf(project::Commits, Contains(commit::Message, "performance"))))
 
             // no hack!
 

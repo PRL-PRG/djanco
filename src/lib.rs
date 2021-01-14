@@ -23,6 +23,13 @@
 
 #[macro_use] extern crate mashup;
 
+// TODO
+// post paper todo:
+// entities are empty, have only their IDs.
+// then we can remove IDs?
+// maybe it's time to capitulate from the whole ItemWithData oidea and just make it a trait.
+// caches for specific views
+
 // TODO features
 // CSV export
 // receipts
@@ -54,6 +61,38 @@ use rand::seq::IteratorRandom;
 use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
+use crate::objects::Path;
+use dcd::DatastoreView;
+use std::env;
+use std::path::PathBuf;
+
+pub struct Djanco;
+impl Djanco {
+    pub fn new_with<Sd>(dataset_path: Sd, savepoint: i64, _substores: Vec<String>) -> Database where Sd: Into<String> {
+        let dataset_path = dataset_path.into();
+        let cache_path = env::var("DJANCO_CACHE_PATH").unwrap_or_else(|_| {
+            let mut path = PathBuf::from(dataset_path.clone());
+            let top = path.file_name()
+                .expect(&format!("Cannot create a cache path from {}:
+                        there's no parent directory to put the cache in", dataset_path))
+                .to_str().unwrap().to_owned();
+            path.pop();
+            path.push("djanco".to_owned());
+            path.push("cache".to_owned());
+            path.push(top);
+            path.into_os_string().to_str().unwrap().to_owned()
+        });
+        DatastoreView::new(&dataset_path, savepoint).with_cache(cache_path)
+    }
+    pub fn from<Sd>(dataset_path: Sd) -> Database  where Sd: Into<String> {
+        Djanco::new_with(dataset_path, chrono::Utc::now().timestamp(), vec![])
+    }
+    pub fn new() -> Database {
+        let dataset_path = env::var("DJANCO_DATASET_PATH")
+                .unwrap_or("/data/djcode/dataset".to_owned());
+        Djanco::from(dataset_path)
+    }
+}
 
 macro_rules! impl_attribute_definition {
     [$object:ty, $attribute:ident] => {
@@ -403,26 +442,26 @@ pub mod snapshot {
 }
 
 pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=objects::ItemWithData<'a, T>> {
-    fn filter_by_attrib<A>(self, attribute: A)
-                           -> AttributeFilterIter<Self, A>
+    fn filter_by<A>(self, attribute: A)
+                    -> AttributeFilterIter<Self, A>
         where A: Filter<'a, Item=T> {
         AttributeFilterIter { iterator: self, attribute }
     }
 
-    fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
-                                  -> AttributeMapIter<Self, A, Ta, Tb>
+    fn map_into<A, Ta, Tb>(self, attribute: A)
+                           -> AttributeMapIter<Self, A, Ta, Tb>
         where A: Select<'a, Ta, Tb> {
         AttributeMapIter { iterator: self, attribute, function: PhantomData }
     }
 
-    fn sort_by_attrib<A: 'a, I>(self, attribute: A)
-                                -> std::vec::IntoIter<objects::ItemWithData<'a, T>>
+    fn sort_by<A: 'a, I>(self, attribute: A)
+                         -> std::vec::IntoIter<objects::ItemWithData<'a, T>>
         where A: Sort<'a, T, I>, I: Ord {
-        self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
+        self.sort_with_direction(sort::Direction::Descending, attribute)
     }
 
-    fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
-                                               -> std::vec::IntoIter<objects::ItemWithData<'a, T>>
+    fn sort_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
+                                     -> std::vec::IntoIter<objects::ItemWithData<'a, T>>
         where A: Sort<'a, T, I>, I: Ord {
         let mut vector = Vec::from_iter(self);
         attribute.sort(direction, &mut vector);
@@ -435,8 +474,8 @@ pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=objects::ItemWithData<
         sampler.sample(self).into_iter()
     }
 
-    fn group_by_attrib<A, K>(self, attribute: A)
-                             -> std::collections::hash_map::IntoIter<K, Vec<objects::ItemWithData<'a, T>>>
+    fn group_by<A, K>(self, attribute: A)
+                      -> std::collections::hash_map::IntoIter<K, Vec<objects::ItemWithData<'a, T>>>
         where A: Group<'a, T, K>, K: Hash + Eq {
         self.map(|item_with_data| {
             let key = attribute.select_key(&item_with_data);
@@ -451,27 +490,27 @@ impl<'a, T, I> AttributeIterator<'a, T> for I
     where I: Sized + Iterator<Item=objects::ItemWithData<'a, T>> {}
 
 pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<objects::ItemWithData<'a, T>>)> {
-    fn filter_by_attrib<A>(self, attribute: A)
-                           -> AttributeGroupFilterIter<Self, A>
+    fn filter_by<A>(self, attribute: A)
+                    -> AttributeGroupFilterIter<Self, A>
         where A: Filter<'a, Item=T> {
         AttributeGroupFilterIter { iterator: self, attribute }
     }
     // TODO filter_key
 
-    fn map_into_attrib<A, Ta, Tb>(self, attribute: A)
-                                  -> AttributeGroupMapIter<Self, A, Ta, Tb>
+    fn map_into<A, Ta, Tb>(self, attribute: A)
+                           -> AttributeGroupMapIter<Self, A, Ta, Tb>
         where A: Select<'a, Ta, Tb> {
         AttributeGroupMapIter { iterator: self, attribute, function: PhantomData }
     }
 
-    fn sort_by_attrib<A: 'a, I>(self, attribute: A)
-                                -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
+    fn sort_by<A: 'a, I>(self, attribute: A)
+                         -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where A: Sort<'a, T, I>, I: Ord {
-        self.sort_by_attrib_with_direction(sort::Direction::Descending, attribute)
+        self.sort_with_drection(sort::Direction::Descending, attribute)
     }
 
-    fn sort_by_attrib_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
-                                               -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
+    fn sort_with_drection<A: 'a, I>(self, direction: sort::Direction, attribute: A)
+                                    -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where A: Sort<'a, T, I>, I: Ord {
         let vector: Vec<(K, Vec<objects::ItemWithData<'a, T>>)> =
             self.map(|(key, mut vector)| {

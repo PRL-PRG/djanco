@@ -68,7 +68,10 @@ use crate::data::Database;
 
 pub struct Djanco;
 impl Djanco {
-    pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, _substores: Vec<String>) -> Database where Sd: Into<String> {
+    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, _substores: Vec<String>) -> Database where Sd: Into<String>, Sc: Into<String> {
+        DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
+    }
+    pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<String>) -> Database where Sd: Into<String> {
         let dataset_path = dataset_path.into();
         let cache_path = env::var("DJANCO_CACHE_PATH").unwrap_or_else(|_| {
             let mut path = PathBuf::from(dataset_path.clone());
@@ -82,7 +85,7 @@ impl Djanco {
             path.push(top);
             path.into_os_string().to_str().unwrap().to_owned()
         });
-        DatastoreView::new(&dataset_path, savepoint).with_cache(cache_path)
+        Djanco::from_spec(dataset_path, cache_path, savepoint, substores)
     }
     pub fn from<Sd>(dataset_path: Sd) -> Database  where Sd: Into<String> {
         Djanco::from_store(dataset_path, chrono::Utc::now().timestamp(), vec![])

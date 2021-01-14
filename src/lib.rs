@@ -52,19 +52,19 @@ use std::iter::{Sum, FromIterator};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::collections::*;
+use std::env;
+use std::path::PathBuf;
 
 use itertools::Itertools;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
 
+use dcd::DatastoreView;
+
 use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
-use crate::objects::Path;
-use dcd::DatastoreView;
-use std::env;
-use std::path::PathBuf;
 
 pub struct Djanco;
 impl Djanco {

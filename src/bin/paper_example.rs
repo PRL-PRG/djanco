@@ -1,5 +1,4 @@
 use djanco::*;
-use dcd::*;
 use djanco::csv::*;
 use djanco::time::Duration;
 
@@ -8,7 +7,6 @@ const OUTPUT_PATH: &'static str = "/dejacode/output-tiny-mk2/";
 
 fn main() {
     Djanco::from(DATASET_PATH)
-        //.with_cache(CACHE_PATH)
         .projects()
         .group_by(project::Language)
         .filter_by(AtLeast(Count(project::Users), 5))
@@ -18,7 +16,6 @@ fn main() {
         .into_csv(OUTPUT_PATH).unwrap();
 
     Djanco::from(DATASET_PATH)
-        //.with_cache(CACHE_PATH)
         .projects()
         .filter_by(AtLeast(Count(FromEachIf(project::Users, AtLeast(user::Experience, Duration::from_years(5)))), 2))
         .sample(Distinct(Random(50, Seed(42)), MinRatio(project::Commits, 0.95)))

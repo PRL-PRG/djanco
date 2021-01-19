@@ -1,6 +1,6 @@
 use structopt::StructOpt;
 
-use dcd::DatastoreView;
+use parasite::DatastoreView;
 
 use djanco::*;
 use djanco::commandline::*;
@@ -11,8 +11,7 @@ use djanco::csv::*;
 fn main() {
     let config = Configuration::from_args();
     let database =
-        DatastoreView::new(config.dataset_path(), timestamp!(December 2020))
-            .with_cache(config.cache_path());
+        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]);
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 

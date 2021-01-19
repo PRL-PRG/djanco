@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use std::fmt::Display;
-use serde::export::Formatter;
+use std::fmt::{Display, Formatter};
 
 pub struct Fraction<N> { numerator: N, denominator: usize }
 impl<N> Fraction<N> {

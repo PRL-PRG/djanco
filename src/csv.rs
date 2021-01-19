@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 
-use serde::export::fmt::Display;
 use itertools::Itertools;
 
 use crate::objects::*;
@@ -12,6 +11,7 @@ use crate::fraction::*;
 use crate::product::*;
 use crate::time::Duration;
 use crate::metadata::ProjectMetadata;
+use std::fmt::Display;
 
 macro_rules! create_file {
     ($location:expr) => {{

@@ -60,7 +60,7 @@ use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
 
-use dcd::DatastoreView;
+use parasite::DatastoreView;
 
 use crate::attrib::*;
 use crate::fraction::*;
@@ -82,7 +82,8 @@ impl Djanco {
             path.push(top);
             path.into_os_string().to_str().unwrap().to_owned()
         });
-        DatastoreView::new(&dataset_path, savepoint).with_cache(cache_path)
+        //DatastoreView::new(&dataset_path, savepoint).with_cache(cache_path)
+        unimplemented!() // FIXME
     }
     pub fn from<Sd>(dataset_path: Sd) -> Database  where Sd: Into<String> {
         Djanco::from_store(dataset_path, chrono::Utc::now().timestamp(), vec![])
@@ -1200,7 +1201,7 @@ pub trait DatabaseFactory {
     //fn with<S>(self, cache_dir: S, log: log::Log) -> Database where S: Into<String>; // TODO figure out how to do this better
 }
 
-impl DatabaseFactory for dcd::DatastoreView {
+impl DatabaseFactory for parasite::DatastoreView {
     fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String> {
         Database::from_store(self, cache_dir)
     }

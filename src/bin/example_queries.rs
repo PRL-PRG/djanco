@@ -95,9 +95,9 @@ fn main() {
 
     // macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 
-    println!("{}", to_store!(C++));
-    println!("{}", to_store!(C#));
-    println!("{}", to_store!(Objective-C));
+    //println!("{}", to_store!(C++));
+    //println!("{}", to_store!(C#));
+    //println!("{}", to_store!(Objective-C));
     //println!("{}", to_store!(P++));
     println!("{:?}", stores!(Objective-C, Python, C++));
 

@@ -12,7 +12,7 @@ fn main() {
     let config = Configuration::from_args();
 
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]);
+        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]).unwrap();
 
     with_elapsed_secs!("executing query", {
         database.projects()

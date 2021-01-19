@@ -13,7 +13,7 @@ use djanco::commandline::*;
 fn main() {
     let config = Configuration::from_args();
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]);
+        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]).unwrap();
 
     // If file does not exist, filter snapshots with required string and save to file.
     if !PathBuf::from(config.output_csv_path("snapshots_with_memory_resource")).exists() {

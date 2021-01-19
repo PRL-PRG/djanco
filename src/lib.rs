@@ -54,24 +54,29 @@ use std::marker::PhantomData;
 use std::collections::*;
 use std::env;
 use std::path::PathBuf;
+use std::fmt::{Display, Formatter, Error};
 
 use itertools::Itertools;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
+use anyhow::*;
+use chrono::{Date, DateTime, Utc};
 
 use parasite;
+use parasite::{StoreKind, DatastoreView, SubstoreView};
 
 use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
-use parasite::StoreKind;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::fmt::Error;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Store(parasite::StoreKind);
+impl Store {
+    pub fn kind(&self) -> StoreKind {
+        self.0.clone()
+    }
+}
 impl std::convert::From<&str> for Store {
     fn from(str: &str) -> Self {
         StoreKind::from_string(str)
@@ -113,17 +118,34 @@ impl Display for Store { // FIXME delegate to parasite
         stores
     }}
 }
+
 #[macro_export] macro_rules! store {
     ($($t:tt)+) => { stores!($($t:tt)+) }
 }
 
 pub struct Djanco;
 impl Djanco {
-    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, _substores: Vec<String>) -> Database where Sd: Into<String>, Sc: Into<String> {
+    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
-        unimplemented!() // FIXME
+        let dataset_path = dataset_path.into();
+        let store = DatastoreView::new(dataset_path.as_str());
+        let savepoint = store.get_nearest_savepoint(savepoint)
+            .with_context(|| {
+                format!("Cannot find nearest savepoint to {} in store at path {}.",
+                        savepoint, dataset_path)
+            })?;
+
+        let substores: Vec<SubstoreView> = if substores.is_empty() { // Default: get all available substores
+            store.substores().collect()
+        } else {
+            substores.into_iter()
+                .map(|substore| store.get_substore(substore.kind()))
+                .collect()
+        };
+
+        Ok(unimplemented!())
     }
-    pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<String>) -> Database where Sd: Into<String> {
+    pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {
         let dataset_path = dataset_path.into();
         let cache_path = env::var("DJANCO_CACHE_PATH").unwrap_or_else(|_| {
             let mut path = PathBuf::from(dataset_path.clone());
@@ -139,10 +161,10 @@ impl Djanco {
         });
         Djanco::from_spec(dataset_path, cache_path, savepoint, substores)
     }
-    pub fn from<Sd>(dataset_path: Sd) -> Database  where Sd: Into<String> {
+    pub fn from<Sd>(dataset_path: Sd) -> Result<Database>  where Sd: Into<String> {
         Djanco::from_store(dataset_path, chrono::Utc::now().timestamp(), vec![])
     }
-    pub fn new() -> Database {
+    pub fn new() -> Result<Database> {
         let dataset_path = env::var("DJANCO_DATASET_PATH")
                 .unwrap_or("/data/djcode/dataset".to_owned());
         Djanco::from(dataset_path)

@@ -13,7 +13,7 @@ fn main() {
     let config = Configuration::from_args();
 
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]);
+        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]).unwrap();
 
     let bug_regex = regex!("(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s+#[0-9]+");
 

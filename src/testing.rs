@@ -10,7 +10,7 @@ use crate::objects::*;
 
 fn database() -> Database {
     //let store = DatastoreView::new("/dejacode/testing/10b", now.into());
-    let database = Djanco::from_store("/dejacode/testing/10b", timestamp!(December 2020), vec![]);
+    let database = Djanco::from_store("/dejacode/testing/10b", timestamp!(December 2020), vec![]).unwrap();
 
     database
 }

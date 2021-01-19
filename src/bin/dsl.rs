@@ -11,7 +11,7 @@ use djanco::csv::*;
 fn main() {
     let config = Configuration::from_args();
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]);
+        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]).unwrap();
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 

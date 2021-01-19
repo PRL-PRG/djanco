@@ -24,4 +24,4 @@ serde_cbor = "0.11.1"
 serde_json = "1.0.59"
 bstr = "0.2.14" # for Vec<u8>::to_str_lossy
 csv = "1.1.4"
-parasite = { git = "https://github.com/PRL-PRG/djcode-parasite.git", branch = "mark3" }
+parasite = { git = "https://github.com/PRL-PRG/codedj-parasite.git", branch = "mark3" }

@@ -60,11 +60,139 @@ use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
 
-use parasite::DatastoreView;
+use parasite;
 
 use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
+use parasite::StoreKind;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::fmt::Error;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Store(parasite::StoreKind);
+impl Store {
+    pub fn from<'a, S>(name: S) -> Option<Self> where S: Into<&'a str> {
+        StoreKind::from_string(name.into()).map(|kind| Store(kind))
+    }
+    pub fn new_generic() -> Self { Store(StoreKind::Generic) }
+    pub fn new_small() -> Self { Store(StoreKind::SmallProjects) }
+    pub fn new_c() -> Self { Store(StoreKind::C) }
+    pub fn new_cpp() -> Self { Store(StoreKind::Cpp) }
+    pub fn new_csharp() -> Self { Store(StoreKind::CSharp) }
+    pub fn new_clojure() -> Self { Store(StoreKind::Clojure) }
+    pub fn new_coffee_script() -> Self { Store(StoreKind::CoffeeScript) }
+    pub fn new_erlang() -> Self { Store(StoreKind::Erlang) }
+    pub fn new_go() -> Self { Store(StoreKind::Go) }
+    pub fn new_haskell() -> Self { Store(StoreKind::Haskell) }
+    pub fn new_html() -> Self { Store(StoreKind::Html) }
+    pub fn new_java() -> Self { Store(StoreKind::Java) }
+    pub fn new_javascript() -> Self { Store(StoreKind::JavaScript) }
+    pub fn new_objective_c() -> Self { Store(StoreKind::ObjectiveC) }
+    pub fn new_perl() -> Self { Store(StoreKind::Perl) }
+    pub fn new_php() -> Self { Store(StoreKind::Php) }
+    pub fn new_python() -> Self { Store(StoreKind::Python) }
+    pub fn new_ruby() -> Self { Store(StoreKind::Ruby) }
+    pub fn new_scala() -> Self { Store(StoreKind::Scala) }
+    pub fn new_shell() -> Self { Store(StoreKind::Shell) }
+    pub fn new_typescript() -> Self { Store(StoreKind::TypeScript) }
+}
+impl std::convert::From<&str> for Store {
+    fn from(str: &str) -> Self {
+        Store::from(str).expect(&format!("{} is not a valid store", str))
+    }
+}
+impl std::convert::From<String> for Store {
+    fn from(string: String) -> Self {
+        Store::from(string.as_str()).expect(&format!("{} is not a valid store", string))
+    }
+}
+impl std::convert::From<StoreKind> for Store {
+    fn from(kind: StoreKind) -> Self {
+        Store(kind)
+    }
+}
+impl std::convert::Into<StoreKind> for Store {
+    fn into(self) -> StoreKind {
+        self.0
+    }
+}
+impl Display for Store {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            StoreKind::Generic => write!(f, "Generic"),
+            StoreKind::SmallProjects => write!(f, "Small"),
+            StoreKind::C => write!(f, "C"),
+            StoreKind::Cpp => write!(f, "C++"),
+            StoreKind::CSharp => write!(f, "C#"),
+            StoreKind::Clojure => write!(f, "Clojure"),
+            StoreKind::CoffeeScript => write!(f, "CoffeeScript"),
+            StoreKind::Erlang => write!(f, "Erlang"),
+            StoreKind::Go => write!(f, "Go"),
+            StoreKind::Haskell => write!(f, "Haskell"),
+            StoreKind::Html => write!(f, "HTML"),
+            StoreKind::Java => write!(f, "Java"),
+            StoreKind::JavaScript => write!(f, "JavaScript"),
+            StoreKind::ObjectiveC => write!(f, "ObjectiveC"),
+            StoreKind::Perl => write!(f, "Perl"),
+            StoreKind::Php => write!(f, "PHP"),
+            StoreKind::Python => write!(f, "Python"),
+            StoreKind::Ruby => write!(f, "Ruby"),
+            StoreKind::Scala => write!(f, "Scala"),
+            StoreKind::Shell => write!(f, "Shell"),
+            StoreKind::TypeScript => write!(f, "TypeScript"),
+            StoreKind::Unspecified => write!(f, "<unspecified>"),
+        }
+    }
+}
+// #[macro_export] macro_rules! to_store {
+//     (Generic) => { Store::from("generic").unwrap() };
+//     (Small) => { Store::from("small").unwrap() };
+//     (C) => { Store::from("c").unwrap() };
+//     (C++) => { Store::from("c++").unwrap() };
+//     (C#) => { Store::from("").unwrap() };
+//     (Clojure) => { Store::new_clojure() };
+//     (CoffeeScript) => { Store::new_coffee_script() };
+//     (Erlang) => { Store::new_erlang() };
+//     (Go) => { Store::new_go() };
+//     (Haskell) => { Store::new_haskell() };
+//     (HTML) => { Store::new_html() };
+//     (Java) => { Store::new_java() };
+//     (JavaScript) => { Store::new_javascript() };
+//     (Objective-C) => { Store::new_objective_c() };
+//     (Perl) => { Store::new_perl() };
+//     (PHP) => { Store::new_php() };
+//     (Python) => { Store::new_python() };
+//     (Ruby) => { Store::new_ruby() };
+//     (Scala) => { Store::new_scala() };
+//     (Shell) => { Store::new_shell() };
+//     (TypeScript) => { Store::new_typescript() };
+//     ($str:literal) => { Store::from_string(str) };
+// }
+// #[macro_export] #[proc_macro]
+// pub fn to_store(token_stream: TokenStream) -> TokenStream {
+//     let store_name = token_stream.to_string();
+//     format!(r#"Store::from({}).expect(&format!({{}} is not a valid Store name"))"#, store_name)
+//         .parse()
+//         .unwrap()
+// }
+
+#[macro_export] macro_rules! to_store {
+    (C#) => { Store::from("CSharp").unwrap() };                             // FIXME fix in parasite
+    (Objective-C) => { Store::from("ObjectiveC").unwrap() };                // FIXME fix in parasite
+    ($($t:tt)+) => {{
+        let mut store = std::stringify!($($t)+).to_owned();
+        store.retain(|c| !c.is_whitespace());
+        Store::from(store.as_str()).expect(&format!("{} is not a valid store name", store))
+    }};
+}
+
+#[macro_export] macro_rules! store  { ($($token:tt)+) => { vec![to_store!($($token)+)] } }
+#[macro_export] macro_rules! stores {
+    //(*) => { for i in 0..(StoreKind::Unspecified as u64) {  } }
+    ($($($token:tt)+),+) => { vec![$( Store::from($token), )+] }
+}
 
 pub struct Djanco;
 impl Djanco {

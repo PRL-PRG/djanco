@@ -15,7 +15,7 @@
              pub mod objects;
              pub mod receipt;
              pub mod spec;
-             pub mod time;
+#[macro_use] pub mod time;
              pub mod dump;
              mod piracy;
              mod product;
@@ -69,7 +69,8 @@ use crate::data::Database;
 pub struct Djanco;
 impl Djanco {
     pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, _substores: Vec<String>) -> Database where Sd: Into<String>, Sc: Into<String> {
-        DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
+        //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
+        unimplemented!() // FIXME
     }
     pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<String>) -> Database where Sd: Into<String> {
         let dataset_path = dataset_path.into();

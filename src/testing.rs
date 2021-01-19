@@ -4,14 +4,13 @@ use std::iter::*;
 use chrono::DateTime;
 use parasite::DatastoreView;
 
-use crate::time;
+use crate::Djanco;
 use crate::data::*;
 use crate::objects::*;
 
 fn database() -> Database {
-    let now = time::Month::December(2020);
-    let store = DatastoreView::new("/dejacode/testing/10b", now.into());
-    let database =  Database::from_store(store, "/dejacode/testing/10b");
+    //let store = DatastoreView::new("/dejacode/testing/10b", now.into());
+    let database = Djanco::from_store("/dejacode/testing/10b", timestamp!(December 2020), vec![]);
 
     database
 }

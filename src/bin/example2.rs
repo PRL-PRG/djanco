@@ -2,6 +2,7 @@ use structopt::StructOpt;
 
 use parasite::DatastoreView;
 
+//#[macro use] use djanco;
 use djanco::*;
 use djanco::objects::*;
 use djanco::csv::*;

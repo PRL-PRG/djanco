@@ -96,30 +96,7 @@ impl std::convert::Into<StoreKind> for Store {
 }
 impl Display for Store { // FIXME delegate to parasite
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            StoreKind::Generic => write!(f, "Generic"),
-            StoreKind::SmallProjects => write!(f, "Small"),
-            StoreKind::C => write!(f, "C"),
-            StoreKind::Cpp => write!(f, "C++"),
-            StoreKind::CSharp => write!(f, "C#"),
-            StoreKind::Clojure => write!(f, "Clojure"),
-            StoreKind::CoffeeScript => write!(f, "CoffeeScript"),
-            StoreKind::Erlang => write!(f, "Erlang"),
-            StoreKind::Go => write!(f, "Go"),
-            StoreKind::Haskell => write!(f, "Haskell"),
-            StoreKind::Html => write!(f, "HTML"),
-            StoreKind::Java => write!(f, "Java"),
-            StoreKind::JavaScript => write!(f, "JavaScript"),
-            StoreKind::ObjectiveC => write!(f, "ObjectiveC"),
-            StoreKind::Perl => write!(f, "Perl"),
-            StoreKind::Php => write!(f, "PHP"),
-            StoreKind::Python => write!(f, "Python"),
-            StoreKind::Ruby => write!(f, "Ruby"),
-            StoreKind::Scala => write!(f, "Scala"),
-            StoreKind::Shell => write!(f, "Shell"),
-            StoreKind::TypeScript => write!(f, "TypeScript"),
-            StoreKind::Unspecified => write!(f, "<unspecified>"),
-        }
+        self.0.fmt(f)
     }
 }
 

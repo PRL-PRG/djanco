@@ -6,13 +6,12 @@ use std::fs::{File, create_dir_all};
 use serde_json::Value as JSON;
 use chrono::DateTime;
 
-use parasite::DatastoreView;
-
 use crate::persistent::*;
 use crate::objects::*;
 use crate::log::{Log, Verbosity, Warning};
 use crate::weights_and_measures::Weighed;
 use bstr::ByteSlice;
+use crate::source::DataSource;
 
 trait MetadataFieldExtractor {
     type Value: Persistent + Weighed;
@@ -232,7 +231,7 @@ impl<T,M> MetadataVec<M> where M: MetadataFieldExtractor<Value=T>, T: Clone + Pe
 }
 
 trait MetadataSource {
-    fn _load_metadata(&mut self, store: &DatastoreView) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
+    fn _load_metadata(&mut self, store: &DataSource) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
         let content_project_ids: HashMap<u64, u64> = unimplemented!(); // FIXME
             // store.projects_metadata()
             //     .filter(|(_, meta)| meta.key == "github_metadata")
@@ -272,7 +271,7 @@ trait MetadataSource {
     }
 
     // Rewritten to use content_data instead of contents_data
-    fn load_metadata(&mut self, store: &DatastoreView) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
+    fn load_metadata(&mut self, store: &DataSource) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
         // store.projects_metadata()
         //     .filter(|(_, meta)| meta.key == "github_metadata")
         //     .map(|(project_id, metadata)| {
@@ -313,7 +312,7 @@ trait MetadataSource {
         unimplemented!() // FIXME
     }
 
-    fn load_all_from_store(&mut self, store: &DatastoreView) {
+    fn load_all_from_store(&mut self, store: &DataSource) {
         let metadata = self.load_metadata(store);
         self.load_all_from(&metadata)
     }
@@ -428,27 +427,27 @@ impl ProjectMetadataSource {
 }
 
 impl ProjectMetadataSource {
-    pub fn is_fork          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_forks,     store, pirate, key)           }
-    pub fn is_archived      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_archived,  store, pirate, key)           }
-    pub fn is_disabled      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, are_disabled,  store, pirate, key)           }
-    pub fn star_gazers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, star_gazers,   store, pirate, key)           }
-    pub fn watchers         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, watchers,      store, pirate, key)           }
-    pub fn size             (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, size,          store, pirate, key)           }
-    pub fn open_issues      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,   store, pirate, key)           }
-    pub fn forks            (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, forks,         store, pirate, key)           }
-    pub fn subscribers      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,   store, pirate, key)           }
-    pub fn license          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,      store, pirate, key)           }
-    pub fn description      (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions,  store, pirate, key)           }
-    pub fn homepage         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
-    pub fn language         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<Language> { gimme!(self, languages,     store, pirate, key)           }
-    pub fn has_issues       (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_issues,    store, pirate, key)           }
-    pub fn has_downloads    (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_downloads, store, pirate, key)           }
-    pub fn has_wiki         (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_wiki,      store, pirate, key)           }
-    pub fn has_pages        (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<bool>     { gimme!(self, has_pages,     store, pirate, key)           }
-    pub fn created          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, created,       store, pirate, key)           }
-    pub fn updated          (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
-    pub fn pushed           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
-    pub fn master           (&mut self, store: &DatastoreView, key: &ProjectId) -> Option<String>   { gimme!(self, master,        store, pirate, key)           }
+    pub fn is_fork          (&mut self, store: &DataSource, key: &ProjectId) -> Option<bool>     { gimme!(self, are_forks,     store, pirate, key)           }
+    pub fn is_archived      (&mut self, store: &DataSource, key: &ProjectId) -> Option<bool>     { gimme!(self, are_archived,  store, pirate, key)           }
+    pub fn is_disabled      (&mut self, store: &DataSource, key: &ProjectId) -> Option<bool>     { gimme!(self, are_disabled,  store, pirate, key)           }
+    pub fn star_gazers      (&mut self, store: &DataSource, key: &ProjectId) -> Option<usize>    { gimme!(self, star_gazers,   store, pirate, key)           }
+    pub fn watchers         (&mut self, store: &DataSource, key: &ProjectId) -> Option<usize>    { gimme!(self, watchers,      store, pirate, key)           }
+    pub fn size             (&mut self, store: &DataSource, key: &ProjectId) -> Option<usize>    { gimme!(self, size,          store, pirate, key)           }
+    pub fn open_issues      (&mut self, store: &DataSource, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,   store, pirate, key)           }
+    pub fn forks            (&mut self, store: &DataSource, key: &ProjectId) -> Option<usize>    { gimme!(self, forks,         store, pirate, key)           }
+    pub fn subscribers      (&mut self, store: &DataSource, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,   store, pirate, key)           }
+    pub fn license          (&mut self, store: &DataSource, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,      store, pirate, key)           }
+    pub fn description      (&mut self, store: &DataSource, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions,  store, pirate, key)           }
+    pub fn homepage         (&mut self, store: &DataSource, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
+    pub fn language         (&mut self, store: &DataSource, key: &ProjectId) -> Option<Language> { gimme!(self, languages,     store, pirate, key)           }
+    pub fn has_issues       (&mut self, store: &DataSource, key: &ProjectId) -> Option<bool>     { gimme!(self, has_issues,    store, pirate, key)           }
+    pub fn has_downloads    (&mut self, store: &DataSource, key: &ProjectId) -> Option<bool>     { gimme!(self, has_downloads, store, pirate, key)           }
+    pub fn has_wiki         (&mut self, store: &DataSource, key: &ProjectId) -> Option<bool>     { gimme!(self, has_wiki,      store, pirate, key)           }
+    pub fn has_pages        (&mut self, store: &DataSource, key: &ProjectId) -> Option<bool>     { gimme!(self, has_pages,     store, pirate, key)           }
+    pub fn created          (&mut self, store: &DataSource, key: &ProjectId) -> Option<i64>      { gimme!(self, created,       store, pirate, key)           }
+    pub fn updated          (&mut self, store: &DataSource, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
+    pub fn pushed           (&mut self, store: &DataSource, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
+    pub fn master           (&mut self, store: &DataSource, key: &ProjectId) -> Option<String>   { gimme!(self, master,        store, pirate, key)           }
 }
 
 // A glorified tuple
@@ -479,7 +478,7 @@ pub struct ProjectMetadata {
 }
 
 impl ProjectMetadataSource {
-    pub fn keys(&mut self, store: &DatastoreView) -> impl Iterator<Item=ProjectId> {
+    pub fn keys(&mut self, store: &DataSource) -> impl Iterator<Item=ProjectId> {
         let mut keys = BTreeSet::new();
         keys.append(&mut gimme_iter!(self, are_forks,     store).map(|(id, _)| id.clone()).collect());
         keys.append(&mut gimme_iter!(self, are_archived,  store).map(|(id, _)| id.clone()).collect());
@@ -505,7 +504,7 @@ impl ProjectMetadataSource {
         keys.into_iter()
     }
 
-    pub fn all_metadata(&mut self, store: &DatastoreView, key: &ProjectId) -> ProjectMetadata {
+    pub fn all_metadata(&mut self, store: &DataSource, key: &ProjectId) -> ProjectMetadata {
         ProjectMetadata {
             id: key.clone(),
             is_fork: self.is_fork(store, key),
@@ -532,7 +531,7 @@ impl ProjectMetadataSource {
         }
     }
 
-    pub fn iter<'a>(&'a mut self, store: &'a DatastoreView) -> impl Iterator<Item=ProjectMetadata> + 'a {
+    pub fn iter<'a>(&'a mut self, store: &'a DataSource) -> impl Iterator<Item=ProjectMetadata> + 'a {
         self.keys(store)
             .map(|project_id| self.all_metadata(store, &project_id))
             .collect::<Vec<ProjectMetadata>>()

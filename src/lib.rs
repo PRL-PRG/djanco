@@ -20,6 +20,7 @@
              mod piracy;
              mod product;
 #[cfg(test)] mod testing;
+             mod source;
 
 #[macro_use] extern crate mashup;
 
@@ -64,7 +65,7 @@ use anyhow::*;
 use chrono::{Date, DateTime, Utc};
 
 use parasite;
-use parasite::{StoreKind, DatastoreView, SubstoreView};
+use parasite::{StoreKind, DatastoreView, SubstoreView, Savepoint};
 
 use crate::attrib::*;
 use crate::fraction::*;
@@ -106,17 +107,20 @@ impl Display for Store { // FIXME delegate to parasite
 }
 
 #[macro_export] macro_rules! stores {
+    (All) => {
+        Vec::<crate::Store>::new()
+    };
     ($($t:tt)*) => {{
         let mut list: Vec<String> =
             std::stringify!($($t)*).split(",").map(|s| s.to_owned()).collect();
-        let mut stores: Vec<Store> = Vec::new();
+        let mut stores: Vec<crate::Store> = Vec::new();
         for name in list {
             let mut clean_name = name;
             clean_name.retain(|c| !c.is_whitespace());
             stores.push(Store::from(clean_name.as_str()));
         }
         stores
-    }}
+    }};
 }
 
 #[macro_export] macro_rules! store {
@@ -128,20 +132,7 @@ impl Djanco {
     pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
         let dataset_path = dataset_path.into();
-        let store = DatastoreView::new(dataset_path.as_str());
-        let savepoint = store.get_nearest_savepoint(savepoint)
-            .with_context(|| {
-                format!("Cannot find nearest savepoint to {} in store at path {}.",
-                        savepoint, dataset_path)
-            })?;
 
-        let substores: Vec<SubstoreView> = if substores.is_empty() { // Default: get all available substores
-            store.substores().collect()
-        } else {
-            substores.into_iter()
-                .map(|substore| store.get_substore(substore.kind()))
-                .collect()
-        };
 
         Ok(unimplemented!())
     }
@@ -1272,13 +1263,13 @@ macro_rules! Select {
     };
 }
 
-pub trait DatabaseFactory {
-    fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String>;
-    //fn with<S>(self, cache_dir: S, log: log::Log) -> Database where S: Into<String>; // TODO figure out how to do this better
-}
-
-impl DatabaseFactory for parasite::DatastoreView {
-    fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String> {
-        Database::from_store(self, cache_dir)
-    }
-}
+// pub trait DatabaseFactory {
+//     fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String>;
+//     //fn with<S>(self, cache_dir: S, log: log::Log) -> Database where S: Into<String>; // TODO figure out how to do this better
+// }
+//
+// impl DatabaseFactory for parasite::DatastoreView {
+//     fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String> {
+//         Database::from_store(self, cache_dir)
+//     }
+// }

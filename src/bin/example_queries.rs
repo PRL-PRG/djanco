@@ -1,7 +1,5 @@
 use structopt::StructOpt;
 
-use parasite::DatastoreView;
-
 use djanco::*;
 use djanco::data::*;
 use djanco::time::*;

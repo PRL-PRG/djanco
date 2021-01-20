@@ -15,7 +15,6 @@ use crate::log::*;
 use crate::weights_and_measures::Weighed;
 use crate::time::Duration;
 use crate::csv::*;
-use crate::Store;
 use crate::source::DataSource;
 
 // Internally Mutable Data
@@ -1323,7 +1322,6 @@ mod data {
     use std::fs::{remove_dir_all, metadata};
 
     use crate::stores;
-    use crate::source::DataSource;
     use crate::data::Database;
     use crate::objects::{ProjectId, Project, ItemWithData};
     use crate::Djanco;

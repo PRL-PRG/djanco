@@ -1,19 +1,22 @@
 use structopt::StructOpt;
 
-use parasite::DatastoreView;
-
 //#[macro use] use djanco;
 use djanco::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::commandline::*;
+use djanco::log::{Log, Verbosity};
 
 // `cargo run --bin example3 --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let config = Configuration::from_args();
 
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]).unwrap();
+        Djanco::from_spec(config.dataset_path(),
+                          config.cache_path(),
+                          timestamp!(December 2020),
+                          vec![],
+                          Log::new(Verbosity::Log)).unwrap();
 
     let bug_regex = regex!("(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s+#[0-9]+");
 

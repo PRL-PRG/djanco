@@ -1,17 +1,16 @@
 use structopt::StructOpt;
 
-use parasite::DatastoreView;
-
 use djanco::*;
 use djanco::commandline::*;
 use djanco::objects::*;
 use djanco::csv::*;
+use djanco::log::{Log, Verbosity};
 
 // `cargo run --bin dsl --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let config = Configuration::from_args();
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]).unwrap();
+        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![], Log::new(Verbosity::Log)).unwrap();
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 

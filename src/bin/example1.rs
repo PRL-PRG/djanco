@@ -2,18 +2,17 @@ use std::path::PathBuf;
 
 use structopt::StructOpt;
 
-use parasite::DatastoreView;
-
 use djanco::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::commandline::*;
+use djanco::log::{Verbosity, Log};
 
 // `cargo run --bin example1 --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let config = Configuration::from_args();
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]).unwrap();
+        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![], Log::new(Verbosity::Log)).unwrap();
 
     // If file does not exist, filter snapshots with required string and save to file.
     if !PathBuf::from(config.output_csv_path("snapshots_with_memory_resource")).exists() {

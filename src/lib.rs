@@ -55,7 +55,6 @@ use std::marker::PhantomData;
 use std::collections::*;
 use std::env;
 use std::path::PathBuf;
-use std::fmt::{Display, Formatter, Error};
 
 use itertools::Itertools;
 use rand_pcg::Pcg64Mcg;
@@ -70,6 +69,8 @@ use parasite::{StoreKind, DatastoreView, SubstoreView, Savepoint};
 use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
+use crate::source::DataSource;
+use crate::log::{Log, Verbosity};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Store(parasite::StoreKind);
@@ -100,8 +101,8 @@ impl std::convert::Into<StoreKind> for Store {
         self.0
     }
 }
-impl Display for Store { // FIXME delegate to parasite
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl std::fmt::Display for Store { // FIXME delegate to parasite
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -129,12 +130,11 @@ impl Display for Store { // FIXME delegate to parasite
 
 pub struct Djanco;
 impl Djanco {
-    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
+    // FIXME this still sucks
+    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
-        let dataset_path = dataset_path.into();
-
-
-        Ok(unimplemented!())
+        let source = DataSource::new(dataset_path, savepoint, substores)?;
+        Ok(Database::new(source, cache_path, log))
     }
     pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {
         let dataset_path = dataset_path.into();
@@ -150,7 +150,8 @@ impl Djanco {
             path.push(top);
             path.into_os_string().to_str().unwrap().to_owned()
         });
-        Djanco::from_spec(dataset_path, cache_path, savepoint, substores)
+        let log = Log::new(Verbosity::Log);
+        Djanco::from_spec(dataset_path, cache_path, savepoint, substores, log)
     }
     pub fn from<Sd>(dataset_path: Sd) -> Result<Database>  where Sd: Into<String> {
         Djanco::from_store(dataset_path, chrono::Utc::now().timestamp(), vec![])

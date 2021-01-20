@@ -583,11 +583,11 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<object
     fn sort_by<A: 'a, I>(self, attribute: A)
                          -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where A: Sort<'a, T, I>, I: Ord {
-        self.sort_with_drection(sort::Direction::Descending, attribute)
+        self.sort_with_direction(sort::Direction::Descending, attribute)
     }
 
-    fn sort_with_drection<A: 'a, I>(self, direction: sort::Direction, attribute: A)
-                                    -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
+    fn sort_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
+                                     -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where A: Sort<'a, T, I>, I: Ord {
         let vector: Vec<(K, Vec<objects::ItemWithData<'a, T>>)> =
             self.map(|(key, mut vector)| {

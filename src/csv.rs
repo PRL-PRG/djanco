@@ -6,6 +6,8 @@ use std::collections::hash_map::RandomState;
 
 use itertools::Itertools;
 
+use parasite;
+
 use crate::objects::*;
 use crate::fraction::*;
 use crate::product::*;
@@ -67,7 +69,7 @@ pub trait CSVItem {
 //--- CG macros ------------------------------------------------------------------------------------
 
 macro_rules! impl_csv_item {
-    ($type:ident, $header:expr, $to_string:expr) => {
+    ($type:path, $header:expr, $to_string:expr) => {
         impl CSVItem for $type {
             fn column_headers() -> Vec<&'static str> { vec![$header] }
             fn row(&self) -> Vec<String> { $to_string(self) }
@@ -98,6 +100,9 @@ macro_rules! impl_csv_item_quoted {
 
 macro_rules! impl_csv_item_to_string {
     ($type:tt, $header:expr) => {
+        impl_csv_item!($type, $header, |selfie: &$type| vec![selfie.to_string()]);
+    };
+    ($type:path, $header:expr) => {
         impl_csv_item!($type, $header, |selfie: &$type| vec![selfie.to_string()]);
     }
 }
@@ -301,6 +306,10 @@ impl_csv_item_quoted!(String, "string");
 impl_csv_item_to_string!(Language, "language");
 impl_csv_item_to_string!(Duration, "duration");
 impl_csv_item!(Fraction<N> where N: Fractionable -> "n", |selfie: &Fraction<N>| vec![selfie.as_fraction_string()]);
+
+//--- parasite CSV items ---------------------------------------------------------------------------
+
+impl_csv_item_to_string!(parasite::ProjectId, "project_id");
 
 //--- item with data where it doesn't matter -------------------------------------------------------
 

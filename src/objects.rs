@@ -208,7 +208,7 @@ impl Into<String> for UserId     { fn into(self) -> String { self.0.to_string() 
 impl Into<String> for PathId     { fn into(self) -> String { self.0.to_string() } }
 impl Into<String> for SnapshotId { fn into(self) -> String { self.0.to_string() } }
 
-impl Into<usize> for ProjectId  { fn into(self) -> usize { self.0 as usize } }
+//impl Into<usize> for ProjectId  { fn into(self) -> usize { self.0 as usize } }
 impl Into<usize> for CommitId   { fn into(self) -> usize { self.0 as usize } }
 impl Into<usize> for UserId     { fn into(self) -> usize { self.0 as usize } }
 impl Into<usize> for PathId     { fn into(self) -> usize { self.0 as usize } }
@@ -255,6 +255,12 @@ impl From<&u64>   for CommitId   { fn from(n: &u64) -> Self { CommitId(*n)   } }
 impl From<&u64>   for UserId     { fn from(n: &u64) -> Self { UserId(*n)     } }
 impl From<&u64>   for PathId     { fn from(n: &u64) -> Self { PathId(*n)     } }
 impl From<&u64>   for SnapshotId { fn from(n: &u64) -> Self { SnapshotId(*n) } }
+
+impl From<parasite::ProjectId> for ProjectId { fn from(id: parasite::ProjectId) -> Self { ProjectId(id.into()) } }
+impl From<parasite::CommitId> for CommitId { fn from(id: parasite::CommitId) -> Self { CommitId(id.into()) } }
+impl From<parasite::UserId> for UserId { fn from(id: parasite::UserId) -> Self { UserId(id.into()) } }
+impl From<parasite::PathId> for PathId { fn from(id: parasite::PathId) -> Self { PathId(id.into()) } }
+//impl From<parasite::Id> for SnapshotId { fn from(id: parasite::Id) -> Self { SnapshotId(id.into()) } }
 
 impl Display for ProjectId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }

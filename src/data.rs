@@ -15,12 +15,13 @@ use crate::log::*;
 use crate::weights_and_measures::Weighed;
 use crate::time::Duration;
 use crate::csv::*;
-use crate::source::DataSource;
+use crate::source::StoreSlice;
+use std::borrow::Borrow;
 
 // Internally Mutable Data
 pub struct Database {
     data: RefCell<Data>,
-    source: DataSource,
+    source: StoreSlice,
     log: Log,
 }
 
@@ -34,7 +35,7 @@ impl Database {
     //     Database { data: RefCell::new(Data::new(cache_dir, log.clone())), source, log }
     // }
     //pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, subsources: Vec<source>) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
-    pub fn new<S>(source: DataSource, cache_dir: S, log: Log) -> Self where S: Into<String> {
+    pub fn new<S>(source: StoreSlice, cache_dir: S, log: Log) -> Self where S: Into<String> {
         let data = RefCell::new(Data::new(cache_dir, log.clone()));
         Database { data, source, log }
     }
@@ -78,10 +79,10 @@ impl Database {
     pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
         // self.source.content_data(id.into())
         //     .map(|content| Snapshot::new(id.clone(), content))
-        unimplemented!() // FIXME
+        unimplemented!() // FIXME snapshot
     }
     pub fn snapshots<'a>(&'a self) -> impl Iterator<Item=Snapshot> + 'a {
-        unimplemented!(); // FIXME
+        unimplemented!(); // FIXME snapshot
         LogIter::new(
             "reading snapshots",
             &self.log,Verbosity::Log,
@@ -94,7 +95,7 @@ impl Database {
     }
     pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
         //self.source.contents().map(|(id, _hash_id)| SnapshotId::from(id))
-        unimplemented!(); // FIXME
+        unimplemented!(); // FIXME snapshot ids
         vec![].into_iter()
     }
     pub fn snapshots_with_data<'a>(&'a self) -> impl Iterator<Item=ItemWithData<'a, Snapshot>> + 'a {
@@ -222,7 +223,7 @@ impl Database {
         //         })
         //     }).collect::<Vec<Snapshot>>()
         // })
-        unimplemented!() // FIXME
+        unimplemented!() // FIXME project snapshots
     }
     pub fn project_snapshot_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_snapshot_count(&self.source, id)
@@ -332,12 +333,27 @@ impl MapExtractor for ProjectUrlExtractor {
     type Value = String;
 }
 impl SingleMapExtractor for ProjectUrlExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.project_urls().map(|(project_id, url)| {
-        //     (ProjectId::from(project_id), url)
+        unimplemented!()//FIXME project urls
+        // source.projects().into_iter().map(|(id, project)| {
+        //     (ProjectId::from(id), project.url.clone_url())
         // }).collect()
-        unimplemented!() // FIXME
+    }
+}
+
+struct ProjectCredentialsExtractor; // TODO plug in
+impl MapExtractor for ProjectCredentialsExtractor {
+    type Key = ProjectId;
+    type Value = String;
+}
+impl SingleMapExtractor for ProjectCredentialsExtractor {
+    type A = StoreSlice;
+    fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        unimplemented!()//FIXME project credentials
+        // source.projects().into_iter().map(|(id, project)| {
+        //     (ProjectId::from(id), project.url.name())
+        // }).collect()
     }
 }
 
@@ -347,14 +363,14 @@ impl MapExtractor for ProjectHeadsExtractor {
     type Value = Vec<Head>;
 }
 impl SingleMapExtractor for ProjectHeadsExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.project_heads().map(|(project_id, heads)| {
-        //     (ProjectId::from(project_id), heads.into_iter().map(|(name, commit_id)| {
+        unimplemented!()//FIXME project heads
+        // source.projects().into_iter().map(|(id, project)| {
+        //     (ProjectId::from(id), project.heads.into_iter().map(|(name, (commit_id, _hash))| {
         //         Head::new(name, CommitId::from(commit_id))
         //     }).collect())
         // }).collect()
-        unimplemented!() // FIXME
     }
 }
 
@@ -562,12 +578,14 @@ impl MapExtractor for UserExtractor {
     type Value = User;
 }
 impl SingleMapExtractor for UserExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.users().map(|(id, email)| {
-        //     (UserId::from(id), User::new(UserId::from(id), email))
-        // }).collect()
-        unimplemented!() // FIXME
+        let substore = source.default_substore();
+        let mut users = substore.users();
+
+        users.iter().map(|(id, email)| {
+            (UserId::from(id), User::new(UserId::from(id), email))
+        }).collect()
     }
 }
 
@@ -652,14 +670,17 @@ impl MapExtractor for PathExtractor {
     type Value = Path;
 }
 impl SingleMapExtractor for PathExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.paths().map(|(id, location)| {
-        //     (PathId::from(id), Path::new(PathId::from(id), location))
-        // }).collect()
-        unimplemented!() // FIXME
+        let substore = source.default_substore();
+        let mut paths = substore.paths_strings();
+        paths.iter().map(|(id, location)| {
+             (PathId::from(id), Path::new(PathId::from(id), location))
+        }).collect()
     }
 }
+
+// FIXME impl path_shas
 
 struct SnapshotExtractor {}
 impl MapExtractor for SnapshotExtractor {
@@ -667,12 +688,12 @@ impl MapExtractor for SnapshotExtractor {
     type Value = Snapshot;
 }
 impl SingleMapExtractor for SnapshotExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         // source.contents_data().map(|(id, contents)| {
         //     (SnapshotId::from(id), Snapshot::new(SnapshotId::from(id), contents))
         // }).collect()
-        unimplemented!() // FIXME
+        unimplemented!() // FIXME snapshots
     }
 }
 
@@ -682,12 +703,13 @@ impl MapExtractor for CommitExtractor {
     type Value = Commit;
 }
 impl SingleMapExtractor for CommitExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.commits().map(|(id, commit)| {
-        //     (CommitId::from(id), Commit::from((id, commit)))
-        // }).collect()
-        unimplemented!() // FIXME
+        let substore = source.default_substore();
+        let mut commits = substore.commits_info();
+        commits.iter().map(|(id, commit)| {
+             (CommitId::from(id), Commit::from((id, commit)))
+        }).collect()
     }
 }
 
@@ -697,12 +719,12 @@ impl MapExtractor for CommitHashExtractor {
     type Value = String;
 }
 impl SingleMapExtractor for CommitHashExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         // source.commit_hashes().map(|(id, commit_hash)| {
         //     (CommitId::from(id), commit_hash.to_string())
         // }).collect()
-        unimplemented!() // FIXME
+        unimplemented!() // FIXME commit hashes
     }
 }
 
@@ -712,12 +734,13 @@ impl MapExtractor for CommitMessageExtractor {
     type Value = String;
 }
 impl SingleMapExtractor for CommitMessageExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.commits().map(|(id, commit)| {
-        //     (CommitId::from(id), commit.message)
-        // }).collect() // TODO maybe return iter?
-        unimplemented!() // FIXME
+        let substore = source.default_substore();
+        let mut commits = substore.commits_info();
+        commits.iter().map(|(id, commit)| {
+            (CommitId::from(id), commit.message)
+        }).collect()
     }
 }
 
@@ -727,12 +750,12 @@ impl MapExtractor for CommitterTimestampExtractor {
     type Value = i64;
 }
 impl SingleMapExtractor for CommitterTimestampExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         // source.commits().map(|(id, commit)| {
         //     (CommitId::from(id), commit.committer_time)
         // }).collect() // TODO maybe return iter?
-        unimplemented!() // FIXME
+        unimplemented!() // FIXME committer timestamps
     }
 }
 
@@ -743,7 +766,7 @@ impl MapExtractor for CommitChangesExtractor {
     type Value = Vec<ChangeTuple>;
 }
 impl SingleMapExtractor for CommitChangesExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         // let hash_id_to_content_id_map: BTreeMap<u64, u64> = source.contents()
         //     .map(|(content_id, hash_id)| (hash_id, content_id))
@@ -759,7 +782,7 @@ impl SingleMapExtractor for CommitChangesExtractor {
         //         }).collect::<Vec<ChangeTuple>>();
         //     (commit_id, changes)
         // }).collect()
-        unimplemented!() // FIXME
+        unimplemented!() // FIXME commit changes
     }
 }
 
@@ -769,17 +792,17 @@ impl MapExtractor for AuthorTimestampExtractor {
     type Value = i64;
 }
 impl SingleMapExtractor for AuthorTimestampExtractor {
-    type A = DataSource;
+    type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         // source.commits().map(|(id, commit)| {
         //     (CommitId::from(id), commit.author_time)
         // }).collect() // TODO maybe return iter?
-        unimplemented!() // FIXME
+        unimplemented!() // FIXME author timestamps
     }
 }
 
-impl From<(u64, parasite::CommitInfo)> for Commit {
-    fn from((id, c): (u64, parasite::CommitInfo)) -> Self {
+impl From<(parasite::CommitId, parasite::CommitInfo)> for Commit {
+    fn from((id, c): (parasite::CommitId, parasite::CommitInfo)) -> Self {
         Commit {
             id: CommitId::from(id),
             committer: unimplemented!(), // FIXME UserId::from(c.committer),
@@ -881,118 +904,118 @@ impl Data {
 }
 
 impl Data { // Prequincunx, sort of
-    pub fn all_project_ids(&mut self, source: &DataSource) -> Vec<ProjectId> {
+    pub fn all_project_ids(&mut self, source: &StoreSlice) -> Vec<ProjectId> {
         self.smart_load_project_urls(source).keys().collect::<Vec<&ProjectId>>().pirate()
     }
-    pub fn all_user_ids(&mut self, source: &DataSource) -> Vec<UserId> {
+    pub fn all_user_ids(&mut self, source: &StoreSlice) -> Vec<UserId> {
         self.smart_load_users(source).keys().collect::<Vec<&UserId>>().pirate()
     }
-    pub fn all_path_ids(&mut self, source: &DataSource) -> Vec<PathId> {
+    pub fn all_path_ids(&mut self, source: &StoreSlice) -> Vec<PathId> {
         self.smart_load_paths(source).keys().collect::<Vec<&PathId>>().pirate()
     }
-    pub fn all_commit_ids(&mut self, source: &DataSource) -> Vec<CommitId> {
+    pub fn all_commit_ids(&mut self, source: &StoreSlice) -> Vec<CommitId> {
         self.smart_load_commits(source).keys().collect::<Vec<&CommitId>>().pirate()
     }
 }
 
 impl Data { // Quincunx, sort of
-    #[allow(dead_code)] pub fn projects<'a>(&'a mut self, source: &DataSource) -> impl Iterator<Item=Project> + 'a {
+    #[allow(dead_code)] pub fn projects<'a>(&'a mut self, source: &StoreSlice) -> impl Iterator<Item=Project> + 'a {
         self.smart_load_project_urls(source).iter().map(|(id, url)| {
             Project::new(id.clone(), url.clone())
         })
     }
 
-    #[allow(dead_code)] pub fn users<'a>(&'a mut self, source: &DataSource) -> impl Iterator<Item=&'a User> + 'a {
+    #[allow(dead_code)] pub fn users<'a>(&'a mut self, source: &StoreSlice) -> impl Iterator<Item=&'a User> + 'a {
         self.smart_load_users(source).iter().map(|(_, user)| user)
     }
 
-    #[allow(dead_code)] pub fn paths<'a>(&'a mut self, source: &DataSource) -> impl Iterator<Item=&'a Path> + 'a {
+    #[allow(dead_code)] pub fn paths<'a>(&'a mut self, source: &StoreSlice) -> impl Iterator<Item=&'a Path> + 'a {
         self.smart_load_paths(source).iter().map(|(_, path)| path)
     }
 
-    #[allow(dead_code)] pub fn commits<'a>(&'a mut self, source: &DataSource) -> impl Iterator<Item=&'a Commit> + 'a {
+    #[allow(dead_code)] pub fn commits<'a>(&'a mut self, source: &StoreSlice) -> impl Iterator<Item=&'a Commit> + 'a {
         self.smart_load_commits(source).iter().map(|(_, commit)| commit)
     }
 }
 
 impl Data {
-    pub fn project(&mut self, source: &DataSource, id: &ProjectId) -> Option<Project> {
+    pub fn project(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Project> {
         self.smart_load_project_urls(source).get(id)
             .map(|url| Project::new(id.clone(), url.clone()))
     }
-    pub fn project_issues(&mut self, _source: &DataSource, _id: &ProjectId) -> Option<usize> {
+    pub fn project_issues(&mut self, _source: &StoreSlice, _id: &ProjectId) -> Option<usize> {
         unimplemented!()
     }         // FIXME
-    pub fn project_buggy_issues(&mut self, _source: &DataSource, _id: &ProjectId) -> Option<usize> {
+    pub fn project_buggy_issues(&mut self, _source: &StoreSlice, _id: &ProjectId) -> Option<usize> {
         unimplemented!()
     }   // FIXME
-    pub fn project_is_fork(&mut self, source: &DataSource, id: &ProjectId) -> Option<bool> {
+    pub fn project_is_fork(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_fork(source, id)
     }
-    pub fn project_is_archived(&mut self, source: &DataSource, id: &ProjectId) -> Option<bool> {
+    pub fn project_is_archived(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_archived(source, id)
     }
-    pub fn project_is_disabled(&mut self, source: &DataSource, id: &ProjectId) -> Option<bool> {
+    pub fn project_is_disabled(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_disabled(source, id)
     }
-    pub fn project_star_gazer_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_star_gazer_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.project_metadata.star_gazers(source, id)
     }
-    pub fn project_watcher_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_watcher_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.project_metadata.watchers(source, id)
     }
-    pub fn project_size(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_size(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.project_metadata.size(source, id)
     }
-    pub fn project_open_issue_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_open_issue_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.project_metadata.open_issues(source, id)
     }
-    pub fn project_fork_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_fork_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.project_metadata.forks(source, id)
     }
-    pub fn project_subscriber_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_subscriber_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.project_metadata.subscribers(source, id)
     }
-    pub fn project_license(&mut self, source: &DataSource, id: &ProjectId) -> Option<String> {
+    pub fn project_license(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<String> {
         self.project_metadata.license(source, id)
     }
-    pub fn project_language(&mut self, source: &DataSource, id: &ProjectId) -> Option<Language> {
+    pub fn project_language(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Language> {
         self.project_metadata.language(source, id)
     }
-    pub fn project_description(&mut self, source: &DataSource, id: &ProjectId) -> Option<String> {
+    pub fn project_description(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<String> {
         self.project_metadata.description(source, id)
     }
-    pub fn project_homepage(&mut self, source: &DataSource, id: &ProjectId) -> Option<String> {
+    pub fn project_homepage(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<String> {
         self.project_metadata.homepage(source, id)
     }
-    pub fn project_has_issues(&mut self, source: &DataSource, id: &ProjectId) -> Option<bool> {
+    pub fn project_has_issues(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<bool> {
         self.project_metadata.has_issues(source, id)
     }
-    pub fn project_has_downloads(&mut self, source: &DataSource, id: &ProjectId) -> Option<bool> {
+    pub fn project_has_downloads(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<bool> {
         self.project_metadata.has_downloads(source, id)
     }
-    pub fn project_has_wiki(&mut self, source: &DataSource, id: &ProjectId) -> Option<bool> {
+    pub fn project_has_wiki(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<bool> {
         self.project_metadata.has_wiki(source, id)
     }
-    pub fn project_has_pages(&mut self, source: &DataSource, id: &ProjectId) -> Option<bool> {
+    pub fn project_has_pages(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<bool> {
         self.project_metadata.has_pages(source, id)
     }
-    pub fn project_created(&mut self, source: &DataSource, id: &ProjectId) -> Option<i64> {
+    pub fn project_created(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<i64> {
         self.project_metadata.created(source, id)
     }
-    pub fn project_updated(&mut self, source: &DataSource, id: &ProjectId) -> Option<i64> {
+    pub fn project_updated(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<i64> {
         self.project_metadata.updated(source, id)
     }
-    pub fn project_pushed(&mut self, source: &DataSource, id: &ProjectId) -> Option<i64> {
+    pub fn project_pushed(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<i64> {
         self.project_metadata.pushed(source, id)
     }
-    pub fn project_master(&mut self, source: &DataSource,id: &ProjectId) -> Option<String> {
+    pub fn project_master(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<String> {
         self.project_metadata.master(source, id)
     }
-    pub fn project_url(&mut self, source: &DataSource, id: &ProjectId) -> Option<String> {
+    pub fn project_url(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<String> {
         self.smart_load_project_urls(source).get(id).pirate()
     }
-    pub fn project_heads(&mut self, source: &DataSource, id: &ProjectId) -> Option<Vec<Head>> {
+    pub fn project_heads(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Vec<Head>> {
         self.smart_load_project_heads(source).get(id).pirate()
     }
     // pub fn project_heads(&mut self, source: &DataSource, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
@@ -1004,145 +1027,145 @@ impl Data {
     //         }).collect()
     //     })
     // }
-    pub fn project_commit_ids(&mut self, source: &DataSource, id: &ProjectId) -> Option<&Vec<CommitId>> {
+    pub fn project_commit_ids(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<&Vec<CommitId>> {
         self.smart_load_project_commits(source).get(id)
     }
-    pub fn project_commits(&mut self, source: &DataSource, id: &ProjectId) -> Option<Vec<Commit>> {
+    pub fn project_commits(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Vec<Commit>> {
         self.smart_load_project_commits(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
             // FIXME issue warnings in situations like these (when self.commit(id) fails etc.)
         })
     }
-    pub fn project_commit_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_commit_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_commit_count(source).get(id).pirate()
     }
-    pub fn project_path_ids(&mut self, source: &DataSource, id: &ProjectId) -> Option<&Vec<PathId>> {
+    pub fn project_path_ids(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<&Vec<PathId>> {
         self.smart_load_project_paths(source).get(id)
     }
-    pub fn project_paths(&mut self, source: &DataSource, id: &ProjectId) -> Option<Vec<Path>> {
+    pub fn project_paths(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Vec<Path>> {
         self.smart_load_project_paths(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.path(source, id).pirate()).collect()
         })
     }
-    pub fn project_path_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_path_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_path_count(source).get(id).pirate()
     }
-    pub fn project_snapshot_ids(&mut self, source: &DataSource, id: &ProjectId) -> Option<&Vec<SnapshotId>> {
+    pub fn project_snapshot_ids(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<&Vec<SnapshotId>> {
         self.smart_load_project_snapshots(source).get(id)
     }
-    pub fn project_snapshot_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_snapshot_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_snapshot_count(source).get(id).pirate()
     }
-    pub fn project_author_ids(&mut self, source: &DataSource, id: &ProjectId) -> Option<&Vec<UserId>> {
+    pub fn project_author_ids(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<&Vec<UserId>> {
         self.smart_load_project_authors(source).get(id)
     }
-    pub fn project_authors(&mut self, source: &DataSource, id: &ProjectId) -> Option<Vec<User>> {
+    pub fn project_authors(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Vec<User>> {
         self.smart_load_project_authors(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
         })
     }
-    pub fn project_author_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_author_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_author_count(source).get(id).pirate()
     }
-    pub fn project_committer_ids(&mut self, source: &DataSource, id: &ProjectId) -> Option<&Vec<UserId>> {
+    pub fn project_committer_ids(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<&Vec<UserId>> {
         self.smart_load_project_committers(source).get(id)
     }
-    pub fn project_committers(&mut self, source: &DataSource, id: &ProjectId) -> Option<Vec<User>> {
+    pub fn project_committers(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Vec<User>> {
         self.smart_load_project_committers(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
         })
     }
-    pub fn project_committer_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_committer_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_committer_count(source).get(id).pirate()
     }
-    pub fn project_user_ids(&mut self, source: &DataSource, id: &ProjectId) -> Option<&Vec<UserId>> {
+    pub fn project_user_ids(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<&Vec<UserId>> {
         self.smart_load_project_users(source).get(id)
     }
-    pub fn project_users(&mut self, source: &DataSource, id: &ProjectId) -> Option<Vec<User>> {
+    pub fn project_users(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Vec<User>> {
         self.smart_load_project_users(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
         })
     }
-    pub fn project_user_count(&mut self, source: &DataSource, id: &ProjectId) -> Option<usize> {
+    pub fn project_user_count(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_user_count(source).get(id).pirate()
     }
-    pub fn project_lifetime(&mut self, source: &DataSource, id: &ProjectId) -> Option<Duration> {
+    pub fn project_lifetime(&mut self, source: &StoreSlice, id: &ProjectId) -> Option<Duration> {
         self.smart_load_project_lifetimes(source).get(id)
             .pirate()
             .map(|seconds| Duration::from(seconds))
     }
-    pub fn user(&mut self, source: &DataSource, id: &UserId) -> Option<&User> {
+    pub fn user(&mut self, source: &StoreSlice, id: &UserId) -> Option<&User> {
         self.smart_load_users(source).get(id)
     }
-    pub fn path(&mut self, source: &DataSource, id: &PathId) -> Option<&Path> {
+    pub fn path(&mut self, source: &StoreSlice, id: &PathId) -> Option<&Path> {
         self.smart_load_paths(source).get(id)
     }
-    pub fn commit(&mut self, source: &DataSource, id: &CommitId) -> Option<&Commit> {
+    pub fn commit(&mut self, source: &StoreSlice, id: &CommitId) -> Option<&Commit> {
         self.smart_load_commits(source).get(id)
     }
-    pub fn commit_hash(&mut self, source: &DataSource, id: &CommitId) -> Option<&String> {
+    pub fn commit_hash(&mut self, source: &StoreSlice, id: &CommitId) -> Option<&String> {
         self.smart_load_commit_hashes(source).get(id)
     }
-    pub fn commit_message(&mut self, source: &DataSource, id: &CommitId) -> Option<&String> {
+    pub fn commit_message(&mut self, source: &StoreSlice, id: &CommitId) -> Option<&String> {
         self.smart_load_commit_messages(source).get(id)
     }
-    pub fn commit_author_timestamp(&mut self, source: &DataSource, id: &CommitId) -> Option<i64> {
+    pub fn commit_author_timestamp(&mut self, source: &StoreSlice, id: &CommitId) -> Option<i64> {
         self.smart_load_commit_author_timestamps(source).get(id).pirate()
     }
-    pub fn commit_committer_timestamp(&mut self, source: &DataSource, id: &CommitId) -> Option<i64> {
+    pub fn commit_committer_timestamp(&mut self, source: &StoreSlice, id: &CommitId) -> Option<i64> {
         self.smart_load_commit_committer_timestamps(source).get(id).pirate()
     }
-    pub fn commit_changes(&mut self, source: &DataSource, id: &CommitId) -> Option<Vec<Change>> {
+    pub fn commit_changes(&mut self, source: &StoreSlice, id: &CommitId) -> Option<Vec<Change>> {
         self.smart_load_commit_changes(source).get(id).map(|vector| {
             vector.iter().map(|(path_id, snapshot_id)| {
                 Change::new(path_id.clone(), snapshot_id.clone())
             }).collect()
         })
     }
-    pub fn commit_changed_paths(&mut self, source: &DataSource, id: &CommitId) -> Option<Vec<Path>> {
+    pub fn commit_changed_paths(&mut self, source: &StoreSlice, id: &CommitId) -> Option<Vec<Path>> {
         self.smart_load_commit_changes(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|change| self.path(source, &change.0/*path_id()*/).pirate()).collect()
         })
     }
-    pub fn commit_change_count(&mut self, source: &DataSource, id: &CommitId) -> Option<usize> {
+    pub fn commit_change_count(&mut self, source: &StoreSlice, id: &CommitId) -> Option<usize> {
         self.smart_load_commit_change_count(source).get(id).pirate()
     }
-    pub fn commit_changed_path_count(&mut self, source: &DataSource, id: &CommitId) -> Option<usize> {
+    pub fn commit_changed_path_count(&mut self, source: &StoreSlice, id: &CommitId) -> Option<usize> {
         self.smart_load_commit_change_count(source).get(id).pirate()
     }
-    pub fn user_committed_commit_ids(&mut self, source: &DataSource, id: &UserId) -> Option<&Vec<CommitId>> {
+    pub fn user_committed_commit_ids(&mut self, source: &StoreSlice, id: &UserId) -> Option<&Vec<CommitId>> {
         self.smart_load_user_committed_commits(source).get(id)
     }
-    pub fn user_authored_commits(&mut self, source: &DataSource, id: &UserId) -> Option<Vec<Commit>> {
+    pub fn user_authored_commits(&mut self, source: &StoreSlice, id: &UserId) -> Option<Vec<Commit>> {
         self.smart_load_user_authored_commits(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
         })
     }
-    pub fn user_authored_commit_ids(&mut self, source: &DataSource, id: &UserId) -> Option<&Vec<CommitId>> {
+    pub fn user_authored_commit_ids(&mut self, source: &StoreSlice, id: &UserId) -> Option<&Vec<CommitId>> {
         self.smart_load_user_authored_commits(source).get(id)
     }
-    pub fn user_committed_experience(&mut self, source: &DataSource, id: &UserId) -> Option<Duration> {
+    pub fn user_committed_experience(&mut self, source: &StoreSlice, id: &UserId) -> Option<Duration> {
         self.smart_load_user_committer_experience(source)
             .get(id)
             .map(|seconds| Duration::from(*seconds))
     }
-    pub fn user_author_experience(&mut self, source: &DataSource, id: &UserId) -> Option<Duration> {
+    pub fn user_author_experience(&mut self, source: &StoreSlice, id: &UserId) -> Option<Duration> {
         self.smart_load_user_author_experience(source)
             .get(id)
             .map(|seconds| Duration::from(*seconds))
     }
-    pub fn user_experience(&mut self, source: &DataSource, id: &UserId) -> Option<Duration> {
+    pub fn user_experience(&mut self, source: &StoreSlice, id: &UserId) -> Option<Duration> {
         self.smart_load_user_experience(source)
             .get(id)
             .map(|seconds| Duration::from(*seconds))
     }
-    pub fn user_committed_commit_count(&mut self, source: &DataSource, id: &UserId) -> Option<usize> {
+    pub fn user_committed_commit_count(&mut self, source: &StoreSlice, id: &UserId) -> Option<usize> {
         self.smart_load_user_committed_commit_count(source).get(id).pirate()
     }
-    pub fn user_authored_commit_count(&mut self, source: &DataSource, id: &UserId) -> Option<usize> {
+    pub fn user_authored_commit_count(&mut self, source: &StoreSlice, id: &UserId) -> Option<usize> {
         self.smart_load_user_authored_commit_count(source).get(id).pirate()
     }
-    pub fn user_committed_commits(&mut self, source: &DataSource, id: &UserId) -> Option<Vec<Commit>> {
+    pub fn user_committed_commits(&mut self, source: &StoreSlice, id: &UserId) -> Option<Vec<Commit>> {
         self.smart_load_user_committed_commits(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
         })
@@ -1173,112 +1196,112 @@ macro_rules! load_with_prerequisites {
 }
 
 impl Data {
-    fn smart_load_project_urls(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, String> {
+    fn smart_load_project_urls(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, String> {
         load_from_source!(self, project_urls, source)
     }
-    fn smart_load_project_heads(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, Vec<Head>> {
+    fn smart_load_project_heads(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, Vec<Head>> {
         load_from_source!(self, project_heads, source)
     }
-    fn smart_load_project_users(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, Vec<UserId>> {
+    fn smart_load_project_users(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, Vec<UserId>> {
         load_with_prerequisites!(self, project_users, source, two, project_authors, project_committers)
     }
-    fn smart_load_project_authors(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, Vec<UserId>> {
+    fn smart_load_project_authors(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, Vec<UserId>> {
         load_with_prerequisites!(self, project_authors, source, two, project_commits, commits)
     }
-    fn smart_load_project_committers(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, Vec<UserId>> {
+    fn smart_load_project_committers(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, Vec<UserId>> {
         load_with_prerequisites!(self, project_committers, source, two, project_commits, commits)
     }
-    fn smart_load_project_commits(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, Vec<CommitId>> {
+    fn smart_load_project_commits(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, Vec<CommitId>> {
         load_with_prerequisites!(self, project_commits, source, two, project_heads, commits)
     }
-    fn smart_load_project_paths(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, Vec<PathId>> {
+    fn smart_load_project_paths(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, Vec<PathId>> {
         load_with_prerequisites!(self, project_paths, source, two, project_commits, commit_changes)
     }
-    fn smart_load_project_snapshots(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, Vec<SnapshotId>> {
+    fn smart_load_project_snapshots(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, Vec<SnapshotId>> {
         load_with_prerequisites!(self, project_snapshots, source, two, project_commits, commit_changes)
     }
-    fn smart_load_project_user_count(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_user_count(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_user_count, source, one, project_users)
     }
-    fn smart_load_project_author_count(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_author_count(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_author_count, source, one, project_authors)
     }
-    fn smart_load_project_path_count(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_path_count(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_path_count, source, one, project_paths)
     }
-    fn smart_load_project_snapshot_count(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_snapshot_count(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_snapshot_count, source, one, project_snapshots)
     }
-    fn smart_load_project_committer_count(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_committer_count(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_committer_count, source, one, project_committers)
     }
-    fn smart_load_project_commit_count(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_commit_count(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_commit_count, source, one, project_commits)
     }
-    fn smart_load_project_lifetimes(&mut self, source: &DataSource) -> &BTreeMap<ProjectId, u64> {
+    fn smart_load_project_lifetimes(&mut self, source: &StoreSlice) -> &BTreeMap<ProjectId, u64> {
         load_with_prerequisites!(self, project_lifetimes, source, three, project_commits,
                                                                         commit_author_timestamps,
                                                                         commit_committer_timestamps)
     }
-    fn smart_load_users(&mut self, source: &DataSource) -> &BTreeMap<UserId, User> {
+    fn smart_load_users(&mut self, source: &StoreSlice) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)
     }
-    fn smart_load_user_authored_commits(&mut self, source: &DataSource) -> &BTreeMap<UserId, Vec<CommitId>> {
+    fn smart_load_user_authored_commits(&mut self, source: &StoreSlice) -> &BTreeMap<UserId, Vec<CommitId>> {
         load_with_prerequisites!(self, user_authored_commits, source, one, commits)
     }
-    fn smart_load_user_committed_commits(&mut self, source: &DataSource) -> &BTreeMap<UserId, Vec<CommitId>> {
+    fn smart_load_user_committed_commits(&mut self, source: &StoreSlice) -> &BTreeMap<UserId, Vec<CommitId>> {
         load_with_prerequisites!(self, user_committed_commits, source, one, commits)
     }
-    fn smart_load_user_author_experience(&mut self, source: &DataSource) -> &BTreeMap<UserId, u64> {
+    fn smart_load_user_author_experience(&mut self, source: &StoreSlice) -> &BTreeMap<UserId, u64> {
         load_with_prerequisites!(self, user_author_experience, source, two, user_authored_commits,
                                                                            commit_author_timestamps)
     }
-    fn smart_load_user_committer_experience(&mut self, source: &DataSource) -> &BTreeMap<UserId, u64> {
+    fn smart_load_user_committer_experience(&mut self, source: &StoreSlice) -> &BTreeMap<UserId, u64> {
         load_with_prerequisites!(self, user_committer_experience, source, two, user_committed_commits,
                                                                               commit_committer_timestamps)
     }
-    fn smart_load_user_experience(&mut self, source: &DataSource) -> &BTreeMap<UserId, u64> {
+    fn smart_load_user_experience(&mut self, source: &StoreSlice) -> &BTreeMap<UserId, u64> {
         load_with_prerequisites!(self, user_experience, source, three, user_committed_commits,
                                                                       commit_author_timestamps,
                                                                       commit_committer_timestamps)
     }
-    fn smart_load_user_committed_commit_count(&mut self, source: &DataSource) -> &BTreeMap<UserId, usize> {
+    fn smart_load_user_committed_commit_count(&mut self, source: &StoreSlice) -> &BTreeMap<UserId, usize> {
         load_with_prerequisites!(self, user_committed_commit_count, source, one, user_committed_commits)
     }
-    fn smart_load_user_authored_commit_count(&mut self, source: &DataSource) -> &BTreeMap<UserId, usize> {
+    fn smart_load_user_authored_commit_count(&mut self, source: &StoreSlice) -> &BTreeMap<UserId, usize> {
         load_with_prerequisites!(self, user_authored_commit_count, source, one, user_authored_commits)
     }
-    fn smart_load_paths(&mut self, source: &DataSource) -> &BTreeMap<PathId, Path> {
+    fn smart_load_paths(&mut self, source: &StoreSlice) -> &BTreeMap<PathId, Path> {
         load_from_source!(self, paths, source)
     }
     // fn smart_load_snapshots(&mut self, source: &DataSource) -> &BTreeMap<SnapshotId, Snapshot> {
     //     load_from_source!(self, snapshots, source)
     // }
-    fn smart_load_commits(&mut self, source: &DataSource) -> &BTreeMap<CommitId, Commit> {
+    fn smart_load_commits(&mut self, source: &StoreSlice) -> &BTreeMap<CommitId, Commit> {
         load_from_source!(self, commits, source)
     }
-    fn smart_load_commit_hashes(&mut self, source: &DataSource) -> &BTreeMap<CommitId, String> {
+    fn smart_load_commit_hashes(&mut self, source: &StoreSlice) -> &BTreeMap<CommitId, String> {
         load_from_source!(self, commit_hashes, source)
     }
-    fn smart_load_commit_messages(&mut self, source: &DataSource) -> &BTreeMap<CommitId, String> {
+    fn smart_load_commit_messages(&mut self, source: &StoreSlice) -> &BTreeMap<CommitId, String> {
         load_from_source!(self, commit_messages, source)
     }
-    fn smart_load_commit_committer_timestamps(&mut self, source: &DataSource) -> &BTreeMap<CommitId, i64> {
+    fn smart_load_commit_committer_timestamps(&mut self, source: &StoreSlice) -> &BTreeMap<CommitId, i64> {
         load_from_source!(self, commit_committer_timestamps, source)
     }
-    fn smart_load_commit_author_timestamps(&mut self, source: &DataSource) -> &BTreeMap<CommitId, i64> {
+    fn smart_load_commit_author_timestamps(&mut self, source: &StoreSlice) -> &BTreeMap<CommitId, i64> {
         load_from_source!(self, commit_author_timestamps, source)
     }
-    fn smart_load_commit_changes(&mut self, source: &DataSource) -> &BTreeMap<CommitId, Vec<ChangeTuple>> {
+    fn smart_load_commit_changes(&mut self, source: &StoreSlice) -> &BTreeMap<CommitId, Vec<ChangeTuple>> {
         load_from_source!(self, commit_changes, source)
     }
-    fn smart_load_commit_change_count(&mut self, source: &DataSource) -> &BTreeMap<CommitId, usize> {
+    fn smart_load_commit_change_count(&mut self, source: &StoreSlice) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, source, one, commit_changes)
     }
 }
 
 impl Data {
-    pub fn export_to_csv<S>(&mut self, source: &DataSource, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
+    pub fn export_to_csv<S>(&mut self, source: &StoreSlice, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
         let dir = dir.into();
         std::fs::create_dir_all(&dir)?;
         macro_rules! path {

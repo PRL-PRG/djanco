@@ -721,10 +721,11 @@ impl MapExtractor for CommitHashExtractor {
 impl SingleMapExtractor for CommitHashExtractor {
     type A = StoreSlice;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.commit_hashes().map(|(id, commit_hash)| {
-        //     (CommitId::from(id), commit_hash.to_string())
-        // }).collect()
-        unimplemented!() // FIXME commit hashes
+        let substore = source.default_substore();
+        let mut commits = substore.commits();
+        commits.iter().map(|(id, commit_hash)| {
+             (CommitId::from(id), commit_hash.to_string())
+        }).collect()
     }
 }
 

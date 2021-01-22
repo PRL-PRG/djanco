@@ -89,7 +89,7 @@ pub struct MappingSlice<'a, M> {
 impl<'b, I, E> MappingSlice<'b, parasite::MappingView<'b, E, I>>
     where E: parasite::db::FixedSizeSerializable<Item = E> + Eq + Hash + Clone,
           I : parasite::db::Id {
-    pub fn iter<'a, 'c>(&'a mut self) -> impl Iterator<Item=(I, E)> + 'c where 'a: 'c, 'a: 'b, 'b: 'c {
+    pub fn iter<'a>(&'a mut self) -> impl Iterator<Item=(I, E)> + 'a {
         self.mapping.iter(&self.savepoint)
     }
     pub fn get(&mut self, id: I) -> Option<E> {

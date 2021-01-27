@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use std::fmt::Display;
-use serde::export::Formatter;
+use std::fmt::{Display, Formatter};
 
 pub struct Fraction<N> { numerator: N, denominator: usize }
 impl<N> Fraction<N> {
@@ -105,7 +104,7 @@ impl<N> Clone for Fraction<N> where N: Clone {
 }
 
 impl<N> Display for Fraction<N> where N: Display {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
        write!(f, "{}/{}", self.numerator, self.denominator)
     }
 }

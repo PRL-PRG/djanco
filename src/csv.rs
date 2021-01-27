@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 
-use serde::export::fmt::Display;
+use std::fmt::Display;
 use itertools::Itertools;
 
 use crate::objects::*;

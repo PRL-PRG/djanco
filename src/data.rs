@@ -15,8 +15,9 @@ use crate::log::*;
 use crate::weights_and_measures::Weighed;
 use crate::time::Duration;
 use crate::csv::*;
-use crate::source::StoreSlice;
+use crate::source::{StoreSlice, MappingSlice};
 use std::borrow::Borrow;
+use parasite::RandomAccessView;
 
 // Internally Mutable Data
 pub struct Database {
@@ -43,10 +44,10 @@ impl Database {
 
 // Prequincunx
 impl Database {
-    pub fn all_project_ids(&self) -> Vec<ProjectId> { self.data.borrow_mut().all_project_ids(&self.source)  }
-    pub fn all_user_ids(&self)    -> Vec<UserId>    { self.data.borrow_mut().all_user_ids(&self.source)     }
-    pub fn all_path_ids(&self)    -> Vec<PathId>    { self.data.borrow_mut().all_path_ids(&self.source)     }
-    pub fn all_commit_ids(&self)  -> Vec<CommitId>  { self.data.borrow_mut().all_commit_ids(&self.source)   }
+    pub fn all_project_ids(&self) -> Vec<ProjectId> { self.data.borrow_mut().all_project_ids(&self.source) }
+    pub fn all_user_ids(&self)    -> Vec<UserId>    { self.data.borrow_mut().all_user_ids(&self.source)    }
+    pub fn all_path_ids(&self)    -> Vec<PathId>    { self.data.borrow_mut().all_path_ids(&self.source)    }
+    pub fn all_commit_ids(&self)  -> Vec<CommitId>  { self.data.borrow_mut().all_commit_ids(&self.source)  }
 }
 
 pub struct OptionIter<I> where I: Iterator {
@@ -77,29 +78,86 @@ impl Database {
 // Uncached stuff
 impl Database {
     pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
-        // self.source.content_data(id.into())
-        //     .map(|content| Snapshot::new(id.clone(), content))
-        unimplemented!() // FIXME snapshot
+        self.source.default_substore().content(unimplemented!())
+            .map(|contents| Snapshot::new(id.clone(), contents))
     }
     pub fn snapshots<'a>(&'a self) -> impl Iterator<Item=Snapshot> + 'a {
-        unimplemented!(); // FIXME snapshot
-        LogIter::new(
-            "reading snapshots",
-            &self.log,Verbosity::Log,
-            // self.source.contents_data()
-            //     .map(|(id, content)| {
-            //         Snapshot::new(SnapshotId::from(id), content)
-            //     })
-            vec![].into_iter()
-        )
+        // LogIter::new(
+        //     "reading snapshots",
+        //     &self.log,Verbosity::Log,
+        //     self.source.default_substore().contents().iter().into_iter()
+        // )
+        AnchoredIter::from(self.source.default_substore().contents())
+            .map(|(hash_id, kind, contents)| {
+                let hash_value: u64 = hash_id.clone().into();
+                let snapshot_id = SnapshotId::from(hash_value);
+                Snapshot::new(snapshot_id, contents.clone())
+            })
     }
     pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
         //self.source.contents().map(|(id, _hash_id)| SnapshotId::from(id))
         unimplemented!(); // FIXME snapshot ids
+        //let x = AnchoredIter::from(self.source.default_substore().contents());
         vec![].into_iter()
     }
     pub fn snapshots_with_data<'a>(&'a self) -> impl Iterator<Item=ItemWithData<'a, Snapshot>> + 'a {
         self.snapshots().attach_data_to_each(self)
+    }
+}
+
+trait GimmeIter {
+    type Iter: Iterator;
+    fn iter(&self) -> Self::Iter;
+}
+
+// impl<'a, E, K, I> GimmeIter for parasite::SplitStoreView<'a, E, K, I>
+//     where E: parasite::db::Serializable<Item=E>,
+//           K: parasite::db::SplitKind<Item=K>,
+//           I: parasite::db::Id {
+//
+//     type Iter = std::slice::Iter<'a, parasite::db::SplitStoreIterAll<'a, E, K, I>>;
+//     fn iter(&self) -> Self::Iter {
+//         self.iter(unimplemented!())
+//     }
+// }
+
+impl<'a, E, K, I> GimmeIter for MappingSlice<'a, parasite::SplitStoreView<'a, E, K, I>>
+    where E: parasite::db::Serializable<Item=E>,
+          K: parasite::db::SplitKind<Item=K>,
+          I: parasite::db::Id {
+
+    //<parasite::db::SplitStoreIterAll<'a, >E, K, I>
+    type Iter = std::slice::Iter<'a, (I, K, E)>;
+    fn iter(&self) -> Self::Iter {
+        self.iter()
+    }
+}
+
+struct AnchoredIter<A> where A: GimmeIter {
+    anchor: A,
+    iter: Option<A::Iter>,
+}
+
+impl<'a, E, K, I> From<MappingSlice<'a, parasite::SplitStoreView<'a, E, K, I>>>
+for AnchoredIter<MappingSlice<'a, parasite::SplitStoreView<'a, E, K, I>>>
+    where E: parasite::db::Serializable<Item=E>,
+          K: parasite::db::SplitKind<Item=K>,
+          I: parasite::db::Id {
+
+    fn from(view: MappingSlice<'a, parasite::SplitStoreView<'a, E, K, I>>) -> Self {
+        AnchoredIter { anchor: view, iter: None }
+    }
+}
+
+impl<A> Iterator for AnchoredIter<A> where A: GimmeIter {
+    //(parasite::FileContents, parasite::ContentsKind, parasite::HashId)
+    type Item = <<A as GimmeIter>::Iter as Iterator>::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.iter.is_none() {
+            self.iter = Some(self.anchor.iter())
+        }
+        self.iter.as_mut().unwrap().next()
     }
 }
 

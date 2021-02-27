@@ -21,6 +21,8 @@
              mod product;
 #[cfg(test)] mod testing;
              mod source;
+mod barrier;
+mod pramen;
 
 #[macro_use] extern crate mashup;
 
@@ -101,11 +103,11 @@ impl std::convert::Into<StoreKind> for Store {
         self.0
     }
 }
-impl std::fmt::Display for Store { // FIXME delegate to parasite
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
+// impl std::fmt::Display for Store { // FIXME delegate to parasite
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         self.0.fmt(f)
+//     }
+// }
 
 #[macro_export] macro_rules! stores {
     (All) => {

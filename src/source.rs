@@ -7,7 +7,9 @@ use std::collections::HashMap;
 use parasite::db::MappingIter;
 use std::rc::Rc;
 use std::borrow::Borrow;
-use parasite::SubstoreView;
+use parasite::{SubstoreView, RandomAccessView};
+use crate::objects::SnapshotId;
+use crate::objects::Snapshot;
 
 pub struct StoreSlice {
     store: parasite::DatastoreView,
@@ -27,13 +29,14 @@ impl StoreSlice {
         let substores = substores.into_iter().map(|s| s.into()).collect();
         Ok(StoreSlice { store, savepoint, substores })
     }
-    pub fn default_substore(&self) -> SubstoreSlice {
+    pub fn default_substore(&self) -> &SubstoreSlice {
         if self.substores.len() != 1 {
             panic!("Currently we only support loading data from a single substore")
         }
         let substore_kind = self.substores.get(0).unwrap().clone();
         let substore = self.store.get_substore(substore_kind);
-        SubstoreSlice { substore, savepoint: &self.savepoint }
+        //SubstoreSlice { substore, savepoint: &self.savepoint }
+        unimplemented!()
     }
 }
 
@@ -58,15 +61,19 @@ impl<'a> SubstoreSlice<'a> {
     pub fn hashes(& self) -> MappingSlice<parasite::MappingView<parasite::SHA, parasite::HashId>> {
         MappingSlice { mapping: self.substore.hashes(), savepoint: self.savepoint }
     }
-
-    pub fn contents(& self) -> parasite::SplitStoreView<parasite::FileContents, parasite::ContentsKind, parasite::HashId> {
-        //self.substore().contents()
-        unimplemented!()
+    pub fn contents(& self) -> MappingSlice<parasite::SplitStoreView<parasite::FileContents, parasite::ContentsKind, parasite::HashId>> {
+        MappingSlice { mapping: self.substore.contents(), savepoint: self.savepoint }
+    }
+    pub fn content(& self, id: parasite::HashId) -> Option<Vec<u8>> {
+        self.substore.contents().get(id)
     }
 
     pub fn contents_metadata(&self) -> MappingSlice<parasite::LinkedStoreView<parasite::Metadata, parasite::HashId>> {
         MappingSlice { mapping: self.substore.contents_metadata(), savepoint: self.savepoint }
     }
+    // pub fn content_data(& self) -> parasite::SplitStoreView<parasite::FileContents, parasite::ContentsKind, parasite::HashId> {
+    //     self.substore.content()
+    // }
     pub fn paths(&self) -> MappingSlice<parasite::MappingView<parasite::SHA, parasite::PathId>> {
         MappingSlice { mapping: self.substore.paths(), savepoint: self.savepoint }
     }
@@ -123,3 +130,25 @@ impl<'b, I, E> MappingSlice<'b, parasite::LinkedStoreView<'b, E, I>>
         self.mapping.iter(&self.savepoint)
     }
 }
+//parasite::FileContents, parasite::ContentsKind, parasite::HashId>
+// impl<'b, I, E, K> MappingSlice<'b, parasite::SplitStoreView<'b, E, K, I>>
+//     where E: parasite::db::Serializable<Item = E>,
+//           K: parasite::db::SplitKind<Item = K>,
+//           I : parasite::db::Id {
+//     pub fn iter<'a>(&'a mut self) -> impl Iterator<Item=(I, K, E)> + 'a {
+//         self.mapping.iter(&self.savepoint)
+//     }
+// }
+// Maping slice for contents
+// FIXME we could separate off all of parasite's types in these iterators
+// impl<'b> MappingSlice<'b, parasite::SplitStoreView<'b, parasite::FileContents, parasite::ContentsKind, parasite::HashId>> {
+//     pub fn iter<'a>(&'a mut self) -> impl Iterator<Item=Snapshot> + 'a {
+//         self.mapping.iter(&self.savepoint)
+//             .map(|(hash_id, kind, contents)| {
+//                 let hash: u64 = hash_id.into();
+//                 let snapshot_id = SnapshotId::from(hash);
+//                 let snapshot = Snapshot::new(snapshot_id, contents);
+//                 snapshot
+//             })
+//     }
+// }

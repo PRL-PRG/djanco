@@ -21,7 +21,7 @@
              mod product;
 #[cfg(test)] mod testing;
              mod source;
-mod barrier;
+pub mod barrier;
 mod pramen;
 
 #[macro_use] extern crate mashup;

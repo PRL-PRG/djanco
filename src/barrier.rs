@@ -15,6 +15,8 @@ use std::ops::{DerefMut, Deref};
 use dereference::DereferenceMut;
 use std::cell::RefCell;
 use std::pin::Pin;
+use chrono::DateTime;
+use std::time::SystemTime;
 
 pub fn commits_iter<'a>(store: &'a DatastoreView, substore_kind: StoreKind, sp: &Savepoint) -> impl Iterator<Item=(CommitId, SHA)> + 'a {
     let substore = store.get_substore(substore_kind);
@@ -43,4 +45,17 @@ impl<I, R, T> Iterator for DerefMutIter<I, R> where I: Iterator<Item=T>{
     }
 }
 
+#[test]
+pub fn test() {
+    let root = "";
+    let store = DatastoreView::new(root);
+
+    let savepoint = store.current_savepoint();
+
+    let js_commits = commits_iter(&store,StoreKind::JavaScript, &savepoint);
+    let c_commits = commits_iter(&store,StoreKind::C, &savepoint);
+
+    println!("JS commits: {}", js_commits.count());
+    println!("C commits: {}", c_commits.count());
+}
 

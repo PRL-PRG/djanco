@@ -20,7 +20,7 @@
              mod piracy;
              mod product;
 #[cfg(test)] mod testing;
-mod source;
+             mod source;
 
 #[macro_use] extern crate mashup;
 

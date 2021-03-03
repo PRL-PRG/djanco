@@ -20,9 +20,7 @@
              mod piracy;
              mod product;
 #[cfg(test)] mod testing;
-             mod source;
-mod barrier;
-mod pramen;
+mod source;
 
 #[macro_use] extern crate mashup;
 
@@ -66,13 +64,13 @@ use anyhow::*;
 use chrono::{Date, DateTime, Utc};
 
 use parasite;
-use parasite::{StoreKind, DatastoreView, SubstoreView, Savepoint};
+use parasite::{StoreKind, DatastoreView};
 
 use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
-use crate::source::StoreSlice;
 use crate::log::{Log, Verbosity};
+use crate::source::Source;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Store(parasite::StoreKind);
@@ -135,7 +133,7 @@ impl Djanco {
     // FIXME this still sucks
     pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
-        let source = StoreSlice::new(dataset_path, savepoint, substores)?;
+        let source = Source::new(dataset_path, savepoint, substores)?;
         Ok(Database::new(source, cache_path, log))
     }
     pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {

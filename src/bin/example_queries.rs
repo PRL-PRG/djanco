@@ -95,7 +95,7 @@ fn main() {
 
     let database =
         Djanco::from_spec(config.dataset_path(), config.cache_path(),
-                          timestamp!(December 2020), stores!(All), log.clone())
+                          timestamp!(December 2020), stores!(Javascript), log.clone())
             .expect("Error initializing datastore.");
 
     stars(&config, &log, &database).into_csv(path!("stars")).unwrap();

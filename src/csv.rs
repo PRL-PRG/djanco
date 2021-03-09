@@ -268,7 +268,8 @@ impl<T> CSVItem for Vec<T> where T: CSVItem {
        T::column_headers()
     }
     fn row(&self) -> Vec<String> {
-        unimplemented!()
+        panic!("There is no implementation of `row` for a vector of CSVItems, \
+                since it is implied it is always multiple rows")
     }
     fn rows(&self) -> Vec<Vec<String>> {
         self.iter().flat_map(|e| e.rows()).collect()

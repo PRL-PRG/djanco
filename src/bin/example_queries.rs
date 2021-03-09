@@ -88,26 +88,22 @@ fn commits<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> i
 
 // `cargo run --bin example_queries --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
-    //let config = Configuration::from_args();
-    //let log = Log::new(Verbosity::Debug);
+    let config = Configuration::from_args();
+    let log = Log::new(Verbosity::Debug);
 
-    // macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
+    macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 
-    //println!("{}", to_store!(C++));
-    //println!("{}", to_store!(C#));
-    //println!("{}", to_store!(Objective-C));
-    //println!("{}", to_store!(P++));
-    println!("{:?}", stores!(Objective-C, Python, C++));
+    let database =
+        Djanco::from_spec(config.dataset_path(), config.cache_path(),
+                          timestamp!(December 2020), stores!(All), log.clone())
+            .expect("Error initializing datastore.");
 
-    // let database =
-    //     Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![]);
-    //
-    // stars(&config, &log, &database).into_csv(path!("stars")).unwrap();
-    // mean_changed_paths(&config, &log, &database).into_csv(path!("mean_changed_paths")).unwrap();
-    // median_changed_paths(&config, &log, &database).into_csv(path!("median_changed_paths")).unwrap();
-    // experienced_author(&config, &log, &database).into_csv(path!("experienced_author")).unwrap();
-    // experienced_authors_ratio(&config, &log, &database).into_csv(path!("experienced_authors_ratio")).unwrap();
-    // mean_commit_message_sizes(&config, &log, &database).into_csv(path!("mean_commit_message_sizes")).unwrap();
-    // median_commit_message_sizes(&config, &log, &database).into_csv(path!("median_commit_message_sizes")).unwrap();
-    // commits(&config, &log, &database).into_csv(path!("commits")).unwrap();
+    stars(&config, &log, &database).into_csv(path!("stars")).unwrap();
+    mean_changed_paths(&config, &log, &database).into_csv(path!("mean_changed_paths")).unwrap();
+    median_changed_paths(&config, &log, &database).into_csv(path!("median_changed_paths")).unwrap();
+    experienced_author(&config, &log, &database).into_csv(path!("experienced_author")).unwrap();
+    experienced_authors_ratio(&config, &log, &database).into_csv(path!("experienced_authors_ratio")).unwrap();
+    mean_commit_message_sizes(&config, &log, &database).into_csv(path!("mean_commit_message_sizes")).unwrap();
+    median_commit_message_sizes(&config, &log, &database).into_csv(path!("median_commit_message_sizes")).unwrap();
+    commits(&config, &log, &database).into_csv(path!("commits")).unwrap();
 }

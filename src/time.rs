@@ -52,7 +52,7 @@ macro_rules! timestamp {
     (November $year:expr) => { timestamp!(1/11/$year) };
     (December $year:expr) => { timestamp!(1/12/$year) };
     ($day:literal / $month:literal / $year:expr) => {{
-        use chrono::{DateTime, TimeZone, NaiveDateTime, Utc};
+        use chrono::{TimeZone, Utc};
         Utc.ymd($year as i32, $month, $day).and_hms(0, 0, 0).timestamp()
     }}
 }

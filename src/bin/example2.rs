@@ -16,7 +16,8 @@ fn main() {
                           config.cache_path(),
                           timestamp!(December 2020),
                           vec![],
-                          Log::new(Verbosity::Log)).unwrap();
+                          Log::new(Verbosity::Log))
+            .expect("Error initializing datastore.");
 
     let bug_regex = regex!("(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s+#[0-9]+");
 

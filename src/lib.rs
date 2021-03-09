@@ -61,10 +61,9 @@ use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
 use anyhow::*;
-use chrono::{Date, DateTime, Utc};
 
 use parasite;
-use parasite::{StoreKind, DatastoreView};
+use parasite::{StoreKind};
 
 use crate::attrib::*;
 use crate::fraction::*;
@@ -81,9 +80,13 @@ impl Store {
 }
 impl std::convert::From<&str> for Store {
     fn from(str: &str) -> Self {
-        StoreKind::from_string(str)
-            .map(|kind| Store(kind))
-            .expect(&format!("{} is not a valid store", str))
+        if &str.to_lowercase() == "generic" {
+            Store(StoreKind::Generic)
+        } else {
+            StoreKind::from_string(str)
+                .map(|kind| Store(kind))
+                .expect(&format!("{} is not a valid store", str))
+        }
     }
 }
 impl std::convert::From<String> for Store {
@@ -125,7 +128,7 @@ impl std::convert::Into<StoreKind> for Store {
 }
 
 #[macro_export] macro_rules! store {
-    ($($t:tt)+) => { stores!($($t:tt)+) }
+    ($($t:tt)+) => { stores!($($t)+) }
 }
 
 pub struct Djanco;

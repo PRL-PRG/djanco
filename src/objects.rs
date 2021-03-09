@@ -346,7 +346,7 @@ impl Project {
     pub fn new              (id: ProjectId, url: String) -> Self                            { Project { id, url }                            }
     pub fn url              (&self)                      -> String                          { self.url.to_string()                           }
 
-    pub fn timestamp        (&self,     _: &Database)    -> i64                             { unimplemented!()                               }
+    pub fn timestamp        (&self,     _: &Database)    -> i64                             { unimplemented!()  /* waiting for parasite */   }
     pub fn issue_count      (&self, store: &Database)    -> Option<usize>                   { store.project_issues(&self.id)                 }
     pub fn buggy_issue_count(&self, store: &Database)    -> Option<usize>                   { store.project_buggy_issues(&self.id)           }
 
@@ -407,6 +407,18 @@ impl Head {
     pub fn name(&self) -> String { self.name.to_string() }
     pub fn commit_id(&self) -> CommitId { self.commit.clone() }
     pub fn commit(&self, store: &Database) -> Option<Commit> { store.commit(&self.commit) }
+}
+
+impl From<(CommitId, String)> for Head {
+    fn from((commit_id, name): (CommitId, String)) -> Self {
+        Head::new(name, commit_id)
+    }
+}
+
+impl From<(String, CommitId)> for Head {
+    fn from((name, commit_id): (String, CommitId)) -> Self {
+        Head::new(name, commit_id)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -476,6 +488,12 @@ pub struct Commit {
 }
 
 impl Commit {
+    pub fn new(id: CommitId, committer: UserId, author: UserId, parents: Vec<CommitId>) -> Self {
+        Commit { id, committer, author, parents }
+    }
+}
+
+impl Commit {
     pub fn committer_id       (&self)                   -> UserId                             {  self.committer               }
     pub fn author_id          (&self)                   -> UserId                             {  self.author                  }
     pub fn parent_ids         (&self)                   -> &Vec<CommitId>                     { &self.parents                 }
@@ -500,8 +518,6 @@ impl Commit {
     pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
     pub fn changed_snapshots   (&self, store: &Database) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
     pub fn changed_snapshot_count (&self, store: &Database) -> Option<usize>                  {  self.changed_snapshot_ids(store).map(|v| v.len() ) }
-
-
 }
 
 impl Identifiable for Commit {

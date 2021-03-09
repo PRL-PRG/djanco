@@ -12,7 +12,9 @@ use djanco::log::{Verbosity, Log};
 fn main() {
     let config = Configuration::from_args();
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), vec![], Log::new(Verbosity::Log)).unwrap();
+        Djanco::from_spec(config.dataset_path(), config.cache_path(),
+                          timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
+            .expect("Error initializing datastore.");
 
     // If file does not exist, filter snapshots with required string and save to file.
     if !PathBuf::from(config.output_csv_path("snapshots_with_memory_resource")).exists() {

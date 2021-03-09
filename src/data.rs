@@ -15,7 +15,6 @@ use crate::log::*;
 use crate::weights_and_measures::Weighed;
 use crate::time::Duration;
 use crate::csv::*;
-use std::borrow::Borrow;
 use crate::source::Source;
 
 // Internally Mutable Data
@@ -77,31 +76,12 @@ impl Database {
 // Uncached stuff
 impl Database {
     pub fn snapshot(&self, id: &SnapshotId) -> Option<Snapshot> {
-        unimplemented!()
-        // self.source.default_substore().content(unimplemented!())
-        //     .map(|contents| Snapshot::new(id.clone(), contents))
+        self.source.get_snapshot(id.clone()).map(|bytes| Snapshot::new(id.clone(), bytes))
     }
     pub fn snapshots<'a>(&'a self) -> impl Iterator<Item=Snapshot> + 'a {
-        // LogIter::new(
-        //     "reading snapshots",
-        //     &self.log,Verbosity::Log,
-        //     self.source.default_substore().contents().iter().into_iter()
-        // )
-        // AnchoredIter::from(self.source.default_substore().contents())
-        //     .map(|(hash_id, kind, contents)| {
-        //         let hash_value: u64 = hash_id.clone().into();
-        //         let snapshot_id = SnapshotId::from(hash_value);
-        //         Snapshot::new(snapshot_id, contents.clone())
-        //     })
-        unimplemented!();
-        vec![].into_iter()
-
-    }
-    pub fn snapshot_ids<'a>(&'a self) -> impl Iterator<Item=SnapshotId> + 'a {
-        //self.source.contents().map(|(id, _hash_id)| SnapshotId::from(id))
-        unimplemented!(); // FIXME snapshot ids
-        //let x = AnchoredIter::from(self.source.default_substore().contents());
-        vec![].into_iter()
+        LogIter::new("reading snapshots", &self.log,Verbosity::Log,
+                     self.source.snapshot_bytes()
+                         .map(|(id, bytes)| Snapshot::new(id, bytes)))
     }
     pub fn snapshots_with_data<'a>(&'a self) -> impl Iterator<Item=ItemWithData<'a, Snapshot>> + 'a {
         self.snapshots().attach_data_to_each(self)
@@ -221,14 +201,11 @@ impl Database {
         self.data.borrow_mut().project_snapshot_ids(&self.source, id).pirate()
     }
     pub fn project_snapshots(&self, id: &ProjectId) -> Option<Vec<Snapshot>> {
-        // self.project_snapshot_ids(id).map(|vector| {
-        //     vector.into_iter().flat_map(|id| {
-        //         self.source.content_data(id.into()).map(|content| {
-        //             Snapshot::new(id, content)
-        //         })
-        //     }).collect::<Vec<Snapshot>>()
-        // })
-        unimplemented!() // FIXME project snapshots
+        self.project_snapshot_ids(id).map(|vector| {
+            vector.into_iter()
+                .flat_map(|id| self.snapshot(&id))
+                .collect::<Vec<Snapshot>>()
+        })
     }
     pub fn project_snapshot_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_snapshot_count(&self.source, id)
@@ -340,10 +317,7 @@ impl MapExtractor for ProjectUrlExtractor {
 impl SingleMapExtractor for ProjectUrlExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()//FIXME project urls
-        // source.projects().into_iter().map(|(id, project)| {
-        //     (ProjectId::from(id), project.url.clone_url())
-        // }).collect()
+        source.project_urls().collect()
     }
 }
 
@@ -355,10 +329,7 @@ impl MapExtractor for ProjectCredentialsExtractor {
 impl SingleMapExtractor for ProjectCredentialsExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()//FIXME project credentials
-        // source.projects().into_iter().map(|(id, project)| {
-        //     (ProjectId::from(id), project.url.name())
-        // }).collect()
+        source.project_credentials().collect()
     }
 }
 
@@ -370,12 +341,14 @@ impl MapExtractor for ProjectHeadsExtractor {
 impl SingleMapExtractor for ProjectHeadsExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!()//FIXME project heads
-        // source.projects().into_iter().map(|(id, project)| {
-        //     (ProjectId::from(id), project.heads.into_iter().map(|(name, (commit_id, _hash))| {
-        //         Head::new(name, CommitId::from(commit_id))
-        //     }).collect())
-        // }).collect()
+        source.project_heads().map(|(project_id, map)| {
+            let heads = map.into_iter()
+                .map(|(branch_name, (commit_id, _hash))| {
+                    Head::new(branch_name, commit_id)
+                }).collect::<Vec<Head>>();
+
+            (project_id, heads)
+        }).collect()
     }
 }
 
@@ -585,13 +558,9 @@ impl MapExtractor for UserExtractor {
 impl SingleMapExtractor for UserExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-
-
-        // users.iter().map(|(id, email)| {
-        //     (UserId::from(id), User::new(UserId::from(id), email))
-        // }).collect()
-
-        unimplemented!()
+        source.user_emails().map(|(id, email)| {
+            (UserId::from(id), User::new(UserId::from(id), email))
+        }).collect()
     }
 }
 
@@ -678,12 +647,9 @@ impl MapExtractor for PathExtractor {
 impl SingleMapExtractor for PathExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // let substore = source.default_substore();
-        // let mut paths = substore.paths_strings();
-        // paths.map(|(id, location)| {
-        //      (PathId::from(id), Path::new(PathId::from(id), location))
-        // }).collect()
-        unimplemented!()
+        source.paths().map(|(id, path)| {
+            (id.clone(), Path::new(id, path))
+        }).collect()
     }
 }
 
@@ -697,10 +663,10 @@ impl MapExtractor for SnapshotExtractor {
 impl SingleMapExtractor for SnapshotExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.contents_data().map(|(id, contents)| {
-        //     (SnapshotId::from(id), Snapshot::new(SnapshotId::from(id), contents))
-        // }).collect()
-        unimplemented!() // FIXME snapshots
+        source.snapshot_bytes().map(|(id, contents)| {
+             (id.clone(), Snapshot::new(id, contents))
+        }).collect()
+        // FIXME snapshots this shouldn't exist, right?
     }
 }
 
@@ -712,11 +678,9 @@ impl MapExtractor for CommitExtractor {
 impl SingleMapExtractor for CommitExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-
-        // commits.iter().map(|(id, commit)| {
-        //      (CommitId::from(id), Commit::from((id, commit)))
-        // }).collect()
-        unimplemented!()
+        source.commit_info().map(|(id, basics)| {
+            (id, Commit::new(id, basics.committer, basics.author, basics.parents))
+        }).collect()
     }
 }
 
@@ -728,10 +692,7 @@ impl MapExtractor for CommitHashExtractor {
 impl SingleMapExtractor for CommitHashExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // commits.iter().map(|(id, commit_hash)| {
-        //      (CommitId::from(id), commit_hash.to_string())
-        // }).collect()
-        unimplemented!()
+        source.commit_hashes().collect()
     }
 }
 
@@ -743,10 +704,9 @@ impl MapExtractor for CommitMessageExtractor {
 impl SingleMapExtractor for CommitMessageExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // commits.iter().map(|(id, commit)| {
-        //      (CommitId::from(id), commit.message)
-        // }).collect()
-        unimplemented!()
+        source.commit_info()
+            .map(|(id, basics)| (id, basics.message))
+            .collect()
     }
 }
 
@@ -758,14 +718,13 @@ impl MapExtractor for CommitterTimestampExtractor {
 impl SingleMapExtractor for CommitterTimestampExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.commits().map(|(id, commit)| {
-        //     (CommitId::from(id), commit.committer_time)
-        // }).collect() // TODO maybe return iter?
-        unimplemented!() // FIXME committer timestamps
+        source.commit_info().map(|(id, commit)| {
+            (id, commit.committer_time)
+        }).collect()
     }
 }
 
-pub type ChangeTuple = (PathId, Option<SnapshotId>);
+pub type ChangeTuple = (PathId, Option<SnapshotId>); // This is a tuple and not a struct for performance reasons.
 struct CommitChangesExtractor {}
 impl MapExtractor for CommitChangesExtractor {
     type Key = CommitId;
@@ -774,47 +733,23 @@ impl MapExtractor for CommitChangesExtractor {
 impl SingleMapExtractor for CommitChangesExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // let hash_id_to_content_id_map: BTreeMap<u64, u64> = source.contents()
-        //     .map(|(content_id, hash_id)| (hash_id, content_id))
-        //     .collect();
-        //
-        // source.commits().map(|(id, commit)| {
-        //     let commit_id = CommitId::from(id);
-        //     let changes = commit.changes.iter()
-        //         .map(|(path_id, hash_id)| {
-        //             let snapshot_id = hash_id_to_content_id_map.get(hash_id)
-        //                 .map(|content_id| SnapshotId::from(content_id));
-        //             (PathId::from(path_id), snapshot_id)
-        //         }).collect::<Vec<ChangeTuple>>();
-        //     (commit_id, changes)
-        // }).collect()
-        unimplemented!() // FIXME commit changes
+        source.commit_info()
+            .map(|(commit_id,info)| (commit_id, info.changes))
+            .collect()
     }
 }
 
 struct AuthorTimestampExtractor {}
 impl MapExtractor for AuthorTimestampExtractor {
     type Key = CommitId;
-    type Value = i64;
+    type Value = i64; // TODO wrap
 }
 impl SingleMapExtractor for AuthorTimestampExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        // source.commits().map(|(id, commit)| {
-        //     (CommitId::from(id), commit.author_time)
-        // }).collect() // TODO maybe return iter?
-        unimplemented!() // FIXME author timestamps
-    }
-}
-
-impl From<(parasite::CommitId, parasite::CommitInfo)> for Commit {
-    fn from((id, c): (parasite::CommitId, parasite::CommitInfo)) -> Self {
-        Commit {
-            id: CommitId::from(id),
-            committer: unimplemented!(), // FIXME UserId::from(c.committer),
-            author: unimplemented!(), // FIXME UserId::from(c.author),
-            parents: unimplemented!() // FIXME c.parents.into_iter().map(|id| CommitId::from(id)).collect(),
-        }
+        source.commit_info().map(|(id, commit)| {
+            (id, commit.author_time)
+        }).collect()
     }
 }
 
@@ -950,10 +885,10 @@ impl Data {
             .map(|url| Project::new(id.clone(), url.clone()))
     }
     pub fn project_issues(&mut self, _source: &Source, _id: &ProjectId) -> Option<usize> {
-        unimplemented!()
-    }         // FIXME
+        unimplemented!() // pending changes in parasite
+    }
     pub fn project_buggy_issues(&mut self, _source: &Source, _id: &ProjectId) -> Option<usize> {
-        unimplemented!()
+        unimplemented!() // pending changes in parasite
     }   // FIXME
     pub fn project_is_fork(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_fork(source, id)
@@ -1329,11 +1264,10 @@ impl Data {
         self.smart_load_commit_author_timestamps(source).iter().into_csv(path!("commit_author_timestamps"))?;
         self.smart_load_commit_changes(source).iter().into_csv(path!("commit_changes"))?;
 
-        // source.contents_data()
-        //     .map(|(id, content)| {
-        //         Snapshot::new(SnapshotId::from(id), content)
-        //     }).into_csv(path!("snapshots"))?;
-        unimplemented!(); // FIXME
+        source.snapshot_bytes()
+             .map(|(id, content)| {
+                 Snapshot::new(id, content)
+             }).into_csv(path!("snapshots"))?;
 
         Ok(())
     }
@@ -1373,10 +1307,7 @@ mod data {
                 .expect(&format!("Could not delete directory {}", CACHE_DIR));
         }
 
-        let source = unimplemented!(); // FIXME DataSource::new(DATASET_DIR, TIME);
-        let database = Djanco::from_store(DATASET_DIR, TIME, stores!(All));
-
-        database.expect("Could not create database")
+        Djanco::from_store(DATASET_DIR, TIME, stores!(All)).expect("Could not create database")
     }
 
     #[test]

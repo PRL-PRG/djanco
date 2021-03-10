@@ -71,20 +71,101 @@ use crate::data::Database;
 use crate::log::{Log, Verbosity};
 use crate::source::Source;
 
+pub mod store {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub enum Language {
+        C,
+        Cpp,
+        CSharp,
+        Clojure,
+        CoffeeScript,
+        Erlang,
+        Go,
+        Haskell,
+        HTML,
+        Java,
+        JavaScript,
+        ObjectiveC,
+        Perl,
+        PHP,
+        Python,
+        Ruby,
+        Scala,
+        Shell,
+        TypeScript,
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Store(parasite::StoreKind);
+pub enum Store {
+    Small,
+    Large(store::Language),
+    Generic,
+}
+
 impl Store {
     pub fn kind(&self) -> StoreKind {
-        self.0.clone()
+        match self {
+            Store::Generic => StoreKind::Generic,
+            Store::Small => StoreKind::SmallProjects,
+            Store::Large(store::Language::JavaScript) => StoreKind::JavaScript,
+            Store::Large(store::Language::C) => StoreKind::C,
+            Store::Large(store::Language::Cpp) => StoreKind::Cpp,
+            Store::Large(store::Language::CSharp) => StoreKind::CSharp,
+            Store::Large(store::Language::Clojure) => StoreKind::Clojure,
+            Store::Large(store::Language::CoffeeScript) => StoreKind::CoffeeScript,
+            Store::Large(store::Language::Erlang) => StoreKind::Erlang,
+            Store::Large(store::Language::Go) => StoreKind::Go,
+            Store::Large(store::Language::Haskell) => StoreKind::Haskell,
+            Store::Large(store::Language::HTML) => StoreKind::Html,
+            Store::Large(store::Language::Java) => StoreKind::Java,
+            Store::Large(store::Language::ObjectiveC) => StoreKind::ObjectiveC,
+            Store::Large(store::Language::Perl) => StoreKind::Perl,
+            Store::Large(store::Language::PHP) => StoreKind::Php,
+            Store::Large(store::Language::Python) => StoreKind::Python,
+            Store::Large(store::Language::Ruby) => StoreKind::Ruby,
+            Store::Large(store::Language::Scala) => StoreKind::Scala,
+            Store::Large(store::Language::Shell) => StoreKind::Shell,
+            Store::Large(store::Language::TypeScript) => StoreKind::TypeScript,
+        }
+    }
+}
+impl std::convert::From<StoreKind> for Store {
+    fn from(kind: StoreKind) -> Self {
+        match kind {
+            StoreKind::Generic => Store::Generic,
+            StoreKind::SmallProjects => Store::Small,
+            StoreKind::JavaScript => Store::Large(store::Language::JavaScript),
+            StoreKind::C => Store::Large(store::Language::C),
+            StoreKind::Cpp => Store::Large(store::Language::Cpp),
+            StoreKind::CSharp => Store::Large(store::Language::CSharp),
+            StoreKind::Clojure => Store::Large(store::Language::Clojure),
+            StoreKind::CoffeeScript => Store::Large(store::Language::CoffeeScript),
+            StoreKind::Erlang => Store::Large(store::Language::Erlang),
+            StoreKind::Go => Store::Large(store::Language::Go),
+            StoreKind::Haskell => Store::Large(store::Language::Haskell),
+            StoreKind::Html => Store::Large(store::Language::HTML),
+            StoreKind::Java => Store::Large(store::Language::Java),
+            StoreKind::ObjectiveC => Store::Large(store::Language::ObjectiveC),
+            StoreKind::Perl => Store::Large(store::Language::Perl),
+            StoreKind::Php => Store::Large(store::Language::PHP),
+            StoreKind::Python => Store::Large(store::Language::Python),
+            StoreKind::Ruby => Store::Large(store::Language::Ruby),
+            StoreKind::Scala => Store::Large(store::Language::Scala),
+            StoreKind::Shell => Store::Large(store::Language::Shell),
+            StoreKind::TypeScript => Store::Large(store::Language::TypeScript),
+            StoreKind::Unspecified =>
+                panic!("StoreKind::Unspecified is a sentinel, so it is not expected to occur."),
+        }
     }
 }
 impl std::convert::From<&str> for Store {
     fn from(str: &str) -> Self {
         if &str.to_lowercase() == "generic" {
-            Store(StoreKind::Generic)
+            Store::Generic
         } else {
             StoreKind::from_string(str)
-                .map(|kind| Store(kind))
+                .map(|kind| Self::from(kind))
                 .expect(&format!("{} is not a valid store", str))
         }
     }
@@ -94,16 +175,11 @@ impl std::convert::From<String> for Store {
         Store::from(string.as_str())
     }
 }
-impl std::convert::From<StoreKind> for Store {
-    fn from(kind: StoreKind) -> Self {
-        Store(kind)
-    }
-}
-impl std::convert::Into<StoreKind> for Store {
-    fn into(self) -> StoreKind {
-        self.0
-    }
-}
+// impl std::convert::Into<StoreKind> for Store {
+//     fn into(self) -> StoreKind {
+//         self.0
+//     }
+// }
 // impl std::fmt::Display for Store { // FIXME delegate to parasite
 //     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 //         self.0.fmt(f)

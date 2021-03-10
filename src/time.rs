@@ -39,7 +39,22 @@ impl Display for Seconds {
 
 #[macro_export]
 macro_rules! timestamp {
-    ($month:ident $year:expr) => { djanco::time::Month::$month($year).to_timestamp() }
+    (January $year:expr) => { timestamp!(1/1/$year) };
+    (February $year:expr) => { timestamp!(1/2/$year) };
+    (March $year:expr) => { timestamp!(1/3/$year) };
+    (April $year:expr) => { timestamp!(1/4/$year) };
+    (May $year:expr) => { timestamp!(1/5/$year) };
+    (June $year:expr) => { timestamp!(1/6/$year) };
+    (July $year:expr) => { timestamp!(1/7/$year) };
+    (August $year:expr) => { timestamp!(1/8/$year) };
+    (September $year:expr) => { timestamp!(1/9/$year) };
+    (October $year:expr) => { timestamp!(1/10/$year) };
+    (November $year:expr) => { timestamp!(1/11/$year) };
+    (December $year:expr) => { timestamp!(1/12/$year) };
+    ($day:literal / $month:literal / $year:expr) => {{
+        use chrono::{TimeZone, Utc};
+        Utc.ymd($year as i32, $month, $day).and_hms(0, 0, 0).timestamp()
+    }}
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -84,6 +99,7 @@ impl Month {
     }
 
     pub fn to_date(&self) -> Date<Utc> {
+        //Utc.y
         Utc.ymd(self.year() as i32, self.month() as u32, 1 as u32)
     }
 

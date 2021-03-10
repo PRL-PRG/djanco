@@ -1,6 +1,6 @@
 [package]
 name = "djanco"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Konrad Siek <konrad.siek@gmail.com>"]
 edition = "2018"
 
@@ -17,14 +17,14 @@ clap = "2.27.1" # for arg_enum macro
 regex = "1.3.9"
 git2 = "0.13" # for hash in mockdb
 byteorder = "1.3.4"
-chrono = "0.4.15"
+chrono = "0.4.19"
 mashup = "0.1.12" # for some macros in data
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0.120", features = ["derive"] }
 serde_cbor = "0.11.1"
 serde_json = "1.0.59"
 bstr = "0.2.14" # for Vec<u8>::to_str_lossy
 csv = "1.1.4"
-#dcd  = { path = "../dejacode-downloader/" }                  # https://github.com/PRL-PRG/dejacode-downloader
-dcd = { git = "https://github.com/PRL-PRG/dejacode-downloader.git", branch = "realMark2" }
-#fraction = "0.6.3"
-#num = "0.3.1"
+#parasite = { path = "../parasite" }
+parasite = { git = "https://github.com/PRL-PRG/codedj-parasite.git", branch = "master" }
+anyhow = "1.0.38"
+dereference = { git = "https://github.com/electroCutie/dereference.git", branch = "main" }

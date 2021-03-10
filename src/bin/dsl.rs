@@ -1,18 +1,16 @@
 use structopt::StructOpt;
 
-use dcd::DatastoreView;
-
 use djanco::*;
 use djanco::commandline::*;
 use djanco::objects::*;
 use djanco::csv::*;
+use djanco::log::{Log, Verbosity};
 
 // `cargo run --bin dsl --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
     let config = Configuration::from_args();
     let database =
-        DatastoreView::new(config.dataset_path(), timestamp!(December 2020))
-            .with_cache(config.cache_path());
+        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), store!(JavaScript), Log::new(Verbosity::Log)).unwrap();
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 
@@ -21,9 +19,11 @@ fn main() {
     database.projects().map_into(project::Stars).into_csv(path!("select_by_stars")).unwrap();
     database.projects().group_by(project::Stars).ungroup().into_csv(path!("group_by_stars")).unwrap();
     database.projects().filter_by(Equal(project::Language, objects::Language::C)).into_csv(path!("filter_by_language_c")).unwrap();
-    database.projects().filter_by(And(AtLeast(project::Stars, 1), AtMost(project::Stars, 10))).into_csv(path!("filter_by_between_1_and_10_stars")).unwrap();
+    database.projects().filter_by(Equal(project::Language, objects::Language::JavaScript)).into_csv(path!("filter_by_language_js")).unwrap();
+    database.projects().filter_by(And(AtLeast(project::Stars, 20000), AtMost(project::Stars, 80000))).into_csv(path!("filter_by_between_20K_and_80K_stars")).unwrap();
     database.projects().filter_by(Exists(project::Stars)).into_csv(path!("filter_by_has_stars")).unwrap();
-    database.projects().filter_by(Same(project::Homepage, "http://manasource.org/")).into_csv(path!("filter_by_homepage_exact")).unwrap();
+    database.projects().filter_by(Exists(project::Homepage)).into_csv(path!("filter_by_has_homepage")).unwrap(); // recheck
+    database.projects().filter_by(Same(project::Homepage, "http://vuejs.org")).into_csv(path!("filter_by_homepage_exact")).unwrap(); // recheck
     database.projects().filter_by(Matches(project::Homepage, regex!("\\.org/?$"))).into_csv(path!("filter_by_homepage_regex")).unwrap();
     database.projects().filter_by(project::HasIssues).into_csv(path!("filter_by_has_issues")).unwrap();
     database.projects().sort_by(Count(project::Commits)).into_csv(path!("sort_by_commit_count")).unwrap();
@@ -32,6 +32,7 @@ fn main() {
     database.projects().map_into(Count(FromEachIf(project::Commits, Equal(commit::MessageLength, 0)))).into_csv(path!("select_projects_with_empty_commits")).unwrap();
     database.users().sort_by(user::Experience).sample(Top(100)).into_csv(path!("sample_top_100_experienced_users")).unwrap();
     database.paths().filter_by(Equal(path::Language, Language::Haskell)).into_csv(path!("filter_haskell_paths")).unwrap();
+    database.paths().filter_by(Equal(path::Language, Language::JavaScript)).into_csv(path!("filter_javascript_paths")).unwrap(); // recheck
     database.commits().sample(Random(100, Seed(42))).into_csv(path!("sample_100_commits")).unwrap();
     database.projects().map_into(Ratio(project::Authors, project::Users)).into_csv(path!("select_project_ratio_of_authors_to_users")).unwrap();
     database.projects().map_into(Select!(project::Id, project::URL)).into_csv(path!("select_project_ids_and_urls")).unwrap();

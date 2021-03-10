@@ -15,11 +15,12 @@
              pub mod objects;
              pub mod receipt;
              pub mod spec;
-             pub mod time;
+#[macro_use] pub mod time;
              pub mod dump;
              mod piracy;
              mod product;
 #[cfg(test)] mod testing;
+             mod source;
 
 #[macro_use] extern crate mashup;
 
@@ -59,19 +60,86 @@ use itertools::Itertools;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
+use anyhow::*;
 
-use dcd::DatastoreView;
+use parasite;
+use parasite::{StoreKind};
 
 use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
+use crate::log::{Log, Verbosity};
+use crate::source::Source;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Store(parasite::StoreKind);
+impl Store {
+    pub fn kind(&self) -> StoreKind {
+        self.0.clone()
+    }
+}
+impl std::convert::From<&str> for Store {
+    fn from(str: &str) -> Self {
+        if &str.to_lowercase() == "generic" {
+            Store(StoreKind::Generic)
+        } else {
+            StoreKind::from_string(str)
+                .map(|kind| Store(kind))
+                .expect(&format!("{} is not a valid store", str))
+        }
+    }
+}
+impl std::convert::From<String> for Store {
+    fn from(string: String) -> Self {
+        Store::from(string.as_str())
+    }
+}
+impl std::convert::From<StoreKind> for Store {
+    fn from(kind: StoreKind) -> Self {
+        Store(kind)
+    }
+}
+impl std::convert::Into<StoreKind> for Store {
+    fn into(self) -> StoreKind {
+        self.0
+    }
+}
+// impl std::fmt::Display for Store { // FIXME delegate to parasite
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         self.0.fmt(f)
+//     }
+// }
+
+#[macro_export] macro_rules! stores {
+    (All) => {
+        Vec::<crate::Store>::new()
+    };
+    ($($t:tt)*) => {{
+        let mut list: Vec<String> =
+            std::stringify!($($t)*).split(",").map(|s| s.to_owned()).collect();
+        let mut stores: Vec<crate::Store> = Vec::new();
+        for name in list {
+            let mut clean_name = name;
+            clean_name.retain(|c| !c.is_whitespace());
+            stores.push(Store::from(clean_name.as_str()));
+        }
+        stores
+    }};
+}
+
+#[macro_export] macro_rules! store {
+    ($($t:tt)+) => { stores!($($t)+) }
+}
 
 pub struct Djanco;
 impl Djanco {
-    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, _substores: Vec<String>) -> Database where Sd: Into<String>, Sc: Into<String> {
-        DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
+    // FIXME this still sucks
+    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
+        //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
+        let source = Source::new(dataset_path, savepoint, substores)?;
+        Ok(Database::new(source, cache_path, log))
     }
-    pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<String>) -> Database where Sd: Into<String> {
+    pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {
         let dataset_path = dataset_path.into();
         let cache_path = env::var("DJANCO_CACHE_PATH").unwrap_or_else(|_| {
             let mut path = PathBuf::from(dataset_path.clone());
@@ -85,12 +153,13 @@ impl Djanco {
             path.push(top);
             path.into_os_string().to_str().unwrap().to_owned()
         });
-        Djanco::from_spec(dataset_path, cache_path, savepoint, substores)
+        let log = Log::new(Verbosity::Log);
+        Djanco::from_spec(dataset_path, cache_path, savepoint, substores, log)
     }
-    pub fn from<Sd>(dataset_path: Sd) -> Database  where Sd: Into<String> {
+    pub fn from<Sd>(dataset_path: Sd) -> Result<Database>  where Sd: Into<String> {
         Djanco::from_store(dataset_path, chrono::Utc::now().timestamp(), vec![])
     }
-    pub fn new() -> Database {
+    pub fn new() -> Result<Database> {
         let dataset_path = env::var("DJANCO_DATASET_PATH")
                 .unwrap_or("/data/djcode/dataset".to_owned());
         Djanco::from(dataset_path)
@@ -509,11 +578,11 @@ pub trait AttributeGroupIterator<'a, K, T>: Sized + Iterator<Item=(K, Vec<object
     fn sort_by<A: 'a, I>(self, attribute: A)
                          -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where A: Sort<'a, T, I>, I: Ord {
-        self.sort_with_drection(sort::Direction::Descending, attribute)
+        self.sort_with_direction(sort::Direction::Descending, attribute)
     }
 
-    fn sort_with_drection<A: 'a, I>(self, direction: sort::Direction, attribute: A)
-                                    -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
+    fn sort_with_direction<A: 'a, I>(self, direction: sort::Direction, attribute: A)
+                                     -> std::vec::IntoIter<(K, Vec<objects::ItemWithData<'a, T>>)>
         where A: Sort<'a, T, I>, I: Ord {
         let vector: Vec<(K, Vec<objects::ItemWithData<'a, T>>)> =
             self.map(|(key, mut vector)| {
@@ -1198,13 +1267,13 @@ macro_rules! Select {
     };
 }
 
-pub trait DatabaseFactory {
-    fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String>;
-    //fn with<S>(self, cache_dir: S, log: log::Log) -> Database where S: Into<String>; // TODO figure out how to do this better
-}
-
-impl DatabaseFactory for dcd::DatastoreView {
-    fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String> {
-        Database::from_store(self, cache_dir)
-    }
-}
+// pub trait DatabaseFactory {
+//     fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String>;
+//     //fn with<S>(self, cache_dir: S, log: log::Log) -> Database where S: Into<String>; // TODO figure out how to do this better
+// }
+//
+// impl DatabaseFactory for parasite::DatastoreView {
+//     fn with_cache<S>(self, cache_dir: S) -> Database where S: Into<String> {
+//         Database::from_store(self, cache_dir)
+//     }
+// }

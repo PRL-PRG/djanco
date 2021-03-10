@@ -1,7 +1,5 @@
 use structopt::StructOpt;
 
-use dcd::DatastoreView;
-
 use djanco::*;
 use djanco::data::*;
 use djanco::time::*;
@@ -96,8 +94,9 @@ fn main() {
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 
     let database =
-        DatastoreView::new(config.dataset_path(), timestamp!(December 2020))
-            .with_cache(config.cache_path());
+        Djanco::from_spec(config.dataset_path(), config.cache_path(),
+                          timestamp!(December 2020), stores!(Javascript), log.clone())
+            .expect("Error initializing datastore.");
 
     stars(&config, &log, &database).into_csv(path!("stars")).unwrap();
     mean_changed_paths(&config, &log, &database).into_csv(path!("mean_changed_paths")).unwrap();

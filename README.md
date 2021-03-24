@@ -15,12 +15,12 @@ All of the examples share this commandline interface:
 Examples:
 
 ```
-cargo run --bin example1 -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
-cargo run --bin example2 -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
-cargo run --bin example3 -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
-cargo run --bin example_queries -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
-cargo run --bin paper_example -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
-cargo run --bin dsl -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
+cargo run --bin example1 --release -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
+cargo run --bin example2 --release -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
+cargo run --bin example3 --release -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
+cargo run --bin example_queries --release -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
+cargo run --bin paper_example --release -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
+cargo run --bin dsl --release -- --dataset=/mnt/data/dejacode/dataset --output=/mnt/data/dejacode/output --cache=/mnt/data/dejacode/cache
 ```
 
 All examples share the same commandline interface:

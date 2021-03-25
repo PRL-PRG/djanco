@@ -55,7 +55,7 @@ macro_rules! timed_query {
 }
 
 #[derive(Clap)]
-#[clap(version = crate_version!(), author = crate_authors!())]
+#[clap(version = crate_version!(), author = crate_authors!(), name = "Djanco query execution helper")]
 pub struct CommandLineOptions {
     #[clap(short = 'o', long = "output-path", alias = "output-dir", parse(from_os_str))]
     pub output_path: PathBuf,
@@ -66,8 +66,6 @@ pub struct CommandLineOptions {
     #[clap(short = 'd', long = "dataset-path", parse(from_os_str))]
     pub dataset_path: PathBuf,
 
-    #[clap(long = "archive")]
-    pub archive: bool,
 
     #[clap(long = "skip-results")]
     pub do_not_archive_results: bool,
@@ -76,7 +74,7 @@ pub struct CommandLineOptions {
     pub size_limit: Option<u32>,
 
     #[clap(long = "repository", alias = "repo")]
-    pub repository: String,
+    pub repository: Option<String>,
 
     #[clap(long = "verbosity", short = 'v', default_value = "log")]
     pub verbosity: Verbosity,

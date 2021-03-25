@@ -9,13 +9,13 @@ edition = "2018"
 [dependencies]
 glob = "0.2.11"
 itertools = "0.9.0"
-structopt = "0.3.16"
+structopt = "0.3.16" # TODO remove in favor of clap
 rand = "0.7.3" # for distributions and sampling
 rand_pcg = "0.2.1" # for specific/better RNG implementations
 seq = "0.5.0"
-clap = "2.27.1" # for arg_enum macro
+clap = "3.0.0-beta.2"
 regex = "1.3.9"
-git2 = "0.13" # for hash in mockdb
+git2 = "0.13" # for hash in mockdb and utils
 byteorder = "1.3.4"
 chrono = "0.4.19"
 mashup = "0.1.12" # for some macros in data
@@ -28,3 +28,6 @@ csv = "1.1.4"
 parasite = { git = "https://github.com/PRL-PRG/codedj-parasite.git", branch = "master" }
 anyhow = "1.0.38"
 dereference = { git = "https://github.com/electroCutie/dereference.git", branch = "main" }
+git2_credentials = "0.7.1"
+tempfile = "3.2.0"
+fs_extra = "1.2.0" # copying directories

@@ -21,6 +21,7 @@
              mod product;
 #[cfg(test)] mod testing;
              mod source;
+#[macro_use] pub mod utils;
 
 #[macro_use] extern crate mashup;
 
@@ -191,7 +192,7 @@ impl std::convert::From<String> for Store {
         Vec::<crate::Store>::new()
     };
     ($($t:tt)*) => {{
-        let mut list: Vec<String> =
+        let list: Vec<String> =
             std::stringify!($($t)*).split(",").map(|s| s.to_owned()).collect();
         let mut stores: Vec<crate::Store> = Vec::new();
         for name in list {

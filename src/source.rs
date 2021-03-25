@@ -56,6 +56,7 @@ type Path = String;
 type Timestamp = i64;
 type Bytes = Vec<u8>;
 
+#[allow(dead_code)]
 pub struct Source {
     store: parasite::DatastoreView,
     substore: parasite::StoreKind,

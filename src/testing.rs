@@ -10,7 +10,6 @@ use crate::objects::*;
 use crate::store;
 use crate::stores;
 use crate::Store;
-use parasite::StoreKind::Generic;
 
 fn database() -> Database {
     //let store = DatastoreView::new("/dejacode/testing/10b", now.into());

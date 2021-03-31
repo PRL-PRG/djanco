@@ -167,7 +167,7 @@ impl std::convert::From<&str> for Store {
         } else {
             StoreKind::from_string(str)
                 .map(|kind| Self::from(kind))
-                .expect(&format!("{} is not a valid store", str))
+                .expect(&format!("`{}` is not a valid store", str))
         }
     }
 }

@@ -24,8 +24,12 @@ macro_rules! create_file {
     }}
 }
 
-pub trait CSV {
+pub trait CSV: Sized {
     fn into_csv(self, location: impl Into<String>) -> Result<(), std::io::Error>;
+    fn into_csv_in_dir(self, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
+        let location = dir.join(PathBuf::from(file.into()));
+        self.into_csv(location.into_os_string().to_str().unwrap())
+    }
 }
 
 impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {

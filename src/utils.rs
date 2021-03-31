@@ -251,6 +251,7 @@ fn populate_directory_from(repository_path: &PathBuf, project_path: &PathBuf) {
 
 fn commit_all<S>(repository: &git2::Repository, message: S) where S: Into<String> {
     let message = message.into();
+    println!("Preparing a commit with message \"{}\"", message);
 
     let signature = repository.signature().unwrap();
     let mut index = repository.index().unwrap();
@@ -276,6 +277,9 @@ fn commit_all<S>(repository: &git2::Repository, message: S) where S: Into<String
 }
 
 fn push<S>(repository: &git2::Repository, branch: S) where S: Into<String> {
+    let branch = branch.into();
+    println!("Attempting to push commit to branch {}", branch);
+
     let mut remote = repository.find_remote("origin").expect("No `origin` remote in repository");
 
     let git_config = git2::Config::open_default().unwrap();
@@ -289,9 +293,9 @@ fn push<S>(repository: &git2::Repository, branch: S) where S: Into<String> {
     let mut push_options = git2::PushOptions::new();
     push_options.remote_callbacks(callbacks);
 
-    remote.refspecs().for_each(|e| println!("{:?}", e.str()));
+    //remote.refspecs().for_each(|e| println!("{:?}", e.str()));
 
-    remote.push(&[&format!("refs/heads/{}", branch.into())], Some(&mut push_options))
+    remote.push(&[&format!("refs/heads/{}", branch)], Some(&mut push_options))
         .expect(&format!("Error pushing to {}", remote.url().unwrap()));
 }
 

@@ -14,6 +14,7 @@ use crate::data::Database;
 use crate::time::Duration;
 use crate::iterators::*;
 use crate::weights_and_measures::Weighed;
+use crate::Timestamp;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum Language {
@@ -346,7 +347,7 @@ impl Project {
     pub fn new              (id: ProjectId, url: String) -> Self                            { Project { id, url }                            }
     pub fn url              (&self)                      -> String                          { self.url.to_string()                           }
 
-    pub fn timestamp        (&self,     _: &Database)    -> i64                             { unimplemented!()  /* waiting for parasite */   }
+    pub fn timestamp        (&self,     _: &Database)    -> Timestamp                             { unimplemented!()  /* waiting for parasite */   }
     pub fn issue_count      (&self, store: &Database)    -> Option<usize>                   { store.project_issues(&self.id)                 }
     pub fn buggy_issue_count(&self, store: &Database)    -> Option<usize>                   { store.project_buggy_issues(&self.id)           }
 
@@ -389,9 +390,9 @@ impl Project {
     pub fn has_downloads    (&self, store: &Database)    -> Option<bool>                    { store.project_has_downloads(&self.id)          }
     pub fn has_wiki         (&self, store: &Database)    -> Option<bool>                    { store.project_has_wiki(&self.id)               }
     pub fn has_pages        (&self, store: &Database)    -> Option<bool>                    { store.project_has_pages(&self.id)              }
-    pub fn created          (&self, store: &Database)    -> Option<i64>                     { store.project_created(&self.id)                }
-    pub fn updated          (&self, store: &Database)    -> Option<i64>                     { store.project_updated(&self.id)                }
-    pub fn pushed           (&self, store: &Database)    -> Option<i64>                     { store.project_pushed(&self.id)                 }
+    pub fn created          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_created(&self.id)                }
+    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_updated(&self.id)                }
+    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)                 }
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_master(&self.id)                 }
     // TODO project commit frequency
 }
@@ -507,12 +508,13 @@ impl Commit {
     pub fn message            (&self, store: &Database) -> Option<String>                     {  store.commit_message(&self.id)                     }
     pub fn message_length     (&self, store: &Database) -> Option<usize>                      {  self.message(store).map(|s| s.len()) }
 
-    pub fn author_timestamp   (&self, store: &Database) -> Option<i64>                        {  store.commit_author_timestamp(&self.id)            }
-    pub fn committer_timestamp(&self, store: &Database) -> Option<i64>                        {  store.commit_committer_timestamp(&self.id)         }
+    pub fn author_timestamp   (&self, store: &Database) -> Option<Timestamp>                        {  store.commit_author_timestamp(&self.id)            }
+    pub fn committer_timestamp(&self, store: &Database) -> Option<Timestamp>                        {  store.commit_committer_timestamp(&self.id)         }
 
-    pub fn changes             (&self, store: &Database) -> Option<Vec<Change>>               {  store.commit_changes(&self.id)                  }
+    pub fn changes             (&self, store: &Database) -> Option<Vec<Change>>               {  store.commit_changes(&self.id)                     }
     pub fn changed_path_ids    (&self, store: &Database) -> Option<Vec<PathId>>               {  store.commit_changes(&self.id).map(|v| v.into_iter().map(|change| change.path_id()).unique().collect())     }
     pub fn changed_snapshot_ids(&self, store: &Database) -> Option<Vec<SnapshotId>>           {  store.commit_changes(&self.id).map(|v| v.into_iter().flat_map(|change| change.snapshot_id()).unique().collect())     }
+    pub fn change_count        (&self, store: &Database) -> Option<usize>                     {  store.commit_change_count(&self.id)                }
 
     pub fn changed_paths       (&self, store: &Database) -> Option<Vec<Path>>                 {  store.commit_changed_paths(&self.id)               }
     pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
@@ -736,9 +738,9 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn has_downloads    (&self)    -> Option<bool>                    { self.item.has_downloads(&self.data)          }
     pub fn has_wiki         (&self)    -> Option<bool>                    { self.item.has_wiki(&self.data)               }
     pub fn has_pages        (&self)    -> Option<bool>                    { self.item.has_pages(&self.data)              }
-    pub fn created          (&self)    -> Option<i64>                     { self.item.created(&self.data)                }
-    pub fn updated          (&self)    -> Option<i64>                     { self.item.updated(&self.data)                }
-    pub fn pushed           (&self)    -> Option<i64>                     { self.item.pushed(&self.data)                 }
+    pub fn created          (&self)    -> Option<Timestamp>                     { self.item.created(&self.data)                }
+    pub fn updated          (&self)    -> Option<Timestamp>                     { self.item.updated(&self.data)                }
+    pub fn pushed           (&self)    -> Option<Timestamp>                     { self.item.pushed(&self.data)                 }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)         }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
@@ -806,9 +808,10 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn hash               (&self) -> Option<String>                     { self.item.hash(&self.data)                 }
     pub fn message            (&self) -> Option<String>                     { self.item.message(&self.data)              }
     pub fn message_length     (&self) -> Option<usize>                      { self.item.message_length(&self.data)       }
-    pub fn author_timestamp   (&self) -> Option<i64>                        { self.item.author_timestamp(&self.data)     }
-    pub fn committer_timestamp(&self) -> Option<i64>                        { self.item.committer_timestamp(&self.data)  }
-    pub fn changes            (&self) -> Option<Vec<Change>>                { self.item.changes(&self.data)                    }
+    pub fn author_timestamp   (&self) -> Option<Timestamp>                        { self.item.author_timestamp(&self.data)     }
+    pub fn committer_timestamp(&self) -> Option<Timestamp>                        { self.item.committer_timestamp(&self.data)  }
+    pub fn changes            (&self) -> Option<Vec<Change>>                { self.item.changes(&self.data)              }
+    pub fn change_count       (&self) -> Option<usize>                      { self.item.change_count(&self.data)         }
     pub fn changed_path_ids    (&self) -> Option<Vec<PathId>>               { self.item.changed_path_ids(&self.data)     }
     pub fn changed_snapshot_ids(&self) -> Option<Vec<SnapshotId>>           { self.item.changed_snapshot_ids(&self.data) }
     pub fn changed_paths       (&self) -> Option<Vec<Path>>                 { self.item.changed_paths(&self.data)        }

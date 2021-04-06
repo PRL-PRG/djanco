@@ -61,6 +61,7 @@ use itertools::Itertools;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
+use chrono::{NaiveDateTime, DateTime, Utc};
 use anyhow::*;
 
 use parasite;
@@ -72,6 +73,26 @@ use crate::data::Database;
 use crate::log::{Log, Verbosity};
 use crate::source::Source;
 use std::fmt::Display;
+
+pub type Timestamp = i64;
+
+pub trait AsTimestamp {
+    fn as_naive_date_string(&self) -> String;
+    fn as_utc_rfc2822_string(&self) -> String;
+    fn as_utc_rfc3339_string(&self) -> String;
+}
+
+impl AsTimestamp for Timestamp {
+    fn as_naive_date_string(&self) -> String {
+        NaiveDateTime::from_timestamp(*self, 0).to_string()
+    }
+    fn as_utc_rfc2822_string(&self) -> String {
+        DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(*self, 0), Utc).to_rfc2822()
+    }
+    fn as_utc_rfc3339_string(&self) -> String {
+        DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(*self, 0), Utc).to_rfc3339()
+    }
+}
 
 pub mod store {
     use std::fmt::Display;
@@ -249,12 +270,12 @@ impl std::convert::From<String> for Store {
 
 pub struct CacheDir {
     root_dir: PathBuf,
-    savepoint: i64,
+    savepoint: Timestamp,
     substores: Vec<Store>,
 }
 
 impl CacheDir {
-    pub fn from<S>( cache_path: S, savepoint: i64, mut substores: Vec<Store>) -> Self where S: Into<String> {
+    pub fn from<S>( cache_path: S, savepoint: Timestamp, mut substores: Vec<Store>) -> Self where S: Into<String> {
         //<PathBuf as std::convert::From<String>>.from(root_dir.into());
         let root_dir: PathBuf = std::convert::From::<String>::from(cache_path.into());
         substores.sort();
@@ -276,13 +297,13 @@ impl CacheDir {
 pub struct Djanco;
 impl Djanco {
     // FIXME this still sucks
-    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
+    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
         let cache_dir = CacheDir::from(cache_path, savepoint, substores.clone());
         let source = Source::new(dataset_path, savepoint, substores)?;
         Ok(Database::new(source, cache_dir, log))
     }
-    pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {
+    pub fn from_store<Sd>(dataset_path: Sd, savepoint: Timestamp, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {
         let dataset_path = dataset_path.into();
         let cache_path = env::var("DJANCO_CACHE_PATH").unwrap_or_else(|_| {
             let mut path = PathBuf::from(dataset_path.clone());
@@ -525,6 +546,7 @@ pub mod project {
     use crate::objects;
     use crate::time;
     use crate::attrib::*;
+    use crate::Timestamp;
 
     impl_attribute![!+    objects::Project, Itself];
     impl_attribute![!     objects::Project, Raw];
@@ -549,9 +571,9 @@ pub mod project {
     impl_attribute![?     objects::Project, HasDownloads, bool, has_downloads];
     impl_attribute![?     objects::Project, HasWiki, bool, has_wiki];
     impl_attribute![?     objects::Project, HasPages, bool, has_pages];
-    impl_attribute![?     objects::Project, Created, i64, created];
-    impl_attribute![?     objects::Project, Updated, i64, updated];
-    impl_attribute![?     objects::Project, Pushed, i64, pushed];
+    impl_attribute![?     objects::Project, Created, Timestamp, created];
+    impl_attribute![?     objects::Project, Updated, Timestamp, updated];
+    impl_attribute![?     objects::Project, Pushed, Timestamp, pushed];
     impl_attribute![?     objects::Project, DefaultBranch, String, default_branch];
     impl_attribute![?     objects::Project, Age, time::Duration, lifetime];
     impl_attribute![?+..  objects::Project, Heads, objects::Head, heads_with_data, head_count];
@@ -572,6 +594,7 @@ pub mod project {
 pub mod commit {
     use crate::objects;
     use crate::attrib::*;
+    use crate::Timestamp;
 
     impl_attribute![!+   objects::Commit, Itself];
     impl_attribute![!    objects::Commit, Raw];
@@ -583,8 +606,9 @@ pub mod commit {
     impl_attribute![?    objects::Commit, Hash, String, hash];
     impl_attribute![?    objects::Commit, Message, String, message];
     impl_attribute![?    objects::Commit, MessageLength, usize, message_length];
-    impl_attribute![?    objects::Commit, AuthoredTimestamp, i64, author_timestamp];
-    impl_attribute![?    objects::Commit, CommittedTimestamp, i64, committer_timestamp];
+    impl_attribute![?    objects::Commit, AuthoredTimestamp, Timestamp, author_timestamp];
+    impl_attribute![?    objects::Commit, CommittedTimestamp, Timestamp, committer_timestamp];
+    impl_attribute![?..  objects::Commit, Changes, objects::Change, changes, change_count];
     impl_attribute![?..  objects::Commit, PathIds, objects::PathId, changed_path_ids, changed_path_count];
     impl_attribute![?..  objects::Commit, SnapshotIds, objects::SnapshotId, changed_snapshot_ids, changed_snapshot_count];
     impl_attribute![!..  objects::Commit, ParentIds, objects::CommitId, parent_ids, parent_count];
@@ -1375,6 +1399,8 @@ impl_select!(Select7,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg 
 impl_select!(Select8,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7);
 impl_select!(Select9,  Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8);
 impl_select!(Select10, Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9);
+impl_select!(Select11, Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9, Tk -> 10);
+impl_select!(Select12, Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9, Tk -> 10, Tl -> 11);
 
 #[macro_export]
 macro_rules! Select {
@@ -1408,6 +1434,12 @@ macro_rules! Select {
     ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr, $tg:expr, $th:expr, $ti:expr, $tj:expr) => {
         Select10($ta, $tb, $tc, $td, $te, $tf, $tg, $th, $ti, $tj)
     };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr, $tg:expr, $th:expr, $ti:expr, $tj:expr, $tk:expr) => {
+        Select11($ta, $tb, $tc, $td, $te, $tf, $tg, $th, $ti, $tj, $tk)
+    };
+    ($ta:expr, $tb:expr, $tc:expr, $td:expr, $te:expr, $tf:expr, $tg:expr, $th:expr, $ti:expr, $tj:expr, $tk:expr, $tl:expr) => {
+        Select12($ta, $tb, $tc, $td, $te, $tf, $tg, $th, $ti, $tj, $tk, $tl)
+    };
 }
 
 // pub trait DatabaseFactory {
@@ -1420,3 +1452,124 @@ macro_rules! Select {
 //         Database::from_store(self, cache_dir)
 //     }
 // }
+
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
+pub enum Date {
+    NaiveDate,
+    Rfc2822,
+    Rfc3339,
+}
+
+impl Date {
+    pub fn format_date<T>(&self, timestamp: T) -> String where T: AsTimestamp {
+        match self {
+            Date::NaiveDate => timestamp.as_naive_date_string(),
+            Date::Rfc2822 => timestamp.as_utc_rfc2822_string(),
+            Date::Rfc3339 => timestamp.as_utc_rfc3339_string(),
+        }
+    }
+}
+
+pub struct FormatDate<A: Attribute> (pub Date, pub A);
+
+impl<'a, A, T> Attribute for FormatDate<A> where A: Attribute<Object=T> {
+    type Object = T;
+}
+
+impl<'a, A, T> OptionGetter<'a> for FormatDate<A>
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Timestamp> {
+    type IntoItem = String;
+    fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+        self.1.get_opt(object).map(|timestamp| self.0.format_date(timestamp))
+    }
+}
+
+impl<'a, A, T> Getter<'a> for FormatDate<A>
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=Timestamp> {
+    type IntoItem = Option<String>;
+    fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+        self.1.get_opt(object).map(|timestamp| self.0.format_date(timestamp))
+    }
+}
+
+pub struct FormatDuration<A: Attribute> (pub A);
+
+impl<A> FormatDuration<A> where A: Attribute {
+    const SECONDS_IN_A_YEAR: u64 = 60 * 60 * 24 * 365;
+    const SECONDS_IN_A_MONTH: u64 = 60 * 60 * 24 * 30;
+    const SECONDS_IN_A_WEEK: u64 = 60 * 60 * 24 * 7;
+    const SECONDS_IN_A_DAY: u64 = 60 * 60 * 24;
+    const SECONDS_IN_AN_HOUR: u64 = 60 * 60;
+    const SECONDS_IN_A_MINUTE: u64 = 60;
+    pub fn to_fuzzy_duration(duration: crate::time::Duration) -> String { // TODO this should be somewhere more useful like Duration or Seconds
+        let seconds = duration.as_seconds();
+
+        let (years, seconds) = (seconds % Self::SECONDS_IN_A_YEAR, seconds / Self::SECONDS_IN_A_YEAR);
+        let (months, seconds) = (seconds % Self::SECONDS_IN_A_MONTH, seconds / Self::SECONDS_IN_A_MONTH);
+        if years != 0 {
+            if months != 0 {
+                return format!("{}yr {}mt", years, months)
+            } else {
+                return format!("{}yr", years)
+            }
+        }
+
+        let (weeks, seconds) = (seconds % Self::SECONDS_IN_A_WEEK, seconds / Self::SECONDS_IN_A_WEEK);
+        if months != 0 {
+            if weeks != 0 {
+                return format!("{}mt {}wk", months, weeks)
+            } else {
+                return format!("{}mt", weeks)
+            }
+        }
+
+        let (days, seconds) = (seconds % Self::SECONDS_IN_A_DAY, seconds / Self::SECONDS_IN_A_DAY);
+        if weeks != 0 {
+            if days != 0 {
+                return format!("{}wk {}d", weeks, days)
+            } else {
+                return format!("{}wk", weeks)
+            }
+        }
+
+        let (hours, seconds) = (seconds % Self::SECONDS_IN_AN_HOUR, seconds / Self::SECONDS_IN_AN_HOUR);
+        if days != 0 {
+            if hours != 0 {
+                return format!("{}d {}hr", days, hours)
+            } else {
+                return format!("{}d", days)
+            }
+        }
+
+        let (minutes, seconds) = (seconds % Self::SECONDS_IN_A_MINUTE, seconds / Self::SECONDS_IN_A_MINUTE);
+        if hours != 0 {
+            if minutes != 0 {
+                return format!("{}hr {}min", hours, minutes)
+            } else {
+                return format!("{}hr", hours)
+            }
+        }
+
+        return format!("{}min {}sec", minutes, seconds)
+    }
+}
+
+impl<'a, A, T> Attribute for FormatDuration<A> where A: Attribute<Object=T> {
+    type Object = T;
+}
+
+impl<'a, A, T> OptionGetter<'a> for FormatDuration<A>
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=crate::time::Duration> {
+    type IntoItem = String;
+    fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+        self.0.get_opt(object).map(|duration| Self::to_fuzzy_duration(duration))
+    }
+}
+
+impl<'a, A, T> Getter<'a> for FormatDuration<A>
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=crate::time::Duration> {
+    type IntoItem = Option<String>;
+    fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+        self.0.get_opt(object).map(|duration| Self::to_fuzzy_duration(duration))
+    }
+}

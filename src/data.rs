@@ -802,7 +802,6 @@ pub(crate) struct Data {
 impl Data {
     pub fn new(/*source: DataSource,*/ cache_dir: CacheDir, log: Log) -> Data {
         let dir = cache_dir.as_string();
-        println!("CACHE DIRRRRRR {}", dir);
         Data {
             project_urls:                PersistentMap::new("project_urls",                log.clone(),dir.clone()).without_cache(),
             project_heads:               PersistentMap::new("project_heads",               log.clone(),dir.clone()),

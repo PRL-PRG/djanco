@@ -33,6 +33,12 @@ impl Display for Seconds {
     }
 }
 
+// impl From<std::time::Duration> for Seconds {
+//     fn from(duration: Duration) -> Self {
+//         Seconds(duration.as_seconds())
+//     }
+// }
+
 // impl ToString for Seconds {
 //     fn to_string(&self) -> String { self.0.to_string() }
 // }

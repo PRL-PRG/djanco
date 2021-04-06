@@ -24,20 +24,28 @@ macro_rules! create_file {
     }}
 }
 
-pub trait CSV: Sized {
-    fn into_csv(self, location: impl Into<String>) -> Result<(), std::io::Error>;
+pub trait CSV<T>: Sized where T: CSVItem {
+    fn into_csv_with_headers(self, headers: Vec<&str>, location: impl Into<String>) -> Result<(), std::io::Error>;
+    fn into_csv_with_headers_in_dir(self, headers: Vec<&str>, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
+        let location = dir.join(PathBuf::from(file.into()));
+        self.into_csv_with_headers(headers, location.into_os_string().to_str().unwrap())
+    }
+    fn into_csv(self, location: impl Into<String>) -> Result<(), std::io::Error> {
+        self.into_csv_with_headers(T::column_headers(), location)
+    }
     fn into_csv_in_dir(self, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
         let location = dir.join(PathBuf::from(file.into()));
         self.into_csv(location.into_os_string().to_str().unwrap())
     }
 }
 
-impl<I, T> CSV for I where I: Iterator<Item=T>, T: CSVItem {
-    fn into_csv(self, location: impl Into<String>) -> Result<(), std::io::Error> {
+impl<I, T> CSV<T> for I where I: Iterator<Item=T>, T: CSVItem {
+    fn into_csv_with_headers(self, headers: Vec<&str>, location: impl Into<String>) -> Result<(), std::io::Error> {
         let location = location.into();
         eprintln!("Writing to CSV file at {}", location);
         let mut file = create_file!(location)?;
-        T::write_column_headers_to(&mut file)?;
+        //T::write_column_headers_to(&mut file)?;
+        writeln!(file, "{}", headers.to_comma_separated_string())?;
         for element in self {
             element.write_csv_items_to(&mut file)?;
         }
@@ -266,6 +274,8 @@ impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg ->
 impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7);
 impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8);
 impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9, Tk -> 10);
+impl_csv_item_tuple!(Ta -> 0, Tb -> 1, Tc -> 2, Td -> 3, Te -> 4, Tf -> 5, Tg -> 6, Th -> 7, Ti -> 8, Tj -> 9, Tk -> 10, Tl -> 11);
 
 impl<T> CSVItem for Vec<T> where T: CSVItem {
     fn column_headers() -> Vec<&'static str> {
@@ -482,7 +492,7 @@ impl CSVItem for User {
 impl<'a> CSVItem for ItemWithData<'a, User> {
     fn column_headers() -> Vec<&'static str> {
         vec!["user_id", "email",
-             "authored_commits", "committed_committs",
+             "authored_commits", "committed_commits",
              "author_experience", "committer_experience", "experience"]
     }
 

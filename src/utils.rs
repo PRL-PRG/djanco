@@ -98,7 +98,7 @@ impl CommandLineOptions {
         self.dataset_path.as_os_str().to_str().unwrap()
     }
     pub fn cache_path_as_str(&self) -> &str {
-        self.dataset_path.as_os_str().to_str().unwrap()
+        self.cache_path.as_os_str().to_str().unwrap()
     }
 }
 

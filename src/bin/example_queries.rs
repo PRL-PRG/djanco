@@ -40,7 +40,7 @@ fn experienced_author<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
     database
         .projects()
         .group_by(project::Language)
-        //.filter_by_attrib(AtLeast(Count(project::Users), 1))
+        //.filter_by_attrib(AsetLeast(Count(project::Users), 1))
         .filter_by(AtLeast(Count(FromEachIf(project::Users, AtLeast(user::Experience, Duration::from_years(2)))), 1))
         //.filter_by_attrib(Exists(project::UsersWith(MoreThan(user::Experience, Seconds::from_years(2)))))
         .sort_by(Count(project::Commits))

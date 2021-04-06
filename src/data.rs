@@ -16,6 +16,7 @@ use crate::weights_and_measures::Weighed;
 use crate::time::Duration;
 use crate::csv::*;
 use crate::source::Source;
+use crate::CacheDir;
 
 // Internally Mutable Data
 pub struct Database {
@@ -34,7 +35,7 @@ impl Database {
     //     Database { data: RefCell::new(Data::new(cache_dir, log.clone())), source, log }
     // }
     //pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, subsources: Vec<source>) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
-    pub fn new<S>(source: Source, cache_dir: S, log: Log) -> Self where S: Into<String> {
+    pub fn new(source: Source, cache_dir: CacheDir, log: Log) -> Self {
         let data = RefCell::new(Data::new(cache_dir, log.clone()));
         Database { data, source, log }
     }
@@ -799,8 +800,9 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub fn new<S>(/*source: DataSource,*/ cache_dir: S, log: Log) -> Data where S: Into<String> {
-        let dir = cache_dir.into();
+    pub fn new(/*source: DataSource,*/ cache_dir: CacheDir, log: Log) -> Data {
+        let dir = cache_dir.as_string();
+        println!("CACHE DIRRRRRR {}", dir);
         Data {
             project_urls:                PersistentMap::new("project_urls",                log.clone(),dir.clone()).without_cache(),
             project_heads:               PersistentMap::new("project_heads",               log.clone(),dir.clone()),

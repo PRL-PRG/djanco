@@ -71,9 +71,12 @@ use crate::fraction::*;
 use crate::data::Database;
 use crate::log::{Log, Verbosity};
 use crate::source::Source;
+use std::fmt::Display;
 
 pub mod store {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    use std::fmt::Display;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
     pub enum Language {
         C,
         Cpp,
@@ -95,13 +98,49 @@ pub mod store {
         Shell,
         TypeScript,
     }
+
+    impl Display for Language {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match self {
+                Language::C => write!(f, "C"),
+                Language::Cpp => write!(f, "Cpp"),
+                Language::CSharp => write!(f, "CSharp"),
+                Language::Clojure => write!(f, "Clojure"),
+                Language::CoffeeScript => write!(f, "CoffeeScript"),
+                Language::Erlang => write!(f, "Erlang"),
+                Language::Go => write!(f, "Go"),
+                Language::Haskell => write!(f, "Haskell"),
+                Language::HTML => write!(f, "HTML"),
+                Language::Java => write!(f, "Java"),
+                Language::JavaScript => write!(f, "JavaScript"),
+                Language::ObjectiveC => write!(f, "ObjectiveC"),
+                Language::Perl => write!(f, "Perl"),
+                Language::PHP => write!(f, "PHP"),
+                Language::Python => write!(f, "Python"),
+                Language::Ruby => write!(f, "Ruby"),
+                Language::Scala => write!(f, "Scala"),
+                Language::Shell => write!(f, "Shell"),
+                Language::TypeScript => write!(f, "TypeScript"),
+            }
+        }
+    }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Store {
     Small,
     Large(store::Language),
     Generic,
+}
+
+impl Display for Store {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Store::Small => write!(f, "SmallProjects"),
+            Store::Large(language) => write!(f, "{}", language),
+            Store::Generic => write!(f, "Generic"),
+        }
+    }
 }
 
 impl Store {
@@ -208,13 +247,40 @@ impl std::convert::From<String> for Store {
     ($($t:tt)+) => { stores!($($t)+) }
 }
 
+pub struct CacheDir {
+    root_dir: PathBuf,
+    savepoint: i64,
+    substores: Vec<Store>,
+}
+
+impl CacheDir {
+    pub fn from<S>( cache_path: S, savepoint: i64, mut substores: Vec<Store>) -> Self where S: Into<String> {
+        //<PathBuf as std::convert::From<String>>.from(root_dir.into());
+        let root_dir: PathBuf = std::convert::From::<String>::from(cache_path.into());
+        substores.sort();
+        CacheDir { root_dir, savepoint, substores }
+    }
+    pub fn as_path(&self) -> std::path::PathBuf {
+        let mut cache_dir = self.root_dir.clone();
+        let stores = self.substores.iter().map(|store| store.to_string()).join("_");
+        let date_time = chrono::NaiveDateTime::from_timestamp(self.savepoint, 0);
+        cache_dir.push(stores);
+        cache_dir.push(date_time.format("%Y-%m-%d-%H-%M-%S").to_string());
+        cache_dir
+    }
+    pub fn as_string(&self) -> String {
+        self.as_path().to_str().unwrap().to_owned()
+    }
+}
+
 pub struct Djanco;
 impl Djanco {
     // FIXME this still sucks
     pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
+        let cache_dir = CacheDir::from(cache_path, savepoint, substores.clone());
         let source = Source::new(dataset_path, savepoint, substores)?;
-        Ok(Database::new(source, cache_path, log))
+        Ok(Database::new(source, cache_dir, log))
     }
     pub fn from_store<Sd>(dataset_path: Sd, savepoint: i64, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {
         let dataset_path = dataset_path.into();

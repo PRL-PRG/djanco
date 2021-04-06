@@ -14,7 +14,7 @@ use crate::data::Database;
 use crate::time::Duration;
 use crate::iterators::*;
 use crate::weights_and_measures::Weighed;
-use crate::Timestamp;
+use crate::{Timestamp, Store};
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum Language {
@@ -395,6 +395,8 @@ impl Project {
     pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)                 }
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_master(&self.id)                 }
     // TODO project commit frequency
+
+    pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -742,6 +744,8 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn updated          (&self)    -> Option<Timestamp>                     { self.item.updated(&self.data)                }
     pub fn pushed           (&self)    -> Option<Timestamp>                     { self.item.pushed(&self.data)                 }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)         }
+
+    pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)         }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)

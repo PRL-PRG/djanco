@@ -81,6 +81,15 @@ impl Source {
             })
     }
 
+    pub fn project_substores(&self) -> impl Iterator<Item=(objects::ProjectId, Store)> {
+        self.store.project_substores()
+            .into_iter()
+            .map(|(id, kind)| {
+                (convert!(ProjectId from id), Store::from(kind))
+            })
+    }
+
+
     pub fn project_credentials(&self) -> impl Iterator<Item=(objects::ProjectId, String)> {
         self.store.project_urls()
             .into_iter()

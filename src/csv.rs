@@ -3,6 +3,7 @@ use std::fs::{File, create_dir_all};
 use std::path::PathBuf;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
+use std::fmt::Display;
 
 use itertools::Itertools;
 
@@ -13,7 +14,7 @@ use crate::fraction::*;
 use crate::product::*;
 use crate::time::Duration;
 use crate::metadata::ProjectMetadata;
-use std::fmt::Display;
+use crate::Store;
 
 macro_rules! create_file {
     ($location:expr) => {{
@@ -319,6 +320,7 @@ impl_csv_item_to_string!(f32, "n");
 impl_csv_item_quoted!(String, "string");
 
 impl_csv_item_to_string!(Language, "language");
+impl_csv_item_to_string!(Store, "store");
 impl_csv_item_to_string!(Duration, "duration");
 impl_csv_item!(Fraction<N> where N: Fractionable -> "n", |selfie: &Fraction<N>| vec![selfie.as_fraction_string()]);
 
@@ -388,7 +390,7 @@ impl CSVItem for Project {
 
 impl<'a> CSVItem for ItemWithData<'a, Project> {
     fn column_headers() -> Vec<&'static str> {
-        vec!["project_id", "url",
+        vec!["project_id", "substore", "url",
              "is_fork", "is_archived", "is_disabled",
              "stars", "watchers", "size", "open_issues", "forks", "subscribers",
              "language",
@@ -402,6 +404,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
 
     fn row(&self) -> Vec<String> {
         vec![self.id().to_string(),
+             self.substore().to_string_or_empty(),
              self.url(),
              self.is_fork().to_string_or_empty(),
              self.is_archived().to_string_or_empty(),
@@ -437,6 +440,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
     fn rows(&self) -> Vec<Vec<String>> {
         vec![vec![
             self.id().to_string(),
+            self.substore().to_string_or_empty(),
             self.url(),
             self.is_fork().to_string_or_empty(),
             self.is_archived().to_string_or_empty(),

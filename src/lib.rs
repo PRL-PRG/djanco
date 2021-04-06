@@ -56,6 +56,7 @@ use std::marker::PhantomData;
 use std::collections::*;
 use std::env;
 use std::path::PathBuf;
+use std::fmt::Display;
 
 use itertools::Itertools;
 use rand_pcg::Pcg64Mcg;
@@ -72,7 +73,6 @@ use crate::fraction::*;
 use crate::data::Database;
 use crate::log::{Log, Verbosity};
 use crate::source::Source;
-use std::fmt::Display;
 
 pub type Timestamp = i64;
 
@@ -97,7 +97,7 @@ impl AsTimestamp for Timestamp {
 pub mod store {
     use std::fmt::Display;
 
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]
     pub enum Language {
         C,
         Cpp,
@@ -147,7 +147,7 @@ pub mod store {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub enum Store {
     Small,
     Large(store::Language),
@@ -547,6 +547,7 @@ pub mod project {
     use crate::time;
     use crate::attrib::*;
     use crate::Timestamp;
+    use crate::Store;
 
     impl_attribute![!+    objects::Project, Itself];
     impl_attribute![!     objects::Project, Raw];
@@ -565,6 +566,7 @@ pub mod project {
     impl_attribute![?     objects::Project, Subscribers, usize, subscriber_count];
     impl_attribute![?     objects::Project, License, String, license];
     impl_attribute![?     objects::Project, Language, objects::Language, language];
+    impl_attribute![?     objects::Project, Substore, Store, substore];
     impl_attribute![?     objects::Project, Description, String, description];
     impl_attribute![?     objects::Project, Homepage, String, homepage];
     impl_attribute![?     objects::Project, HasIssues, bool, has_issues];

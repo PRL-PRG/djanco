@@ -12,11 +12,11 @@ use crate::persistent::*;
 use crate::iterators::*;
 use crate::metadata::*;
 use crate::log::*;
-use crate::weights_and_measures::Weighed;
+use crate::weights_and_measures::{Weighed};
 use crate::time::Duration;
 use crate::csv::*;
 use crate::source::Source;
-use crate::CacheDir;
+use crate::{CacheDir, Store};
 
 // Internally Mutable Data
 pub struct Database {
@@ -131,6 +131,9 @@ impl Database {
     }
     pub fn project_language(&self, id: &ProjectId) -> Option<Language> {
         self.data.borrow_mut().project_language(&self.source, id)
+    }
+    pub fn project_substore(&self, id: &ProjectId) -> Option<Store> {
+        self.data.borrow_mut().project_substore(&self.source, id)
     }
     pub fn project_description(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_description(&self.source, id)
@@ -319,6 +322,18 @@ impl SingleMapExtractor for ProjectUrlExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         source.project_urls().collect()
+    }
+}
+
+struct ProjectSubstoreExtractor;
+impl MapExtractor for ProjectSubstoreExtractor {
+    type Key = ProjectId;
+    type Value = Store;
+}
+impl SingleMapExtractor for ProjectSubstoreExtractor {
+    type A = Source;
+    fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        source.project_substores().collect()
     }
 }
 
@@ -756,6 +771,7 @@ impl SingleMapExtractor for AuthorTimestampExtractor {
 
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
+    project_substores:           PersistentMap<ProjectSubstoreExtractor>,
     project_urls:                PersistentMap<ProjectUrlExtractor>,
     project_heads:               PersistentMap<ProjectHeadsExtractor>,
     project_paths:               PersistentMap<ProjectPathsExtractor>,
@@ -804,6 +820,7 @@ impl Data {
         let dir = cache_dir.as_string();
         Data {
             project_urls:                PersistentMap::new("project_urls",                log.clone(),dir.clone()).without_cache(),
+            project_substores:           PersistentMap::new("project_substores",           log.clone(),dir.clone()).without_cache(),
             project_heads:               PersistentMap::new("project_heads",               log.clone(),dir.clone()),
             project_paths:               PersistentMap::new("project_paths",               log.clone(),dir.clone()),
             project_path_count:          PersistentMap::new("project_path_count",          log.clone(),dir.clone()),
@@ -1036,6 +1053,10 @@ impl Data {
             .pirate()
             .map(|seconds| Duration::from(seconds))
     }
+    pub fn project_substore(&mut self, source: &Source, id: &ProjectId) -> Option<Store> {
+        self.smart_load_project_substore(source).get(id)
+            .pirate()
+    }
     pub fn user(&mut self, source: &Source, id: &UserId) -> Option<&User> {
         self.smart_load_users(source).get(id)
     }
@@ -1138,6 +1159,9 @@ macro_rules! load_with_prerequisites {
 }
 
 impl Data {
+    fn smart_load_project_substore(&mut self, source: &Source) -> &BTreeMap<ProjectId, Store> {
+        load_from_source!(self, project_substores, source)
+    }
     fn smart_load_project_urls(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
         load_from_source!(self, project_urls, source)
     }

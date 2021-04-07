@@ -1506,8 +1506,8 @@ impl<A> FormatDuration<A> where A: Attribute {
     pub fn to_fuzzy_duration(duration: crate::time::Duration) -> String { // TODO this should be somewhere more useful like Duration or Seconds
         let seconds = duration.as_seconds();
 
-        let (years, seconds) = (seconds % Self::SECONDS_IN_A_YEAR, seconds / Self::SECONDS_IN_A_YEAR);
-        let (months, seconds) = (seconds % Self::SECONDS_IN_A_MONTH, seconds / Self::SECONDS_IN_A_MONTH);
+        let (years, seconds) = (seconds / Self::SECONDS_IN_A_YEAR, seconds % Self::SECONDS_IN_A_YEAR);
+        let (months, seconds) = (seconds / Self::SECONDS_IN_A_MONTH, seconds % Self::SECONDS_IN_A_MONTH);
         if years != 0 {
             if months != 0 {
                 return format!("{}yr {}mt", years, months)
@@ -1516,7 +1516,7 @@ impl<A> FormatDuration<A> where A: Attribute {
             }
         }
 
-        let (weeks, seconds) = (seconds % Self::SECONDS_IN_A_WEEK, seconds / Self::SECONDS_IN_A_WEEK);
+        let (weeks, seconds) = (seconds / Self::SECONDS_IN_A_WEEK, seconds % Self::SECONDS_IN_A_WEEK);
         if months != 0 {
             if weeks != 0 {
                 return format!("{}mt {}wk", months, weeks)
@@ -1525,7 +1525,7 @@ impl<A> FormatDuration<A> where A: Attribute {
             }
         }
 
-        let (days, seconds) = (seconds % Self::SECONDS_IN_A_DAY, seconds / Self::SECONDS_IN_A_DAY);
+        let (days, seconds) = (seconds / Self::SECONDS_IN_A_DAY, seconds % Self::SECONDS_IN_A_DAY);
         if weeks != 0 {
             if days != 0 {
                 return format!("{}wk {}d", weeks, days)
@@ -1534,7 +1534,7 @@ impl<A> FormatDuration<A> where A: Attribute {
             }
         }
 
-        let (hours, seconds) = (seconds % Self::SECONDS_IN_AN_HOUR, seconds / Self::SECONDS_IN_AN_HOUR);
+        let (hours, seconds) = (seconds / Self::SECONDS_IN_AN_HOUR, seconds % Self::SECONDS_IN_AN_HOUR);
         if days != 0 {
             if hours != 0 {
                 return format!("{}d {}hr", days, hours)
@@ -1543,7 +1543,7 @@ impl<A> FormatDuration<A> where A: Attribute {
             }
         }
 
-        let (minutes, seconds) = (seconds % Self::SECONDS_IN_A_MINUTE, seconds / Self::SECONDS_IN_A_MINUTE);
+        let (minutes, seconds) = (seconds / Self::SECONDS_IN_A_MINUTE, seconds % Self::SECONDS_IN_A_MINUTE);
         if hours != 0 {
             if minutes != 0 {
                 return format!("{}hr {}min", hours, minutes)

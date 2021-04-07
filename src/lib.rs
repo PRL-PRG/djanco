@@ -1503,6 +1503,7 @@ impl<A> FormatDuration<A> where A: Attribute {
     const SECONDS_IN_A_DAY: u64 = 60 * 60 * 24;
     const SECONDS_IN_AN_HOUR: u64 = 60 * 60;
     const SECONDS_IN_A_MINUTE: u64 = 60;
+
     pub fn to_fuzzy_duration(duration: crate::time::Duration) -> String { // TODO this should be somewhere more useful like Duration or Seconds
         let seconds = duration.as_seconds();
         let (years, seconds) = (seconds / Self::SECONDS_IN_A_YEAR, seconds % Self::SECONDS_IN_A_YEAR);

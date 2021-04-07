@@ -506,7 +506,8 @@ impl ProjectCommitsExtractor {
                 let parents = commit.parent_ids();
                 stack.extend(parents)
             } else {
-                eprintln!("WARNING: commit id {} was found as a parent of another commit, but it does not have a commit associated with it", commit_id)
+                eprintln!("WARNING: commit id {} was found as a parent of another commit, but it \
+                           does not have a commit associated with it", commit_id)
             }
         }
         commits_in_head

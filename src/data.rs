@@ -880,9 +880,7 @@ impl Data { // Prequincunx, sort of
 
 impl Data { // Quincunx, sort of
     #[allow(dead_code)] pub fn projects<'a>(&'a mut self, source: &Source) -> impl Iterator<Item=Project> + 'a {
-        self.smart_load_project_urls(source).iter().map(|(id, url)| {
-            Project::new(id.clone(), url.clone())
-        })
+        self.smart_load_project_urls(source).iter().map(|(id, url)| Project::new(id.clone(), url.clone()))
     }
 
     #[allow(dead_code)] pub fn users<'a>(&'a mut self, source: &Source) -> impl Iterator<Item=&'a User> + 'a {

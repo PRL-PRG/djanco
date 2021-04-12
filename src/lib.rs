@@ -299,8 +299,9 @@ impl Djanco {
     // FIXME this still sucks
     pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
-        let cache_dir = CacheDir::from(cache_path, savepoint, substores.clone());
-        let source = Source::new(dataset_path, savepoint, substores)?;
+        let cache_path = cache_path.into();
+        let cache_dir = CacheDir::from(cache_path.clone(), savepoint, substores.clone());
+        let source = Source::new(dataset_path, cache_path, savepoint, substores)?;
         Ok(Database::new(source, cache_dir, log))
     }
     pub fn from_store<Sd>(dataset_path: Sd, savepoint: Timestamp, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {

@@ -4,10 +4,11 @@ use crate::{Store, objects};
 use anyhow::*;
 use crate::objects::SnapshotId;
 use std::collections::HashMap;
-use parasite::{Metadata, HashId};
+use parasite::{Metadata, HashId, StoreKind, ValidateAll};
 use parasite::Table;
 use serde_json::Value as JSON;
 use std::str::FromStr;
+use crate::CacheDir;
 
 macro_rules! convert {
     ($type:ident from $id:expr) => {
@@ -64,13 +65,41 @@ pub struct Source {
 }
 
 impl Source {
-    pub fn new<S>(dataset_path: S, savepoint: i64, substores: Vec<Store>) -> Result<Self> where S: Into<String> {
-        if substores.len() != 1 {
-            bail!("Currently only supporting queries on a single substore");
+    fn from_one_subset<Sd>(dataset_path: Sd, savepoint: i64, substore: Store) -> Result<Self> where Sd: Into<String> {
+        let dataset_path = dataset_path.into();
+        //println!("Store path: {}", s);
+        let store = parasite::DatastoreView::from(dataset_path.as_str());
+        Ok(Source { store, savepoint, substore: substore.kind() })
+    }
+
+    fn from_all_subsets<Sc,Sd>(dataset_path: Sd, cache_path: Sc, savepoint: i64) -> Result<Self> where Sd: Into<String>, Sc: Into<String> {
+        let all_stores: Vec<Store> = StoreKind::all().map(|kind| Store::from(kind)).collect();
+        Self::from_multiple_subsets(dataset_path, cache_path, savepoint, all_stores)
+    }
+
+    fn from_multiple_subsets<Sc,Sd>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>) -> Result<Self> where Sd: Into<String>, Sc: Into<String> {
+        let cache_path = cache_path.into();
+        let mut merged_store_path = CacheDir::from(cache_path, savepoint, substores.clone()).as_path();
+        merged_store_path.push("merged_store");
+        let merged_store_path_string = merged_store_path.as_os_str().to_str().unwrap();
+
+        let mut merger = parasite::DatastoreMerger::new(merged_store_path_string,
+                                                        dataset_path.into().as_str());
+        for substore in substores {
+            merger.merge_substore(StoreKind::Generic, substore.kind(), ValidateAll::new())
         }
-        let substore = substores.into_iter().last().unwrap().kind();
-        let store = parasite::DatastoreView::from(dataset_path.into().as_str());
-        Ok(Source { store, savepoint, substore })
+
+        //println!("Merged store path: {}", merged_store_path_string);
+        let store = parasite::DatastoreView::from(merged_store_path_string);
+        Ok(Source { store, savepoint, substore: StoreKind::Generic })
+    }
+
+    pub fn new<Sc,Sd>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>) -> Result<Self> where Sd: Into<String>, Sc: Into<String> {
+        match substores.len() {
+            0 => Self::from_all_subsets(dataset_path, cache_path, savepoint),
+            1 => Self::from_one_subset(dataset_path, savepoint, substores.into_iter().last().unwrap()),
+            _ => Self::from_multiple_subsets(dataset_path, cache_path, savepoint, substores),
+        }
     }
 
     pub fn project_urls(&self) -> impl Iterator<Item=(objects::ProjectId, URL)> {

@@ -405,8 +405,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "all_issues", "issues", "buggy_issues"]
     }
 
-    fn row(&self) -> Vec<String> {
-        println!("{:?}{:?}{:?}", self.combined_issue_count(), self.issue_count(), self.buggy_issue_count());
+    fn row(&self) -> Vec<String> {        
         vec![self.id().to_string(),
              self.substore().to_string_or_empty(),
              self.url(),
@@ -445,6 +444,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
     }
 
     fn rows(&self) -> Vec<Vec<String>> {
+        println!("{:?}{:?}{:?}", self.combined_issue_count(), self.issue_count(), self.buggy_issue_count());
         vec![vec![
             self.id().to_string(),
             self.substore().to_string_or_empty(),

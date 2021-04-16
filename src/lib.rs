@@ -556,6 +556,7 @@ pub mod project {
     impl_attribute![!     objects::Project, URL, String, url];
     impl_attribute![?     objects::Project, Issues, usize, issue_count];
     impl_attribute![?     objects::Project, BuggyIssues, usize, buggy_issue_count];
+    impl_attribute![?     objects::Project, AllIssues, usize, combined_issue_count];
     impl_attribute![?     objects::Project, IsFork, bool, is_fork];
     impl_attribute![?     objects::Project, IsArchived, bool, is_archived];
     impl_attribute![?     objects::Project, IsDisabled, bool, is_disabled];

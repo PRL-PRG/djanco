@@ -901,12 +901,12 @@ impl Data {
         self.smart_load_project_urls(source).get(id)
             .map(|url| Project::new(id.clone(), url.clone()))
     }
-    pub fn project_issues(&mut self, _source: &Source, _id: &ProjectId) -> Option<usize> {
-        unimplemented!() // pending changes in parasite
+    pub fn project_issues(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.issues(source, id)
     }
-    pub fn project_buggy_issues(&mut self, _source: &Source, _id: &ProjectId) -> Option<usize> {
-        unimplemented!() // pending changes in parasite
-    }   // FIXME
+    pub fn project_buggy_issues(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+        self.project_metadata.issues(source, id)
+    }
     pub fn project_is_fork(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_fork(source, id)
     }

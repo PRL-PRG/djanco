@@ -322,6 +322,8 @@ pub struct ProjectMetadataSource {
     updated:          MetadataVec<TimestampExtractor>,
     pushed:           MetadataVec<TimestampExtractor>,
     master:           MetadataVec<StringExtractor>,
+    issues:           MetadataVec<CountExtractor>,
+    buggy_issues:     MetadataVec<CountExtractor>,
 }
 
 impl ProjectMetadataSource {
@@ -349,6 +351,8 @@ impl ProjectMetadataSource {
             updated:       MetadataVec::new("updated_at",        dir.as_str(), &log, TimestampExtractor),
             pushed:        MetadataVec::new("pushed_at",         dir.as_str(), &log, TimestampExtractor),
             master:        MetadataVec::new("default_branch",    dir.as_str(), &log, StringExtractor),
+            issues:        MetadataVec::new("issue_count",       dir.as_str(), &log, CountExtractor),
+            buggy_issues:  MetadataVec::new("buggy_issues",      dir.as_str(), &log, CountExtractor),
 
             loaded:        false,
             //log:           log.clone(),
@@ -378,6 +382,8 @@ impl ProjectMetadataSource {
     pub fn updated          (&mut self, store: &Source, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
     pub fn pushed           (&mut self, store: &Source, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
     pub fn master           (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { gimme!(self, master,        store, pirate, key)           }
+    pub fn issues           (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, issues,        store, pirate, key)           }
+    pub fn buggy_issues     (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, buggy_issues,  store, pirate, key)           }
 }
 
 // A glorified tuple
@@ -405,6 +411,8 @@ pub struct ProjectMetadata {
     pub updated: Option<i64>,
     pub pushed: Option<i64>,
     pub master: Option<String>,
+    pub issues: Option<usize>,
+    pub buggy_issues: Option<usize>,
 }
 
 impl ProjectMetadataSource {
@@ -431,6 +439,8 @@ impl ProjectMetadataSource {
         keys.append(&mut gimme_iter!(self, updated,       store).map(|(id, _)| id.clone()).collect());
         keys.append(&mut gimme_iter!(self, pushed,        store).map(|(id, _)| id.clone()).collect());
         keys.append(&mut gimme_iter!(self, master,        store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, issues,        store).map(|(id, _)| id.clone()).collect());
+        keys.append(&mut gimme_iter!(self, buggy_issues,  store).map(|(id, _)| id.clone()).collect());
         keys.into_iter()
     }
 
@@ -458,6 +468,8 @@ impl ProjectMetadataSource {
             updated: self.updated(store, key),
             pushed: self.pushed(store, key),
             master: self.master(store, key),
+            issues: self.issues(store, key),
+            buggy_issues: self.buggy_issues(store, key),
         }
     }
 
@@ -479,7 +491,7 @@ impl MetadataSource for ProjectMetadataSource {
         load_from_store!(are_forks, are_archived, are_disabled, star_gazers, watchers, size,
                         open_issues, forks, subscribers, licenses, languages, descriptions,
                         homepages, has_issues, has_downloads, has_wiki, has_pages, created,
-                        updated, pushed, master);
+                        updated, pushed, master, issues, buggy_issues);
     }
 
     fn store_all_to_cache(&mut self) -> Result<(), Vec<Box<dyn Error>>> {
@@ -493,6 +505,6 @@ impl MetadataSource for ProjectMetadataSource {
         save_to_store! (are_forks, are_archived, are_disabled, star_gazers, watchers, size,
                         open_issues, forks, subscribers, licenses, languages, descriptions,
                         homepages, has_issues, has_downloads, has_wiki, has_pages, created,
-                        updated, pushed, master)
+                        updated, pushed, master, issues, buggy_issues)
     }
 }

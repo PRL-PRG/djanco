@@ -350,7 +350,14 @@ impl Project {
     pub fn timestamp        (&self,     _: &Database)    -> Timestamp                             { unimplemented!()  /* waiting for parasite */   }
     pub fn issue_count      (&self, store: &Database)    -> Option<usize>                   { store.project_issues(&self.id)                 }
     pub fn buggy_issue_count(&self, store: &Database)    -> Option<usize>                   { store.project_buggy_issues(&self.id)           }
-
+    pub fn combined_issue_count  (&self, store: &Database)    -> Option<usize> { 
+        match (self.issue_count(store), self.buggy_issue_count(store)) {
+            (Some(issues), Some(buggy_issues)) => Some(issues + buggy_issues),
+            (Some(issues), None) => Some(issues),
+            (None, Some(buggy_issues)) => Some(buggy_issues),
+            _ => None,
+        }
+    }
     pub fn is_fork          (&self, store: &Database)    -> Option<bool>                    { store.project_is_fork(&self.id)                }
     pub fn is_archived      (&self, store: &Database)    -> Option<bool>                    { store.project_is_archived(&self.id)            }
     pub fn is_disabled      (&self, store: &Database)    -> Option<bool>                    { store.project_is_disabled(&self.id)            }
@@ -697,10 +704,11 @@ impl<'a> Into<usize> for ItemWithData<'a, usize> { fn into(self) -> usize { self
 impl<'a,A,B> Into<(A,B)> for ItemWithData<'a, (A,B)> { fn into(self) -> (A,B) { self.item } }
 
 impl<'a> ItemWithData<'a, Project> {
-    pub fn id               (&self)    -> ProjectId                       { self.item.id()                                     }
-    pub fn url              (&self)    -> String                          { self.item.url().to_string()                        }
+    pub fn id               (&self)    -> ProjectId                       { self.item.id()                               }
+    pub fn url              (&self)    -> String                          { self.item.url().to_string()                  }
     pub fn issue_count      (&self)    -> Option<usize>                   { self.item.issue_count(&self.data)            }
     pub fn buggy_issue_count(&self)    -> Option<usize>                   { self.item.buggy_issue_count(&self.data)      }
+    pub fn combined_issue_count(&self) -> Option<usize>                   { self.item.combined_issue_count(&self.data)   }
     pub fn is_fork          (&self)    -> Option<bool>                    { self.item.is_fork(&self.data)                }
     pub fn is_archived      (&self)    -> Option<bool>                    { self.item.is_archived(&self.data)            }
     pub fn is_disabled      (&self)    -> Option<bool>                    { self.item.is_disabled(&self.data)            }

@@ -444,7 +444,6 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
     }
 
     fn rows(&self) -> Vec<Vec<String>> {
-        println!("{:?}{:?}{:?}", self.combined_issue_count(), self.issue_count(), self.buggy_issue_count());
         vec![vec![
             self.id().to_string(),
             self.substore().to_string_or_empty(),
@@ -478,6 +477,9 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.license().to_string_or_empty().escape_quotes().quoted(),
             self.homepage().to_string_or_empty().escape_quotes().quoted(),
             self.description().to_string_or_empty().escape_quotes().quoted(),
+            self.combined_issue_count().to_string_or_empty(),
+            self.issue_count().to_string_or_empty(),
+            self.buggy_issue_count().to_string_or_empty()
         ]]
     }
 }

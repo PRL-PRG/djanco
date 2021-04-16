@@ -393,7 +393,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
         vec!["project_id", "substore", "url",
              "is_fork", "is_archived", "is_disabled",
              "stars", "watchers", "size", 
-             "all_issues", "open_issues", "issues", "buggy_issues", 
+             "open_issues", 
              "forks", "subscribers",
              "language",
              "heads", "commits", "authors", "paths", "snapshots", "committers", "users",
@@ -401,7 +401,8 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "has_issues", "has_downloads", "has_wiki", "has_pages",
              "created", "updated", "pushed",
              "master_branch",
-             "license", "homepage", "description"]
+             "license", "homepage", "description",
+             "all_issues", "issues", "buggy_issues"]
     }
 
     fn row(&self) -> Vec<String> {
@@ -414,10 +415,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.star_count().to_string_or_empty(),
              self.watcher_count().to_string_or_empty(),
              self.size().to_string_or_empty(),
-             self.combined_issue_count().to_string_or_empty(),
              self.open_issue_count().to_string_or_empty(),
-             self.issue_count().to_string_or_empty(),
-             self.buggy_issue_count().to_string_or_empty(),
              self.fork_count().to_string_or_empty(),
              self.subscriber_count().to_string_or_empty(),
              self.language().to_string_or_empty(),
@@ -439,7 +437,10 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.default_branch().to_string_or_empty().escape_quotes().quoted(),
              self.license().to_string_or_empty().escape_quotes().quoted(),
              self.homepage().to_string_or_empty().escape_quotes().quoted(),
-             self.description().to_string_or_empty().escape_quotes().quoted()]
+             self.description().to_string_or_empty().escape_quotes().quoted(),
+             self.combined_issue_count().to_string_or_empty(),
+             self.issue_count().to_string_or_empty(),
+             self.buggy_issue_count().to_string_or_empty()]
     }
 
     fn rows(&self) -> Vec<Vec<String>> {

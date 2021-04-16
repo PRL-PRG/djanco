@@ -351,8 +351,8 @@ impl ProjectMetadataSource {
             updated:       MetadataVec::new("updated_at",        dir.as_str(), &log, TimestampExtractor),
             pushed:        MetadataVec::new("pushed_at",         dir.as_str(), &log, TimestampExtractor),
             master:        MetadataVec::new("default_branch",    dir.as_str(), &log, StringExtractor),
-            issues:        MetadataVec::new("issue_count",       dir.as_str(), &log, CountExtractor),
-            buggy_issues:  MetadataVec::new("buggy_issues",      dir.as_str(), &log, CountExtractor),
+            issues:        MetadataVec::new("issues_count",       dir.as_str(), &log, CountExtractor),
+            buggy_issues:  MetadataVec::new("buggy_issues_count", dir.as_str(), &log, CountExtractor),
 
             loaded:        false,
             //log:           log.clone(),

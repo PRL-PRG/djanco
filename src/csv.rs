@@ -392,7 +392,9 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
     fn column_headers() -> Vec<&'static str> {
         vec!["project_id", "substore", "url",
              "is_fork", "is_archived", "is_disabled",
-             "stars", "watchers", "size", "open_issues", "issues", "buggy_issues", "forks", "subscribers",
+             "stars", "watchers", "size", 
+             "all_issues", "open_issues", "issues", "buggy_issues", 
+             "forks", "subscribers",
              "language",
              "heads", "commits", "authors", "paths", "snapshots", "committers", "users",
              "lifetime",
@@ -412,6 +414,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.star_count().to_string_or_empty(),
              self.watcher_count().to_string_or_empty(),
              self.size().to_string_or_empty(),
+             self.combined_issue_count().to_string_or_empty(),
              self.open_issue_count().to_string_or_empty(),
              self.issue_count().to_string_or_empty(),
              self.buggy_issue_count().to_string_or_empty(),

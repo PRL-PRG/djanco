@@ -9,6 +9,7 @@ use parasite::Table;
 use serde_json::Value as JSON;
 use std::str::FromStr;
 use crate::CacheDir;
+use std::fs::create_dir_all;
 
 macro_rules! convert {
     ($type:ident from $id:expr) => {
@@ -82,6 +83,7 @@ impl Source {
         let mut merged_store_path = CacheDir::from(cache_path, savepoint, substores.clone()).as_path();
         merged_store_path.push("merged_store");
         let merged_store_path_string = merged_store_path.as_os_str().to_str().unwrap();
+        create_dir_all(merged_store_path_string)?;
 
         let mut merger = parasite::DatastoreMerger::new(merged_store_path_string,
                                                         dataset_path.into().as_str());

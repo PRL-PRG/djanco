@@ -28,6 +28,7 @@ csv = "1.1.4"
 parasite = { git = "https://github.com/PRL-PRG/codedj-parasite.git", branch = "master" }
 anyhow = "1.0.38"
 dereference = { git = "https://github.com/electroCutie/dereference.git", branch = "main" }
-git2_credentials = "0.7.1"
+#git2_credentials = { version = "0.7.1" }
+git2_credentials = { git = "https://github.com/davidB/git2_credentials.git" }
 tempfile = "3.2.0"
 fs_extra = "1.2.0" # copying directories

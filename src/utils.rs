@@ -181,7 +181,7 @@ fn find_or_create_branch<'a>(repository: &'a git2::Repository, url: &str, branch
                 )).unwrap();
             }
         } else {
-            panic!("Cannot fast forward to remote for branch {} at repository {}", branch_name, url);
+            panic!("Cannot fast forward to remote for branch {} at repository {} [{:?}]", branch_name, url, analysis);
         }
 
     } else {

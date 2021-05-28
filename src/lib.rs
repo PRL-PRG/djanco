@@ -487,6 +487,7 @@ pub mod project {
     impl_attribute![?     objects::Project, Pushed, i64, pushed];
     impl_attribute![?     objects::Project, DefaultBranch, String, default_branch];
     impl_attribute![?     objects::Project, Age, time::Duration, lifetime];
+    impl_attribute![?+    objects::Project, LastCommit, objects::Commit, last_commit];
     impl_attribute![?+..  objects::Project, Heads, objects::Head, heads_with_data, head_count];
     impl_attribute![?..   objects::Project, CommitIds, objects::CommitId, commit_ids, commit_count];
     impl_attribute![?..   objects::Project, AuthorIds, objects::UserId, author_ids, author_count];
@@ -500,6 +501,7 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Users, objects::User, users_with_data, user_count];
     impl_attribute![?+..  objects::Project, Paths, objects::Path, paths_with_data, path_count];
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
+    
 }
 
 pub mod commit {

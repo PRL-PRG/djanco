@@ -394,6 +394,7 @@ impl Project {
     pub fn pushed           (&self, store: &Database)    -> Option<i64>                     { store.project_pushed(&self.id)                 }
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_master(&self.id)                 }
     // TODO project commit frequency
+    pub fn last_commit      (&self, db: &Database) -> Option<Commit>                        { db.last_commit(&self.id)                    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -740,6 +741,10 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn updated          (&self)    -> Option<i64>                     { self.item.updated(&self.data)                }
     pub fn pushed           (&self)    -> Option<i64>                     { self.item.pushed(&self.data)                 }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)         }
+
+    pub fn last_commit<'b>(&'b self) -> Option<ItemWithData<'a, Commit>> { 
+        self.item.last_commit(&self.data).attach_data_to_inner(self.data)          
+    }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)

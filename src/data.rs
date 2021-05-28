@@ -98,6 +98,10 @@ impl Database {
     pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_buggy_issues(&self.source, id)
     }
+
+    pub fn last_commit(&self, id: &ProjectId) -> Option<Commit> {
+        self.data.borrow_mut().project_last_commit(&self.source, id)
+    }
     pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool> {
         self.data.borrow_mut().project_is_fork(&self.source, id)
     }
@@ -330,6 +334,22 @@ impl SingleMapExtractor for ProjectCredentialsExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         source.project_credentials().collect()
+    }
+}
+
+struct ProjectLastCommitExtractor;
+impl MapExtractor for ProjectLastCommitExtractor {
+    type Key = ProjectId;
+    type Value = Commit;
+}
+
+impl DoubleMapExtractor for ProjectLastCommitExtractor {
+    type A = BTreeMap<CommitId, Commit>;
+    type B = BTreeMap<ProjectId, Vec<CommitId>>;
+    fn extract(commits: &Self::A, project_commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+
+       unimplemented!()
+
     }
 }
 
@@ -778,7 +798,7 @@ pub(crate) struct Data {
     user_author_experience:      PersistentMap<UserExperienceExtractor>,
     user_committer_experience:   PersistentMap<UserExperienceExtractor>,
     user_experience:             PersistentMap<CombinedUserExperienceExtractor>,
-
+    project_last_commit: PersistentMap<ProjectLastCommitExtractor>,
     user_authored_commit_count:  PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
     user_committed_commit_count: PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
 
@@ -799,6 +819,7 @@ pub(crate) struct Data {
 }
 
 impl Data {
+
     pub fn new<S>(/*source: DataSource,*/ cache_dir: S, log: Log) -> Data where S: Into<String> {
         let dir = cache_dir.into();
         Data {
@@ -817,11 +838,10 @@ impl Data {
             project_commits:             PersistentMap::new("project_commits",             log.clone(),dir.clone()),
             project_commit_count:        PersistentMap::new("project_commit_count",        log.clone(),dir.clone()),
             project_lifetimes:           PersistentMap::new("project_lifetimes",           log.clone(),dir.clone()),
-
             project_metadata:            ProjectMetadataSource::new("project",             log.clone(),dir.clone()),
-
             users:                       PersistentMap::new("users",                       log.clone(),dir.clone()).without_cache(),
             user_authored_commits:       PersistentMap::new("user_authored_commits",       log.clone(),dir.clone()),
+            project_last_commit:         PersistentMap::new("project_last_commit",         log.clone(),dir.clone()),
             user_committed_commits:      PersistentMap::new("user_committed_commits",      log.clone(),dir.clone()),
             user_author_experience:      PersistentMap::new("user_author_experience",      log.clone(),dir.clone()),
             user_committer_experience:   PersistentMap::new("user_committer_experience",   log.clone(),dir.clone()),
@@ -892,6 +912,9 @@ impl Data {
     }   // FIXME
     pub fn project_is_fork(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_fork(source, id)
+    }
+    pub fn project_last_commit(&mut self, source: &Source, id: &ProjectId) -> Option<Commit> {
+        self.smart_load_project_last_commit(source).get(id).pirate()
     }
     pub fn project_is_archived(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
         self.project_metadata.is_archived(source, id)
@@ -1137,6 +1160,10 @@ macro_rules! load_with_prerequisites {
 }
 
 impl Data {
+
+    fn smart_load_project_last_commit(&mut self, source: &Source) -> &BTreeMap<ProjectId, Commit> {
+        load_with_prerequisites!(self, project_last_commit, source, two, commits, project_commits)
+    }
     fn smart_load_project_urls(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
         load_from_source!(self, project_urls, source)
     }

@@ -347,9 +347,7 @@ impl DoubleMapExtractor for ProjectLastCommitExtractor {
     type A = BTreeMap<CommitId, Commit>;
     type B = BTreeMap<ProjectId, Vec<CommitId>>;
     fn extract(commits: &Self::A, project_commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
-
        unimplemented!()
-
     }
 }
 
@@ -798,7 +796,7 @@ pub(crate) struct Data {
     user_author_experience:      PersistentMap<UserExperienceExtractor>,
     user_committer_experience:   PersistentMap<UserExperienceExtractor>,
     user_experience:             PersistentMap<CombinedUserExperienceExtractor>,
-    project_last_commit: PersistentMap<ProjectLastCommitExtractor>,
+    project_last_commit:         PersistentMap<ProjectLastCommitExtractor>,
     user_authored_commit_count:  PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
     user_committed_commit_count: PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
 

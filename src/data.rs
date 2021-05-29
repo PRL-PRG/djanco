@@ -295,6 +295,10 @@ impl Database {
     pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
         self.data.borrow_mut().user_committed_commits(&self.source, id)
     }
+    pub fn longest_inactivity_streak(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().longest_inactivity_streak(&self.source, id)
+    }
+
 }
 
 struct IdExtractor<Id: Identity + Persistent> { _type: PhantomData<Id> }
@@ -322,6 +326,44 @@ impl SingleMapExtractor for ProjectUrlExtractor {
     type A = Source;
     fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         source.project_urls().collect()
+    }
+}
+
+struct LongestInactivityStreakExtractor {}
+impl MapExtractor for LongestInactivityStreakExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    fn extract(project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        
+        project_commits.iter().flat_map(|(project_id, commit_ids)| {
+            let mut timestamps: Vec<i64> = Vec::new();
+
+            for i in 0..commit_ids.len(){
+                let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
+                if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
+            }
+
+            if timestamps.clone().len() == 0 {
+                Some((project_id.clone(), 0))
+            }else{
+                timestamps.sort();
+                let mut ans: i64 = 0;
+                let mut previous: i64 = timestamps[0];
+                
+                for i in 1..timestamps.len() {
+                    if timestamps[i] - previous > ans {
+                        ans = timestamps[i] - previous;
+                    }
+                    previous = timestamps[i];
+                }
+                Some((project_id.clone(), ans))
+            }
+            
+        }).collect()
     }
 }
 
@@ -770,6 +812,8 @@ impl SingleMapExtractor for AuthorTimestampExtractor {
     }
 }
 
+
+
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
     project_substores:           PersistentMap<ProjectSubstoreExtractor>,
@@ -814,6 +858,8 @@ pub(crate) struct Data {
 
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
+
+    longest_inactivity_streak:              PersistentMap<LongestInactivityStreakExtractor>,
 }
 
 impl Data {
@@ -858,7 +904,9 @@ impl Data {
             commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    log.clone(),dir.clone()),
             commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", log.clone(),dir.clone()),
             commit_changes:              PersistentMap::new("commit_changes",              log.clone(),dir.clone()).without_cache(),
-            commit_change_count:         PersistentMap::new("commit_change_count",         log, dir.clone()),
+            longest_inactivity_streak:   PersistentMap::new("longest_inactivity_streak", log.clone(), dir.clone()),
+            commit_change_count:         PersistentMap::new("commit_change_count",         log, dir.clone())
+            
         }
     }
 }
@@ -919,6 +967,7 @@ impl Data {
     pub fn project_star_gazer_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
         self.project_metadata.star_gazers(source, id)
     }
+
     pub fn project_watcher_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
         self.project_metadata.watchers(source, id)
     }
@@ -1132,6 +1181,9 @@ impl Data {
             ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
         })
     }
+    pub fn longest_inactivity_streak(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_longest_inactivity_streak(source).get(id).pirate()
+    }
 }
 
 macro_rules! load_from_source {
@@ -1262,6 +1314,9 @@ impl Data {
     }
     fn smart_load_commit_change_count(&mut self, source: &Source) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, source, one, commit_changes)
+    }
+    fn smart_load_project_longest_inactivity_streak(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, longest_inactivity_streak, source, two, project_commits, commit_committer_timestamps)
     }
 }
 

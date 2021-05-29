@@ -1,0 +1,13 @@
+   Compiling djanco v0.3.1 (/Users/stefaniemuroyalei/Documents/prague/work/djanco)
+error[E0599]: no function or associated item named `new` found for struct `ValidateAll` in the current scope
+  --> src/source.rs:91:85
+   |
+91 |             merger.merge_substore(StoreKind::Generic, substore.kind(), ValidateAll::new())
+   |                                                                                     ^^^ function or associated item not found in `ValidateAll`
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `djanco`
+
+To learn more, run the command again with --verbose.

@@ -17,6 +17,7 @@ use crate::time::Duration;
 use crate::csv::*;
 use crate::source::Source;
 use crate::{CacheDir, Store};
+use chrono::{Utc};
 
 // Internally Mutable Data
 pub struct Database {
@@ -359,6 +360,12 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
                         ans = timestamps[i] - previous;
                     }
                     previous = timestamps[i];
+                }
+
+                let now: i64 = Utc::now().timestamp();
+
+                if now - timestamps[timestamps.len()-1] > ans {
+                    ans = now - timestamps[timestamps.len()-1];
                 }
                 Some((project_id.clone(), ans))
             }

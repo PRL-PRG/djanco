@@ -366,6 +366,7 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
                         ans = timestamps[i] - previous;
                     }
                     previous = timestamps[i];
+                    println!("format {} arguments", ans);
                 }
 
                 let now: i64 = Utc::now().timestamp();
@@ -373,6 +374,7 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
                 if now - timestamps[timestamps.len()-1] > ans {
                     ans = now - timestamps[timestamps.len()-1];
                 }
+                println!("format {} arguments", ans);
                 Some((project_id.clone(), ans))
             }
             
@@ -444,7 +446,7 @@ impl DoubleMapExtractor for TimeSinceLastCommitExtractor  {
             if timestamps.clone().len() == 0 {
 
                 Some((project_id.clone(), 0))
-                
+
             }else{
                 timestamps.sort();
 

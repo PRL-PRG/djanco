@@ -26,17 +26,17 @@ pub trait SourceVectorExtractor: VectorExtractor {
 
 pub trait SingleVectorExtractor: VectorExtractor {
     type A;
-    fn extract(a: &Self::A) -> Vec<Self::Value>;
+    fn extract(source: &Source, a: &Self::A) -> Vec<Self::Value>;
 }
 
 pub trait DoubleVectorExtractor: VectorExtractor {
     type A; type B;
-    fn extract(a: &Self::A, b: &Self::B) -> Vec<Self::Value>;
+    fn extract(source: &Source, a: &Self::A, b: &Self::B) -> Vec<Self::Value>;
 }
 
 pub trait TripleVectorExtractor: VectorExtractor {
     type A; type B; type C;
-    fn extract(a: &Self::A, b: &Self::B, c: &Self::C) -> Vec<Self::Value>;
+    fn extract(source: &Source, a: &Self::A, b: &Self::B, c: &Self::C) -> Vec<Self::Value>;
 }
 
 pub trait MapExtractor {
@@ -44,24 +44,28 @@ pub trait MapExtractor {
     type Value: Clone + Persistent + Countable + Weighed;
 }
 
+pub trait SourceMapExtractor: MapExtractor {
+    fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value>;
+}
+
 pub trait SingleMapExtractor: MapExtractor {
     type A;
-    fn extract(a: &Self::A) -> BTreeMap<Self::Key, Self::Value>;
+    fn extract(source: &Source, a: &Self::A) -> BTreeMap<Self::Key, Self::Value>;
 }
 
 pub trait DoubleMapExtractor: MapExtractor {
     type A; type B;
-    fn extract(a: &Self::A, b: &Self::B) -> BTreeMap<Self::Key, Self::Value>;
+    fn extract(source: &Source, a: &Self::A, b: &Self::B) -> BTreeMap<Self::Key, Self::Value>;
 }
 
 pub trait TripleMapExtractor: MapExtractor {
     type A; type B; type C;
-    fn extract(a: &Self::A, b: &Self::B, c: &Self::C) -> BTreeMap<Self::Key, Self::Value>;
+    fn extract(source: &Source, a: &Self::A, b: &Self::B, c: &Self::C) -> BTreeMap<Self::Key, Self::Value>;
 }
 
 pub trait QuadrupleMapExtractor : MapExtractor {
     type A; type B; type C; type D;
-    fn extract(a: &Self::A, b: &Self::B, c: &Self::C, d: &Self::D) -> BTreeMap<Self::Key, Self::Value>;
+    fn extract(source: &Source, a: &Self::A, b: &Self::B, c: &Self::C, d: &Self::D) -> BTreeMap<Self::Key, Self::Value>;
 }
 
 // pub trait QuadrupleMapExtractor: MapExtractor {
@@ -185,21 +189,27 @@ impl<E> PersistentVector<E> where E: VectorExtractor {
     }
 }
 
+impl<E> PersistentVector<E> where E: SourceVectorExtractor {
+    pub fn load_from_source(&mut self, source: &Source) -> &Vec<E::Value> {
+        self.data_from_loader(|| { E::extract(source) })
+    }
+}
+
 impl<E,A> PersistentVector<E> where E: SingleVectorExtractor<A=A> {
-    pub fn load_from_one(&mut self, input: &A) -> &Vec<E::Value> {
-        self.data_from_loader(|| { E::extract(input) })
+    pub fn load_from_one(&mut self, source: &Source, input: &A) -> &Vec<E::Value> {
+        self.data_from_loader(|| { E::extract(source, input) })
     }
 }
 
 impl<E,A,B> PersistentVector<E> where E: DoubleVectorExtractor<A=A, B=B> {
-    pub fn load_from_two(&mut self, input_a: &A, input_b: &B) -> &Vec<E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b) })
+    pub fn load_from_two(&mut self, source: &Source, input_a: &A, input_b: &B) -> &Vec<E::Value> {
+        self.data_from_loader(|| { E::extract(source, input_a, input_b) })
     }
 }
 
 impl<E,A,B,C> PersistentVector<E> where E: TripleVectorExtractor<A=A, B=B, C=C> {
-    pub fn load_from_three(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &Vec<E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
+    pub fn load_from_three(&mut self, source: &Source, input_a: &A, input_b: &B, input_c: &C) -> &Vec<E::Value> {
+        self.data_from_loader(|| { E::extract(source, input_a, input_b, input_c) })
     }
 }
 
@@ -243,27 +253,33 @@ impl<E> PersistentMap<E> where E: MapExtractor {
     }
 }
 
+impl<E> PersistentMap<E> where E: SourceMapExtractor {
+    pub fn load_from_source(&mut self, source: &Source) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(source) })
+    }
+}
+
 impl<E,A> PersistentMap<E> where E: SingleMapExtractor<A=A> {
-    pub fn load_from_one(&mut self, input: &A) -> &BTreeMap<E::Key, E::Value> {
-        self.data_from_loader(|| { E::extract(input) })
+    pub fn load_from_one(&mut self, source: &Source, input: &A) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(source, input) })
     }
 }
 
 impl<E,A,B> PersistentMap<E> where E: DoubleMapExtractor<A=A,B=B> {
-    pub fn load_from_two(&mut self, input_a: &A, input_b: &B) -> &BTreeMap<E::Key, E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b) })
+    pub fn load_from_two(&mut self, source: &Source, input_a: &A, input_b: &B) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(source, input_a, input_b) })
     }
 }
 
 impl<E,A,B,C> PersistentMap<E> where E: TripleMapExtractor<A=A,B=B,C=C> {
-    pub fn load_from_three(&mut self, input_a: &A, input_b: &B, input_c: &C) -> &BTreeMap<E::Key, E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b, input_c) })
+    pub fn load_from_three(&mut self, source: &Source, input_a: &A, input_b: &B, input_c: &C) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(source, input_a, input_b, input_c) })
     }
 }
 
 impl<E,A,B,C, D> PersistentMap<E> where E: QuadrupleMapExtractor<A=A,B=B,C=C,D=D> {
-    pub fn load_from_four(&mut self, input_a: &A, input_b: &B, input_c: &C, input_d : &D) -> &BTreeMap<E::Key, E::Value> {
-        self.data_from_loader(|| { E::extract(input_a, input_b, input_c, input_d) })
+    pub fn load_from_four(&mut self, source: &Source, input_a: &A, input_b: &B, input_c: &C, input_d : &D) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(source, input_a, input_b, input_c, input_d) })
     }
 }
 

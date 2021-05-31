@@ -508,3 +508,77 @@ impl MetadataSource for ProjectMetadataSource {
                         updated, pushed, master, issues, buggy_issues)
     }
 }
+
+// trait MetaExtractor {
+//     type Key:   Ord + Persistent + Weighed;
+//     type Value: Clone + Persistent + Countable + Weighed;
+// }
+
+// pub struct PersistentMeta<E: MetaExtractor> {
+//     log: Log,
+//     name: String,
+//     cache_path: Option<PathBuf>,
+//     cache_dir: Option<PathBuf>,
+//     //map: Option<BTreeMap<E::Key, E::Value>>,
+//     extractor: PhantomData<E>, // TODO not needed
+//     metadata: Rc<MetadataSource>,
+    
+// }
+
+// impl<E> PersistentCollection for PersistentMeta<E> where E: MetaExtractor {
+//     type Collection = BTreeMap<E::Key, E::Value>;
+//     //fn weigh(&self) -> usize { Self.weight_in_bytes() }
+//     fn name(&self) -> String { self.name.clone() }
+//     fn log(&self) -> &Log { &self.log }
+//     fn cache_path(&self) -> &Option<PathBuf> { &self.cache_path }
+//     fn cache_dir(&self) -> &Option<PathBuf> { &self.cache_dir }
+//     fn collection(&self) -> &Option<Self::Collection> { unimplemented!() }
+//     fn set_collection(&mut self, map: Self::Collection) { unimplemented!() }
+//     fn data_from_loader<F>(&mut self, mut load: F) -> &Self::Collection where F: FnMut() -> Self::Collection {
+//         if self.collection().is_none() {
+//             if self.already_cached() {
+//                 let mut event = self.log().start(Verbosity::Log, format!("loading {} from cache {}", self.name(), self.cache_path().as_ref().unwrap().to_str().unwrap()));
+//                 self.load_from_cache().unwrap();
+//                 event.counted(self.collection().as_ref().map_or(0, |c| c.count_items()));
+//                 event.weighed(self.collection().as_ref().unwrap());
+//                 self.log().end(event);
+//             } else {
+//                 let mut event = self.log().start(Verbosity::Log, format!("loading {} from source", self.name()));
+//                 self.set_collection(load());
+//                 event.counted(self.collection().as_ref().map_or(0, |c| c.count_items()));
+//                 event.weighed(self.collection().as_ref().unwrap());
+//                 self.log().end(event);
+
+//                 if !self.skip_caching() {
+//                     let event = self.log().start(Verbosity::Log, format!("storing {} into cache at {}", self.name(), self.cache_path().as_ref().unwrap().to_str().unwrap()));
+//                     self.store_to_cache().unwrap();
+//                     self.log().end(event);
+//                 }
+//             }
+//         }
+//         self.grab_collection()
+//     }
+// }
+
+// impl<E> PersistentMeta<E> where E: MetaExtractor {
+//     pub fn new<Sa, Sb>(name: Sa, log: Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
+//         let name = name.into();
+//         let (cache_dir, cache_path) = Self::setup_files(name.clone(), dir);
+//         PersistentMeta { name, log, cache_path: Some(cache_path), cache_dir: Some(cache_dir), map: None, extractor: PhantomData }
+//     }
+//     pub fn new_without_cache<S>(name: S, log: Log) -> Self where S: Into<String> {
+//         PersistentMeta { name: name.into(), log, cache_path: None, cache_dir: None, map: None, extractor: PhantomData }
+//     }
+//     pub fn without_cache(mut self) -> Self {
+//         self.cache_dir = None;
+//         self.cache_path = None;
+//         self
+//     }
+//     pub fn iter(&self) -> impl Iterator<Item=(&E::Key, &E::Value)> {
+//         self.map.as_ref().map(|vector| vector.iter())
+//             .expect("Attempted to iterate over persistent map before initializing it")
+//     }
+//     pub fn load_from_one(&mut self, input: &A) -> &BTreeMap<E::Key, E::Value> {
+//         self.data_from_loader(|| { E::extract(input) })
+//     }
+// }

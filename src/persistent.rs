@@ -7,6 +7,7 @@ use std::error::Error;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
+use crate::source::Source;
 use crate::log::{Log, Verbosity};
 use crate::weights_and_measures::*;
 
@@ -17,6 +18,10 @@ impl<T> Persistent for T where T: Serialize + DeserializeOwned {}
 
 pub trait VectorExtractor {
     type Value: Clone + Persistent + Weighed;
+}
+
+pub trait SourceVectorExtractor: VectorExtractor {
+    fn extract(source: &Source) -> Vec<Self::Value>;
 }
 
 pub trait SingleVectorExtractor: VectorExtractor {
@@ -265,3 +270,4 @@ impl<E,A,B,C> PersistentMap<E> where E: TripleMapExtractor<A=A,B=B,C=C> {
 //         self.data_from_loader(|| { E::extract(input_a, input_b, input_c, input_d) })
 //     }
 // }
+

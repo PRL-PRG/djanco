@@ -790,6 +790,8 @@ pub(crate) struct Data {
     project_committer_count:     PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_commit_count:        PersistentMap<CountPerKeyExtractor<ProjectId, CommitId>>,
 
+    project_created:             Rybka,
+
     users:                       PersistentMap<UserExtractor>,
     user_authored_commits:       PersistentMap<UserAuthoredCommitsExtractor>,
     user_committed_commits:      PersistentMap<UserAuthoredCommitsExtractor>,
@@ -816,6 +818,10 @@ pub(crate) struct Data {
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
 }
 
+struct Rybka {
+
+}
+
 impl Data {
     pub fn new(/*source: DataSource,*/ cache_dir: CacheDir, log: Log) -> Data {
         let dir = cache_dir.as_string();
@@ -838,6 +844,7 @@ impl Data {
             project_lifetimes:           PersistentMap::new("project_lifetimes",           log.clone(),dir.clone()),
 
             project_metadata:            ProjectMetadataSource::new("project",             log.clone(),dir.clone()),
+            project_created:             Rybka{},
 
             users:                       PersistentMap::new("users",                       log.clone(),dir.clone()).without_cache(),
             user_authored_commits:       PersistentMap::new("user_authored_commits",       log.clone(),dir.clone()),
@@ -959,7 +966,8 @@ impl Data {
         self.project_metadata.has_pages(source, id)
     }
     pub fn project_created(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
-        self.project_metadata.created(source, id)
+        //self.smart_load_project_created(source).get(id).pirate()
+        unimplemented!()
     }
     pub fn project_updated(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
         self.project_metadata.updated(source, id)
@@ -1143,6 +1151,15 @@ macro_rules! load_from_source {
     }}
 }
 
+macro_rules! load_from_metadata {
+    ($self:ident, $vector:ident, $source:expr)  => {{
+        if !$self.$vector.is_loaded() {
+            $self.$vector.load_from_one($source);
+        }
+        $self.$vector.grab_collection()
+    }}
+}
+
 macro_rules! load_with_prerequisites {
     ($self:ident, $vector:ident, $source:expr, $n:ident, $($prereq:ident),*)  => {{
         mashup! {
@@ -1207,6 +1224,9 @@ impl Data {
         load_with_prerequisites!(self, project_lifetimes, source, three, project_commits,
                                                                         commit_author_timestamps,
                                                                         commit_committer_timestamps)
+    }
+    fn smart_load_project_created(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<PathId>> {
+        unimplemented!()
     }
     fn smart_load_users(&mut self, source: &Source) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)

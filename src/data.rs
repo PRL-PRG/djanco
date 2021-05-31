@@ -362,8 +362,9 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
                 let mut previous: i64 = timestamps[0];
                 
                 for i in 1..timestamps.len() {
-                    assert!(timestamps[i] >=previous);
+                    
                     if (timestamps[i] - previous) > ans {
+                        
                         ans = timestamps[i] - previous;
                         
                     }
@@ -371,12 +372,6 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
                     
                 }
 
-                let now: i64 = Utc::now().timestamp();
-
-                if now - timestamps[timestamps.len()-1] > ans {
-                    ans = now - timestamps[timestamps.len()-1];
-                }
-                
                 Some((project_id.clone(), ans))
             }
             
@@ -440,7 +435,7 @@ impl DoubleMapExtractor for TimeSinceLastCommitExtractor  {
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
 
-            for i in 0..commit_ids.len(){
+            for i in 0..commit_ids.len() {
                 let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
             }
@@ -450,6 +445,7 @@ impl DoubleMapExtractor for TimeSinceLastCommitExtractor  {
                 Some((project_id.clone(), 0))
 
             }else{
+                
                 timestamps.sort();
 
                 let now: i64 = Utc::now().timestamp();

@@ -595,6 +595,7 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
     impl_attribute![?    objects::Project, LongestInactivityStreak, i64, longest_inactivity_streak];
     impl_attribute![?    objects::Project, AvgCommitRate, i64, avg_commit_rate];
+    impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
 }
 
 pub mod commit {

@@ -403,6 +403,7 @@ impl Project {
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_master(&self.id)                 }
     pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>                   { store.longest_inactivity_streak(&self.id)       }
     pub fn avg_commit_rate      (&self, store: &Database)    -> Option<i64>                   { store.avg_commit_rate(&self.id)       }
+    pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>                   { store.time_since_last_commit(&self.id)       }
     
     // TODO project commit frequency
 
@@ -757,6 +758,7 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)            }
     pub fn longest_inactivity_streak (&self) -> Option<i64>     { self.item.longest_inactivity_streak(&self.data) }
     pub fn avg_commit_rate (&self) -> Option<i64>     { self.item.avg_commit_rate(&self.data) }
+    pub fn time_since_last_commit (&self) -> Option<i64>     { self.item.time_since_last_commit(&self.data) }
 
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)         }
 

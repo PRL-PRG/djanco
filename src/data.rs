@@ -302,6 +302,9 @@ impl Database {
     pub fn avg_commit_rate(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().avg_commit_rate(&self.source, id)
     }
+    pub fn time_since_last_commit(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().time_since_last_commit(&self.source, id)
+    }
 
 }
 
@@ -414,6 +417,40 @@ impl DoubleMapExtractor for AvgCommitRateExtractor  {
                 }
 
                 Some((project_id.clone(), ans.round() as i64))
+            }
+            
+        }).collect()
+    }
+}
+
+struct TimeSinceLastCommitExtractor {}
+impl MapExtractor for TimeSinceLastCommitExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl DoubleMapExtractor for TimeSinceLastCommitExtractor  {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    fn extract(project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        
+        project_commits.iter().flat_map(|(project_id, commit_ids)| {
+            let mut timestamps: Vec<i64> = Vec::new();
+
+            for i in 0..commit_ids.len(){
+                let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
+                if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
+            }
+
+            if timestamps.clone().len() == 0 {
+
+                Some((project_id.clone(), 0))
+                
+            }else{
+                timestamps.sort();
+
+                let now: i64 = Utc::now().timestamp();
+
+                Some((project_id.clone(), now - timestamps[timestamps.len()-1]))
             }
             
         }).collect()
@@ -912,8 +949,9 @@ pub(crate) struct Data {
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
 
-    longest_inactivity_streak:              PersistentMap<LongestInactivityStreakExtractor>,
-    avg_commit_rate:              PersistentMap<AvgCommitRateExtractor>
+    longest_inactivity_streak:    PersistentMap<LongestInactivityStreakExtractor>,
+    avg_commit_rate:              PersistentMap<AvgCommitRateExtractor>,
+    time_since_last_commit:              PersistentMap<TimeSinceLastCommitExtractor>,
 }
 
 impl Data {
@@ -959,7 +997,8 @@ impl Data {
             commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", log.clone(),dir.clone()),
             commit_changes:              PersistentMap::new("commit_changes",              log.clone(),dir.clone()).without_cache(),
             longest_inactivity_streak:   PersistentMap::new("longest_inactivity_streak", log.clone(), dir.clone()),
-            avg_commit_rate:   PersistentMap::new("avg_commit_rate", log.clone(), dir.clone()),
+            avg_commit_rate:             PersistentMap::new("avg_commit_rate", log.clone(), dir.clone()),
+            time_since_last_commit:      PersistentMap::new("time_since_last_commit", log.clone(), dir.clone()),
             commit_change_count:         PersistentMap::new("commit_change_count",         log, dir.clone())
             
         }
@@ -1242,6 +1281,9 @@ impl Data {
     pub fn avg_commit_rate(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
         self.smart_load_project_avg_commit_rate(source).get(id).pirate()
     }
+    pub fn time_since_last_commit(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_time_since_last_commit(source).get(id).pirate()
+    }
 }
 
 macro_rules! load_from_source {
@@ -1378,6 +1420,9 @@ impl Data {
     }
     fn smart_load_project_avg_commit_rate(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, avg_commit_rate, source, two, project_commits, commit_committer_timestamps)
+    }
+    fn smart_load_project_time_since_last_commit(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, time_since_last_commit, source, two, project_commits, commit_committer_timestamps)
     }
 }
 

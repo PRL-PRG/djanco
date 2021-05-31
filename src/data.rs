@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::collections::btree_map::Entry;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::iter::FromIterator;
@@ -235,6 +236,15 @@ impl Database {
     pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration> {
         self.data.borrow_mut().project_lifetime(&self.source, id)
     }
+    pub fn project_unique_files(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_unique_files(&self.source, id)
+    }
+    pub fn project_original_files(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_original_files(&self.source, id)
+    }
+    pub fn project_impact(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_impact(&self.source, id)
+    }
     pub fn user(&self, id: &UserId) -> Option<User> {
         self.data.borrow_mut().user(&self.source, id).pirate()
     }
@@ -268,6 +278,12 @@ impl Database {
     pub fn commit_changed_path_count(&self, id: &CommitId) -> Option<usize> {
         self.data.borrow_mut().commit_changed_path_count(&self.source, id)
     }
+    pub fn commit_projects(&self, id : &CommitId) -> Option<Vec<Project>> {
+        self.data.borrow_mut().commit_projects(&self.source, id)
+    }
+    pub fn commit_projects_count(&self, id: &CommitId) -> Option<usize> {
+        self.data.borrow_mut().commit_projects_count(&self.source, id)
+    }
     pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
         self.data.borrow_mut().user_committed_commit_ids(&self.source, id).pirate()
     }
@@ -294,6 +310,12 @@ impl Database {
     }
     pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
         self.data.borrow_mut().user_committed_commits(&self.source, id)
+    }
+    pub fn snapshot_unique_projects(&self, id : &SnapshotId) -> usize {
+        self.data.borrow_mut().snapshot_unique_projects(&self.source, id)
+    }
+    pub fn snapshot_original_project(&self, id : &SnapshotId) -> ProjectId {
+        self.data.borrow_mut().snapshot_original_project(&self.source, id)
     }
 }
 
@@ -770,6 +792,217 @@ impl SingleMapExtractor for AuthorTimestampExtractor {
     }
 }
 
+struct CommitProjectsExtractor {}
+impl MapExtractor for CommitProjectsExtractor {
+    type Key = CommitId;
+    type Value = Vec<ProjectId>;
+}
+
+impl SingleMapExtractor for CommitProjectsExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    fn extract(project_commits: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        let mut result = BTreeMap::<CommitId, Vec<ProjectId>>::new();
+        project_commits.iter().for_each(|(pid, commits)| {
+            commits.iter().for_each(|cid|{
+                match result.entry(*cid) {
+                    Entry::Vacant(e) => { e.insert(vec!{*pid}); },
+                    Entry::Occupied(mut e) => { e.get_mut().push(*pid); },
+                }
+            });
+        });
+        return result;
+    }
+}
+
+struct SnapshotCloneInfo {
+    original : ProjectId,
+    oldest_commit_time : i64,
+    projects : BTreeSet<ProjectId>,
+}
+
+impl SnapshotCloneInfo {
+    pub fn new() -> SnapshotCloneInfo {
+        return SnapshotCloneInfo{
+            original : ProjectId(0),
+            oldest_commit_time: i64::MAX,
+            projects : BTreeSet::new(),
+        };
+    }
+}
+
+struct SnapshotProjectsExtractor {}
+impl MapExtractor for SnapshotProjectsExtractor {
+    type Key = SnapshotId;
+    type Value = (usize, ProjectId);
+}
+impl TripleMapExtractor for SnapshotProjectsExtractor {
+    type A = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type B = BTreeMap<CommitId, Vec<ProjectId>>;
+    type C = BTreeMap<CommitId, i64>;
+    //type D = ProjectMetadataSource;
+
+    fn extract (commit_changes : &Self::A, commit_projects : &Self::B, commit_author_timestamps : &Self::C) -> BTreeMap<SnapshotId, (usize, ProjectId)> {
+        // first for each snapshot get projects and 
+        let mut snapshot_projects = BTreeMap::<SnapshotId, SnapshotCloneInfo>::new();
+        // for each commit
+        commit_changes.iter().for_each(|(cid, changes)| {
+            let commit_time = *commit_author_timestamps.get(cid).unwrap();
+            // for each snapshot
+            changes.iter().for_each(|(_path_id, sid_option)| {
+                // if it is actually a snapshot (i.e. we have its code)
+                // TODO we might want to extend this to *all* snapshots even those we do not have the code for
+                if let Some(sid) = sid_option {
+                    // if it is not a delete TODO: can it be a delete, or are deletes deleted
+                    if *sid != SnapshotId(0) {
+                        let ref mut sinfo = snapshot_projects.entry(*sid).or_insert_with(|| { SnapshotCloneInfo::new() });
+                        // add the projects of the commit to the projects of the snapshot 
+                        if let Some(pids) = commit_projects.get(cid) {
+                            pids.iter().for_each(|pid| { sinfo.projects.insert(*pid); });
+                            // if the commit is older than the current time associated with the snapshot, determine the oldest project 
+                            if sinfo.oldest_commit_time > commit_time {
+                                // TODO use oldest project really once we know how to get it, for now I am just using the first project
+                                if let Some(pid) = pids.get(0) {
+                                    sinfo.original = *pid;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+        // once we have a vector of projects for each snapshot, we want to collapse these to the number of unique projects and the original project. To calculate the original project, we get projects and select the one with smallest creation time
+        return snapshot_projects.iter().map(|(sid, sinfo)| {
+            return (*sid, (sinfo.projects.len(), sinfo.original));
+        }).collect();
+    }
+}
+
+struct ProjectUniqueFilesExtractor {}
+impl MapExtractor for ProjectUniqueFilesExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+
+impl TripleMapExtractor for ProjectUniqueFilesExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
+
+    fn extract (project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+        // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
+        let mut visited = BTreeSet::<SnapshotId>::new();
+        return project_commits.iter().map(|(pid, commits)| {
+            // for all commits
+            let unique_files = commits.iter().map(|cid| {
+                // for all changes with snapshots
+                if let Some(changes) = commit_changes.get(cid) {
+                    changes.iter().map(|(_path_id, snapshot)| {
+                        if let Some(snapshot_id) = snapshot {
+                            if visited.insert(*snapshot_id) {
+                                return match snapshot_projects.get(snapshot_id) {
+                                    Some((1, _)) => 1,
+                                    _ => 0,
+                                }
+                            }
+                        }
+                        0
+                    }).sum::<usize>()
+                } else {
+                    println!("No commit changes for commit : {}", cid);
+                    0
+                }
+            }).sum();
+            return (*pid, unique_files);
+        }).collect();        
+    }
+}
+
+struct ProjectOriginalFilesExtractor {}
+impl MapExtractor for ProjectOriginalFilesExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+
+impl TripleMapExtractor for ProjectOriginalFilesExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
+
+    fn extract (project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+        // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
+        let mut visited = BTreeSet::<SnapshotId>::new();
+        return project_commits.iter().map(|(pid, commits)| {
+            // for all commits
+            let unique_files = commits.iter().map(|cid| {
+                // for all changes with snapshots
+                if let Some(changes) = commit_changes.get(cid) {
+                    changes.iter().map(|(_path_id, snapshot)| {
+                        if let Some(snapshot_id) = snapshot {
+                            if visited.insert(*snapshot_id) {
+                                if let Some((copies, original)) = snapshot_projects.get(snapshot_id) {
+                                    if original == pid && *copies > 1 {
+                                        return 1;
+                                    }
+                                }
+                            }
+                        } 
+                        0
+                    }).sum::<usize>()
+                } else {
+                    println!("No commit changes for commit : {}", cid);
+                    0
+                }
+            }).sum();
+            return (*pid, unique_files);
+        }).collect();        
+    }
+}
+
+struct ProjectImpactExtractor {}
+impl MapExtractor for ProjectImpactExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+
+impl TripleMapExtractor for ProjectImpactExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
+
+    fn extract (project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+        // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
+        let mut visited = BTreeSet::<SnapshotId>::new();
+        return project_commits.iter().map(|(pid, commits)| {
+            // for all commits
+            let unique_files = commits.iter().map(|cid| {
+                // for all changes with snapshots
+                if let Some(changes) = commit_changes.get(cid) {
+                    changes.iter().map(|(_path_id, snapshot)| {
+                        if let Some(snapshot_id) = snapshot {
+                            if visited.insert(*snapshot_id) {
+                                // so if we are unique, then by definition we are original as well
+                                if let Some((copies, original)) = snapshot_projects.get(snapshot_id) {
+                                    if original == pid {
+                                        return *copies;
+                                    }
+                                }
+                            }
+                        } 
+                        0
+                    }).sum::<usize>()
+                } else {
+                    println!("No commit changes for commit : {}", cid);
+                    0
+                }
+            }).sum();
+            return (*pid, unique_files);
+        }).collect();        
+    }
+}
+
+
+
+
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
     project_substores:           PersistentMap<ProjectSubstoreExtractor>,
@@ -789,6 +1022,10 @@ pub(crate) struct Data {
     project_author_count:        PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_committer_count:     PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_commit_count:        PersistentMap<CountPerKeyExtractor<ProjectId, CommitId>>,
+
+    project_unique_files:        PersistentMap<ProjectUniqueFilesExtractor>,
+    project_original_files:      PersistentMap<ProjectOriginalFilesExtractor>,
+    project_impact:              PersistentMap<ProjectImpactExtractor>,
 
     users:                       PersistentMap<UserExtractor>,
     user_authored_commits:       PersistentMap<UserAuthoredCommitsExtractor>,
@@ -811,6 +1048,10 @@ pub(crate) struct Data {
     commit_changes:              PersistentMap<CommitChangesExtractor>,
 
     commit_change_count:         PersistentMap<CountPerKeyExtractor<CommitId, ChangeTuple>>,
+
+    commit_projects:             PersistentMap<CommitProjectsExtractor>,
+    commit_projects_count:       PersistentMap<CountPerKeyExtractor<CommitId, ProjectId>>,
+    snapshot_projects :          PersistentMap<SnapshotProjectsExtractor>,
 
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
@@ -839,6 +1080,10 @@ impl Data {
 
             project_metadata:            ProjectMetadataSource::new("project",             log.clone(),dir.clone()),
 
+            project_unique_files:        PersistentMap::new("project_unique_files",        log.clone(),dir.clone()),
+            project_original_files:      PersistentMap::new("project_original_files",      log.clone(),dir.clone()),
+            project_impact:              PersistentMap::new("project_impact",              log.clone(),dir.clone()),
+
             users:                       PersistentMap::new("users",                       log.clone(),dir.clone()).without_cache(),
             user_authored_commits:       PersistentMap::new("user_authored_commits",       log.clone(),dir.clone()),
             user_committed_commits:      PersistentMap::new("user_committed_commits",      log.clone(),dir.clone()),
@@ -858,7 +1103,10 @@ impl Data {
             commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    log.clone(),dir.clone()),
             commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", log.clone(),dir.clone()),
             commit_changes:              PersistentMap::new("commit_changes",              log.clone(),dir.clone()).without_cache(),
-            commit_change_count:         PersistentMap::new("commit_change_count",         log, dir.clone()),
+            commit_change_count:         PersistentMap::new("commit_change_count",         log.clone(), dir.clone()),
+            commit_projects:             PersistentMap::new("commit_projects",             log.clone(), dir.clone()),
+            commit_projects_count:       PersistentMap::new("commit_projects_count",       log.clone(), dir.clone()),
+            snapshot_projects:           PersistentMap::new("snapshot_projects",           log.clone(), dir.clone()),
         }
     }
 }
@@ -1056,6 +1304,18 @@ impl Data {
         self.smart_load_project_substore(source).get(id)
             .pirate()
     }
+    pub fn project_unique_files(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+        self.smart_load_project_unique_files(source).get(id)
+            .pirate()
+    }
+    pub fn project_original_files(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+        self.smart_load_project_original_files(source).get(id)
+            .pirate()
+    }
+    pub fn project_impact(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+        self.smart_load_project_impact(source).get(id)
+            .pirate()
+    }
     pub fn user(&mut self, source: &Source, id: &UserId) -> Option<&User> {
         self.smart_load_users(source).get(id)
     }
@@ -1095,6 +1355,14 @@ impl Data {
     pub fn commit_changed_path_count(&mut self, source: &Source, id: &CommitId) -> Option<usize> {
         self.smart_load_commit_change_count(source).get(id).pirate()
     }
+    pub fn commit_projects(&mut self, source: &Source, id : &CommitId) -> Option<Vec<Project>> {
+        self.smart_load_commit_projects(source).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.project(source, id)).collect()
+        })   
+    }
+    pub fn commit_projects_count(&mut self, source: &Source, id : &CommitId) -> Option<usize> {
+        self.smart_load_commit_projects_count(source).get(id).pirate()
+    }
     pub fn user_committed_commit_ids(&mut self, source: &Source, id: &UserId) -> Option<&Vec<CommitId>> {
         self.smart_load_user_committed_commits(source).get(id)
     }
@@ -1131,6 +1399,14 @@ impl Data {
         self.smart_load_user_committed_commits(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
         })
+    }
+    pub fn snapshot_unique_projects(&mut self, source: &Source, id : &SnapshotId) -> usize {
+        // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
+        self.smart_load_snapshot_projects(source).get(id).unwrap().0
+    }
+    pub fn snapshot_original_project(&mut self, source: &Source, id : &SnapshotId) -> ProjectId {
+        // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
+        self.smart_load_snapshot_projects(source).get(id).unwrap().1
     }
 }
 
@@ -1208,6 +1484,15 @@ impl Data {
                                                                         commit_author_timestamps,
                                                                         commit_committer_timestamps)
     }
+    fn smart_load_project_unique_files(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_unique_files, source, three, project_commits, commit_changes, snapshot_projects)
+    }
+    fn smart_load_project_original_files(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_original_files, source, three, project_commits, commit_changes, snapshot_projects)
+    }
+    fn smart_load_project_impact(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_impact, source, three, project_commits, commit_changes, snapshot_projects)
+    }
     fn smart_load_users(&mut self, source: &Source) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)
     }
@@ -1262,6 +1547,15 @@ impl Data {
     }
     fn smart_load_commit_change_count(&mut self, source: &Source) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, source, one, commit_changes)
+    }
+    fn smart_load_commit_projects(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<ProjectId>> {
+        load_with_prerequisites!(self, commit_projects, source, one, project_commits)
+    }
+    fn smart_load_commit_projects_count(&mut self, source: &Source) -> &BTreeMap<CommitId, usize> {
+        load_with_prerequisites!(self, commit_projects_count, source, one, commit_projects)
+    }
+    fn smart_load_snapshot_projects(& mut self, source: &Source) -> &BTreeMap<SnapshotId,(usize, ProjectId)> {
+        load_with_prerequisites!(self, snapshot_projects, source, three, commit_changes, commit_projects, commit_author_timestamps)
     }
 }
 

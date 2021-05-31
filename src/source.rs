@@ -10,6 +10,7 @@ use serde_json::Value as JSON;
 use std::str::FromStr;
 use crate::CacheDir;
 use std::fs::create_dir_all;
+use itertools::Itertools;
 
 macro_rules! convert {
     ($type:ident from $id:expr) => {
@@ -103,6 +104,14 @@ impl Source {
             _ => Self::from_multiple_subsets(dataset_path, cache_path, savepoint, substores),
         }
     }
+
+    pub fn project_logs(&self) -> impl Iterator<Item = (objects::ProjectId, Vec<parasite::ProjectLog>)> {
+        self.store.project_updates()
+            .map(|(id, log)| (convert!(ProjectId from id), log))
+            .into_group_map()
+            .into_iter()
+            .map(|(project, logs)| (project, logs.into_iter().sorted_by_key(|log| -log.time()).collect() ))
+    } 
 
     pub fn project_urls(&self) -> impl Iterator<Item=(objects::ProjectId, URL)> {
         self.store.project_urls()

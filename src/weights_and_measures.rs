@@ -83,6 +83,8 @@ quick_impl_countable!(CommitId);
 quick_impl_countable!(PathId);
 quick_impl_countable!(SnapshotId);
 
+quick_impl_countable!((usize, ProjectId));
+
 //quick_impl_countable!(ChangeTuple);
 
 const PEBI: (usize, &'static str) = (TEBI.0 * 1024, "PB");

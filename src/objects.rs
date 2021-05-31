@@ -404,6 +404,9 @@ impl Project {
     // TODO project commit frequency
 
     pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }
+    pub fn unique_files     (&self, store: &Database)    -> Option<usize>                   { store.project_unique_files(&self.id)                  }
+    pub fn original_files   (&self, store: &Database)    -> Option<usize>                   { store.project_original_files(&self.id)                  }
+    pub fn impact           (&self, store: &Database)    -> Option<usize>                   { store.project_impact(&self.id)                  }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -529,6 +532,13 @@ impl Commit {
     pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
     pub fn changed_snapshots   (&self, store: &Database) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
     pub fn changed_snapshot_count (&self, store: &Database) -> Option<usize>                  {  self.changed_snapshot_ids(store).map(|v| v.len() ) }
+
+    pub fn projects(& self, store: &Database) -> Option<Vec<Project>> {
+        store.commit_projects(&self.id)
+    } 
+    pub fn projects_count(& self, store: &Database) -> Option<usize> {
+        store.commit_projects_count(&self.id)
+    }
 }
 
 impl Identifiable for Commit {
@@ -609,6 +619,15 @@ impl Snapshot {
     pub fn write_contents_to_file<F>(&self, file: &mut F) -> Result<(), std::io::Error> where F: Write {
         file.write_all(self.contents.as_slice())
     }
+
+    pub fn unique_projects(&self, db : &Database) -> usize {
+        db.snapshot_unique_projects(&self.id)
+    }
+
+    pub fn original_project(&self, db : &Database) -> ProjectId {
+        db.snapshot_original_project(&self.id)
+    }
+
     // FIXME add hashes
 }
 impl Identifiable for Snapshot {
@@ -776,6 +795,15 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn paths_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Path>>> {
         self.item.paths(&self.data).attach_data_to_each(self.data)
     }
+    pub fn unique_files(&self) -> Option<usize>    {
+        self.item.unique_files(&self.data)
+    }
+    pub fn original_files(&self) -> Option<usize>    {
+        self.item.original_files(&self.data)
+    }
+    pub fn impact(&self) -> Option<usize>    {
+        self.item.impact(&self.data)
+    }
 }
 impl<'a> ItemWithData<'a, Snapshot> {
     pub fn raw_contents(&self) -> &Vec<u8> { self.item.raw_contents() }
@@ -784,6 +812,8 @@ impl<'a> ItemWithData<'a, Snapshot> {
     pub fn contents(&self) -> Cow<str> { self.item.contents() }
     pub fn contents_owned(&self) -> String { self.item.contents_owned() }
     pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
+    pub fn unique_projects(&self) -> usize { self.item.unique_projects(&self.data) }
+    pub fn original_project(&self) -> ProjectId { self.item.original_project(&self.data) }
 }
 
 impl<'a> ItemWithData<'a, User> {
@@ -849,6 +879,8 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn changed_snapshots_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Snapshot>>> {
         self.item.changed_snapshots(self.data).attach_data_to_each(self.data)
     }
+    pub fn projects(&self) -> Option<Vec<Project>> { self.item.projects(&self.data) }
+    pub fn projects_count(& self) -> Option<usize> { self.item.projects_count(& self.data) }
 
 }
 impl<'a> ItemWithData<'a, Path> {

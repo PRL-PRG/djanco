@@ -362,11 +362,13 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
                 let mut previous: i64 = timestamps[0];
                 
                 for i in 1..timestamps.len() {
-                    if timestamps[i] - previous > ans {
+                    assert!(timestamps[i] >=previous);
+                    if (timestamps[i] - previous) > ans {
                         ans = timestamps[i] - previous;
+                        
                     }
                     previous = timestamps[i];
-                    println!("format {} arguments", ans);
+                    
                 }
 
                 let now: i64 = Utc::now().timestamp();
@@ -374,7 +376,7 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
                 if now - timestamps[timestamps.len()-1] > ans {
                     ans = now - timestamps[timestamps.len()-1];
                 }
-                println!("format {} arguments", ans);
+                
                 Some((project_id.clone(), ans))
             }
             
@@ -953,7 +955,7 @@ pub(crate) struct Data {
 
     longest_inactivity_streak:    PersistentMap<LongestInactivityStreakExtractor>,
     avg_commit_rate:              PersistentMap<AvgCommitRateExtractor>,
-    time_since_last_commit:              PersistentMap<TimeSinceLastCommitExtractor>,
+    time_since_last_commit:       PersistentMap<TimeSinceLastCommitExtractor>,
 }
 
 impl Data {

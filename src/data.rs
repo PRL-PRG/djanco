@@ -1196,6 +1196,8 @@ impl Data {
     pub fn new(/*source: DataSource,*/ cache_dir: CacheDir, log: Log) -> Data {
         let dir = cache_dir.as_string();
         Data {
+            project_metadata:            ProjectMetadataSource::new("project",             log.clone(),dir.clone()),
+
             project_urls:                PersistentMap::new("project_urls",                log.clone(),dir.clone()).without_cache(),
             project_substores:           PersistentMap::new("project_substores",           log.clone(),dir.clone()).without_cache(),
             project_heads:               PersistentMap::new("project_heads",               log.clone(),dir.clone()),
@@ -1212,8 +1214,6 @@ impl Data {
             project_commits:             PersistentMap::new("project_commits",             log.clone(),dir.clone()),
             project_commit_count:        PersistentMap::new("project_commit_count",        log.clone(),dir.clone()),
             project_lifetimes:           PersistentMap::new("project_lifetimes",           log.clone(),dir.clone()),
-
-            project_metadata:            ProjectMetadataSource::new("project",             log.clone(),dir.clone()),
 
             project_unique_files:        PersistentMap::new("project_unique_files",        log.clone(),dir.clone()),
             project_original_files:      PersistentMap::new("project_original_files",      log.clone(),dir.clone()),

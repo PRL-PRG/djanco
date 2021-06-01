@@ -7,6 +7,8 @@ use std::error::Error;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
+use crate::metadata::MetadataSource;
+use crate::metadata::ProjectMetadataSource;
 use crate::source::Source;
 use crate::log::{Log, Verbosity};
 use crate::weights_and_measures::*;
@@ -297,4 +299,6 @@ impl<E,A,B,C, D> PersistentMap<E> where E: QuadrupleMapExtractor<A=A,B=B,C=C,D=D
 //         self.data_from_loader(|| { E::extract(input_a, input_b, input_c, input_d) })
 //     }
 // }
+
+// pub struct Created
 

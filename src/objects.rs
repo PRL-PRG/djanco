@@ -397,17 +397,18 @@ impl Project {
     pub fn has_downloads    (&self, store: &Database)    -> Option<bool>                    { store.project_has_downloads(&self.id)          }
     pub fn has_wiki         (&self, store: &Database)    -> Option<bool>                    { store.project_has_wiki(&self.id)               }
     pub fn has_pages        (&self, store: &Database)    -> Option<bool>                    { store.project_has_pages(&self.id)              }
-    pub fn created          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_created(&self.id)                }
-    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_updated(&self.id)                }
-    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)                 }
+    pub fn created          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_created(&self.id)          }
+    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_updated(&self.id)          }
+    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)           }
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_master(&self.id)                 }
-    pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>                   { store.longest_inactivity_streak(&self.id)       }
-    pub fn avg_commit_rate      (&self, store: &Database)    -> Option<i64>                   { store.avg_commit_rate(&self.id)       }
-    pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>                   { store.time_since_last_commit(&self.id)       }
+    pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>      { store.project_longest_inactivity_streak(&self.id)      }
+    pub fn avg_commit_rate      (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_rate(&self.id)                }
+    pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id)         }
+    pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                   }
     
     // TODO project commit frequency
 
-    pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }
+    pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)               }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -756,9 +757,10 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn updated          (&self)    -> Option<Timestamp>                     { self.item.updated(&self.data)             }
     pub fn pushed           (&self)    -> Option<Timestamp>                     { self.item.pushed(&self.data)              }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)            }
-    pub fn longest_inactivity_streak (&self) -> Option<i64>     { self.item.longest_inactivity_streak(&self.data) }
-    pub fn avg_commit_rate (&self) -> Option<i64>     { self.item.avg_commit_rate(&self.data) }
-    pub fn time_since_last_commit (&self) -> Option<i64>     { self.item.time_since_last_commit(&self.data) }
+    pub fn longest_inactivity_streak (&self) -> Option<i64>               { self.item.longest_inactivity_streak(&self.data) }
+    pub fn avg_commit_rate (&self)      -> Option<i64>                    { self.item.avg_commit_rate(&self.data) }
+    pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
+    pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }
 
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)         }
 

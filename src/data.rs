@@ -296,14 +296,17 @@ impl Database {
     pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
         self.data.borrow_mut().user_committed_commits(&self.source, id)
     }
-    pub fn longest_inactivity_streak(&self, id: &ProjectId) -> Option<i64> {
+    pub fn project_longest_inactivity_streak(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().longest_inactivity_streak(&self.source, id)
     }
     pub fn avg_commit_rate(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().avg_commit_rate(&self.source, id)
     }
-    pub fn time_since_last_commit(&self, id: &ProjectId) -> Option<i64> {
+    pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().time_since_last_commit(&self.source, id)
+    }
+    pub fn is_abandoned(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().is_abandoned(&self.source, id)
     }
 
 }
@@ -453,6 +456,28 @@ impl DoubleMapExtractor for TimeSinceLastCommitExtractor  {
                 Some((project_id.clone(), now - timestamps[timestamps.len()-1]))
             }
             
+        }).collect()
+    }
+}
+
+struct IsAbandonedExtractor {}
+impl MapExtractor for IsAbandonedExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl DoubleMapExtractor for IsAbandonedExtractor  {
+    type A = BTreeMap<ProjectId, i64>;
+    type B = BTreeMap<ProjectId, i64>;
+    fn extract(longest_inactivity_streak: &Self::A, time_since_last_commit: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        
+        longest_inactivity_streak.iter().flat_map(|(project_id, inactivity_streak)| {
+            let option_last_commit = time_since_last_commit.get(&project_id);
+            if let Some(last_commit) = option_last_commit { 
+                return Some((project_id.clone(), *last_commit > *inactivity_streak));
+            }
+
+            Some((project_id.clone(), false))
+
         }).collect()
     }
 }
@@ -949,9 +974,10 @@ pub(crate) struct Data {
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
 
-    longest_inactivity_streak:    PersistentMap<LongestInactivityStreakExtractor>,
+    project_longest_inactivity_streak:    PersistentMap<LongestInactivityStreakExtractor>,
     avg_commit_rate:              PersistentMap<AvgCommitRateExtractor>,
-    time_since_last_commit:       PersistentMap<TimeSinceLastCommitExtractor>,
+    project_time_since_last_commit:       PersistentMap<TimeSinceLastCommitExtractor>,
+    is_abandoned:                 PersistentMap<IsAbandonedExtractor>
 }
 
 impl Data {
@@ -996,9 +1022,10 @@ impl Data {
             commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    log.clone(),dir.clone()),
             commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", log.clone(),dir.clone()),
             commit_changes:              PersistentMap::new("commit_changes",              log.clone(),dir.clone()).without_cache(),
-            longest_inactivity_streak:   PersistentMap::new("longest_inactivity_streak", log.clone(), dir.clone()),
+            project_longest_inactivity_streak:   PersistentMap::new("longest_inactivity_streak", log.clone(), dir.clone()),
             avg_commit_rate:             PersistentMap::new("avg_commit_rate", log.clone(), dir.clone()),
-            time_since_last_commit:      PersistentMap::new("time_since_last_commit", log.clone(), dir.clone()),
+            project_time_since_last_commit:      PersistentMap::new("time_since_last_commit", log.clone(), dir.clone()),
+            is_abandoned:                PersistentMap::new("is_abandoned", log.clone(), dir.clone()),
             commit_change_count:         PersistentMap::new("commit_change_count",         log, dir.clone())
             
         }
@@ -1284,6 +1311,9 @@ impl Data {
     pub fn time_since_last_commit(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
         self.smart_load_project_time_since_last_commit(source).get(id).pirate()
     }
+    pub fn is_abandoned(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+        self.smart_load_project_is_abandoned(source).get(id).pirate()
+    }
 }
 
 macro_rules! load_from_source {
@@ -1416,13 +1446,16 @@ impl Data {
         load_with_prerequisites!(self, commit_change_count, source, one, commit_changes)
     }
     fn smart_load_project_longest_inactivity_streak(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
-        load_with_prerequisites!(self, longest_inactivity_streak, source, two, project_commits, commit_committer_timestamps)
+        load_with_prerequisites!(self, project_longest_inactivity_streak, source, two, project_commits, commit_committer_timestamps)
     }
     fn smart_load_project_avg_commit_rate(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, avg_commit_rate, source, two, project_commits, commit_committer_timestamps)
     }
     fn smart_load_project_time_since_last_commit(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
-        load_with_prerequisites!(self, time_since_last_commit, source, two, project_commits, commit_committer_timestamps)
+        load_with_prerequisites!(self, project_time_since_last_commit, source, two, project_commits, commit_committer_timestamps)
+    }
+    fn smart_load_project_is_abandoned(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_with_prerequisites!(self, is_abandoned, source, two, project_longest_inactivity_streak, project_time_since_last_commit)
     }
 }
 

@@ -406,7 +406,8 @@ impl Project {
     pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }
     pub fn unique_files     (&self, store: &Database)    -> Option<usize>                   { store.project_unique_files(&self.id)                  }
     pub fn original_files   (&self, store: &Database)    -> Option<usize>                   { store.project_original_files(&self.id)                  }
-    pub fn impact           (&self, store: &Database)    -> Option<usize>                   { store.project_impact(&self.id)                  }
+    pub fn impact           (&self, store: &Database)    -> Option<usize>                   { store.project_impact(&self.id)     }
+    pub fn files            (&self, store: &Database)    -> Option<usize>                   { store.project_files(&self.id)      }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -803,6 +804,9 @@ impl<'a> ItemWithData<'a, Project> {
     }
     pub fn impact(&self) -> Option<usize>    {
         self.item.impact(&self.data)
+    }
+    pub fn files(&self) -> Option<usize> {
+        self.item.files(&self.data)
     }
 }
 impl<'a> ItemWithData<'a, Snapshot> {

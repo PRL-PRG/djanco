@@ -2,12 +2,10 @@ use structopt::StructOpt;
 
 use djanco::*;
 use djanco::data::*;
-use djanco::time::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
 use djanco::commandline::*;
-use djanco::fraction::Fraction;
 
 
 // rm -rf ~/djanco_cache && cargo run --bin clones --release -- -o ~/output -d /home/peta/devel/codedj-2/datasets/java-1k5-merged -c ~/djanco_cache --data-dump ~/output/dump > out.txt
@@ -27,6 +25,7 @@ fn main() {
     projects_by_unique_files(&config, &log, &database).into_csv(path!("projects_by_unique_files")).unwrap();
     projects_by_original_files(&config, &log, &database).into_csv(path!("projects_by_original_files")).unwrap();
     projects_by_impact(&config, &log, &database).into_csv(path!("projects_by_impact")).unwrap();
+    projects_by_files(&config, &log, &database).into_csv(path!("projects_by_files")).unwrap();
 }
 
 /*
@@ -56,6 +55,13 @@ fn projects_by_impact<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
     database
         .projects()
         .sort_by(project::Impact)
+        .sample(Top(50))
+}
+
+fn projects_by_files<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .sort_by(project::Files)
         .sample(Top(50))
 }
 

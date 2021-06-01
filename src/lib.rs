@@ -602,8 +602,11 @@ pub mod project {
     /* The impact of the project. 
      
         Sum of impact of its snapshots, where 0 is added for clones, 1 for unique files and the number of projects using a snapshot for original snapshots.
+
+        TODO the current version does not provide information about deletions and so there is no way we can reconstruct only active files. At this moment this metric simply returns the number of unique paths throughout the project's history.
      */
     impl_attribute![?     objects::Project, Impact, usize, impact];
+    impl_attribute![?     objects::Project, Files, usize, files];
 }
 
 pub mod commit {

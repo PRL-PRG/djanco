@@ -245,6 +245,9 @@ impl Database {
     pub fn project_impact(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_impact(&self.source, id)
     }
+    pub fn project_files(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_files(&self.source, id)
+    }
     pub fn user(&self, id: &UserId) -> Option<User> {
         self.data.borrow_mut().user(&self.source, id).pirate()
     }
@@ -1000,8 +1003,29 @@ impl TripleMapExtractor for ProjectImpactExtractor {
     }
 }
 
+struct ProjectFilesExtractor {}
+impl MapExtractor for ProjectFilesExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl DoubleMapExtractor for ProjectFilesExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
 
-
+    fn extract (project_commits : &Self::A, commit_changes : &Self::B) -> BTreeMap<ProjectId, usize> {
+        project_commits.iter().map(|(pid, commits)| {
+            let mut paths = BTreeSet::<PathId>::new();
+            for cid in commits {
+                if let Some(commits) = commit_changes.get(cid) {
+                    for (path_id, _hash) in commits {
+                        paths.insert(*path_id);
+                    }
+                }
+            }
+            (*pid, paths.len())            
+        }).collect()
+    }
+}
 
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
@@ -1026,6 +1050,7 @@ pub(crate) struct Data {
     project_unique_files:        PersistentMap<ProjectUniqueFilesExtractor>,
     project_original_files:      PersistentMap<ProjectOriginalFilesExtractor>,
     project_impact:              PersistentMap<ProjectImpactExtractor>,
+    project_files:               PersistentMap<ProjectFilesExtractor>,
 
     users:                       PersistentMap<UserExtractor>,
     user_authored_commits:       PersistentMap<UserAuthoredCommitsExtractor>,
@@ -1083,6 +1108,7 @@ impl Data {
             project_unique_files:        PersistentMap::new("project_unique_files",        log.clone(),dir.clone()),
             project_original_files:      PersistentMap::new("project_original_files",      log.clone(),dir.clone()),
             project_impact:              PersistentMap::new("project_impact",              log.clone(),dir.clone()),
+            project_files:               PersistentMap::new("project_files",               log.clone(), dir.clone()),
 
             users:                       PersistentMap::new("users",                       log.clone(),dir.clone()).without_cache(),
             user_authored_commits:       PersistentMap::new("user_authored_commits",       log.clone(),dir.clone()),
@@ -1316,6 +1342,10 @@ impl Data {
         self.smart_load_project_impact(source).get(id)
             .pirate()
     }
+    pub fn project_files(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+        self.smart_load_project_files(source).get(id)
+            .pirate()
+    }
     pub fn user(&mut self, source: &Source, id: &UserId) -> Option<&User> {
         self.smart_load_users(source).get(id)
     }
@@ -1492,6 +1522,9 @@ impl Data {
     }
     fn smart_load_project_impact(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_impact, source, three, project_commits, commit_changes, snapshot_projects)
+    }
+    fn smart_load_project_files(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_files, source, two, project_commits, commit_changes)
     }
     fn smart_load_users(&mut self, source: &Source) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)

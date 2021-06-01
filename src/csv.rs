@@ -402,7 +402,10 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "created", "updated", "pushed",
              "default_branch",
              "license", "homepage", "description",
-             "all_issues", "issues", "buggy_issues", "unique_files", "original_files", "impact"]
+             "all_issues", "issues", "buggy_issues", 
+             "unique_files", "original_files", "impact",
+             "files",
+             "major_language", "major_language_ratio", "major_language_changes"]
     }
 
     fn row(&self) -> Vec<String> {        
@@ -443,7 +446,11 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.buggy_issue_count().to_string_or_empty(),
              self.unique_files().to_string_or_empty(),
              self.original_files().to_string_or_empty(),
-             self.impact().to_string_or_empty()]
+             self.impact().to_string_or_empty(),
+             self.files().to_string_or_empty(),
+             self.major_language().to_string_or_empty(),
+             self.major_language_ratio().to_string_or_empty(),
+             self.major_language_changes().to_string_or_empty()]
     }
 
     fn rows(&self) -> Vec<Vec<String>> {
@@ -485,7 +492,11 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.buggy_issue_count().to_string_or_empty(),
             self.unique_files().to_string_or_empty(),
             self.original_files().to_string_or_empty(),
-            self.impact().to_string_or_empty()        
+            self.impact().to_string_or_empty(),
+            self.files().to_string_or_empty(),
+            self.major_language().to_string_or_empty(),
+            self.major_language_ratio().to_string_or_empty(),
+            self.major_language_changes().to_string_or_empty()
         ]]
     }
 }

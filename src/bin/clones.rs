@@ -26,6 +26,8 @@ fn main() {
     projects_by_original_files(&config, &log, &database).into_csv(path!("projects_by_original_files")).unwrap();
     projects_by_impact(&config, &log, &database).into_csv(path!("projects_by_impact")).unwrap();
     projects_by_files(&config, &log, &database).into_csv(path!("projects_by_files")).unwrap();
+    //projects_by_major_language_ratio(&config, &log, &database).into_csv(path!("projects_by_major_language_ratio")).unwrap();
+    projects_by_major_language_changes(&config, &log, &database).into_csv(path!("projects_by_major_language_changes")).unwrap();    
 }
 
 /*
@@ -62,6 +64,22 @@ fn projects_by_files<'a>(_config: &Configuration, _log: &Log, database: &'a Data
     database
         .projects()
         .sort_by(project::Files)
+        .sample(Top(50))
+}
+
+/*
+fn projects_by_major_language_ratio<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .sort_by(project::MajorLanguageRatio)
+        .sample(Top(50))
+}
+*/
+
+fn projects_by_major_language_changes<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .sort_by(project::MajorLanguageChanges)
         .sample(Top(50))
 }
 

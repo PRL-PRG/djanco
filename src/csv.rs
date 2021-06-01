@@ -404,7 +404,8 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "license", "homepage", "description",
              "all_issues", "issues", "buggy_issues", 
              "unique_files", "original_files", "impact",
-             "files"]
+             "files",
+             "major_language", "major_language_ratio", "major_language_changes"]
     }
 
     fn row(&self) -> Vec<String> {        
@@ -446,7 +447,10 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.unique_files().to_string_or_empty(),
              self.original_files().to_string_or_empty(),
              self.impact().to_string_or_empty(),
-             self.files().to_string_or_empty()]
+             self.files().to_string_or_empty(),
+             self.major_language().to_string_or_empty(),
+             self.major_language_ratio().to_string_or_empty(),
+             self.major_language_changes().to_string_or_empty()]
     }
 
     fn rows(&self) -> Vec<Vec<String>> {
@@ -489,7 +493,10 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.unique_files().to_string_or_empty(),
             self.original_files().to_string_or_empty(),
             self.impact().to_string_or_empty(),
-            self.files().to_string_or_empty()        
+            self.files().to_string_or_empty(),
+            self.major_language().to_string_or_empty(),
+            self.major_language_ratio().to_string_or_empty(),
+            self.major_language_changes().to_string_or_empty()
         ]]
     }
 }

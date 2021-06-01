@@ -248,6 +248,21 @@ impl Database {
     pub fn project_files(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_files(&self.source, id)
     }
+    pub fn project_languages(&self, id: & ProjectId) -> Option<Vec<(Language,usize)>> {
+        self.data.borrow_mut().project_languages(&self.source, id)
+    }
+    pub fn project_languages_count(&self, id: & ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_languages_count(&self.source, id)
+    }
+    pub fn project_major_language(&self, id: &ProjectId) -> Option<Language> {
+        self.data.borrow_mut().project_major_language(&self.source, id)
+    }
+    pub fn project_major_language_ratio(&self, id: &ProjectId) -> Option<f64> {
+        self.data.borrow_mut().project_major_language_ratio(&self.source, id)
+    }
+    pub fn project_major_language_changes(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_major_language_changes(&self.source, id)
+    }
     pub fn user(&self, id: &UserId) -> Option<User> {
         self.data.borrow_mut().user(&self.source, id).pirate()
     }
@@ -1027,6 +1042,96 @@ impl DoubleMapExtractor for ProjectFilesExtractor {
     }
 }
 
+struct ProjectLanguagesExtractor {}
+impl MapExtractor for ProjectLanguagesExtractor {
+    type Key = ProjectId;
+    type Value = Vec<(Language,usize)>;
+}
+impl TripleMapExtractor for ProjectLanguagesExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type C = BTreeMap<PathId, Path>;
+
+    fn extract (project_commits : &Self::A, commit_changes : &Self::B, paths : &Self::C) -> BTreeMap<ProjectId, Vec<(Language,usize)>> {
+        let mut cached_paths = BTreeMap::<PathId, Language>::new();
+        project_commits.iter().map(|(pid, commits)| {
+            let mut languages = BTreeMap::<Language, usize>::new();
+            for cid in commits {
+                if let Some(commits) = commit_changes.get(cid) {
+                    for (path_id, hash) in commits {
+                        if let Some(_) = hash {
+                            let lang = cached_paths.entry(*path_id).or_insert_with(|| {
+                                if let Some(language) = paths.get(path_id).unwrap().language() {
+                                    language
+                                } else {
+                                    Language::Other
+                                }
+                            });
+                            match languages.entry(*lang) {
+                                Entry::Occupied(mut e) => { *e.get_mut() += 1; },
+                                Entry::Vacant(e) => { e.insert(1); },
+                            }
+                        }
+                    }
+                }
+            }
+            let mut langs : Vec<(Language, usize)> = languages.into_iter().collect();
+            langs.sort_by(|a, b| b.1.cmp(&a.1) ); // reversed
+            (*pid, langs)            
+        }).collect()
+    }
+}
+
+struct ProjectMajorLanguageExtractor {}
+impl MapExtractor for ProjectMajorLanguageExtractor {
+    type Key = ProjectId;
+    type Value = Language;
+}
+impl SingleMapExtractor for ProjectMajorLanguageExtractor {
+    type A = BTreeMap<ProjectId, Vec<(Language, usize)>>;
+
+    fn extract (project_languages : &Self::A) -> BTreeMap<ProjectId, Language> {
+        project_languages.iter()
+            .filter(|(_pid, langs)| langs.len() > 0)
+            .map(|(pid, langs)| (*pid, langs.get(0).unwrap().0))
+            .collect()
+    }
+}
+
+struct ProjectMajorLanguageRatioExtractor {}
+impl MapExtractor for ProjectMajorLanguageRatioExtractor {
+    type Key = ProjectId;
+    type Value = f64;
+}
+impl SingleMapExtractor for ProjectMajorLanguageRatioExtractor {
+    type A = BTreeMap<ProjectId, Vec<(Language, usize)>>;
+
+    fn extract (project_languages : &Self::A) -> BTreeMap<ProjectId, f64> {
+        project_languages.iter()
+            .filter(|(_pid, langs)| langs.len() > 0)
+            .map(|(pid, langs)| (*pid, langs.get(0).unwrap().1 as f64 / langs.iter().map(|(_, count)| *count).sum::<usize>() as f64))
+            .collect()
+    }
+}
+
+struct ProjectMajorLanguageChangesExtractor {}
+impl MapExtractor for ProjectMajorLanguageChangesExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl SingleMapExtractor for ProjectMajorLanguageChangesExtractor {
+    type A = BTreeMap<ProjectId, Vec<(Language, usize)>>;
+
+    fn extract (project_languages : &Self::A) -> BTreeMap<ProjectId, usize> {
+        project_languages.iter()
+            .filter(|(_pid, langs)| langs.len() > 0)
+            .map(|(pid, langs)| (*pid, langs.get(0).unwrap().1))
+            .collect()
+    }
+}
+
+
+
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
     project_substores:           PersistentMap<ProjectSubstoreExtractor>,
@@ -1051,6 +1156,11 @@ pub(crate) struct Data {
     project_original_files:      PersistentMap<ProjectOriginalFilesExtractor>,
     project_impact:              PersistentMap<ProjectImpactExtractor>,
     project_files:               PersistentMap<ProjectFilesExtractor>,
+    project_languages:           PersistentMap<ProjectLanguagesExtractor>,
+    project_languages_count:     PersistentMap<CountPerKeyExtractor<ProjectId, (Language,usize)>>,
+    project_major_language:      PersistentMap<ProjectMajorLanguageExtractor>,
+    project_major_language_ratio: PersistentMap<ProjectMajorLanguageRatioExtractor>,
+    project_major_language_changes: PersistentMap<ProjectMajorLanguageChangesExtractor>,
 
     users:                       PersistentMap<UserExtractor>,
     user_authored_commits:       PersistentMap<UserAuthoredCommitsExtractor>,
@@ -1109,6 +1219,11 @@ impl Data {
             project_original_files:      PersistentMap::new("project_original_files",      log.clone(),dir.clone()),
             project_impact:              PersistentMap::new("project_impact",              log.clone(),dir.clone()),
             project_files:               PersistentMap::new("project_files",               log.clone(), dir.clone()),
+            project_languages:           PersistentMap::new("project_languages",           log.clone(), dir.clone()),
+            project_languages_count:     PersistentMap::new("project_languages_cout",      log.clone(), dir.clone()),
+            project_major_language:      PersistentMap::new("project_major_language",      log.clone(), dir.clone()),
+            project_major_language_ratio: PersistentMap::new("project_major_language_ratio", log.clone(), dir.clone()),
+            project_major_language_changes: PersistentMap::new("project_major_language_changes", log.clone(), dir.clone()),
 
             users:                       PersistentMap::new("users",                       log.clone(),dir.clone()).without_cache(),
             user_authored_commits:       PersistentMap::new("user_authored_commits",       log.clone(),dir.clone()),
@@ -1346,6 +1461,26 @@ impl Data {
         self.smart_load_project_files(source).get(id)
             .pirate()
     }
+    pub fn project_languages(& mut self, source: &Source, id:&ProjectId) -> Option<Vec<(Language,usize)>> {
+        self.smart_load_project_languages(source).get(id)
+            .pirate()
+    }
+    pub fn project_languages_count(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+        self.smart_load_project_languages_count(source).get(id)
+            .pirate()
+    }
+    pub fn project_major_language(& mut self, source: &Source, id:&ProjectId) -> Option<Language> {
+        self.smart_load_project_major_language(source).get(id)
+            .pirate()
+    }
+    pub fn project_major_language_ratio(& mut self, source: &Source, id:&ProjectId) -> Option<f64> {
+        self.smart_load_project_major_language_ratio(source).get(id)
+            .pirate()
+    }
+    pub fn project_major_language_changes(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+        self.smart_load_project_major_language_changes(source).get(id)
+            .pirate()
+    }
     pub fn user(&mut self, source: &Source, id: &UserId) -> Option<&User> {
         self.smart_load_users(source).get(id)
     }
@@ -1525,6 +1660,21 @@ impl Data {
     }
     fn smart_load_project_files(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_files, source, two, project_commits, commit_changes)
+    }
+    fn smart_load_project_languages(& mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(Language,usize)>> {
+        load_with_prerequisites!(self, project_languages, source, three, project_commits, commit_changes, paths)
+    }
+    fn smart_load_project_languages_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_languages_count, source, one, project_languages)
+    }
+    fn smart_load_project_major_language(& mut self, source: &Source) -> &BTreeMap<ProjectId, Language> {
+        load_with_prerequisites!(self, project_major_language, source, one, project_languages)
+    }
+    fn smart_load_project_major_language_ratio(& mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
+        load_with_prerequisites!(self, project_major_language_ratio, source, one, project_languages)
+    }
+    fn smart_load_project_major_language_changes(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_major_language_changes, source, one, project_languages)
     }
     fn smart_load_users(&mut self, source: &Source) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)

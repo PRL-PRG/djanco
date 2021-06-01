@@ -21,7 +21,9 @@ pub enum Language {
     ASM, ASP, ActionScript, C, Cpp, CSharp, CoffeeScript, Lisp, Cobol, CSS, Clojure, D, Eiffel,
     Elixir, Elm, Erlang, FSharp, Fortran, Go, Groovy, HTML, Haskell, Java, JavaScript, Julia,
     Kotlin, Lua, ObjectiveC, OCaml, PHP, Pascal, Python, Perl, /*Prolog,*/ R, Racket, Ruby, Rust,
-    Scala, SQL, Scheme, Swift, TypeScript, VisualBasic
+    Scala, SQL, Scheme, Swift, TypeScript, VisualBasic,
+    // special category for languages we do not yet recognize and anything we do not know
+    Other
 }
 
 // HTML, CSS, Jupyter Notebook, Shell, Rich Text Format, Dart, R, Makefile, Vue, TeX, Vim script, Meson, Roff, CMake, Smarty, MATLAB, Elixir, Julia, F#,
@@ -82,6 +84,12 @@ impl Language {
         }).flatten().flatten()
     }
 
+    /** Returns the language associated with given extension. 
+     
+        If the extension is *not* recognized, returns Language::Other. If the extension is recognized as not belonging to a source code file (say images, etc.) should return None. 
+
+        TODO implement the above?
+     */
     fn from_extension(extension: &str) -> Option<Self> {
         match extension {
             "c" | "h"                                               => Some(Language::C),
@@ -131,7 +139,7 @@ impl Language {
             "as" | "swf"                                            => Some(Language::ActionScript),
             "asp"                                                   => Some(Language::ASP),
             "asm" | "s"                                             => Some(Language::ASM),
-            _                                                       => None,
+            _                                                       => Some(Language::Other),
         }
     }
 }
@@ -183,7 +191,8 @@ impl Display for Language {
             Language::SQL => "SQL",
             Language::Scheme => "Scheme",
             Language::Swift => "Swift",
-            Language::VisualBasic => "Visual Basic"
+            Language::VisualBasic => "Visual Basic",
+            Language::Other => "Other"
         };
         f.write_str(string)
     }
@@ -408,6 +417,11 @@ impl Project {
     pub fn original_files   (&self, store: &Database)    -> Option<usize>                   { store.project_original_files(&self.id)                  }
     pub fn impact           (&self, store: &Database)    -> Option<usize>                   { store.project_impact(&self.id)     }
     pub fn files            (&self, store: &Database)    -> Option<usize>                   { store.project_files(&self.id)      }
+    pub fn languages        (&self, store: &Database)    -> Option<Vec<(Language,usize)>>   { store.project_languages(&self.id)      }
+    pub fn languages_count  (&self, store: &Database)    -> Option<usize>                   { store.project_languages_count(&self.id)      }
+    pub fn major_language   (&self, store: &Database)    -> Option<Language>                { store.project_major_language(&self.id)      }
+    pub fn major_language_ratio (&self, store: &Database) -> Option<f64>                    { store.project_major_language_ratio(&self.id) }
+    pub fn major_language_changes (&self, store: &Database) -> Option<usize>                    { store.project_major_language_changes(&self.id) }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -807,6 +821,21 @@ impl<'a> ItemWithData<'a, Project> {
     }
     pub fn files(&self) -> Option<usize> {
         self.item.files(&self.data)
+    }
+    pub fn languages(&self) -> Option<Vec<(Language,usize)>> {
+        self.item.languages(&self.data)
+    }
+    pub fn languages_count(&self) -> Option<usize> {
+        self.item.languages_count(&self.data)
+    }
+    pub fn major_language(&self) -> Option<Language> {
+        self.item.major_language(&self.data)
+    }
+    pub fn major_language_ratio(&self) -> Option<f64> {
+        self.item.major_language_ratio(&self.data)
+    }
+    pub fn major_language_changes(&self) -> Option<usize> {
+        self.item.major_language_changes(&self.data)
     }
 }
 impl<'a> ItemWithData<'a, Snapshot> {

@@ -2,13 +2,10 @@ use structopt::StructOpt;
 
 use djanco::*;
 use djanco::data::*;
-use djanco::time::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
 use djanco::commandline::*;
-use djanco::fraction::Fraction;
-
 
 // rm -rf ~/djanco_cache && cargo run --bin clones --release -- -o ~/output -d /home/peta/devel/codedj-2/datasets/java-1k5-merged -c ~/djanco_cache --data-dump ~/output/dump > out.txt
 

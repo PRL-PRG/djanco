@@ -330,7 +330,7 @@ impl<Id> VectorExtractor for IdExtractor<Id> where Id: Identity + Persistent {
 }
 impl<Id> SingleVectorExtractor for IdExtractor<Id> where Id: Identity + Persistent  {
     type A = BTreeMap<Id, String>;
-    fn extract(source: &Source, whatever: &Self::A) -> Vec<Self::Value> {
+    fn extract(_: &Source, whatever: &Self::A) -> Vec<Self::Value> {
         whatever.keys().collect::<Vec<&Id>>().pirate()
     }
 }
@@ -395,7 +395,7 @@ impl DoubleMapExtractor for ProjectSnapshotsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
 
-    fn extract(source: &Source, project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commit_ids.iter().map(|(project_id, commit_ids)| {
             let path_ids /* Iterator equivalent of Vec<Vec<PathId>>*/ =
                 commit_ids.iter().flat_map(|commit_id| {
@@ -423,7 +423,7 @@ impl DoubleMapExtractor for ProjectPathsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
 
-    fn extract(source: &Source, project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commit_ids.iter().map(|(project_id, commit_ids)| {
             let path_ids /* Iterator equivalent of Vec<Vec<PathId>>*/ =
                 commit_ids.iter().flat_map(|commit_id| {
@@ -450,7 +450,7 @@ impl MapExtractor for ProjectUsersExtractor {
 impl DoubleMapExtractor for ProjectUsersExtractor {
     type A = BTreeMap<ProjectId, Vec<UserId>>;
     type B = BTreeMap<ProjectId, Vec<UserId>>;
-    fn extract(source: &Source, project_authors: &Self::A, project_committers: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, project_authors: &Self::A, project_committers: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_authors.iter().map(|(project_id, authors)| {
             let mut users: Vec<UserId> = vec![];
             let committers = project_committers.get(project_id);
@@ -471,7 +471,7 @@ impl MapExtractor for ProjectAuthorsExtractor {
 impl DoubleMapExtractor for ProjectAuthorsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Commit>;
-    fn extract(source: &Source, project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commits.iter().map(|(project_id, commit_ids)| {
             (project_id.clone(), commit_ids.iter().flat_map(|commit_id| {
                 commits.get(commit_id).map(|c| c.author_id())
@@ -488,7 +488,7 @@ impl MapExtractor for ProjectCommittersExtractor {
 impl DoubleMapExtractor for ProjectCommittersExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Commit>;
-    fn extract(source: &Source, project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commits.iter().map(|(project_id, commit_ids)| {
             (project_id.clone(), commit_ids.iter().flat_map(|commit_id| {
                 commits.get(commit_id).map(|c| c.committer_id())
@@ -505,7 +505,7 @@ impl<K, V> MapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Pe
 impl<K, V> SingleMapExtractor for CountPerKeyExtractor<K, V> where K: Clone + Ord + Persistent + Weighed {
     type A = BTreeMap<K, Vec<V>>;
 
-    fn extract(source: &Source, primary: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, primary: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         primary.iter().map(|(key, value)| (key.clone(), value.len())).collect()
     }
 }
@@ -538,7 +538,7 @@ impl MapExtractor for ProjectCommitsExtractor {
 impl DoubleMapExtractor for ProjectCommitsExtractor {
     type A = BTreeMap<ProjectId, Vec<Head>>;
     type B = BTreeMap<CommitId, Commit>;
-    fn extract(source: &Source, heads: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, heads: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         heads.iter().map(|(project_id, heads)| {
             (project_id.clone(),
              heads.iter().flat_map(|head| {
@@ -559,7 +559,7 @@ impl TripleMapExtractor for ProjectLifetimesExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     type C = BTreeMap<CommitId, i64>;
-    fn extract(source: &Source, 
+    fn extract(_: &Source, 
                project_commits: &Self::A,
                authored_timestamps: &Self::B,
                committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
@@ -606,7 +606,7 @@ impl MapExtractor for UserAuthoredCommitsExtractor {
 }
 impl SingleMapExtractor for UserAuthoredCommitsExtractor {
     type A = BTreeMap<CommitId, Commit>;
-    fn extract(source: &Source, commits: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, commits: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         commits.iter()
             .map(|(commit_id, commit)| {
                 (commit.author_id().clone(), commit_id.clone(), )
@@ -624,7 +624,7 @@ impl MapExtractor for UserExperienceExtractor {
 impl DoubleMapExtractor for UserExperienceExtractor  {
     type A = BTreeMap<UserId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
-    fn extract(source: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         user_commits.iter()
         .flat_map(|(user_id, commit_ids)| {
             let min_max = commit_ids.iter()
@@ -651,7 +651,7 @@ impl TripleMapExtractor for CombinedUserExperienceExtractor  {
     type A = BTreeMap<UserId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     type C = BTreeMap<CommitId, i64>;
-    fn extract(source: &Source, user_commits: &Self::A, authored_timestamps: &Self::B, committed_timestamps: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, user_commits: &Self::A, authored_timestamps: &Self::B, committed_timestamps: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         user_commits.iter()
             .flat_map(|(user_id, commit_ids)| {
                 let min_max = commit_ids.iter()
@@ -788,7 +788,7 @@ impl MapExtractor for CommitProjectsExtractor {
 
 impl SingleMapExtractor for CommitProjectsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    fn extract(source: &Source, project_commits: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, project_commits: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         let mut result = BTreeMap::<CommitId, Vec<ProjectId>>::new();
         project_commits.iter().for_each(|(pid, commits)| {
             commits.iter().for_each(|cid|{
@@ -829,7 +829,7 @@ impl TripleMapExtractor for SnapshotProjectsExtractor {
     type C = BTreeMap<CommitId, i64>;
     //type D = ProjectMetadataSource;
 
-    fn extract (source: &Source, commit_changes : &Self::A, commit_projects : &Self::B, commit_author_timestamps : &Self::C) -> BTreeMap<SnapshotId, (usize, ProjectId)> {
+    fn extract (_: &Source, commit_changes : &Self::A, commit_projects : &Self::B, commit_author_timestamps : &Self::C) -> BTreeMap<SnapshotId, (usize, ProjectId)> {
         // first for each snapshot get projects and 
         let mut snapshot_projects = BTreeMap::<SnapshotId, SnapshotCloneInfo>::new();
         // for each commit
@@ -876,7 +876,7 @@ impl TripleMapExtractor for ProjectUniqueFilesExtractor {
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
 
-    fn extract (source: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
         // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
         let mut visited = BTreeSet::<SnapshotId>::new();
         return project_commits.iter().map(|(pid, commits)| {
@@ -916,7 +916,7 @@ impl TripleMapExtractor for ProjectOriginalFilesExtractor {
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
 
-    fn extract (source: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
         // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
         let mut visited = BTreeSet::<SnapshotId>::new();
         return project_commits.iter().map(|(pid, commits)| {
@@ -957,7 +957,7 @@ impl TripleMapExtractor for ProjectImpactExtractor {
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
 
-    fn extract (source: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
         // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
         let mut visited = BTreeSet::<SnapshotId>::new();
         return project_commits.iter().map(|(pid, commits)| {
@@ -1576,7 +1576,8 @@ impl Data {
             }
         }
 
-        self.project_metadata.iter(source).into_csv(path!("project_metadata"))?;
+        // self.project_metadata.iter(source).into_csv(path!("project_metadata"))?;
+        // FIXME add 
 
         self.smart_load_project_urls(source).iter().into_csv(path!("project_urls"))?;
         self.smart_load_project_heads(source).iter().into_csv(path!("project_heads"))?;

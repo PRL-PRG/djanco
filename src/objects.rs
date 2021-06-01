@@ -615,6 +615,7 @@ impl Snapshot {
         file.write_all(self.contents.as_slice())
     }
     // FIXME add hashes
+    pub fn snapshot_locs      (&self, store: &Database)    -> Option<usize>                   { store.snapshot_locs(&self.id)                   }
 }
 impl Identifiable for Snapshot {
     type Identity = SnapshotId;
@@ -761,8 +762,7 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn avg_commit_rate (&self)      -> Option<i64>                    { self.item.avg_commit_rate(&self.data) }
     pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
     pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }
-
-    pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)         }
+    pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)     }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)
@@ -785,6 +785,8 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn paths_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Path>>> {
         self.item.paths(&self.data).attach_data_to_each(self.data)
     }
+    
+    
 }
 impl<'a> ItemWithData<'a, Snapshot> {
     pub fn raw_contents(&self) -> &Vec<u8> { self.item.raw_contents() }
@@ -793,6 +795,7 @@ impl<'a> ItemWithData<'a, Snapshot> {
     pub fn contents(&self) -> Cow<str> { self.item.contents() }
     pub fn contents_owned(&self) -> String { self.item.contents_owned() }
     pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
+    pub fn snapshot_locs (&self)        -> Option<usize>                    { self.item.snapshot_locs(&self.data) }
 }
 
 impl<'a> ItemWithData<'a, User> {

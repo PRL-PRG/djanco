@@ -686,6 +686,7 @@ pub mod snapshot {
     impl_attribute![!   objects::Snapshot, Id, objects::SnapshotId, id];
     impl_attribute![!   objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned];
     impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];
+    impl_attribute![?   objects::Snapshot, Loc, usize, snapshot_locs];
 }
 
 pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=objects::ItemWithData<'a, T>> {

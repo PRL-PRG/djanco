@@ -308,6 +308,9 @@ impl Database {
     pub fn is_abandoned(&self, id: &ProjectId) -> Option<bool> {
         self.data.borrow_mut().is_abandoned(&self.source, id)
     }
+    pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize> {
+        self.data.borrow_mut().snapshot_locs(&self.source, id)
+    }
 
 }
 
@@ -927,6 +930,25 @@ impl SingleMapExtractor for AuthorTimestampExtractor {
     }
 }
 
+struct SnapshotLocsExtractor{}
+impl MapExtractor for SnapshotLocsExtractor {
+    type Key = SnapshotId;
+    type Value = usize;
+}
+impl SingleMapExtractor for SnapshotLocsExtractor {
+    type A = Source;
+    fn extract(source: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        source.snapshot_bytes().map(|(id, contents)| {
+
+            let snapshot = Snapshot::new(id, contents);
+            let contents = snapshot.contents_owned();
+            
+            (id.clone(), contents.matches("\n").count())
+       }).collect()
+    }
+}
+
+
 
 
 pub(crate) struct Data {
@@ -977,7 +999,8 @@ pub(crate) struct Data {
     project_longest_inactivity_streak:    PersistentMap<LongestInactivityStreakExtractor>,
     avg_commit_rate:              PersistentMap<AvgCommitRateExtractor>,
     project_time_since_last_commit:       PersistentMap<TimeSinceLastCommitExtractor>,
-    is_abandoned:                 PersistentMap<IsAbandonedExtractor>
+    is_abandoned:                 PersistentMap<IsAbandonedExtractor>,
+    snapshot_locs:                 PersistentMap<SnapshotLocsExtractor>
 }
 
 impl Data {
@@ -1026,6 +1049,7 @@ impl Data {
             avg_commit_rate:             PersistentMap::new("avg_commit_rate", log.clone(), dir.clone()),
             project_time_since_last_commit:      PersistentMap::new("time_since_last_commit", log.clone(), dir.clone()),
             is_abandoned:                PersistentMap::new("is_abandoned", log.clone(), dir.clone()),
+            snapshot_locs:                PersistentMap::new("snapshot_locs", log.clone(), dir.clone()),
             commit_change_count:         PersistentMap::new("commit_change_count",         log, dir.clone())
             
         }
@@ -1314,6 +1338,9 @@ impl Data {
     pub fn is_abandoned(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
         self.smart_load_project_is_abandoned(source).get(id).pirate()
     }
+    pub fn snapshot_locs(&mut self, source: &Source, id: &SnapshotId) -> Option<usize> {
+        self.smart_load_snapshot_locs(source).get(id).pirate()
+    }
 }
 
 macro_rules! load_from_source {
@@ -1456,6 +1483,10 @@ impl Data {
     }
     fn smart_load_project_is_abandoned(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_with_prerequisites!(self, is_abandoned, source, two, project_longest_inactivity_streak, project_time_since_last_commit)
+    }
+    fn smart_load_snapshot_locs(&mut self, source: &Source) -> &BTreeMap<SnapshotId, usize> {
+        load_from_source!(self, snapshot_locs, source)
+        //load_with_prerequisites!(self, is_abandoned, source, one, project_snapshots)
     }
 }
 

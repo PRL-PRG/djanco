@@ -400,7 +400,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "lifetime",
              "has_issues", "has_downloads", "has_wiki", "has_pages",
              "created", "updated", "pushed",
-             "master_branch",
+             "default_branch",
              "license", "homepage", "description",
              "all_issues", "issues", "buggy_issues", "unique_files", "original_files", "impact"]
     }
@@ -678,7 +678,7 @@ impl CSVItem for ProjectMetadata {
             self.created.to_string_or_empty(),
             self.updated.to_string_or_empty(),
             self.pushed.to_string_or_empty(),
-            self.master.to_string_or_empty(),
+            self.default_branch.to_string_or_empty(),
         ]
     }
     fn rows(&self) -> Vec<Vec<String>> {
@@ -704,7 +704,7 @@ impl CSVItem for ProjectMetadata {
             self.created.to_string_or_empty(),
             self.updated.to_string_or_empty(),
             self.pushed.to_string_or_empty(),
-            self.master.to_string_or_empty(),
+            self.default_branch.to_string_or_empty(),
         ]]
     }
 }

@@ -400,7 +400,7 @@ impl Project {
     pub fn created          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_created(&self.id)                }
     pub fn updated          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_updated(&self.id)                }
     pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)                 }
-    pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_master(&self.id)                 }
+    pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_default_branch(&self.id)                 }
     // TODO project commit frequency
 
     pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }

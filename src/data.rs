@@ -19,6 +19,73 @@ use crate::csv::*;
 use crate::source::Source;
 use crate::{CacheDir, Store};
 
+pub mod cache_filenames {
+    pub static CACHE_FILE_PROJECT_IS_FORK:             &'static str = "project_is_fork";
+    pub static CACHE_FILE_PROJECT_IS_ARCHIVED:         &'static str = "project_is_archived";
+    pub static CACHE_FILE_PROJECT_IS_DISABLED:         &'static str = "project_is_disabled";
+    pub static CACHE_FILE_PROJECT_STARGAZER_COUNT:     &'static str = "project_stargazer_count";
+    pub static CACHE_FILE_PROJECT_WATCHER_COUNT:       &'static str = "project_watcher_count";
+    pub static CACHE_FILE_PROJECT_SIZE:                &'static str = "project_size";
+    pub static CACHE_FILE_PROJECT_ISSUE_COUNT:         &'static str = "project_issue_count";
+    pub static CACHE_FILE_PROJECT_BUGGY_ISSUE_COUNT:   &'static str = "project_buggy_issue_count";
+    pub static CACHE_FILE_PROJECT_OPEN_ISSUE_COUNT:    &'static str = "project_open_issue_count";
+    pub static CACHE_FILE_PROJECT_FORK_COUNT:          &'static str = "project_fork_count";
+    pub static CACHE_FILE_PROJECT_SUBSCRIBER_COUNT:    &'static str = "project_subscriber_count";
+    pub static CACHE_FILE_PROJECT_LANGUAGE:            &'static str = "project_language";
+    pub static CACHE_FILE_PROJECT_DESCRIPTION:         &'static str = "project_description";
+    pub static CACHE_FILE_PROJECT_HOMEPAGE:            &'static str = "project_homepage";
+    pub static CACHE_FILE_PROJECT_LICENSE:             &'static str = "project_license";
+    pub static CACHE_FILE_PROJECT_HAS_ISSUES:          &'static str = "project_has_issues";
+    pub static CACHE_FILE_PROJECT_HAS_DOWNLOADS:       &'static str = "project_has_downloads";
+    pub static CACHE_FILE_PROJECT_HAS_WIKI:            &'static str = "project_has_wiki";
+    pub static CACHE_FILE_PROJECT_HAS_PAGES:           &'static str = "project_has_pages";
+    pub static CACHE_FILE_PROJECT_CREATED:             &'static str = "project_created";
+    pub static CACHE_FILE_PROJECT_UPDATED:             &'static str = "project_updated";
+    pub static CACHE_FILE_PROJECT_PUSHED:              &'static str = "project_pushed";
+    pub static CACHE_FILE_PROJECT_DEFAULT_BRANCH:      &'static str = "project_default_branch";
+    pub static CACHE_FILE_PROJECT_URL:                 &'static str = "project_url";
+    pub static CACHE_FILE_PROJECT_SUBSTORE:            &'static str = "project_substore";
+    pub static CACHE_FILE_PROJECT_HEADS:               &'static str = "project_heads";
+    pub static CACHE_FILE_PROJECT_PATHS:               &'static str = "project_paths";
+    pub static CACHE_FILE_PROJECT_PATH_COUNT:          &'static str = "project_path_count";
+    pub static CACHE_FILE_PROJECT_SNAPSHOTS:           &'static str = "project_snapshots";
+    pub static CACHE_FILE_PROJECT_SNAPSHOT_COUNT:      &'static str = "project_snapshot_count";
+    pub static CACHE_FILE_PROJECT_USERS:               &'static str = "project_users";
+    pub static CACHE_FILE_PROJECT_USER_COUNT:          &'static str = "project_user_count";
+    pub static CACHE_FILE_PROJECT_AUTHORS:             &'static str = "project_authors";
+    pub static CACHE_FILE_PROJECT_AUTHOR_COUNT:        &'static str = "project_author_count";
+    pub static CACHE_FILE_PROJECT_COMMITTERS:          &'static str = "project_committers";
+    pub static CACHE_FILE_PROJECT_COMMITTER_COUNT:     &'static str = "project_committer_count";
+    pub static CACHE_FILE_PROJECT_COMMITS:             &'static str = "project_commits";
+    pub static CACHE_FILE_PROJECT_COMMIT_COUNT:        &'static str = "project_commit_count";
+    pub static CACHE_FILE_PROJECT_LIFETIME:            &'static str = "project_lifetime";
+    pub static CACHE_FILE_PROJECT_UNIQUE_FILES:        &'static str = "project_unique_files";
+    pub static CACHE_FILE_PROJECT_ORIGINAL_FILES:      &'static str = "project_original_files";
+    pub static CACHE_FILE_PROJECT_IMPACT:              &'static str = "project_impact";
+    pub static CACHE_FILE_USERS:                       &'static str = "users";
+    pub static CACHE_FILE_USER_AUTHORED_COMMITS:       &'static str = "user_authored_commits";
+    pub static CACHE_FILE_USER_COMMITTED_COMMITS:      &'static str = "user_committed_commits";
+    pub static CACHE_FILE_USER_AUTHOR_EXPERIENCE:      &'static str = "user_author_experience";
+    pub static CACHE_FILE_USER_COMMITTER_EXPERIENCE:   &'static str = "user_committer_experience";
+    pub static CACHE_FILE_USER_EXPERIENCE:             &'static str = "user_experience";
+    pub static CACHE_FILE_USER_AUTHORED_COMMIT_COUNT:  &'static str = "user_authored_commit_count";
+    pub static CACHE_FILE_USER_COMMITTED_COMMIT_COUNT: &'static str = "user_committed_commit_count";
+    pub static CACHE_FILE_PATHS:                       &'static str = "paths";
+    pub static CACHE_FILE_COMMITS:                     &'static str = "commits";
+    pub static CACHE_FILE_COMMIT_HASHES:               &'static str = "commit_hashes";
+    pub static CACHE_FILE_COMMIT_MESSAGES:             &'static str = "commit_messages";
+    pub static CACHE_FILE_COMMIT_AUTHOR_TIMESTAMPS:    &'static str = "commit_author_timestamps";
+    pub static CACHE_FILE_COMMIT_COMMITTER_TIMESTAMPS: &'static str = "commit_committer_timestamps";
+    pub static CACHE_FILE_COMMIT_CHANGES:              &'static str = "commit_changes";
+    pub static CACHE_FILE_COMMIT_CHANGE_COUNT:         &'static str = "commit_change_count";
+    pub static CACHE_FILE_COMMIT_PROJECTS:             &'static str = "commit_projects";
+    pub static CACHE_FILE_COMMIT_PROJECTS_COUNT:       &'static str = "commit_projects_count";
+
+    pub static CACHE_FILE_SNAPSHOT_PROJECTS:           &'static str = "snapshot_projects";
+}
+
+use cache_filenames::*;
+
 // Internally Mutable Data
 pub struct Database {
     data: RefCell<Data>,
@@ -163,8 +230,8 @@ impl Database {
     pub fn project_pushed(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().project_pushed(&self.source, id)
     }
-    pub fn project_master(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_master(&self.source, id)
+    pub fn project_default_branch(&self, id: &ProjectId) -> Option<String> {
+        self.data.borrow_mut().project_default_branch(&self.source, id)
     }
     pub fn project_url(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_url(&self.source, id)
@@ -1015,7 +1082,29 @@ pub(crate) struct Data {
     project_original_files:      PersistentMap<ProjectOriginalFilesExtractor>,
     project_impact:              PersistentMap<ProjectImpactExtractor>,
 
+    project_buggy_issue_count:   PersistentMap<ProjectBuggyIssuesExtractor>,
+    project_issue_count:         PersistentMap<ProjectBuggyIssuesExtractor>,
+    project_is_fork:             PersistentMap<ProjectIsForkExtractor>,
+    project_is_archived:         PersistentMap<ProjectIsArchivedExtractor>,
+    project_is_disabled:         PersistentMap<ProjectIsDisabledExtractor>,
+    project_star_gazer_count:    PersistentMap<ProjectStargazersExtractor>,
+    project_watcher_count:       PersistentMap<ProjectWatchersExtractor>,
+    project_project_size:        PersistentMap<ProjectSizeExtractor>,
+    project_open_issue_count:    PersistentMap<ProjectIssuesExtractor>,
+    project_fork_count:          PersistentMap<ProjectForksExtractor>,
+    project_subscriber_count:    PersistentMap<ProjectSubscribersExtractor>,
+    project_license:             PersistentMap<ProjectLicenseExtractor>,
+    project_language:            PersistentMap<ProjectLanguageExtractor>,
+    project_description:         PersistentMap<ProjectDescriptionExtractor>,
+    project_homepage:            PersistentMap<ProjectHomepageExtractor>,
+    project_has_issues:          PersistentMap<ProjectHasIssuesExtractor>,
+    project_has_downloads:       PersistentMap<ProjectHasDownloadsExtractor>,
+    project_has_wiki:            PersistentMap<ProjectHasWikiExtractor>,
+    project_has_pages:           PersistentMap<ProjectHasPagesExtractor>,
     project_created:             PersistentMap<ProjectCreatedExtractor>,
+    project_updated:             PersistentMap<ProjectUpdatedExtractor>,
+    project_pushed:              PersistentMap<ProjectPushedExtractor>,
+    project_default_branch:      PersistentMap<ProjectDefaultBranchExtractor>,
 
     users:                       PersistentMap<UserExtractor>,
     user_authored_commits:       PersistentMap<UserAuthoredCommitsExtractor>,
@@ -1047,61 +1136,73 @@ pub(crate) struct Data {
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
 }
 
-struct Rybka {
-
-}
-
 impl Data {
     pub fn new(/*source: DataSource,*/ cache_dir: CacheDir, log: Log) -> Data {
         let dir = cache_dir.as_string();
         Data {
-            project_urls:                PersistentMap::new("project_urls",                log.clone(),dir.clone()).without_cache(),
-            project_substores:           PersistentMap::new("project_substores",           log.clone(),dir.clone()).without_cache(),
-            project_heads:               PersistentMap::new("project_heads",               log.clone(),dir.clone()),
-            project_paths:               PersistentMap::new("project_paths",               log.clone(),dir.clone()),
-            project_path_count:          PersistentMap::new("project_path_count",          log.clone(),dir.clone()),
-            project_snapshots:           PersistentMap::new("project_snapshots",           log.clone(),dir.clone()),
-            project_snapshot_count:      PersistentMap::new("project_snapshot_count",      log.clone(),dir.clone()),
-            project_users:               PersistentMap::new("project_users",               log.clone(),dir.clone()),
-            project_user_count:          PersistentMap::new("project_user_count",          log.clone(),dir.clone()),
-            project_authors:             PersistentMap::new("project_authors",             log.clone(),dir.clone()),
-            project_author_count:        PersistentMap::new("project_author_count",        log.clone(),dir.clone()),
-            project_committers:          PersistentMap::new("project_committers",          log.clone(),dir.clone()),
-            project_committer_count:     PersistentMap::new("project_committer_count",     log.clone(),dir.clone()),
-            project_commits:             PersistentMap::new("project_commits",             log.clone(),dir.clone()),
-            project_commit_count:        PersistentMap::new("project_commit_count",        log.clone(),dir.clone()),
-            project_lifetimes:           PersistentMap::new("project_lifetimes",           log.clone(),dir.clone()),
+            project_metadata:            ProjectMetadataSource::new("project",                      log.clone(),dir.clone()),
 
-            project_metadata:            ProjectMetadataSource::new("project",             log.clone(),dir.clone()),
-            project_created:             PersistentMap::new("project_created_at",          log.clone(),dir.clone()),
-
-            project_unique_files:        PersistentMap::new("project_unique_files",        log.clone(),dir.clone()),
-            project_original_files:      PersistentMap::new("project_original_files",      log.clone(),dir.clone()),
-            project_impact:              PersistentMap::new("project_impact",              log.clone(),dir.clone()),
-
-            users:                       PersistentMap::new("users",                       log.clone(),dir.clone()).without_cache(),
-            user_authored_commits:       PersistentMap::new("user_authored_commits",       log.clone(),dir.clone()),
-            user_committed_commits:      PersistentMap::new("user_committed_commits",      log.clone(),dir.clone()),
-            user_author_experience:      PersistentMap::new("user_author_experience",      log.clone(),dir.clone()),
-            user_committer_experience:   PersistentMap::new("user_committer_experience",   log.clone(),dir.clone()),
-            user_experience:             PersistentMap::new("user_experience",             log.clone(),dir.clone()),
-
-            user_authored_commit_count:  PersistentMap::new("user_authored_commit_count",  log.clone(),dir.clone()),
-            user_committed_commit_count: PersistentMap::new("user_committed_commit_count", log.clone(),dir.clone()),
-
-            paths:                       PersistentMap::new("paths",                       log.clone(),dir.clone()).without_cache(),
-            //snapshots:                   PersistentMap::new("snapshots",                   dir.clone()),
-
-            commits:                     PersistentMap::new("commits",                     log.clone(),dir.clone()),
-            commit_hashes:               PersistentMap::new("commit_hashes",               log.clone(),dir.clone()).without_cache(),
-            commit_messages:             PersistentMap::new("commit_messages",             log.clone(),dir.clone()).without_cache(),
-            commit_author_timestamps:    PersistentMap::new("commit_author_timestamps",    log.clone(),dir.clone()),
-            commit_committer_timestamps: PersistentMap::new("commit_committer_timestamps", log.clone(),dir.clone()),
-            commit_changes:              PersistentMap::new("commit_changes",              log.clone(),dir.clone()).without_cache(),
-            commit_change_count:         PersistentMap::new("commit_change_count",         log.clone(), dir.clone()),
-            commit_projects:             PersistentMap::new("commit_projects",             log.clone(), dir.clone()),
-            commit_projects_count:       PersistentMap::new("commit_projects_count",       log.clone(), dir.clone()),
-            snapshot_projects:           PersistentMap::new("snapshot_projects",           log.clone(), dir.clone()),
+            project_urls:                PersistentMap::new(CACHE_FILE_PROJECT_URL,                 log.clone(),dir.clone()).without_cache(),
+            project_substores:           PersistentMap::new(CACHE_FILE_PROJECT_SUBSTORE,            log.clone(),dir.clone()).without_cache(),
+            project_heads:               PersistentMap::new(CACHE_FILE_PROJECT_HEADS,               log.clone(),dir.clone()),
+            project_paths:               PersistentMap::new(CACHE_FILE_PROJECT_PATHS,               log.clone(),dir.clone()),
+            project_path_count:          PersistentMap::new(CACHE_FILE_PROJECT_PATH_COUNT,          log.clone(),dir.clone()),
+            project_snapshots:           PersistentMap::new(CACHE_FILE_PROJECT_SNAPSHOTS,           log.clone(),dir.clone()),
+            project_snapshot_count:      PersistentMap::new(CACHE_FILE_PROJECT_SNAPSHOT_COUNT,      log.clone(),dir.clone()),
+            project_users:               PersistentMap::new(CACHE_FILE_PROJECT_USERS,               log.clone(),dir.clone()),
+            project_user_count:          PersistentMap::new(CACHE_FILE_PROJECT_USER_COUNT,          log.clone(),dir.clone()),
+            project_authors:             PersistentMap::new(CACHE_FILE_PROJECT_AUTHORS,             log.clone(),dir.clone()),
+            project_author_count:        PersistentMap::new(CACHE_FILE_PROJECT_AUTHOR_COUNT,        log.clone(),dir.clone()),
+            project_committers:          PersistentMap::new(CACHE_FILE_PROJECT_COMMITTERS,          log.clone(),dir.clone()),
+            project_committer_count:     PersistentMap::new(CACHE_FILE_PROJECT_COMMITTER_COUNT,     log.clone(),dir.clone()),
+            project_commits:             PersistentMap::new(CACHE_FILE_PROJECT_COMMITS,             log.clone(),dir.clone()),
+            project_commit_count:        PersistentMap::new(CACHE_FILE_PROJECT_COMMIT_COUNT,        log.clone(),dir.clone()),
+            project_lifetimes:           PersistentMap::new(CACHE_FILE_PROJECT_LIFETIME,            log.clone(),dir.clone()),
+            project_issue_count:         PersistentMap::new(CACHE_FILE_PROJECT_ISSUE_COUNT,         log.clone(),dir.clone()),
+            project_buggy_issue_count:   PersistentMap::new(CACHE_FILE_PROJECT_BUGGY_ISSUE_COUNT,   log.clone(),dir.clone()),
+            project_open_issue_count:    PersistentMap::new(CACHE_FILE_PROJECT_OPEN_ISSUE_COUNT,    log.clone(),dir.clone()),
+            project_is_fork:             PersistentMap::new(CACHE_FILE_PROJECT_IS_FORK,             log.clone(),dir.clone()),
+            project_is_archived:         PersistentMap::new(CACHE_FILE_PROJECT_IS_ARCHIVED,         log.clone(),dir.clone()),
+            project_is_disabled:         PersistentMap::new(CACHE_FILE_PROJECT_IS_DISABLED,         log.clone(),dir.clone()),
+            project_star_gazer_count:    PersistentMap::new(CACHE_FILE_PROJECT_STARGAZER_COUNT,     log.clone(),dir.clone()),
+            project_watcher_count:       PersistentMap::new(CACHE_FILE_PROJECT_WATCHER_COUNT,       log.clone(),dir.clone()),
+            project_project_size:        PersistentMap::new(CACHE_FILE_PROJECT_SIZE,                log.clone(),dir.clone()),
+            project_fork_count:          PersistentMap::new(CACHE_FILE_PROJECT_FORK_COUNT,          log.clone(),dir.clone()),
+            project_subscriber_count:    PersistentMap::new(CACHE_FILE_PROJECT_SUBSCRIBER_COUNT,    log.clone(),dir.clone()),
+            project_license:             PersistentMap::new(CACHE_FILE_PROJECT_LICENSE,             log.clone(),dir.clone()),
+            project_language:            PersistentMap::new(CACHE_FILE_PROJECT_LANGUAGE,            log.clone(),dir.clone()),
+            project_description:         PersistentMap::new(CACHE_FILE_PROJECT_DESCRIPTION,         log.clone(),dir.clone()),
+            project_homepage:            PersistentMap::new(CACHE_FILE_PROJECT_HOMEPAGE,            log.clone(),dir.clone()),
+            project_has_issues:          PersistentMap::new(CACHE_FILE_PROJECT_HAS_ISSUES,          log.clone(),dir.clone()),
+            project_has_downloads:       PersistentMap::new(CACHE_FILE_PROJECT_HAS_DOWNLOADS,       log.clone(),dir.clone()),
+            project_has_wiki:            PersistentMap::new(CACHE_FILE_PROJECT_HAS_WIKI,            log.clone(),dir.clone()),
+            project_has_pages:           PersistentMap::new(CACHE_FILE_PROJECT_HAS_PAGES,           log.clone(),dir.clone()),
+            project_created:             PersistentMap::new(CACHE_FILE_PROJECT_CREATED,             log.clone(),dir.clone()),
+            project_updated:             PersistentMap::new(CACHE_FILE_PROJECT_UPDATED,             log.clone(),dir.clone()),
+            project_pushed:              PersistentMap::new(CACHE_FILE_PROJECT_PUSHED,              log.clone(),dir.clone()),
+            project_default_branch:      PersistentMap::new(CACHE_FILE_PROJECT_DEFAULT_BRANCH,      log.clone(),dir.clone()),
+            project_unique_files:        PersistentMap::new(CACHE_FILE_PROJECT_UNIQUE_FILES,        log.clone(),dir.clone()),
+            project_original_files:      PersistentMap::new(CACHE_FILE_PROJECT_ORIGINAL_FILES,      log.clone(),dir.clone()),
+            project_impact:              PersistentMap::new(CACHE_FILE_PROJECT_IMPACT,              log.clone(),dir.clone()),
+            users:                       PersistentMap::new(CACHE_FILE_USERS,                       log.clone(),dir.clone()).without_cache(),
+            user_authored_commits:       PersistentMap::new(CACHE_FILE_USER_AUTHORED_COMMITS,       log.clone(),dir.clone()),
+            user_committed_commits:      PersistentMap::new(CACHE_FILE_USER_COMMITTED_COMMITS,      log.clone(),dir.clone()),
+            user_author_experience:      PersistentMap::new(CACHE_FILE_USER_AUTHOR_EXPERIENCE,      log.clone(),dir.clone()),
+            user_committer_experience:   PersistentMap::new(CACHE_FILE_USER_COMMITTER_EXPERIENCE,   log.clone(),dir.clone()),
+            user_experience:             PersistentMap::new(CACHE_FILE_USER_EXPERIENCE,             log.clone(),dir.clone()),
+            user_authored_commit_count:  PersistentMap::new(CACHE_FILE_USER_AUTHORED_COMMIT_COUNT,  log.clone(),dir.clone()),
+            user_committed_commit_count: PersistentMap::new(CACHE_FILE_USER_COMMITTED_COMMIT_COUNT, log.clone(),dir.clone()),
+            paths:                       PersistentMap::new(CACHE_FILE_PATHS,                       log.clone(),dir.clone()).without_cache(),
+            commits:                     PersistentMap::new(CACHE_FILE_COMMITS,                     log.clone(),dir.clone()),
+            commit_hashes:               PersistentMap::new(CACHE_FILE_COMMIT_HASHES,               log.clone(),dir.clone()).without_cache(),
+            commit_messages:             PersistentMap::new(CACHE_FILE_COMMIT_MESSAGES,             log.clone(),dir.clone()).without_cache(),
+            commit_author_timestamps:    PersistentMap::new(CACHE_FILE_COMMIT_AUTHOR_TIMESTAMPS,    log.clone(),dir.clone()),
+            commit_committer_timestamps: PersistentMap::new(CACHE_FILE_COMMIT_COMMITTER_TIMESTAMPS, log.clone(),dir.clone()),
+            commit_changes:              PersistentMap::new(CACHE_FILE_COMMIT_CHANGES,              log.clone(),dir.clone()).without_cache(),
+            commit_change_count:         PersistentMap::new(CACHE_FILE_COMMIT_CHANGE_COUNT,         log.clone(),dir.clone()),
+            commit_projects:             PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS,             log.clone(),dir.clone()),
+            commit_projects_count:       PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS_COUNT,       log.clone(),dir.clone()),
+            snapshot_projects:           PersistentMap::new(CACHE_FILE_SNAPSHOT_PROJECTS,           log.clone(),dir.clone()),
         }
     }
 }
@@ -1145,74 +1246,73 @@ impl Data {
             .map(|url| Project::new(id.clone(), url.clone()))
     }
     pub fn project_issues(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.issues(source, id)
+        self.smart_load_project_issues(source).get(id).pirate()
     }
     pub fn project_buggy_issues(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.issues(source, id)
+        self.smart_load_project_buggy_issues(source).get(id).pirate()
     }
     pub fn project_is_fork(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.is_fork(source, id)
+        self.smart_load_project_is_fork(source).get(id).pirate()
     }
     pub fn project_is_archived(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.is_archived(source, id)
+        self.smart_load_project_is_archived(source).get(id).pirate()
     }
     pub fn project_is_disabled(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.is_disabled(source, id)
+        self.smart_load_project_is_disabled(source).get(id).pirate()
     }
     pub fn project_star_gazer_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.star_gazers(source, id)
+        self.smart_load_project_star_gazer_count(source).get(id).pirate()
     }
     pub fn project_watcher_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.watchers(source, id)
+        self.smart_load_project_watcher_count(source).get(id).pirate()
     }
     pub fn project_size(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.size(source, id)
+        self.smart_load_project_size(source).get(id).pirate()
     }
     pub fn project_open_issue_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.open_issues(source, id)
+        self.smart_load_project_open_issue_count(source).get(id).pirate()
     }
     pub fn project_fork_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.forks(source, id)
+        self.smart_load_project_fork_count(source).get(id).pirate()
     }
     pub fn project_subscriber_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
-        self.project_metadata.subscribers(source, id)
+        self.smart_load_project_subscriber_count(source).get(id).pirate()
     }
     pub fn project_license(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
-        self.project_metadata.license(source, id)
+        self.smart_load_project_license(source).get(id).pirate()
     }
     pub fn project_language(&mut self, source: &Source, id: &ProjectId) -> Option<Language> {
-        self.project_metadata.language(source, id)
+        self.smart_load_project_language(source).get(id).pirate()
     }
     pub fn project_description(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
-        self.project_metadata.description(source, id)
+        self.smart_load_project_description(source).get(id).pirate()
     }
     pub fn project_homepage(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
-        self.project_metadata.homepage(source, id)
+        self.smart_load_project_homepage(source).get(id).pirate()
     }
     pub fn project_has_issues(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.has_issues(source, id)
+        self.smart_load_project_has_issues(source).get(id).pirate()
     }
     pub fn project_has_downloads(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.has_downloads(source, id)
+        self.smart_load_project_has_downloads(source).get(id).pirate()
     }
     pub fn project_has_wiki(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.has_wiki(source, id)
+        self.smart_load_project_has_wiki(source).get(id).pirate()
     }
     pub fn project_has_pages(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
-        self.project_metadata.has_pages(source, id)
+        self.smart_load_project_has_pages(source).get(id).pirate()
     }
     pub fn project_created(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
-        //self.smart_load_project_created(source).get(id).pirate()
-        unimplemented!()
+        self.smart_load_project_created(source).get(id).pirate()        
     }
     pub fn project_updated(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
-        self.project_metadata.updated(source, id)
+        self.smart_load_project_updated(source).get(id).pirate()
     }
     pub fn project_pushed(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
-        self.project_metadata.pushed(source, id)
+        self.smart_load_project_pushed(source).get(id).pirate()
     }
-    pub fn project_master(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
-        self.project_metadata.master(source, id)
+    pub fn project_default_branch(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
+        self.smart_load_project_default_branch(source).get(id).pirate()
     }
     pub fn project_url(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
         self.smart_load_project_urls(source).get(id).pirate()
@@ -1498,9 +1598,6 @@ impl Data {
     fn smart_load_project_impact(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_impact, source, three, project_commits, commit_changes, snapshot_projects)
     }
-    fn smart_load_project_created(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
-        load_from_metadata!(self, project_created, source)
-    }
     fn smart_load_users(&mut self, source: &Source) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)
     }
@@ -1564,6 +1661,76 @@ impl Data {
     }
     fn smart_load_snapshot_projects(& mut self, source: &Source) -> &BTreeMap<SnapshotId,(usize, ProjectId)> {
         load_with_prerequisites!(self, snapshot_projects, source, three, commit_changes, commit_projects, commit_author_timestamps)
+    }
+
+    pub fn smart_load_project_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_from_metadata!(self, project_issue_count, source)
+    }
+    pub fn smart_load_project_buggy_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_from_metadata!(self, project_buggy_issue_count, source)
+    }
+    pub fn smart_load_project_is_fork(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_metadata!(self, project_is_fork, source)
+    }
+    pub fn smart_load_project_is_archived(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_metadata!(self, project_is_archived, source)
+    }
+    pub fn smart_load_project_is_disabled(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_metadata!(self, project_is_disabled, source)
+    }
+    pub fn smart_load_project_star_gazer_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_from_metadata!(self, project_star_gazer_count, source)
+    }
+    pub fn smart_load_project_watcher_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_from_metadata!(self, project_watcher_count, source)
+    }
+    pub fn smart_load_project_size(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_from_metadata!(self, project_project_size, source)
+    }
+    pub fn smart_load_project_open_issue_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_from_metadata!(self, project_open_issue_count, source)
+    }
+    pub fn smart_load_project_fork_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_from_metadata!(self, project_fork_count, source)
+    }
+    pub fn smart_load_project_subscriber_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_from_metadata!(self, project_subscriber_count, source)
+    }
+    pub fn smart_load_project_license(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
+        load_from_metadata!(self, project_license, source)
+    }
+    pub fn smart_load_project_language(&mut self, source: &Source) -> &BTreeMap<ProjectId, Language> {
+        load_from_metadata!(self, project_language, source)
+    }
+    pub fn smart_load_project_description(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
+        load_from_metadata!(self, project_description, source)
+    }
+    pub fn smart_load_project_homepage(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
+        load_from_metadata!(self, project_homepage, source)
+    }
+    pub fn smart_load_project_has_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_metadata!(self, project_has_issues, source)
+    }
+    pub fn smart_load_project_has_downloads(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_metadata!(self, project_has_downloads, source)
+    }
+    pub fn smart_load_project_has_wiki(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_metadata!(self, project_has_wiki, source)
+    }
+    pub fn smart_load_project_has_pages(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_metadata!(self, project_has_pages, source)
+    }
+    fn smart_load_project_created(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_from_metadata!(self, project_created, source)
+    }
+    pub fn smart_load_project_updated(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_from_metadata!(self, project_updated, source)
+    }
+    pub fn smart_load_project_pushed(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_from_metadata!(self, project_pushed, source)
+    }
+    pub fn smart_load_project_default_branch(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
+        load_from_metadata!(self, project_default_branch, source)
     }
 }
 

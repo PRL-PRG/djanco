@@ -80,7 +80,6 @@ pub mod cache_filenames {
     pub static CACHE_FILE_COMMIT_CHANGE_COUNT:         &'static str = "commit_change_count";
     pub static CACHE_FILE_COMMIT_PROJECTS:             &'static str = "commit_projects";
     pub static CACHE_FILE_COMMIT_PROJECTS_COUNT:       &'static str = "commit_projects_count";
-
     pub static CACHE_FILE_SNAPSHOT_PROJECTS:           &'static str = "snapshot_projects";
 }
 

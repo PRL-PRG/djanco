@@ -127,7 +127,8 @@ impl<T, M> MetadataFieldExtractor for FieldExtractor<M>
 }
 
 struct MetadataCacher<M: MetadataFieldExtractor> {
-    name: String,
+    // filename: String,
+    field: String,
     log: Log,
     cache_path: PathBuf,
     cache_dir: PathBuf,
@@ -136,18 +137,19 @@ struct MetadataCacher<M: MetadataFieldExtractor> {
 
 
 impl<M> MetadataCacher<M> where M: MetadataFieldExtractor {
-    pub fn new<Sa, Sb>(name: Sa, dir: Sb, log: &Log, extractor: M) -> Self
-        where Sa: Into<String>, Sb: Into<String> {
-        let name: String = name.into();
+    pub fn new<Sa, Sb, Sc>(field: Sc, filename: Sa, dir: Sb, log: &Log, extractor: M) -> Self
+        where Sa: Into<String>, Sb: Into<String>, Sc: Into<String> {
+        let filename: String = filename.into();
+        let field: String = field.into();
 
         let mut cache_dir = PathBuf::new();
         cache_dir.push(std::path::Path::new(dir.into().as_str()));
 
         let mut cache_path = cache_dir.clone();
-        cache_path.push(std::path::Path::new(name.as_str()));
+        cache_path.push(std::path::Path::new(filename.as_str()));
         cache_path.set_extension(PERSISTENT_EXTENSION);
 
-        Self { name, extractor, cache_dir, cache_path, log: log.clone() }
+        Self { field, extractor, cache_dir, cache_path, log: log.clone() }
     }
 
     // pub fn cache_path(&self) -> &PathBuf { &self.cache_path }
@@ -155,11 +157,11 @@ impl<M> MetadataCacher<M> where M: MetadataFieldExtractor {
     pub fn already_cached(&self) -> bool { self.cache_path.is_file() }
 
     fn load_from_store(&self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) -> BTreeMap<ProjectId, M::Value> {
-        let mut event = self.log.start(Verbosity::Log, format!("loading metadata ({}) from store", self.name));
+        let mut event = self.log.start(Verbosity::Log, format!("loading metadata ({}) from store", self.field));
         let vector: BTreeMap<ProjectId, <M as MetadataFieldExtractor>::Value> = 
             metadata.iter()
                 .flat_map(|(id, properties)| {
-                    let property = properties.get(&self.name);
+                    let property = properties.get(&self.field);
                     match property {
                         Some(property) => {
                             self.extractor.get(property)
@@ -167,7 +169,7 @@ impl<M> MetadataCacher<M> where M: MetadataFieldExtractor {
                         }
                         None => {
                             eprintln!("WARNING! Attempt to retrieve property {} for project {} from property map yielded None, available keys: {}",
-                            &self.name, id, properties.iter().map(|(k, _)| k.to_string()).collect::<Vec<String>>().join(","));
+                            &self.field, id, properties.iter().map(|(k, _)| k.to_string()).collect::<Vec<String>>().join(","));
                             None
                         }
                     }
@@ -181,7 +183,7 @@ impl<M> MetadataCacher<M> where M: MetadataFieldExtractor {
     }
 
     fn store_to_cache(&self, vector: &BTreeMap<ProjectId, <M as MetadataFieldExtractor>::Value>) -> Result<(), Box<dyn Error>> {
-        let mut event = self.log.start(Verbosity::Log, format!("storing metadata ({}) to cache at {}", self.name, self.cache_path.to_str().unwrap()));
+        let mut event = self.log.start(Verbosity::Log, format!("storing metadata ({}) to cache at {}", self.field, self.cache_path.to_str().unwrap()));
         create_dir_all(&self.cache_dir)?;
         let writer = File::create(&self.cache_path)?;
         serde_cbor::to_writer(writer, &vector)?;
@@ -192,7 +194,7 @@ impl<M> MetadataCacher<M> where M: MetadataFieldExtractor {
     }
 
     fn load_from_cache(&self) -> Result<BTreeMap<ProjectId, M::Value>, Box<dyn Error>> {
-        let mut event = self.log.start(Verbosity::Log, format!("loading metadata ({}) from cache at {}", self.name, self.cache_path.to_str().unwrap()));
+        let mut event = self.log.start(Verbosity::Log, format!("loading metadata ({}) from cache at {}", self.field, self.cache_path.to_str().unwrap()));
         let reader = File::open(&self.cache_path)?;
         let vector: BTreeMap<ProjectId, M::Value> = serde_cbor::from_reader(reader)?;
         event.weighed(&vector);
@@ -308,29 +310,29 @@ impl ProjectMetadataSource {
     pub fn new<Sa, Sb>(name: Sa, log: Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
         let dir = dir.into();
         ProjectMetadataSource {
-            are_forks:     MetadataCacher::new(CACHE_FILE_PROJECT_IS_FORK,           dir.as_str(), &log, BoolExtractor),
-            are_archived:  MetadataCacher::new(CACHE_FILE_PROJECT_IS_ARCHIVED,       dir.as_str(), &log, BoolExtractor),
-            are_disabled:  MetadataCacher::new(CACHE_FILE_PROJECT_IS_DISABLED,       dir.as_str(), &log, BoolExtractor),
-            star_gazers:   MetadataCacher::new(CACHE_FILE_PROJECT_STARGAZER_COUNT,   dir.as_str(), &log, CountExtractor),
-            watchers:      MetadataCacher::new(CACHE_FILE_PROJECT_WATCHER_COUNT,     dir.as_str(), &log, CountExtractor),
-            size:          MetadataCacher::new(CACHE_FILE_PROJECT_SIZE,              dir.as_str(), &log, CountExtractor),            
-            forks:         MetadataCacher::new(CACHE_FILE_PROJECT_FORK_COUNT,        dir.as_str(), &log, CountExtractor),
-            subscribers:   MetadataCacher::new(CACHE_FILE_PROJECT_SUBSCRIBER_COUNT,  dir.as_str(), &log, CountExtractor),
-            languages:     MetadataCacher::new(CACHE_FILE_PROJECT_LANGUAGE,          dir.as_str(), &log, LanguageExtractor),
-            descriptions:  MetadataCacher::new(CACHE_FILE_PROJECT_DESCRIPTION,       dir.as_str(), &log, StringExtractor),
-            homepages:     MetadataCacher::new(CACHE_FILE_PROJECT_HOMEPAGE,          dir.as_str(), &log, StringExtractor),
-            licenses:      MetadataCacher::new(CACHE_FILE_PROJECT_LICENSE,           dir.as_str(), &log, FieldExtractor("name", StringExtractor)),
-            has_issues:    MetadataCacher::new(CACHE_FILE_PROJECT_HAS_ISSUES,        dir.as_str(), &log, BoolExtractor),
-            has_downloads: MetadataCacher::new(CACHE_FILE_PROJECT_HAS_DOWNLOADS,     dir.as_str(), &log, BoolExtractor),
-            has_wiki:      MetadataCacher::new(CACHE_FILE_PROJECT_HAS_WIKI,          dir.as_str(), &log, BoolExtractor),
-            has_pages:     MetadataCacher::new(CACHE_FILE_PROJECT_HAS_PAGES,         dir.as_str(), &log, BoolExtractor),
-            created:       MetadataCacher::new(CACHE_FILE_PROJECT_CREATED,           dir.as_str(), &log, TimestampExtractor),
-            updated:       MetadataCacher::new(CACHE_FILE_PROJECT_UPDATED,           dir.as_str(), &log, TimestampExtractor),
-            pushed:        MetadataCacher::new(CACHE_FILE_PROJECT_PUSHED,            dir.as_str(), &log, TimestampExtractor),
-            master:        MetadataCacher::new(CACHE_FILE_PROJECT_DEFAULT_BRANCH,    dir.as_str(), &log, StringExtractor),
-            issues:        MetadataCacher::new(CACHE_FILE_PROJECT_ISSUE_COUNT,       dir.as_str(), &log, CountExtractor),
-            buggy_issues:  MetadataCacher::new(CACHE_FILE_PROJECT_BUGGY_ISSUE_COUNT, dir.as_str(), &log, CountExtractor),
-            open_issues:   MetadataCacher::new(CACHE_FILE_PROJECT_OPEN_ISSUE_COUNT,  dir.as_str(), &log, CountExtractor),
+            are_forks:     MetadataCacher::new("fork",               CACHE_FILE_PROJECT_IS_FORK,           dir.as_str(), &log, BoolExtractor),
+            are_archived:  MetadataCacher::new("archived",           CACHE_FILE_PROJECT_IS_ARCHIVED,       dir.as_str(), &log, BoolExtractor),
+            are_disabled:  MetadataCacher::new("disabled",           CACHE_FILE_PROJECT_IS_DISABLED,       dir.as_str(), &log, BoolExtractor),
+            star_gazers:   MetadataCacher::new("stargazers_count",   CACHE_FILE_PROJECT_STARGAZER_COUNT,   dir.as_str(), &log, CountExtractor),
+            watchers:      MetadataCacher::new("watchers_count",     CACHE_FILE_PROJECT_WATCHER_COUNT,     dir.as_str(), &log, CountExtractor),
+            size:          MetadataCacher::new("size",               CACHE_FILE_PROJECT_SIZE,              dir.as_str(), &log, CountExtractor),            
+            forks:         MetadataCacher::new("forks",              CACHE_FILE_PROJECT_FORK_COUNT,        dir.as_str(), &log, CountExtractor),
+            subscribers:   MetadataCacher::new("subscribers_count",  CACHE_FILE_PROJECT_SUBSCRIBER_COUNT,  dir.as_str(), &log, CountExtractor),
+            languages:     MetadataCacher::new("language",           CACHE_FILE_PROJECT_LANGUAGE,          dir.as_str(), &log, LanguageExtractor),
+            descriptions:  MetadataCacher::new("description",        CACHE_FILE_PROJECT_DESCRIPTION,       dir.as_str(), &log, StringExtractor),
+            homepages:     MetadataCacher::new("homepage",           CACHE_FILE_PROJECT_HOMEPAGE,          dir.as_str(), &log, StringExtractor),
+            licenses:      MetadataCacher::new("license",            CACHE_FILE_PROJECT_LICENSE,           dir.as_str(), &log, FieldExtractor("name", StringExtractor)),
+            has_issues:    MetadataCacher::new("has_issues",         CACHE_FILE_PROJECT_HAS_ISSUES,        dir.as_str(), &log, BoolExtractor),
+            has_downloads: MetadataCacher::new("has_downloads",      CACHE_FILE_PROJECT_HAS_DOWNLOADS,     dir.as_str(), &log, BoolExtractor),
+            has_wiki:      MetadataCacher::new("has_wiki",           CACHE_FILE_PROJECT_HAS_WIKI,          dir.as_str(), &log, BoolExtractor),
+            has_pages:     MetadataCacher::new("has_pages",          CACHE_FILE_PROJECT_HAS_PAGES,         dir.as_str(), &log, BoolExtractor),
+            created:       MetadataCacher::new("created_at",         CACHE_FILE_PROJECT_CREATED,           dir.as_str(), &log, TimestampExtractor),
+            updated:       MetadataCacher::new("updated_at",         CACHE_FILE_PROJECT_UPDATED,           dir.as_str(), &log, TimestampExtractor),
+            pushed:        MetadataCacher::new("pushed_at",          CACHE_FILE_PROJECT_PUSHED,            dir.as_str(), &log, TimestampExtractor),
+            master:        MetadataCacher::new("default_branch",     CACHE_FILE_PROJECT_DEFAULT_BRANCH,    dir.as_str(), &log, StringExtractor),
+            issues:        MetadataCacher::new("issues_count",       CACHE_FILE_PROJECT_ISSUE_COUNT,       dir.as_str(), &log, CountExtractor),
+            buggy_issues:  MetadataCacher::new("buggy_issues_count", CACHE_FILE_PROJECT_BUGGY_ISSUE_COUNT, dir.as_str(), &log, CountExtractor),
+            open_issues:   MetadataCacher::new("open_issues_count",  CACHE_FILE_PROJECT_OPEN_ISSUE_COUNT,  dir.as_str(), &log, CountExtractor),
         }
     }
 }

@@ -1129,23 +1129,43 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
             let mut total_snapshots : f64 = 0.0;
             let mut num_clones : f64 = 0.0;
 
-            commit_ids.iter().map(|commit_id| {
-                commit_changes[commit_id].iter().map(|change| {
-                    let snapshot_id = change.1;
-                    total_snapshots+=1.0;
-                    if !snapshot_id.is_none() {
-                        let snapshot = snapshot_projects.get(&snapshot_id.unwrap());
+            for commit_id in 0..commit_ids.len() {
+                let commitid = commit_ids.get(commit_id);
+                if !commitid.is_none() {
+                    let changes =  commit_changes.get(commitid.unwrap());
 
-                        if !snapshot.is_none() {
-                            if (&snapshot.unwrap()).original != *project_id {
-                                num_clones += 1.0;
+                    if !changes.is_none() {
+                        let changes_unwrapped = changes.unwrap();
+                        for changes_i in 0..changes_unwrapped.len() {
+                            let change = changes_unwrapped[changes_i];
+                            let snapshot_id = change.1;
+                            total_snapshots+=1.0;
+                            if !snapshot_id.is_none() {
+                                let snapshot = snapshot_projects.get(&snapshot_id.unwrap());
+
+                                if !snapshot.is_none() {
+                                    if (&snapshot.unwrap()).original != *project_id {
+                                        num_clones += 1.0;
+                                    }
+                                    
+                                }
+                                
                             }
-                            
-                        }
-                        
+
+                        } 
                     }
-                });
-            });
+                    
+                    
+                }
+                
+            }
+         
+
+            // commit_ids.iter().map(|commit_id| {
+            //     commit_changes.get(commit_id).unwrap().iter().map(|change| {
+                    
+            //     });
+            // });
 
             if total_snapshots == 0.0 {
                 (project_id.clone(), -1.0)

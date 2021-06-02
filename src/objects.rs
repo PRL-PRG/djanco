@@ -421,7 +421,9 @@ impl Project {
     pub fn languages_count  (&self, store: &Database)    -> Option<usize>                   { store.project_languages_count(&self.id)      }
     pub fn major_language   (&self, store: &Database)    -> Option<Language>                { store.project_major_language(&self.id)      }
     pub fn major_language_ratio (&self, store: &Database) -> Option<f64>                    { store.project_major_language_ratio(&self.id) }
-    pub fn major_language_changes (&self, store: &Database) -> Option<usize>                    { store.project_major_language_changes(&self.id) }
+    pub fn major_language_changes (&self, store: &Database) -> Option<usize>                { store.project_major_language_changes(&self.id) }
+    pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id) }
+    pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id) }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -836,6 +838,12 @@ impl<'a> ItemWithData<'a, Project> {
     }
     pub fn major_language_changes(&self) -> Option<usize> {
         self.item.major_language_changes(&self.data)
+    }
+    pub fn all_forks(&self) -> Option<Vec<ProjectId>> {
+        self.item.all_forks(&self.data)
+    }
+    pub fn all_forks_count(&self) -> Option<usize> {
+        self.item.all_forks_count(&self.data)
     }
 }
 impl<'a> ItemWithData<'a, Snapshot> {

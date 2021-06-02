@@ -602,7 +602,6 @@ pub mod project {
     /* The impact of the project. 
      
         Sum of impact of its snapshots, where 0 is added for clones, 1 for unique files and the number of projects using a snapshot for original snapshots.
-
      */
     impl_attribute![?     objects::Project, Impact, usize, impact];
     /* Number of unique files in the project. 
@@ -630,6 +629,11 @@ pub mod project {
     /* Number of changes to the major language. 
      */
     impl_attribute![?     objects::Project, MajorLanguageChanges, usize, major_language_changes];
+    /* Returns the list of projects that have been forked from the current project. 
+
+       For simplicity we assume a project is a fork if it is younger *and* if it shares at least one commit by hash. 
+     */
+    impl_attribute![?..   objects::Project, AllForks, objects::ProjectId, all_forks, all_forks_count];
 }
 
 pub mod commit {

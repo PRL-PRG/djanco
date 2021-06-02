@@ -67,6 +67,8 @@ pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_MAJOR_LANGUAGE:         &'static str = "project_major_language";
     pub static CACHE_FILE_PROJECT_MAJOR_LANGUAGE_RATIO:   &'static str = "project_major_language_ratio";
     pub static CACHE_FILE_PROJECT_MAJOR_LANGUAGE_CHANGES: &'static str = "project_major_language_changes";
+    pub static CACHE_FILE_PROJECT_ALL_FORKS:              &'static str = "project_all_forks";
+    pub static CACHE_FILE_PROJECT_ALL_FORKS_COUNT:        &'static str = "project_all_forks_count";
     pub static CACHE_FILE_USERS:                          &'static str = "users";
     pub static CACHE_FILE_USER_AUTHORED_COMMITS:          &'static str = "user_authored_commits";
     pub static CACHE_FILE_USER_COMMITTED_COMMITS:         &'static str = "user_committed_commits";
@@ -333,6 +335,12 @@ impl Database {
     }
     pub fn project_major_language_changes(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_major_language_changes(&self.source, id)
+    }
+    pub fn project_all_forks(&self, id: &ProjectId) -> Option<Vec<ProjectId>> {
+        self.data.borrow_mut().project_all_forks(&self.source, id)
+    }
+    pub fn project_all_forks_count(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_all_forks_count(&self.source, id)
     }
     pub fn user(&self, id: &UserId) -> Option<User> {
         self.data.borrow_mut().user(&self.source, id).pirate()
@@ -1189,6 +1197,34 @@ impl SingleMapExtractor for ProjectMajorLanguageChangesExtractor {
     }
 }
 
+struct ProjectAllForksExtractor {}
+impl MapExtractor for ProjectAllForksExtractor {
+    type Key = ProjectId;
+    type Value = Vec<ProjectId>;
+}
+
+impl DoubleMapExtractor for ProjectAllForksExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ProjectId>>;
+
+    fn extract (_: &Source, project_commits : &Self::A, commit_projects : &Self::B) -> BTreeMap<ProjectId, Vec<ProjectId>> {
+        project_commits.iter()
+            .map(|(pid, commits)| {
+                let mut projects = BTreeSet::<ProjectId>::new();
+                for cid in commits {
+                    if let Some(cprojects) = commit_projects.get(cid) {
+                        for p in cprojects {
+                            projects.insert(*p);
+                        }    
+                    }
+                }
+                // TODO figure out if we are the oldest project of the bunch, for now I assume we are
+                (*pid, projects.iter().map(|x| *x).collect())
+             })
+            .collect()
+    }
+}
+
 
 
 pub(crate) struct Data {
@@ -1220,6 +1256,8 @@ pub(crate) struct Data {
     project_major_language:      PersistentMap<ProjectMajorLanguageExtractor>,
     project_major_language_ratio: PersistentMap<ProjectMajorLanguageRatioExtractor>,
     project_major_language_changes: PersistentMap<ProjectMajorLanguageChangesExtractor>,
+    project_all_forks :          PersistentMap<ProjectAllForksExtractor>,
+    project_all_forks_count:     PersistentMap<CountPerKeyExtractor<ProjectId, ProjectId>>,
 
     project_buggy_issue_count:   PersistentMap<ProjectBuggyIssuesExtractor>,
     project_issue_count:         PersistentMap<ProjectBuggyIssuesExtractor>,
@@ -1329,6 +1367,8 @@ impl Data {
             project_major_language:         PersistentMap::new(CACHE_FILE_PROJECT_MAJOR_LANGUAGE,         log.clone(), dir.clone()),
             project_major_language_ratio:   PersistentMap::new(CACHE_FILE_PROJECT_MAJOR_LANGUAGE_RATIO,   log.clone(), dir.clone()),
             project_major_language_changes: PersistentMap::new(CACHE_FILE_PROJECT_MAJOR_LANGUAGE_CHANGES, log.clone(), dir.clone()),
+            project_all_forks:              PersistentMap::new(CACHE_FILE_PROJECT_ALL_FORKS,              log.clone(), dir.clone()),
+            project_all_forks_count:        PersistentMap::new(CACHE_FILE_PROJECT_ALL_FORKS_COUNT,        log.clone(), dir.clone()),
             users:                          PersistentMap::new(CACHE_FILE_USERS,                          log.clone(),dir.clone()).without_cache(),
             user_authored_commits:          PersistentMap::new(CACHE_FILE_USER_AUTHORED_COMMITS,          log.clone(),dir.clone()),
             user_committed_commits:         PersistentMap::new(CACHE_FILE_USER_COMMITTED_COMMITS,         log.clone(),dir.clone()),
@@ -1581,6 +1621,14 @@ impl Data {
         self.smart_load_project_major_language_changes(source).get(id)
             .pirate()
     }
+    pub fn project_all_forks(& mut self, source: &Source, id:&ProjectId) -> Option<Vec<ProjectId>> {
+        self.smart_load_project_all_forks(source).get(id)
+            .pirate()
+    }
+    pub fn project_all_forks_count(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+        self.smart_load_project_all_forks_count(source).get(id)
+            .pirate()
+    }
     pub fn user(&mut self, source: &Source, id: &UserId) -> Option<&User> {
         self.smart_load_users(source).get(id)
     }
@@ -1784,6 +1832,12 @@ impl Data {
     }
     fn smart_load_project_major_language_changes(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_major_language_changes, source, one, project_languages)
+    }
+    fn smart_load_project_all_forks(& mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<ProjectId>> {
+        load_with_prerequisites!(self, project_all_forks, source, two, project_commits, commit_projects)
+    }
+    fn smart_load_project_all_forks_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_all_forks_count, source, one, project_all_forks)
     }
     fn smart_load_users(&mut self, source: &Source) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)

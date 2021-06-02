@@ -1568,11 +1568,11 @@ impl Data {
             commit_projects_count:          PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS_COUNT,          log.clone(),dir.clone()),
             snapshot_projects:              PersistentMap::new(CACHE_FILE_SNAPSHOT_PROJECTS,              log.clone(),dir.clone()),
             project_longest_inactivity_streak:   PersistentMap::new(CACHE_FILE_LONGEST_INACTIVITTY_STREAK, log.clone(), dir.clone()),
-            avg_commit_rate:             PersistentMap::new(CACHE_FILE_AVG_COMMIT_RATE, log.clone(), dir.clone()),
+            avg_commit_rate:                PersistentMap::new(CACHE_FILE_AVG_COMMIT_RATE, log.clone(), dir.clone()),
             project_time_since_last_commit:      PersistentMap::new(CACHE_FILE_TIME_SINCE_LAST_COMMIT, log.clone(), dir.clone()),
-            is_abandoned:                PersistentMap::new(CACHE_FILE_IS_ABANDONED, log.clone(), dir.clone()),
-            snapshot_locs:                PersistentMap::new(CACHE_FILE_SNAPSHOT_LOCS, log.clone(), dir.clone()),
-            project_locs:                PersistentMap::new(CACHE_FILE_PROJECT_LOCS, log.clone(), dir.clone()),
+            is_abandoned:                   PersistentMap::new(CACHE_FILE_IS_ABANDONED, log.clone(), dir.clone()),
+            snapshot_locs:                  PersistentMap::new(CACHE_FILE_SNAPSHOT_LOCS, log.clone(), dir.clone()),
+            project_locs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOCS, log.clone(), dir.clone()),
         }
     }
 }
@@ -1908,6 +1908,7 @@ impl Data {
     }
     pub fn project_locs(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_locs(source).get(id).pirate()
+    }
     pub fn snapshot_unique_projects(&mut self, source: &Source, id : &SnapshotId) -> usize {
         // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
         self.smart_load_snapshot_projects(source).get(id).unwrap().0

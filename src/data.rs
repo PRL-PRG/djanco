@@ -1081,13 +1081,17 @@ impl QuadrupleMapExtractor for ProjectLocsExtractor {
                     let path = &changes[change_i].0;
                     let current_timestamp = commit_timestamps.get(commit).unwrap();
                     if !last_state_files.contains_key(path) ||  *current_timestamp > *last_timestamp.get(path).unwrap(){
-                        last_timestamp.insert(*path, *current_timestamp);
-                        let count_locs = snapshot_locs.get(&(changes[change_i].1).unwrap());
-                        if !count_locs.is_none() {
-                            last_state_files.insert(*path, *count_locs.unwrap());
-                        }else{
-                            last_state_files.insert(*path, 0);
+                        
+                        let snapshot_id = changes[change_i].1;
+
+                        if !snapshot_id.is_none() {
+                            let count_locs = snapshot_locs.get(&(snapshot_id).unwrap());
+                            if !count_locs.is_none() {
+                                last_timestamp.insert(*path, *current_timestamp);
+                                last_state_files.insert(*path, *count_locs.unwrap());
+                            }
                         }
+                        
                         
                     }
                 }

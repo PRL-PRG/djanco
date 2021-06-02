@@ -593,6 +593,8 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Users, objects::User, users_with_data, user_count];
     impl_attribute![?+..  objects::Project, Paths, objects::Path, paths_with_data, path_count];
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
+    impl_attribute![?..   objects::Project, ChangeContributions, (objects::User, usize), change_contributions, author_count];
+    impl_attribute![?..   objects::Project, CommitContributions, (objects::User, usize), commit_contributions, author_count];
     /* Number of snapshots in the project that only ever exist in the project. 
      */
     impl_attribute![?     objects::Project, UniqueFiles, usize, unique_files];

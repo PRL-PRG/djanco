@@ -406,11 +406,16 @@ impl Project {
     pub fn has_downloads    (&self, store: &Database)    -> Option<bool>                    { store.project_has_downloads(&self.id)          }
     pub fn has_wiki         (&self, store: &Database)    -> Option<bool>                    { store.project_has_wiki(&self.id)               }
     pub fn has_pages        (&self, store: &Database)    -> Option<bool>                    { store.project_has_pages(&self.id)              }
-    pub fn created          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_created(&self.id)                }
-    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_updated(&self.id)                }
-    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)                 }
+    pub fn created          (&self, store: &Database)    -> Option<Timestamp>               { store.project_created(&self.id)                }
+    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>               { store.project_updated(&self.id)                }
+    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>               { store.project_pushed(&self.id)                 }
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_default_branch(&self.id)                 }
     // TODO project commit frequency
+
+    pub fn change_contributions   (&self, store: &Database) -> Option<Vec<(User, usize)>>   { store.project_change_contributions(&self.id)    }
+    pub fn commit_contributions   (&self, store: &Database) -> Option<Vec<(User, usize)>>   { store.project_commit_contributions(&self.id)    }
+    pub fn change_contribution_ids(&self, store: &Database) -> Option<Vec<(UserId, usize)>> { store.project_change_contribution_ids(&self.id) }
+    pub fn commit_contribution_ids(&self, store: &Database) -> Option<Vec<(UserId, usize)>> { store.project_commit_contribution_ids(&self.id) }
 
     pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }
     pub fn unique_files     (&self, store: &Database)    -> Option<usize>                   { store.project_unique_files(&self.id)                  }
@@ -782,10 +787,15 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn has_downloads    (&self)    -> Option<bool>                    { self.item.has_downloads(&self.data)          }
     pub fn has_wiki         (&self)    -> Option<bool>                    { self.item.has_wiki(&self.data)               }
     pub fn has_pages        (&self)    -> Option<bool>                    { self.item.has_pages(&self.data)              }
-    pub fn created          (&self)    -> Option<Timestamp>                     { self.item.created(&self.data)                }
-    pub fn updated          (&self)    -> Option<Timestamp>                     { self.item.updated(&self.data)                }
-    pub fn pushed           (&self)    -> Option<Timestamp>                     { self.item.pushed(&self.data)                 }
+    pub fn created          (&self)    -> Option<Timestamp>               { self.item.created(&self.data)                }
+    pub fn updated          (&self)    -> Option<Timestamp>               { self.item.updated(&self.data)                }
+    pub fn pushed           (&self)    -> Option<Timestamp>               { self.item.pushed(&self.data)                 }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)         }
+
+    pub fn change_contributions(&self)    -> Option<Vec<(User, usize)>>   { self.item.change_contributions(self.data)    }
+    pub fn commit_contributions(&self)    -> Option<Vec<(User, usize)>>   { self.item.commit_contributions(self.data)    }
+    pub fn change_contribution_ids(&self) -> Option<Vec<(UserId, usize)>> { self.item.change_contribution_ids(self.data) }
+    pub fn commit_contribution_ids(&self) -> Option<Vec<(UserId, usize)>> { self.item.commit_contribution_ids(self.data) }
 
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)         }
 

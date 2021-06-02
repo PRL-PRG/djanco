@@ -42,6 +42,8 @@ pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_UPDATED:                &'static str = "project_updated";
     pub static CACHE_FILE_PROJECT_PUSHED:                 &'static str = "project_pushed";
     pub static CACHE_FILE_PROJECT_DEFAULT_BRANCH:         &'static str = "project_default_branch";
+    pub static CACHE_FILE_PROJECT_COMMIT_CONTRIBUTIONS:   &'static str = "project_commit_contributions";
+    pub static CACHE_FILE_PROJECT_CHANGE_CONTRIBUTIONS:   &'static str = "project_change_contributions";
     pub static CACHE_FILE_PROJECT_URL:                    &'static str = "project_url";
     pub static CACHE_FILE_PROJECT_SUBSTORE:               &'static str = "project_substore";
     pub static CACHE_FILE_PROJECT_HEADS:                  &'static str = "project_heads";
@@ -236,6 +238,18 @@ impl Database {
     }
     pub fn project_default_branch(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_default_branch(&self.source, id)
+    }
+    pub fn project_change_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>> {
+        self.data.borrow_mut().project_change_contributions(&self.source, id)
+    }
+    pub fn project_change_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
+        self.data.borrow_mut().project_change_contribution_ids(&self.source, id)
+    }
+    pub fn project_commit_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>> {
+        self.data.borrow_mut().project_commit_contributions(&self.source, id)
+    }
+    pub fn project_commit_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
+        self.data.borrow_mut().project_commit_contribution_ids(&self.source, id)
     }
     pub fn project_url(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_url(&self.source, id)
@@ -954,6 +968,56 @@ impl TripleMapExtractor for SnapshotProjectsExtractor {
     }
 }
 
+struct ProjectCommitContributionsExtractor {}
+impl MapExtractor for ProjectCommitContributionsExtractor {
+    type Key = ProjectId;
+    type Value = Vec<(UserId, usize)>;
+}
+impl DoubleMapExtractor for ProjectCommitContributionsExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Commit>;
+    fn extract(_: &Source, project_commits: &Self::A, commits: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            (project_id.clone(), commit_ids.iter()
+                .flat_map(|commit_id| commits.get(commit_id))
+                .map(|commit| (commit.author.clone(), 1usize))
+                .into_group_map()
+                .into_iter()
+                .map(|(author_id, commits)| (author_id, commits.len()))
+                .sorted_by_key(|(_, contributed_commits)| *contributed_commits)
+                .collect::<Vec<(UserId, usize)>>())
+        }).collect()
+    }
+}
+
+struct ProjectChangeContributionsExtractor {}
+impl MapExtractor for ProjectChangeContributionsExtractor {
+    type Key = ProjectId;
+    type Value = Vec<(UserId, usize)>;
+}
+impl TripleMapExtractor for ProjectChangeContributionsExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Commit>;
+    type C = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    fn extract(_: &Source, project_commits: &Self::A, commits: &Self::B, commit_changes: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            (project_id.clone(), commit_ids.iter()
+                .flat_map(|commit_id| {
+                    commits.get(commit_id).map(|commit| {
+                        commit_changes.get(commit_id).map(|changes| {
+                            (commit.author.clone(), changes.len())
+                        })
+                    }).flatten()
+                })
+                .into_group_map()
+                .into_iter()
+                .map(|(author_id, commits)| (author_id, commits.len()))
+                .sorted_by_key(|(_, contributed_commits)| *contributed_commits)
+                .collect::<Vec<(UserId, usize)>>())
+        }).collect()
+    }
+}
+
 struct ProjectUniqueFilesExtractor {}
 impl MapExtractor for ProjectUniqueFilesExtractor {
     type Key = ProjectId;
@@ -1189,8 +1253,6 @@ impl SingleMapExtractor for ProjectMajorLanguageChangesExtractor {
     }
 }
 
-
-
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
     project_substores:           PersistentMap<ProjectSubstoreExtractor>,
@@ -1211,14 +1273,16 @@ pub(crate) struct Data {
     project_committer_count:     PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_commit_count:        PersistentMap<CountPerKeyExtractor<ProjectId, CommitId>>,
 
-    project_unique_files:        PersistentMap<ProjectUniqueFilesExtractor>,
-    project_original_files:      PersistentMap<ProjectOriginalFilesExtractor>,
-    project_impact:              PersistentMap<ProjectImpactExtractor>,
-    project_files:               PersistentMap<ProjectFilesExtractor>,
-    project_languages:           PersistentMap<ProjectLanguagesExtractor>,
-    project_languages_count:     PersistentMap<CountPerKeyExtractor<ProjectId, (Language,usize)>>,
-    project_major_language:      PersistentMap<ProjectMajorLanguageExtractor>,
-    project_major_language_ratio: PersistentMap<ProjectMajorLanguageRatioExtractor>,
+    project_change_contributions:   PersistentMap<ProjectChangeContributionsExtractor>,
+    project_commit_contributions:   PersistentMap<ProjectCommitContributionsExtractor>,
+    project_unique_files:           PersistentMap<ProjectUniqueFilesExtractor>,
+    project_original_files:         PersistentMap<ProjectOriginalFilesExtractor>,
+    project_impact:                 PersistentMap<ProjectImpactExtractor>,
+    project_files:                  PersistentMap<ProjectFilesExtractor>,
+    project_languages:              PersistentMap<ProjectLanguagesExtractor>,
+    project_languages_count:        PersistentMap<CountPerKeyExtractor<ProjectId, (Language,usize)>>,
+    project_major_language:         PersistentMap<ProjectMajorLanguageExtractor>,
+    project_major_language_ratio:   PersistentMap<ProjectMajorLanguageRatioExtractor>,
     project_major_language_changes: PersistentMap<ProjectMajorLanguageChangesExtractor>,
 
     project_buggy_issue_count:   PersistentMap<ProjectBuggyIssuesExtractor>,
@@ -1320,6 +1384,8 @@ impl Data {
             project_updated:                PersistentMap::new(CACHE_FILE_PROJECT_UPDATED,                log.clone(),dir.clone()),
             project_pushed:                 PersistentMap::new(CACHE_FILE_PROJECT_PUSHED,                 log.clone(),dir.clone()),
             project_default_branch:         PersistentMap::new(CACHE_FILE_PROJECT_DEFAULT_BRANCH,         log.clone(),dir.clone()),
+            project_commit_contributions:   PersistentMap::new(CACHE_FILE_PROJECT_COMMIT_CONTRIBUTIONS,     log.clone(),dir.clone()),
+            project_change_contributions:   PersistentMap::new(CACHE_FILE_PROJECT_CHANGE_CONTRIBUTIONS,     log.clone(),dir.clone()),
             project_unique_files:           PersistentMap::new(CACHE_FILE_PROJECT_UNIQUE_FILES,           log.clone(),dir.clone()),
             project_original_files:         PersistentMap::new(CACHE_FILE_PROJECT_ORIGINAL_FILES,         log.clone(),dir.clone()),
             project_impact:                 PersistentMap::new(CACHE_FILE_PROJECT_IMPACT,                 log.clone(),dir.clone()),
@@ -1458,6 +1524,26 @@ impl Data {
     }
     pub fn project_default_branch(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
         self.smart_load_project_default_branch(source).get(id).pirate()
+    }
+    pub fn project_commit_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
+        self.smart_load_project_commit_contributions(source).get(id).pirate()
+    }
+    pub fn project_commit_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(User, usize)>> {
+        self.smart_load_project_commit_contributions(source).get(id).pirate().map(|contributions| {
+            contributions.iter().flat_map(|(user_id, n)| {
+                self.user(source, user_id).map(|user| (user.clone(), *n))
+            }).collect()
+        })
+    }
+    pub fn project_change_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
+        self.smart_load_project_change_contributions(source).get(id).pirate()
+    }
+    pub fn project_change_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(User, usize)>> {
+        self.smart_load_project_change_contributions(source).get(id).pirate().map(|contributions| {
+            contributions.iter().flat_map(|(user_id, n)| {
+                self.user(source, user_id).map(|user| (user.clone(), *n))
+            }).collect()
+        })
     }
     pub fn project_url(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
         self.smart_load_project_urls(source).get(id).pirate()
@@ -1848,6 +1934,12 @@ impl Data {
     }
     fn smart_load_snapshot_projects(& mut self, source: &Source) -> &BTreeMap<SnapshotId,(usize, ProjectId)> {
         load_with_prerequisites!(self, snapshot_projects, source, three, commit_changes, commit_projects, commit_author_timestamps)
+    }
+    pub fn smart_load_project_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
+        load_with_prerequisites!(self, project_change_contributions, source, three, project_commits, commits, commit_changes)
+    }
+    pub fn smart_load_project_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
+        load_with_prerequisites!(self, project_commit_contributions, source, two, project_commits, commits)
     }
 
     pub fn smart_load_project_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {

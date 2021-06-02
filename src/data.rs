@@ -985,6 +985,7 @@ impl DoubleMapExtractor for ProjectCommitContributionsExtractor {
                 .into_iter()
                 .map(|(author_id, commits)| (author_id, commits.len()))
                 .sorted_by_key(|(_, contributed_commits)| *contributed_commits)
+                .rev()
                 .collect::<Vec<(UserId, usize)>>())
         }).collect()
     }
@@ -1013,6 +1014,7 @@ impl TripleMapExtractor for ProjectChangeContributionsExtractor {
                 .into_iter()
                 .map(|(author_id, commits)| (author_id, commits.len()))
                 .sorted_by_key(|(_, contributed_commits)| *contributed_commits)
+                .rev()
                 .collect::<Vec<(UserId, usize)>>())
         }).collect()
     }

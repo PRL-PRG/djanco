@@ -745,6 +745,10 @@ impl<'a> Into<usize> for ItemWithData<'a, usize> { fn into(self) -> usize { self
 impl<'a,A,B> Into<(A,B)> for ItemWithData<'a, (A,B)> { fn into(self) -> (A,B) { self.item } }
 
 impl<'a> ItemWithData<'a, Project> {
+    pub fn test0(&self,) -> bool {unimplemented!()}
+    pub fn test1(&self,x:usize) -> bool {unimplemented!()}
+    pub fn test2(&self,x:usize, y:usize) -> bool {unimplemented!()}
+
     pub fn id               (&self)    -> ProjectId                       { self.item.id()                               }
     pub fn url              (&self)    -> String                          { self.item.url().to_string()                  }
     pub fn issue_count      (&self)    -> Option<usize>                   { self.item.issue_count(&self.data)            }

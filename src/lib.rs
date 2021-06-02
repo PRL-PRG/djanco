@@ -335,7 +335,43 @@ macro_rules! impl_attribute_definition {
     [$object:ty, $attribute:ident] => {
         #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] pub struct $attribute;
         impl Attribute for $attribute { type Object = $object; }
-    }
+    };
+    [$object:ty, $attribute:ident ( $($arg_type:ty),+ ) ] => {
+        #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] 
+        pub struct $attribute($($arg_type,)+);
+        impl Attribute for $attribute { type Object = $object; }
+    };
+    // [$object:ty, $attribute:ident { $($arg:ident : $arg_type:ty),+ } ] => {
+    //     #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] 
+    //     pub struct $attribute{
+    //         $($arg: $arg_type,)+
+    //     };
+    //     impl Attribute for $attribute { type Object = $object; }
+    // };
+}
+
+macro_rules! call_n {
+    ($object:expr, $method:ident, $self:expr) => { 
+        $object.$method() 
+    };
+    ($object:expr, $method:ident, $self:expr,) => { 
+        $object.$method()
+    };
+    ($object:expr, $method:ident, $self:expr, $p0:ty) => { 
+        $object.$method($self.0) 
+    };
+    ($object:expr, $method:ident, $self:expr, $p0:ty, $p1:ty) => { 
+        $object.$method($self.0, $self.1) 
+    };
+    ($object:expr, $method:ident, $self:expr, $p0:ty, $p1:ty, $p2:ty) => { 
+        $object.$method($self.0, $self.1, $self.2) 
+    };
+    ($object:expr, $method:ident, $self:expr, $p0:ty, $p1:ty, $p2:ty, $p3:ty) => { 
+        $object.$method($self.0, $self.1, $self.2, $self.3) 
+    };
+    ($object:expr, $method:ident, $self:expr, $p0:ty, $p1:ty, $p2:ty, $p3:ty, $p4:ty) => { 
+        $object.$method($self.0, $self.1, $self.2, $self.3, $self.4) 
+    };
 }
 
 macro_rules! impl_attribute_getter {
@@ -378,6 +414,20 @@ macro_rules! impl_attribute_getter {
             type IntoItem = $small_type;
             fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.$getter())
+            }
+        }
+    };
+    [! $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident ] => {
+        impl<'a> Getter<'a> for $attribute {
+            type IntoItem = $small_type;
+            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
+                call_n!(object, $getter, &self, $($parameter),* )
+            }
+        }
+        impl<'a> OptionGetter<'a> for $attribute {
+            type IntoItem = $small_type;
+            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
+                Some(call_n!(object, $getter, &self, $($parameter),+ ))
             }
         }
     };
@@ -487,10 +537,10 @@ macro_rules! impl_attribute_filter {
 }
 
 macro_rules! impl_attribute {
-    [! $object:ty, $attribute:ident] => {
+    [! $object:ty, $attribute:ident ] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute];
-    };
+    };        
     [!+ $object:ty, $attribute:ident] => {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![!+ $object, $attribute];
@@ -499,6 +549,10 @@ macro_rules! impl_attribute {
         impl_attribute_definition![$object, $attribute];
         impl_attribute_getter![! $object, $attribute, bool, $getter];
         impl_attribute_filter![$object, $attribute];
+    };
+    [! $object:ty, $attribute:ident ($($parameter:ty),+), bool, $getter:ident ] => { 
+        impl_attribute_definition![$object, $attribute ( $( $parameter ),+ ) ];
+        impl_attribute_getter![! $object, $attribute ( $($parameter),+ ), bool, $getter ];
     };
     [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl_attribute_definition![$object, $attribute];
@@ -607,7 +661,7 @@ pub mod project {
      * The list is sorted by the number of commits in desceding order.
      */
     impl_attribute![?..   objects::Project, CommitContributions, (objects::User, usize), commit_contributions, author_count];
-    
+
     /* Number of snapshots in the project that only ever exist in the project. 
      */
     impl_attribute![?     objects::Project, UniqueFiles, usize, unique_files];
@@ -649,6 +703,9 @@ pub mod project {
        For simplicity we assume a project is a fork if it is younger *and* if it shares at least one commit by hash. 
      */
     impl_attribute![?..   objects::Project, AllForks, objects::ProjectId, all_forks, all_forks_count];
+
+    impl_attribute![!     objects::Project, Test1(usize), bool, test1];
+    impl_attribute![!     objects::Project, Test2(usize, usize), bool, test2];
 }
 
 pub mod commit {

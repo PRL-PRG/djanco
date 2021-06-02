@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::collections::{BTreeMap, HashMap, BTreeSet};
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::fs::{File, create_dir_all};
 
@@ -9,8 +9,10 @@ use chrono::DateTime;
 use crate::persistent::*;
 use crate::objects::*;
 use crate::log::{Log, Verbosity, Warning};
-use crate::weights_and_measures::Weighed;
+use crate::weights_and_measures::{Weighed};
 use crate::source::Source;
+use crate::objects;
+use crate::data::cache_filenames::*;
 
 trait MetadataFieldExtractor {
     type Value: Persistent + Weighed;
@@ -124,113 +126,93 @@ impl<T, M> MetadataFieldExtractor for FieldExtractor<M>
     }
 }
 
-struct MetadataVec<M: MetadataFieldExtractor> {
-    name: String,
+struct MetadataCacher<M: MetadataFieldExtractor> {
+    // filename: String,
+    field: String,
     log: Log,
     cache_path: PathBuf,
     cache_dir: PathBuf,
     extractor: M,
-    vector: Option<BTreeMap<ProjectId, M::Value>>,
 }
 
-impl<M> MetadataVec<M> where M: MetadataFieldExtractor {
-    pub fn new<Sa, Sb>(name: Sa, dir: Sb, log: &Log, extractor: M) -> Self
-        where Sa: Into<String>, Sb: Into<String> {
-        let name: String = name.into();
+
+impl<M> MetadataCacher<M> where M: MetadataFieldExtractor {
+    pub fn new<Sa, Sb, Sc>(field: Sc, filename: Sa, dir: Sb, log: &Log, extractor: M) -> Self
+        where Sa: Into<String>, Sb: Into<String>, Sc: Into<String> {
+        let filename: String = filename.into();
+        let field: String = field.into();
 
         let mut cache_dir = PathBuf::new();
         cache_dir.push(std::path::Path::new(dir.into().as_str()));
 
         let mut cache_path = cache_dir.clone();
-        cache_path.push(std::path::Path::new(name.as_str()));
+        cache_path.push(std::path::Path::new(filename.as_str()));
         cache_path.set_extension(PERSISTENT_EXTENSION);
 
-        Self { name, extractor, vector: None, cache_dir, cache_path, log: log.clone() }
+        Self { field, extractor, cache_dir, cache_path, log: log.clone() }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=(&ProjectId, &M::Value)> {
-        self.vector.as_ref().map(|vector| vector.iter())
-            .expect("Attempted to iterate over metadata vector before initializing it")
-    }
+    // pub fn cache_path(&self) -> &PathBuf { &self.cache_path }
 
-    pub fn already_loaded(&self) -> bool { self.vector.is_some() }
     pub fn already_cached(&self) -> bool { self.cache_path.is_file() }
 
-    pub fn load_from_store(&mut self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) {
-        if !self.already_loaded() {
-            let mut event = self.log.start(Verbosity::Log, format!("loading metadata ({}) from store", self.name));
-            self.vector = Some(
-                metadata.iter()
-                    .flat_map(|(id, properties)| {
-                        let property = properties.get(&self.name);
-                        //println!("___ {:?} {:?}", property, properties);
-                        match property {
-                            Some(property) => {
-                                self.extractor.get(property)
-                                    .map(|e| (id.clone(), e))
-                            }
-                            None => {
-                                eprintln!("WARNING! Attempt to retrieve property {} for project {} from property map yielded None, available keys: {}",
-                                &self.name, id, properties.iter().map(|(k, _)| k.to_string()).collect::<Vec<String>>().join(","));
-                                None
-                            }
+    fn load_from_store(&self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) -> BTreeMap<ProjectId, M::Value> {
+        let mut event = self.log.start(Verbosity::Log, format!("loading metadata ({}) from store", self.field));
+        let vector: BTreeMap<ProjectId, <M as MetadataFieldExtractor>::Value> = 
+            metadata.iter()
+                .flat_map(|(id, properties)| {
+                    let property = properties.get(&self.field);
+                    match property {
+                        Some(property) => {
+                            self.extractor.get(property)
+                                .map(|e| (id.clone(), e))
                         }
-                    }).collect()
-            );
-            event.weighed(&self.vector);
-            event.counted(self.vector.as_ref().map_or(0, |v| v.len()));
-            self.log.end(event)
+                        None => {
+                            eprintln!("WARNING! Attempt to retrieve property {} for project {} from property map yielded None, available keys: {}",
+                            &self.field, id, properties.iter().map(|(k, _)| k.to_string()).collect::<Vec<String>>().join(","));
+                            None
+                        }
+                    }
+                }).collect();
 
-        }
-    }
-
-    fn load_from_cache(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut event = self.log.start(Verbosity::Log, format!("loading metadata ({}) from cache at {}", self.name, self.cache_path.to_str().unwrap()));
-        let reader = File::open(&self.cache_path)?;
-        self.vector = Some(serde_cbor::from_reader(reader)?);
-        event.weighed(&self.vector);
-        event.counted(self.vector.as_ref().map_or(0, |v| v.len()));
+        event.weighed(&vector);
+        event.counted(vector.len());
         self.log.end(event);
-        Ok(())
+
+        vector
     }
 
-    fn store_to_cache(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut event = self.log.start(Verbosity::Log, format!("storing metadata ({}) to cache at {}", self.name, self.cache_path.to_str().unwrap()));
+    fn store_to_cache(&self, vector: &BTreeMap<ProjectId, <M as MetadataFieldExtractor>::Value>) -> Result<(), Box<dyn Error>> {
+        let mut event = self.log.start(Verbosity::Log, format!("storing metadata ({}) to cache at {}", self.field, self.cache_path.to_str().unwrap()));
         create_dir_all(&self.cache_dir)?;
         let writer = File::create(&self.cache_path)?;
-        serde_cbor::to_writer(writer, &self.vector)?;
-        event.weighed(&self.vector);
-        event.counted(self.vector.as_ref().map_or(0, |v| v.len()));
+        serde_cbor::to_writer(writer, &vector)?;
+        event.weighed(vector);
+        event.counted(vector.len());
         self.log.end(event);
         Ok(())
     }
 
-    pub fn data(&mut self) -> &BTreeMap<ProjectId, M::Value> {
-        if !self.already_loaded() {
-            if self.already_cached() {
-                self.load_from_cache()
-                    .expect(&format!("Could not load data from data store at {} for {}",
-                                     self.cache_dir.to_str().unwrap(), self.name))
-            } else {
-                panic!("Must preload data from data store before accessing!");
-            }
-        }
-        self.vector.as_ref().unwrap() // guaranteed
+    fn load_from_cache(&self) -> Result<BTreeMap<ProjectId, M::Value>, Box<dyn Error>> {
+        let mut event = self.log.start(Verbosity::Log, format!("loading metadata ({}) from cache at {}", self.field, self.cache_path.to_str().unwrap()));
+        let reader = File::open(&self.cache_path)?;
+        let vector: BTreeMap<ProjectId, M::Value> = serde_cbor::from_reader(reader)?;
+        event.weighed(&vector);
+        event.counted(vector.len());
+        self.log.end(event);
+        Ok(vector)
     }
 
-    pub fn get(&mut self, key: &ProjectId) -> Option<&M::Value> {
-        self.data().get(key)
+
+    fn convert_into_cache(&self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) -> Result<(), Box<dyn Error>> {
+        self.store_to_cache(&self.load_from_store(metadata))
     }
 }
 
-impl<T,M> MetadataVec<M> where M: MetadataFieldExtractor<Value=T>, T: Clone + Persistent + Weighed {
-    pub fn pirate(&mut self, key: &ProjectId) -> Option<M::Value> { // get owned
-        self.get(key).map(|v| v.clone())
-    }
-}
 
-trait MetadataSource {
-    fn load_metadata(&mut self, store: &Source) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
+
+pub trait MetadataSource {
+    fn load_metadata(&self, store: &Source) -> HashMap<ProjectId, serde_json::Map<String, JSON>> {
         store.project_github_metadata()
             .map(|(id, json)| match json {
                 Ok(JSON::Object(map)) =>
@@ -242,48 +224,47 @@ trait MetadataSource {
             }).collect()
     }
 
-    fn load_all_from_store(&mut self, store: &Source) {
+    fn convert_all_into_cache_from_store(&self, store: &Source) -> Result<(), Vec<Box<dyn Error>>> {
         let metadata = self.load_metadata(store);
-        self.load_all_from(&metadata)
+        self.convert_all_into_cache(&metadata)
     }
 
-    fn prepare_dir<Sa, Sb>(name: Sa, dir: Sb) -> String where Sa: Into<String>, Sb: Into<String> {
-        let name = name.into();
-        let dir = {
-            let mut cache_subdir = PathBuf::new();
-            cache_subdir.push(std::path::Path::new(dir.into().as_str()));
-            cache_subdir.push(std::path::Path::new(name.as_str()));
-            cache_subdir.set_extension(PERSISTENT_EXTENSION);
-            cache_subdir.to_str().unwrap().to_owned()
-        };
-        dir
-    }
+    // fn prepare_dir<Sa, Sb>(_name: Sa, dir: Sb) -> String where Sa: Into<String>, Sb: Into<String> {
+    //     // let name = name.into();
+    //     let dir = {
+    //         let mut cache_subdir = PathBuf::new();
+    //         cache_subdir.push(std::path::Path::new(dir.into().as_str()));
+    //         //cache_subdir.push(std::path::Path::new(name.as_str()));
+    //         //cache_subdir.set_extension(PERSISTENT_EXTENSION);
+    //         cache_subdir.to_str().unwrap().to_owned()
+    //     };
+    //     dir
+    // }
 
-    fn load_all_from(&mut self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>);
-    fn store_all_to_cache(&mut self) -> Result<(), Vec<Box<dyn Error>>>;
+    fn convert_all_into_cache(&self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) -> Result<(), Vec<Box<dyn Error>>>;
 }
 
-macro_rules! gimme {
-    ($self:expr, $vector:ident, $store:expr, $method:ident, $key:expr) => {{
-        if !$self.loaded && !$self.$vector.already_loaded() && !$self.$vector.already_cached() {
-            $self.load_all_from_store($store);
-            $self.store_all_to_cache().unwrap();
-            $self.loaded = true;
-        }
-        $self.$vector.$method($key)
-    }}
-}
+// macro_rules! gimme {
+//     ($self:expr, $vector:ident, $store:expr, $method:ident, $key:expr) => {{
+//         if !$self.loaded && !$self.$vector.already_loaded() && !$self.$vector.already_cached() {
+//             $self.load_all_from_store($store);
+//             $self.store_all_to_cache().unwrap();
+//             $self.loaded = true;
+//         }
+//         $self.$vector.$method($key)
+//     }}
+// }
 
-macro_rules! gimme_iter {
-    ($self:expr, $vector:ident, $store:expr) => {{
-        if !$self.loaded && !$self.$vector.already_loaded() && !$self.$vector.already_cached() {
-            $self.load_all_from_store($store);
-            $self.store_all_to_cache().unwrap();
-            $self.loaded = true;
-        }
-        $self.$vector.iter()
-    }}
-}
+// macro_rules! gimme_iter {
+//     ($self:expr, $vector:ident, $store:expr) => {{
+//         if !$self.loaded && !$self.$vector.already_loaded() && !$self.$vector.already_cached() {
+//             $self.load_all_from_store($store);
+//             $self.store_all_to_cache().unwrap();
+//             $self.loaded = true;
+//         }
+//         $self.$vector.iter()
+//     }}
+// }
 
 macro_rules! run_and_consolidate_errors {
     ($($statements:expr),*) => {{
@@ -299,92 +280,88 @@ macro_rules! run_and_consolidate_errors {
 }
 
 pub struct ProjectMetadataSource {
-    loaded:           bool,
     //log:              Log,
-    are_forks:        MetadataVec<BoolExtractor>,
-    are_archived:     MetadataVec<BoolExtractor>,
-    are_disabled:     MetadataVec<BoolExtractor>,
-    star_gazers:      MetadataVec<CountExtractor>,
-    watchers:         MetadataVec<CountExtractor>,
-    size:             MetadataVec<CountExtractor>,
-    open_issues:      MetadataVec<CountExtractor>,
-    forks:            MetadataVec<CountExtractor>,
-    subscribers:      MetadataVec<CountExtractor>,
-    licenses:         MetadataVec<FieldExtractor<StringExtractor>>,
-    languages:        MetadataVec<LanguageExtractor>,
-    descriptions:     MetadataVec<StringExtractor>,
-    homepages:        MetadataVec<StringExtractor>,
-    has_issues:       MetadataVec<BoolExtractor>,
-    has_downloads:    MetadataVec<BoolExtractor>,
-    has_wiki:         MetadataVec<BoolExtractor>,
-    has_pages:        MetadataVec<BoolExtractor>,
-    created:          MetadataVec<TimestampExtractor>,
-    updated:          MetadataVec<TimestampExtractor>,
-    pushed:           MetadataVec<TimestampExtractor>,
-    master:           MetadataVec<StringExtractor>,
-    issues:           MetadataVec<CountExtractor>,
-    buggy_issues:     MetadataVec<CountExtractor>,
+    are_forks:        MetadataCacher<BoolExtractor>,
+    are_archived:     MetadataCacher<BoolExtractor>,
+    are_disabled:     MetadataCacher<BoolExtractor>,
+    star_gazers:      MetadataCacher<CountExtractor>,
+    watchers:         MetadataCacher<CountExtractor>,
+    size:             MetadataCacher<CountExtractor>,
+    open_issues:      MetadataCacher<CountExtractor>,
+    forks:            MetadataCacher<CountExtractor>,
+    subscribers:      MetadataCacher<CountExtractor>,
+    licenses:         MetadataCacher<FieldExtractor<StringExtractor>>,
+    languages:        MetadataCacher<LanguageExtractor>,
+    descriptions:     MetadataCacher<StringExtractor>,
+    homepages:        MetadataCacher<StringExtractor>,
+    has_issues:       MetadataCacher<BoolExtractor>,
+    has_downloads:    MetadataCacher<BoolExtractor>,
+    has_wiki:         MetadataCacher<BoolExtractor>,
+    has_pages:        MetadataCacher<BoolExtractor>,
+    created:          MetadataCacher<TimestampExtractor>,
+    updated:          MetadataCacher<TimestampExtractor>,
+    pushed:           MetadataCacher<TimestampExtractor>,
+    master:           MetadataCacher<StringExtractor>,
+    issues:           MetadataCacher<CountExtractor>,
+    buggy_issues:     MetadataCacher<CountExtractor>,
 }
 
 impl ProjectMetadataSource {
-    pub fn new<Sa, Sb>(name: Sa, log: Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
-        let dir = Self::prepare_dir(name, dir);
+    pub fn new<S>(log: Log, dir: S) -> Self where S: Into<String> {
+        let dir = dir.into();
         ProjectMetadataSource {
-            are_forks:     MetadataVec::new("fork",              dir.as_str(), &log, BoolExtractor),
-            are_archived:  MetadataVec::new("archived",          dir.as_str(), &log, BoolExtractor),
-            are_disabled:  MetadataVec::new("disabled",          dir.as_str(), &log, BoolExtractor),
-            star_gazers:   MetadataVec::new("stargazers_count",  dir.as_str(), &log, CountExtractor),
-            watchers:      MetadataVec::new("watchers_count",    dir.as_str(), &log, CountExtractor),
-            size:          MetadataVec::new("size",              dir.as_str(), &log, CountExtractor),
-            open_issues:   MetadataVec::new("open_issues_count", dir.as_str(), &log, CountExtractor),
-            forks:         MetadataVec::new("forks",             dir.as_str(), &log, CountExtractor),
-            subscribers:   MetadataVec::new("subscribers_count", dir.as_str(), &log, CountExtractor),
-            languages:     MetadataVec::new("language",          dir.as_str(), &log, LanguageExtractor),
-            descriptions:  MetadataVec::new("description",       dir.as_str(), &log, StringExtractor),
-            homepages:     MetadataVec::new("homepage",          dir.as_str(), &log, StringExtractor),
-            licenses:      MetadataVec::new("license",           dir.as_str(), &log, FieldExtractor("name", StringExtractor)),
-            has_issues:    MetadataVec::new("has_issues",        dir.as_str(), &log, BoolExtractor),
-            has_downloads: MetadataVec::new("has_downloads",     dir.as_str(), &log, BoolExtractor),
-            has_wiki:      MetadataVec::new("has_wiki",          dir.as_str(), &log, BoolExtractor),
-            has_pages:     MetadataVec::new("has_pages",         dir.as_str(), &log, BoolExtractor),
-            created:       MetadataVec::new("created_at",        dir.as_str(), &log, TimestampExtractor),
-            updated:       MetadataVec::new("updated_at",        dir.as_str(), &log, TimestampExtractor),
-            pushed:        MetadataVec::new("pushed_at",         dir.as_str(), &log, TimestampExtractor),
-            master:        MetadataVec::new("default_branch",    dir.as_str(), &log, StringExtractor),
-            issues:        MetadataVec::new("issues_count",       dir.as_str(), &log, CountExtractor),
-            buggy_issues:  MetadataVec::new("buggy_issues_count", dir.as_str(), &log, CountExtractor),
-
-            loaded:        false,
-            //log:           log.clone(),
+            are_forks:     MetadataCacher::new("fork",               CACHE_FILE_PROJECT_IS_FORK,           dir.as_str(), &log, BoolExtractor),
+            are_archived:  MetadataCacher::new("archived",           CACHE_FILE_PROJECT_IS_ARCHIVED,       dir.as_str(), &log, BoolExtractor),
+            are_disabled:  MetadataCacher::new("disabled",           CACHE_FILE_PROJECT_IS_DISABLED,       dir.as_str(), &log, BoolExtractor),
+            star_gazers:   MetadataCacher::new("stargazers_count",   CACHE_FILE_PROJECT_STARGAZER_COUNT,   dir.as_str(), &log, CountExtractor),
+            watchers:      MetadataCacher::new("watchers_count",     CACHE_FILE_PROJECT_WATCHER_COUNT,     dir.as_str(), &log, CountExtractor),
+            size:          MetadataCacher::new("size",               CACHE_FILE_PROJECT_SIZE,              dir.as_str(), &log, CountExtractor),            
+            forks:         MetadataCacher::new("forks",              CACHE_FILE_PROJECT_FORK_COUNT,        dir.as_str(), &log, CountExtractor),
+            subscribers:   MetadataCacher::new("subscribers_count",  CACHE_FILE_PROJECT_SUBSCRIBER_COUNT,  dir.as_str(), &log, CountExtractor),
+            languages:     MetadataCacher::new("language",           CACHE_FILE_PROJECT_LANGUAGE,          dir.as_str(), &log, LanguageExtractor),
+            descriptions:  MetadataCacher::new("description",        CACHE_FILE_PROJECT_DESCRIPTION,       dir.as_str(), &log, StringExtractor),
+            homepages:     MetadataCacher::new("homepage",           CACHE_FILE_PROJECT_HOMEPAGE,          dir.as_str(), &log, StringExtractor),
+            licenses:      MetadataCacher::new("license",            CACHE_FILE_PROJECT_LICENSE,           dir.as_str(), &log, FieldExtractor("name", StringExtractor)),
+            has_issues:    MetadataCacher::new("has_issues",         CACHE_FILE_PROJECT_HAS_ISSUES,        dir.as_str(), &log, BoolExtractor),
+            has_downloads: MetadataCacher::new("has_downloads",      CACHE_FILE_PROJECT_HAS_DOWNLOADS,     dir.as_str(), &log, BoolExtractor),
+            has_wiki:      MetadataCacher::new("has_wiki",           CACHE_FILE_PROJECT_HAS_WIKI,          dir.as_str(), &log, BoolExtractor),
+            has_pages:     MetadataCacher::new("has_pages",          CACHE_FILE_PROJECT_HAS_PAGES,         dir.as_str(), &log, BoolExtractor),
+            created:       MetadataCacher::new("created_at",         CACHE_FILE_PROJECT_CREATED,           dir.as_str(), &log, TimestampExtractor),
+            updated:       MetadataCacher::new("updated_at",         CACHE_FILE_PROJECT_UPDATED,           dir.as_str(), &log, TimestampExtractor),
+            pushed:        MetadataCacher::new("pushed_at",          CACHE_FILE_PROJECT_PUSHED,            dir.as_str(), &log, TimestampExtractor),
+            master:        MetadataCacher::new("default_branch",     CACHE_FILE_PROJECT_DEFAULT_BRANCH,    dir.as_str(), &log, StringExtractor),
+            issues:        MetadataCacher::new("issues_count",       CACHE_FILE_PROJECT_ISSUE_COUNT,       dir.as_str(), &log, CountExtractor),
+            buggy_issues:  MetadataCacher::new("buggy_issues_count", CACHE_FILE_PROJECT_BUGGY_ISSUE_COUNT, dir.as_str(), &log, CountExtractor),
+            open_issues:   MetadataCacher::new("open_issues_count",  CACHE_FILE_PROJECT_OPEN_ISSUE_COUNT,  dir.as_str(), &log, CountExtractor),
         }
     }
 }
 
-impl ProjectMetadataSource {
-    pub fn is_fork          (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { gimme!(self, are_forks,     store, pirate, key)           }
-    pub fn is_archived      (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { gimme!(self, are_archived,  store, pirate, key)           }
-    pub fn is_disabled      (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { gimme!(self, are_disabled,  store, pirate, key)           }
-    pub fn star_gazers      (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, star_gazers,   store, pirate, key)           }
-    pub fn watchers         (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, watchers,      store, pirate, key)           }
-    pub fn size             (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, size,          store, pirate, key)           }
-    pub fn open_issues      (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, open_issues,   store, pirate, key)           }
-    pub fn forks            (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, forks,         store, pirate, key)           }
-    pub fn subscribers      (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, subscribers,   store, pirate, key)           }
-    pub fn license          (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { gimme!(self, licenses,      store, pirate, key)           }
-    pub fn description      (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { gimme!(self, descriptions,  store, pirate, key)           }
-    pub fn homepage         (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { gimme!(self, homepages,     store, pirate, key)           }
-    pub fn language         (&mut self, store: &Source, key: &ProjectId) -> Option<Language> { gimme!(self, languages,     store, pirate, key)           }
-    pub fn has_issues       (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { gimme!(self, has_issues,    store, pirate, key)           }
-    pub fn has_downloads    (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { gimme!(self, has_downloads, store, pirate, key)           }
-    pub fn has_wiki         (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { gimme!(self, has_wiki,      store, pirate, key)           }
-    pub fn has_pages        (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { gimme!(self, has_pages,     store, pirate, key)           }
-    pub fn created          (&mut self, store: &Source, key: &ProjectId) -> Option<i64>      { gimme!(self, created,       store, pirate, key)           }
-    pub fn updated          (&mut self, store: &Source, key: &ProjectId) -> Option<i64>      { gimme!(self, updated,       store, pirate, key)           }
-    pub fn pushed           (&mut self, store: &Source, key: &ProjectId) -> Option<i64>      { gimme!(self, pushed,        store, pirate, key)           }
-    pub fn master           (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { gimme!(self, master,        store, pirate, key)           }
-    pub fn issues           (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, issues,        store, pirate, key)           }
-    pub fn buggy_issues     (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { gimme!(self, buggy_issues,  store, pirate, key)           }
-}
+// impl ProjectMetadataSource {
+//     pub fn is_fork          (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { unimplemented!() }
+//     pub fn is_archived      (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { unimplemented!() }
+//     pub fn is_disabled      (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { unimplemented!() }
+//     pub fn star_gazers      (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { unimplemented!() }
+//     pub fn watchers         (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { unimplemented!() }
+//     pub fn size             (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { unimplemented!() }
+//     pub fn open_issues      (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { unimplemented!() }
+//     pub fn forks            (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { unimplemented!() }
+//     pub fn subscribers      (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { unimplemented!() }
+//     pub fn license          (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { unimplemented!() }
+//     pub fn description      (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { unimplemented!() }
+//     pub fn homepage         (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { unimplemented!() }
+//     pub fn language         (&mut self, store: &Source, key: &ProjectId) -> Option<Language> { unimplemented!() }
+//     pub fn has_issues       (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { unimplemented!() }
+//     pub fn has_downloads    (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { unimplemented!() }
+//     pub fn has_wiki         (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { unimplemented!() }
+//     pub fn has_pages        (&mut self, store: &Source, key: &ProjectId) -> Option<bool>     { unimplemented!() }
+//     pub fn created          (&mut self, store: &Source, key: &ProjectId) -> Option<i64>      { unimplemented!() }
+//     pub fn updated          (&mut self, store: &Source, key: &ProjectId) -> Option<i64>      { unimplemented!() }
+//     pub fn pushed           (&mut self, store: &Source, key: &ProjectId) -> Option<i64>      { unimplemented!() }
+//     pub fn master           (&mut self, store: &Source, key: &ProjectId) -> Option<String>   { unimplemented!() }
+//     pub fn issues           (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { unimplemented!() }
+//     pub fn buggy_issues     (&mut self, store: &Source, key: &ProjectId) -> Option<usize>    { unimplemented!() }
+// }
 
 // A glorified tuple
 #[derive(Hash, Clone, Debug)]
@@ -410,101 +387,373 @@ pub struct ProjectMetadata {
     pub created: Option<i64>,
     pub updated: Option<i64>,
     pub pushed: Option<i64>,
-    pub master: Option<String>,
+    pub default_branch: Option<String>,
     pub issues: Option<usize>,
     pub buggy_issues: Option<usize>,
 }
 
 impl ProjectMetadataSource {
-    pub fn keys(&mut self, store: &Source) -> impl Iterator<Item=ProjectId> {
-        let mut keys = BTreeSet::new();
-        keys.append(&mut gimme_iter!(self, are_forks,     store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, are_archived,  store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, are_disabled,  store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, star_gazers,   store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, watchers,      store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, size,          store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, open_issues,   store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, forks,         store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, subscribers,   store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, languages,     store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, descriptions,  store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, homepages,     store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, licenses,      store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, has_issues,    store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, has_downloads, store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, has_wiki,      store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, has_pages,     store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, created,       store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, updated,       store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, pushed,        store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, master,        store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, issues,        store).map(|(id, _)| id.clone()).collect());
-        keys.append(&mut gimme_iter!(self, buggy_issues,  store).map(|(id, _)| id.clone()).collect());
-        keys.into_iter()
-    }
+    // pub fn keys(&mut self, store: &Source) -> impl Iterator<Item=ProjectId> {
+    //     let mut keys = BTreeSet::new();
+    //     keys.append(&mut gimme_iter!(self, are_forks,     store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, are_archived,  store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, are_disabled,  store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, star_gazers,   store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, watchers,      store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, size,          store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, open_issues,   store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, forks,         store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, subscribers,   store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, languages,     store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, descriptions,  store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, homepages,     store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, licenses,      store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, has_issues,    store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, has_downloads, store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, has_wiki,      store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, has_pages,     store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, created,       store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, updated,       store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, pushed,        store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, master,        store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, issues,        store).map(|(id, _)| id.clone()).collect());
+    //     keys.append(&mut gimme_iter!(self, buggy_issues,  store).map(|(id, _)| id.clone()).collect());
+    //     keys.into_iter()
+    // }
 
-    pub fn all_metadata(&mut self, store: &Source, key: &ProjectId) -> ProjectMetadata {
-        ProjectMetadata {
-            id: key.clone(),
-            is_fork: self.is_fork(store, key),
-            is_archived: self.is_archived(store, key),
-            is_disabled: self.is_disabled(store, key),
-            star_gazers: self.star_gazers(store, key),
-            watchers: self.watchers(store, key),
-            size: self.size(store, key),
-            open_issues: self.open_issues(store, key),
-            forks: self.forks(store, key),
-            subscribers: self.subscribers(store, key),
-            license: self.license(store, key),
-            description: self.description(store, key),
-            homepage: self.homepage(store, key),
-            language: self.language(store, key),
-            has_issues: self.has_issues(store, key),
-            has_downloads: self.has_downloads(store, key),
-            has_wiki: self.has_wiki(store, key),
-            has_pages: self.has_pages(store, key),
-            created: self.created(store, key),
-            updated: self.updated(store, key),
-            pushed: self.pushed(store, key),
-            master: self.master(store, key),
-            issues: self.issues(store, key),
-            buggy_issues: self.buggy_issues(store, key),
-        }
-    }
+    // pub fn all_metadata(&mut self, store: &Source, key: &ProjectId) -> ProjectMetadata {
+    //     ProjectMetadata {
+    //         id: key.clone(),
+    //         is_fork: self.is_fork(store, key),
+    //         is_archived: self.is_archived(store, key),
+    //         is_disabled: self.is_disabled(store, key),
+    //         star_gazers: self.star_gazers(store, key),
+    //         watchers: self.watchers(store, key),
+    //         size: self.size(store, key),
+    //         open_issues: self.open_issues(store, key),
+    //         forks: self.forks(store, key),
+    //         subscribers: self.subscribers(store, key),
+    //         license: self.license(store, key),
+    //         description: self.description(store, key),
+    //         homepage: self.homepage(store, key),
+    //         language: self.language(store, key),
+    //         has_issues: self.has_issues(store, key),
+    //         has_downloads: self.has_downloads(store, key),
+    //         has_wiki: self.has_wiki(store, key),
+    //         has_pages: self.has_pages(store, key),
+    //         created: self.created(store, key),
+    //         updated: self.updated(store, key),
+    //         pushed: self.pushed(store, key),
+    //         master: self.master(store, key),
+    //         issues: self.issues(store, key),
+    //         buggy_issues: self.buggy_issues(store, key),
+    //     }
+    // }
 
-    pub fn iter<'a>(&'a mut self, store: &'a Source) -> impl Iterator<Item=ProjectMetadata> + 'a {
-        self.keys(store)
-            .map(|project_id| self.all_metadata(store, &project_id))
-            .collect::<Vec<ProjectMetadata>>()
-            .into_iter()
-    }
+    // pub fn iter<'a>(&'a mut self, store: &'a Source) -> impl Iterator<Item=ProjectMetadata> + 'a {
+    //     self.keys(store)
+    //         .map(|project_id| self.all_metadata(store, &project_id))
+    //         .collect::<Vec<ProjectMetadata>>()
+    //         .into_iter()
+    // }
 }
 
 impl MetadataSource for ProjectMetadataSource {
-    fn load_all_from(&mut self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) {
-        macro_rules! load_from_store {
-            ($($id:ident),+) => {
-                $( self.$id.load_from_store(metadata); )*
-            }
-        }
-        load_from_store!(are_forks, are_archived, are_disabled, star_gazers, watchers, size,
-                        open_issues, forks, subscribers, licenses, languages, descriptions,
-                        homepages, has_issues, has_downloads, has_wiki, has_pages, created,
-                        updated, pushed, master, issues, buggy_issues);
-    }
-
-    fn store_all_to_cache(&mut self) -> Result<(), Vec<Box<dyn Error>>> {
-        macro_rules! save_to_store {
+    fn convert_all_into_cache(&self, metadata: &HashMap<ProjectId, serde_json::Map<String, JSON>>) -> Result<(), Vec<Box<dyn Error>>> {
+        macro_rules! convert_into_store {
             ($($id:ident),+) => {
                 run_and_consolidate_errors!(
-                    $( self.$id.store_to_cache()  ),*
+                    $( self.$id.convert_into_cache(metadata)  ),*
                 )
             }
         }
-        save_to_store! (are_forks, are_archived, are_disabled, star_gazers, watchers, size,
-                        open_issues, forks, subscribers, licenses, languages, descriptions,
-                        homepages, has_issues, has_downloads, has_wiki, has_pages, created,
-                        updated, pushed, master, issues, buggy_issues)
+        convert_into_store!(are_forks, are_archived, are_disabled, star_gazers, watchers, size,
+                            open_issues, forks, subscribers, licenses, languages, descriptions,
+                            homepages, has_issues, has_downloads, has_wiki, has_pages, created,
+                            updated, pushed, master, issues, buggy_issues)
     }
 }
+
+
+
+pub trait MetadataVectorExtractor<M>: MapExtractor where M: MetadataSource {
+    fn extract(source: &Source, metadata: &M) -> BTreeMap<Self::Key, Self::Value>;
+}
+
+pub trait MetadataMapExtractor<M>: MapExtractor where M: MetadataSource {
+    fn extract(source: &Source, metadata: &M) -> BTreeMap<Self::Key, Self::Value>;
+}
+
+impl<E> PersistentMap<E> where E: MetadataMapExtractor<ProjectMetadataSource> {
+    pub fn load_from_metadata(&mut self, source: &Source, metadata: &ProjectMetadataSource) -> &BTreeMap<E::Key, E::Value> {
+        self.data_from_loader(|| { E::extract(source, metadata) })
+    }
+}
+
+macro_rules! precache_metadata {
+    ($source:expr, $metadata:expr, $id:ident) => {{
+        // If the one I need is not cached
+        if !$metadata.$id.already_cached() {
+            // Cache all
+            $metadata.convert_all_into_cache_from_store($source).unwrap();
+        }
+        // Load just the one I need
+        $metadata.$id.load_from_cache().unwrap()
+    }}
+}
+
+
+pub(crate) struct ProjectBuggyIssuesExtractor {}
+impl MapExtractor for ProjectBuggyIssuesExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectBuggyIssuesExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, buggy_issues)
+    }
+}
+
+
+pub(crate) struct ProjectIsForkExtractor {}
+impl MapExtractor for ProjectIsForkExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectIsForkExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, are_forks)
+    }
+}
+
+pub(crate) struct ProjectIsArchivedExtractor {}
+impl MapExtractor for ProjectIsArchivedExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectIsArchivedExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, are_archived)
+    }
+}
+
+pub(crate) struct ProjectIsDisabledExtractor {}
+impl MapExtractor for ProjectIsDisabledExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectIsDisabledExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, are_disabled)
+    }
+}
+
+pub(crate) struct ProjectStargazersExtractor {}
+impl MapExtractor for ProjectStargazersExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectStargazersExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, star_gazers)
+    }
+}
+
+pub(crate) struct ProjectWatchersExtractor {}
+impl MapExtractor for ProjectWatchersExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectWatchersExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, watchers)
+    }
+}
+
+pub(crate) struct ProjectSizeExtractor {}
+impl MapExtractor for ProjectSizeExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectSizeExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, size)
+    }
+}
+
+pub(crate) struct ProjectOpenIssuesExtractor {}
+impl MapExtractor for ProjectOpenIssuesExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectOpenIssuesExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, open_issues)
+    }
+}
+
+pub(crate) struct ProjectIssuesExtractor {}
+impl MapExtractor for ProjectIssuesExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectIssuesExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, issues)
+    }
+}
+
+pub(crate) struct ProjectForksExtractor {}
+impl MapExtractor for ProjectForksExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectForksExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, forks)
+    }
+}
+
+pub(crate) struct ProjectSubscribersExtractor {}
+impl MapExtractor for ProjectSubscribersExtractor {
+    type Key = ProjectId;
+    type Value = usize;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectSubscribersExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, subscribers)
+    }
+}
+
+pub(crate) struct ProjectLicenseExtractor {}
+impl MapExtractor for ProjectLicenseExtractor {
+    type Key = ProjectId;
+    type Value = String;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectLicenseExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, licenses)
+    }
+}
+
+pub(crate) struct ProjectLanguageExtractor {}
+impl MapExtractor for ProjectLanguageExtractor {
+    type Key = ProjectId;
+    type Value = objects::Language;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectLanguageExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, languages)
+    }
+}
+
+pub(crate) struct ProjectDescriptionExtractor {}
+impl MapExtractor for ProjectDescriptionExtractor {
+    type Key = ProjectId;
+    type Value = String;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectDescriptionExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, descriptions)
+    }
+}
+
+pub(crate) struct ProjectHomepageExtractor {}
+impl MapExtractor for ProjectHomepageExtractor {
+    type Key = ProjectId;
+    type Value = String;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectHomepageExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, homepages)
+    }
+}
+
+pub(crate) struct ProjectHasIssuesExtractor {}
+impl MapExtractor for ProjectHasIssuesExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectHasIssuesExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, has_issues)
+    }
+}
+
+pub(crate) struct ProjectHasDownloadsExtractor {}
+impl MapExtractor for ProjectHasDownloadsExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectHasDownloadsExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, has_downloads)
+    }
+}
+
+pub(crate) struct ProjectHasWikiExtractor {}
+impl MapExtractor for ProjectHasWikiExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectHasWikiExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, has_wiki)
+    }
+}
+
+pub(crate) struct ProjectHasPagesExtractor {}
+impl MapExtractor for ProjectHasPagesExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectHasPagesExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, has_pages)
+    }
+}
+
+pub(crate) struct ProjectCreatedExtractor {}
+impl MapExtractor for ProjectCreatedExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectCreatedExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, created)
+    }
+}
+
+pub(crate) struct ProjectUpdatedExtractor {}
+impl MapExtractor for ProjectUpdatedExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectUpdatedExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, updated)
+    }
+}
+
+pub(crate) struct ProjectPushedExtractor {}
+impl MapExtractor for ProjectPushedExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectPushedExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, pushed)
+    }
+}
+
+pub(crate) struct ProjectDefaultBranchExtractor {}
+impl MapExtractor for ProjectDefaultBranchExtractor {
+    type Key = ProjectId;
+    type Value = String;
+}
+impl MetadataMapExtractor<ProjectMetadataSource> for ProjectDefaultBranchExtractor {
+    fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {
+        precache_metadata!(source, metadata, master)
+    }
+}
+

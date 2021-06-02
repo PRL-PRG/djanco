@@ -66,6 +66,7 @@ quick_impl_countable!(u32);
 quick_impl_countable!(i64);
 quick_impl_countable!(i32);
 quick_impl_countable!(u8);
+quick_impl_countable!(f64);
 
 quick_impl_countable!(User);
 quick_impl_countable!(Project);
@@ -82,6 +83,8 @@ quick_impl_countable!(ProjectId);
 quick_impl_countable!(CommitId);
 quick_impl_countable!(PathId);
 quick_impl_countable!(SnapshotId);
+
+quick_impl_countable!((usize, ProjectId));
 
 //quick_impl_countable!(ChangeTuple);
 
@@ -132,6 +135,7 @@ quick_impl_weighed!(u32);
 quick_impl_weighed!(i64);
 quick_impl_weighed!(i32);
 quick_impl_weighed!(u8);
+quick_impl_weighed!(f64);
 
 quick_impl_weighed!(UserId);
 quick_impl_weighed!(ProjectId);

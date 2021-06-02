@@ -400,9 +400,12 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "lifetime",
              "has_issues", "has_downloads", "has_wiki", "has_pages",
              "created", "updated", "pushed",
-             "master_branch",
+             "default_branch",
              "license", "homepage", "description",
-             "all_issues", "issues", "buggy_issues"]
+             "all_issues", "issues", "buggy_issues", 
+             "unique_files", "original_files", "impact",
+             "files",
+             "major_language", "major_language_ratio", "major_language_changes"]
     }
 
     fn row(&self) -> Vec<String> {        
@@ -440,7 +443,14 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.description().to_string_or_empty().escape_quotes().quoted(),
              self.combined_issue_count().to_string_or_empty(),
              self.issue_count().to_string_or_empty(),
-             self.buggy_issue_count().to_string_or_empty()]
+             self.buggy_issue_count().to_string_or_empty(),
+             self.unique_files().to_string_or_empty(),
+             self.original_files().to_string_or_empty(),
+             self.impact().to_string_or_empty(),
+             self.files().to_string_or_empty(),
+             self.major_language().to_string_or_empty(),
+             self.major_language_ratio().to_string_or_empty(),
+             self.major_language_changes().to_string_or_empty()]
     }
 
     fn rows(&self) -> Vec<Vec<String>> {
@@ -479,7 +489,14 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.description().to_string_or_empty().escape_quotes().quoted(),
             self.combined_issue_count().to_string_or_empty(),
             self.issue_count().to_string_or_empty(),
-            self.buggy_issue_count().to_string_or_empty()
+            self.buggy_issue_count().to_string_or_empty(),
+            self.unique_files().to_string_or_empty(),
+            self.original_files().to_string_or_empty(),
+            self.impact().to_string_or_empty(),
+            self.files().to_string_or_empty(),
+            self.major_language().to_string_or_empty(),
+            self.major_language_ratio().to_string_or_empty(),
+            self.major_language_changes().to_string_or_empty()
         ]]
     }
 }
@@ -672,7 +689,7 @@ impl CSVItem for ProjectMetadata {
             self.created.to_string_or_empty(),
             self.updated.to_string_or_empty(),
             self.pushed.to_string_or_empty(),
-            self.master.to_string_or_empty(),
+            self.default_branch.to_string_or_empty(),
         ]
     }
     fn rows(&self) -> Vec<Vec<String>> {
@@ -698,7 +715,7 @@ impl CSVItem for ProjectMetadata {
             self.created.to_string_or_empty(),
             self.updated.to_string_or_empty(),
             self.pushed.to_string_or_empty(),
-            self.master.to_string_or_empty(),
+            self.default_branch.to_string_or_empty(),
         ]]
     }
 }

@@ -598,6 +598,43 @@ pub mod project {
     impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
     impl_attribute![?    objects::Project, Locs, usize, project_locs];
+    /* Number of snapshots in the project that only ever exist in the project. 
+     */
+    impl_attribute![?     objects::Project, UniqueFiles, usize, unique_files];
+    /* Number of snapshots in the project where the project is the original, i.e. the oldest occurence of the particular snapshot in the dataset. 
+     */
+    impl_attribute![?     objects::Project, OriginalFiles, usize, original_files];
+    /* The impact of the project. 
+     
+        Sum of impact of its snapshots, where 0 is added for clones, 1 for unique files and the number of projects using a snapshot for original snapshots.
+
+     */
+    impl_attribute![?     objects::Project, Impact, usize, impact];
+    /* Number of unique files in the project. 
+
+       TODO the current version does not provide information about deletions and so there is no way we can reconstruct only active files. At this moment this metric simply returns the number of unique paths throughout the project's history.
+     */
+    impl_attribute![?     objects::Project, Files, usize, files];
+    /* Languages of the project. 
+
+       For each language used in the project returns the number of snapshots throught the project history ordered by descending number. 
+
+       TODO for now, this is only done using file extensions. We might want to do this using real contents analysis. 
+     */
+    impl_attribute![?..   objects::Project, Languages, (objects::Language, usize), languages, languages_count];
+    /* Shorthand for the major language. 
+     
+        This is the language with most changes in the project history. 
+     */
+    impl_attribute![?     objects::Project, MajorLanguage, objects::Language, major_language];
+    /* The ratio of the changes to the major languages vs. all changes in the project. 
+     
+       We are only counting changes to languages, i.e. where we keep snapshots. 
+     */
+    impl_attribute![?     objects::Project, MajorLanguageRatio, f64, major_language_ratio];
+    /* Number of changes to the major language. 
+     */
+    impl_attribute![?     objects::Project, MajorLanguageChanges, usize, major_language_changes];
 }
 
 pub mod commit {
@@ -624,6 +661,11 @@ pub mod commit {
     impl_attribute![?+.. objects::Commit, Paths, objects::Path, changed_paths_with_data, changed_path_count];
     impl_attribute![?+.. objects::Commit, Snapshots, objects::Snapshot, changed_snapshots_with_data, changed_snapshot_count];
     impl_attribute![!+.. objects::Commit, Parents, objects::Commit, parents_with_data, parent_count];
+    /* The list of projects the commit belongs to. 
+
+       This is pretty much the reverse of the project-commits mapping.
+     */
+    impl_attribute![?..  objects::Commit, Projects, objects::Project, projects, projects_count];
 }
 
 pub mod head {
@@ -688,6 +730,16 @@ pub mod snapshot {
     impl_attribute![!   objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned];
     impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];
     impl_attribute![?   objects::Snapshot, Loc, usize, snapshot_locs];
+
+    /* Number of projects in the database that contain the snapshot (or did in the past). 
+    
+        This is count of projects, not occurences, i.e. if the file appears multiple times in a project, this will still only grow by one. 
+     */
+    impl_attribute![!   objects::Snapshot, NumProjects, usize, unique_projects];
+
+    /* The oldest project in which we have seen the snapshot appear. 
+     */
+    impl_attribute![!   objects::Snapshot, OriginalProject, objects::ProjectId, original_project];
 }
 
 pub trait AttributeIterator<'a, T>: Sized + Iterator<Item=objects::ItemWithData<'a, T>> {

@@ -21,7 +21,9 @@ pub enum Language {
     ASM, ASP, ActionScript, C, Cpp, CSharp, CoffeeScript, Lisp, Cobol, CSS, Clojure, D, Eiffel,
     Elixir, Elm, Erlang, FSharp, Fortran, Go, Groovy, HTML, Haskell, Java, JavaScript, Julia,
     Kotlin, Lua, ObjectiveC, OCaml, PHP, Pascal, Python, Perl, /*Prolog,*/ R, Racket, Ruby, Rust,
-    Scala, SQL, Scheme, Swift, TypeScript, VisualBasic
+    Scala, SQL, Scheme, Swift, TypeScript, VisualBasic,
+    // special category for languages we do not yet recognize and anything we do not know
+    Other
 }
 
 // HTML, CSS, Jupyter Notebook, Shell, Rich Text Format, Dart, R, Makefile, Vue, TeX, Vim script, Meson, Roff, CMake, Smarty, MATLAB, Elixir, Julia, F#,
@@ -82,6 +84,12 @@ impl Language {
         }).flatten().flatten()
     }
 
+    /** Returns the language associated with given extension. 
+     
+        If the extension is *not* recognized, returns Language::Other. If the extension is recognized as not belonging to a source code file (say images, etc.) should return None. 
+
+        TODO implement the above?
+     */
     fn from_extension(extension: &str) -> Option<Self> {
         match extension {
             "c" | "h"                                               => Some(Language::C),
@@ -131,7 +139,7 @@ impl Language {
             "as" | "swf"                                            => Some(Language::ActionScript),
             "asp"                                                   => Some(Language::ASP),
             "asm" | "s"                                             => Some(Language::ASM),
-            _                                                       => None,
+            _                                                       => Some(Language::Other),
         }
     }
 }
@@ -183,7 +191,8 @@ impl Display for Language {
             Language::SQL => "SQL",
             Language::Scheme => "Scheme",
             Language::Swift => "Swift",
-            Language::VisualBasic => "Visual Basic"
+            Language::VisualBasic => "Visual Basic",
+            Language::Other => "Other"
         };
         f.write_str(string)
     }
@@ -397,19 +406,27 @@ impl Project {
     pub fn has_downloads    (&self, store: &Database)    -> Option<bool>                    { store.project_has_downloads(&self.id)          }
     pub fn has_wiki         (&self, store: &Database)    -> Option<bool>                    { store.project_has_wiki(&self.id)               }
     pub fn has_pages        (&self, store: &Database)    -> Option<bool>                    { store.project_has_pages(&self.id)              }
-    pub fn created          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_created(&self.id)          }
-    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_updated(&self.id)          }
-    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)           }
-    pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_master(&self.id)                 }
+    pub fn created          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_created(&self.id)                }
+    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_updated(&self.id)                }
+    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)                 }
+    pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_default_branch(&self.id)                 }
+    // TODO project commit frequency
+
+    pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }
+    pub fn unique_files     (&self, store: &Database)    -> Option<usize>                   { store.project_unique_files(&self.id)                  }
+    pub fn original_files   (&self, store: &Database)    -> Option<usize>                   { store.project_original_files(&self.id)                  }
+    pub fn impact           (&self, store: &Database)    -> Option<usize>                   { store.project_impact(&self.id)     }
+    pub fn files            (&self, store: &Database)    -> Option<usize>                   { store.project_files(&self.id)      }
+    pub fn languages        (&self, store: &Database)    -> Option<Vec<(Language,usize)>>   { store.project_languages(&self.id)      }
+    pub fn languages_count  (&self, store: &Database)    -> Option<usize>                   { store.project_languages_count(&self.id)      }
+    pub fn major_language   (&self, store: &Database)    -> Option<Language>                { store.project_major_language(&self.id)      }
+    pub fn major_language_ratio (&self, store: &Database) -> Option<f64>                    { store.project_major_language_ratio(&self.id) }
+    pub fn major_language_changes (&self, store: &Database) -> Option<usize>                { store.project_major_language_changes(&self.id) }
     pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>      { store.project_longest_inactivity_streak(&self.id)      }
     pub fn avg_commit_rate      (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_rate(&self.id)                }
     pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id) }
     pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                   }
-    pub fn project_locs      (&self, store: &Database)    -> Option<usize>                   { store.project_locs(&self.id)                  }
-    
-    // TODO project commit frequency
-
-    pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)               }
+    pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                  }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -535,6 +552,13 @@ impl Commit {
     pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
     pub fn changed_snapshots   (&self, store: &Database) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
     pub fn changed_snapshot_count (&self, store: &Database) -> Option<usize>                  {  self.changed_snapshot_ids(store).map(|v| v.len() ) }
+
+    pub fn projects(& self, store: &Database) -> Option<Vec<Project>> {
+        store.commit_projects(&self.id)
+    } 
+    pub fn projects_count(& self, store: &Database) -> Option<usize> {
+        store.commit_projects_count(&self.id)
+    }
 }
 
 impl Identifiable for Commit {
@@ -615,6 +639,15 @@ impl Snapshot {
     pub fn write_contents_to_file<F>(&self, file: &mut F) -> Result<(), std::io::Error> where F: Write {
         file.write_all(self.contents.as_slice())
     }
+
+    pub fn unique_projects(&self, db : &Database) -> usize {
+        db.snapshot_unique_projects(&self.id)
+    }
+
+    pub fn original_project(&self, db : &Database) -> ProjectId {
+        db.snapshot_original_project(&self.id)
+    }
+
     // FIXME add hashes
     pub fn snapshot_locs      (&self, store: &Database)    -> Option<usize>                   { store.snapshot_locs(&self.id)                   }
 }
@@ -787,8 +820,33 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn paths_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Path>>> {
         self.item.paths(&self.data).attach_data_to_each(self.data)
     }
-    
-    
+    pub fn unique_files(&self) -> Option<usize>    {
+        self.item.unique_files(&self.data)
+    }
+    pub fn original_files(&self) -> Option<usize>    {
+        self.item.original_files(&self.data)
+    }
+    pub fn impact(&self) -> Option<usize>    {
+        self.item.impact(&self.data)
+    }
+    pub fn files(&self) -> Option<usize> {
+        self.item.files(&self.data)
+    }
+    pub fn languages(&self) -> Option<Vec<(Language,usize)>> {
+        self.item.languages(&self.data)
+    }
+    pub fn languages_count(&self) -> Option<usize> {
+        self.item.languages_count(&self.data)
+    }
+    pub fn major_language(&self) -> Option<Language> {
+        self.item.major_language(&self.data)
+    }
+    pub fn major_language_ratio(&self) -> Option<f64> {
+        self.item.major_language_ratio(&self.data)
+    }
+    pub fn major_language_changes(&self) -> Option<usize> {
+        self.item.major_language_changes(&self.data)
+    }
 }
 impl<'a> ItemWithData<'a, Snapshot> {
     pub fn raw_contents(&self) -> &Vec<u8> { self.item.raw_contents() }
@@ -798,6 +856,8 @@ impl<'a> ItemWithData<'a, Snapshot> {
     pub fn contents_owned(&self) -> String { self.item.contents_owned() }
     pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
     pub fn snapshot_locs (&self)        -> Option<usize>                    { self.item.snapshot_locs(&self.data) }
+    pub fn unique_projects(&self) -> usize { self.item.unique_projects(&self.data) }
+    pub fn original_project(&self) -> ProjectId { self.item.original_project(&self.data) }
 }
 
 impl<'a> ItemWithData<'a, User> {
@@ -863,6 +923,8 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn changed_snapshots_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Snapshot>>> {
         self.item.changed_snapshots(self.data).attach_data_to_each(self.data)
     }
+    pub fn projects(&self) -> Option<Vec<Project>> { self.item.projects(&self.data) }
+    pub fn projects_count(& self) -> Option<usize> { self.item.projects_count(& self.data) }
 
 }
 impl<'a> ItemWithData<'a, Path> {

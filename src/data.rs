@@ -1061,23 +1061,37 @@ impl MapExtractor for ProjectLocsExtractor{
     type Key = ProjectId;
     type Value = usize;
 }
-impl TripleMapExtractor for ProjectLocsExtractor {
+impl QuadrupleMapExtractor for ProjectLocsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, Commit>;
-    type C = BTreeMap<SnapshotId, usize>;
-    fn extract(_: &Source, project_commits: &Self::A, commits: &Self::B, snapshot_locs: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
-        unimplemented!();
-        // project_commits.iter().flat_map(|(project_id, commit_ids)| {
-        //     let mut last_state_files : BTreeMap<PathId, SnapshotId> = BTreeMap::new();
-        //     let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();
+    type B = BTreeMap<CommitId, i64>;
+    type C = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type D = BTreeMap<SnapshotId, usize>;
+    fn extract(_: &Source, project_commits: &Self::A, commit_timestamps: &Self::B, commit_changes: &Self::C, snapshot_locs: &Self::D) -> BTreeMap<Self::Key, Self::Value> {
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new();
+            let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();
+            
+            for commit_i in 0..commit_ids.len() {
+                
+                let commit = &commit_ids[commit_i];
+                let changes = commit_changes.get(commit).unwrap();
 
-        //     for i in 0..commit_ids.len() {
+                for change_i in 0..changes.len() {
+                    let path = &changes[change_i].0;
+                    let current_timestamp = commit_timestamps.get(commit).unwrap();
+                    if !last_state_files.contains_key(path) ||  *current_timestamp > *last_timestamp.get(path).unwrap(){
+                        last_timestamp.insert(*path, *current_timestamp);
+                        last_state_files.insert(*path, *snapshot_locs.get(&(changes[change_i].1).unwrap()).unwrap());
+                    }
+                }
+                
+            }
 
-        //         let commit = *(commits.get(&commit_ids[i]).unwrap());
+            let vec_locs : Vec<usize> = last_state_files.values().cloned().collect();
 
-        //         let timestamp = commit.committer_timestamp();
-        //     }
-        // }
+            (project_id.clone(), vec_locs.iter().sum())
+
+        }).collect()
     }
 }
             
@@ -2101,7 +2115,7 @@ impl Data {
         //load_with_prerequisites!(self, is_abandoned, source, one, project_snapshots)
     }
     fn smart_load_project_locs(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_locs, source, three, project_commits,  commits, snapshot_locs)
+        load_with_prerequisites!(self, project_locs, source, four, project_commits,  commit_committer_timestamps, commit_changes, snapshot_locs)
     }
 
     fn smart_load_commit_projects(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<ProjectId>> {

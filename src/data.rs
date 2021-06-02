@@ -1203,22 +1203,33 @@ impl MapExtractor for ProjectAllForksExtractor {
     type Value = Vec<ProjectId>;
 }
 
-impl DoubleMapExtractor for ProjectAllForksExtractor {
+impl TripleMapExtractor for ProjectAllForksExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Vec<ProjectId>>;
+    type C = BTreeMap<ProjectId, i64>;
 
-    fn extract (_: &Source, project_commits : &Self::A, commit_projects : &Self::B) -> BTreeMap<ProjectId, Vec<ProjectId>> {
+    fn extract (_: &Source, project_commits: &Self::A, commit_projects: &Self::B, project_created: & Self::C) -> BTreeMap<ProjectId, Vec<ProjectId>> {
         project_commits.iter()
             .map(|(pid, commits)| {
                 let mut projects = BTreeSet::<ProjectId>::new();
                 for cid in commits {
                     if let Some(cprojects) = commit_projects.get(cid) {
                         for p in cprojects {
-                            projects.insert(*p);
+                            if p != pid {
+                                projects.insert(*p);
+                            }
                         }    
                     }
                 }
-                // TODO figure out if we are the oldest project of the bunch, for now I assume we are
+                if let Some(created) = project_created.get(pid) {
+                    if let Some((oldest_pid, oldest_time)) = projects.iter()
+                        .filter_map(|p| if let Some(ctime) = project_created.get(p) { Some((p, ctime)) } else { None } )
+                        .min_by(|a, b| if a.1 != b.1 { b.1.cmp(a.1) } else { b.0.cmp(a.0) }) {
+                        if oldest_time < created || (oldest_time == created && oldest_pid < pid) {
+                            projects.clear();
+                        }
+                    }
+                }
                 (*pid, projects.iter().map(|x| *x).collect())
              })
             .collect()
@@ -1834,7 +1845,7 @@ impl Data {
         load_with_prerequisites!(self, project_major_language_changes, source, one, project_languages)
     }
     fn smart_load_project_all_forks(& mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<ProjectId>> {
-        load_with_prerequisites!(self, project_all_forks, source, two, project_commits, commit_projects)
+        load_with_prerequisites!(self, project_all_forks, source, three, project_commits, commit_projects, project_created)
     }
     fn smart_load_project_all_forks_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_all_forks_count, source, one, project_all_forks)

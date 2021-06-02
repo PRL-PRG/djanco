@@ -1067,6 +1067,7 @@ impl QuadrupleMapExtractor for ProjectLocsExtractor {
     type C = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type D = BTreeMap<SnapshotId, usize>;
     fn extract(_: &Source, project_commits: &Self::A, commit_timestamps: &Self::B, commit_changes: &Self::C, snapshot_locs: &Self::D) -> BTreeMap<Self::Key, Self::Value> {
+        // TODO: We should look after parent commits rather than timestamps. 
         project_commits.iter().map(|(project_id, commit_ids)| {
             let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new();
             let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();

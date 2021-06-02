@@ -1132,6 +1132,7 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
             commit_ids.iter().map(|commit_id| {
                 commit_changes[commit_id].iter().map(|change| {
                     let snapshot_id = change.1;
+                    total_snapshots+=1.0;
                     if !snapshot_id.is_none() {
                         let snapshot = snapshot_projects.get(&snapshot_id.unwrap());
 
@@ -1139,7 +1140,7 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
                             if (&snapshot.unwrap()).original != *project_id {
                                 num_clones += 1.0;
                             }
-                            total_snapshots+=1.0;
+                            
                         }
                         
                     }
@@ -1147,7 +1148,7 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
             });
 
             if total_snapshots == 0.0 {
-                (project_id.clone(), -1.0)
+                (project_id.clone(), 0.0)
             }else{
                 (project_id.clone(), f64::trunc(num_clones/total_snapshots*100.0)/100.0)
             }

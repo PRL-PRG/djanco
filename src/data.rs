@@ -15,7 +15,6 @@ use crate::metadata::*;
 use crate::log::*;
 use crate::weights_and_measures::{Weighed};
 use crate::time::Duration;
-use crate::csv::*;
 use crate::source::Source;
 use crate::{CacheDir, Store};
 
@@ -1087,7 +1086,7 @@ impl DoubleMapExtractor for ProjectFilesExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
 
-    fn extract (source: &Source, project_commits : &Self::A, commit_changes : &Self::B) -> BTreeMap<ProjectId, usize> {
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B) -> BTreeMap<ProjectId, usize> {
         project_commits.iter().map(|(pid, commits)| {
             let mut paths = BTreeSet::<PathId>::new();
             for cid in commits {
@@ -1112,7 +1111,7 @@ impl TripleMapExtractor for ProjectLanguagesExtractor {
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<PathId, Path>;
 
-    fn extract (source: &Source, project_commits : &Self::A, commit_changes : &Self::B, paths : &Self::C) -> BTreeMap<ProjectId, Vec<(Language,usize)>> {
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, paths : &Self::C) -> BTreeMap<ProjectId, Vec<(Language,usize)>> {
         let mut cached_paths = BTreeMap::<PathId, Language>::new();
         project_commits.iter().map(|(pid, commits)| {
             let mut languages = BTreeMap::<Language, usize>::new();
@@ -1150,7 +1149,7 @@ impl MapExtractor for ProjectMajorLanguageExtractor {
 impl SingleMapExtractor for ProjectMajorLanguageExtractor {
     type A = BTreeMap<ProjectId, Vec<(Language, usize)>>;
 
-    fn extract (source: &Source, project_languages : &Self::A) -> BTreeMap<ProjectId, Language> {
+    fn extract (_: &Source, project_languages : &Self::A) -> BTreeMap<ProjectId, Language> {
         project_languages.iter()
             .filter(|(_pid, langs)| langs.len() > 0)
             .map(|(pid, langs)| (*pid, langs.get(0).unwrap().0))
@@ -1166,7 +1165,7 @@ impl MapExtractor for ProjectMajorLanguageRatioExtractor {
 impl SingleMapExtractor for ProjectMajorLanguageRatioExtractor {
     type A = BTreeMap<ProjectId, Vec<(Language, usize)>>;
 
-    fn extract (source: &Source, project_languages : &Self::A) -> BTreeMap<ProjectId, f64> {
+    fn extract (_: &Source, project_languages : &Self::A) -> BTreeMap<ProjectId, f64> {
         project_languages.iter()
             .filter(|(_pid, langs)| langs.len() > 0)
             .map(|(pid, langs)| (*pid, langs.get(0).unwrap().1 as f64 / langs.iter().map(|(_, count)| *count).sum::<usize>() as f64))
@@ -1182,7 +1181,7 @@ impl MapExtractor for ProjectMajorLanguageChangesExtractor {
 impl SingleMapExtractor for ProjectMajorLanguageChangesExtractor {
     type A = BTreeMap<ProjectId, Vec<(Language, usize)>>;
 
-    fn extract (source: &Source, project_languages : &Self::A) -> BTreeMap<ProjectId, usize> {
+    fn extract (_: &Source, project_languages : &Self::A) -> BTreeMap<ProjectId, usize> {
         project_languages.iter()
             .filter(|(_pid, langs)| langs.len() > 0)
             .map(|(pid, langs)| (*pid, langs.get(0).unwrap().1))
@@ -1280,7 +1279,7 @@ impl Data {
     pub fn new(/*source: DataSource,*/ cache_dir: CacheDir, log: Log) -> Data {
         let dir = cache_dir.as_string();
         Data {
-            project_metadata:               ProjectMetadataSource::new("project",             log.clone(),dir.clone()),
+            project_metadata:               ProjectMetadataSource::new(log.clone(),dir.clone()),
    
             project_urls:                   PersistentMap::new(CACHE_FILE_PROJECT_URL,                    log.clone(),dir.clone()).without_cache(),
             project_substores:              PersistentMap::new(CACHE_FILE_PROJECT_SUBSTORE,               log.clone(),dir.clone()).without_cache(),
@@ -1923,36 +1922,36 @@ impl Data {
 }
 
 impl Data {
-    pub fn export_to_csv<S>(&mut self, source: &Source, dir: S) -> Result<(), std::io::Error> where S: Into<String> {
-        let dir = dir.into();
-        std::fs::create_dir_all(&dir)?;
-        macro_rules! path {
-            ($filename:expr) => {
-                format!("{}/{}.csv", dir, $filename)
-            }
-        }
+    pub fn export_to_csv<S>(&mut self, _: &Source, _dir: S) -> Result<(), std::io::Error> where S: Into<String> {
+        // let dir = dir.into();
+        // std::fs::create_dir_all(&dir)?;
+        // macro_rules! path {
+        //     ($filename:expr) => {
+        //         format!("{}/{}.csv", dir, $filename)
+        //     }
+        // }
 
         // self.project_metadata.iter(source).into_csv(path!("project_metadata"))?;
         // FIXME add 
-        todo!();
+        todo!()
 
-        self.smart_load_project_urls(source).iter().into_csv(path!("project_urls"))?;
-        self.smart_load_project_heads(source).iter().into_csv(path!("project_heads"))?;
-        self.smart_load_users(source).iter().into_csv(path!("users"))?;
-        self.smart_load_paths(source).iter().into_csv(path!("paths"))?;
-        self.smart_load_commits(source).iter().into_csv(path!("commits"))?;
-        self.smart_load_commit_hashes(source).iter().into_csv(path!("commit_hashes"))?;
-        self.smart_load_commit_messages(source).iter().into_csv(path!("commit_messages"))?;
-        self.smart_load_commit_committer_timestamps(source).iter().into_csv(path!("commit_committer_timestamps"))?;
-        self.smart_load_commit_author_timestamps(source).iter().into_csv(path!("commit_author_timestamps"))?;
-        self.smart_load_commit_changes(source).iter().into_csv(path!("commit_changes"))?;
+        // self.smart_load_project_urls(source).iter().into_csv(path!("project_urls"))?;
+        // self.smart_load_project_heads(source).iter().into_csv(path!("project_heads"))?;
+        // self.smart_load_users(source).iter().into_csv(path!("users"))?;
+        // self.smart_load_paths(source).iter().into_csv(path!("paths"))?;
+        // self.smart_load_commits(source).iter().into_csv(path!("commits"))?;
+        // self.smart_load_commit_hashes(source).iter().into_csv(path!("commit_hashes"))?;
+        // self.smart_load_commit_messages(source).iter().into_csv(path!("commit_messages"))?;
+        // self.smart_load_commit_committer_timestamps(source).iter().into_csv(path!("commit_committer_timestamps"))?;
+        // self.smart_load_commit_author_timestamps(source).iter().into_csv(path!("commit_author_timestamps"))?;
+        // self.smart_load_commit_changes(source).iter().into_csv(path!("commit_changes"))?;
 
-        source.snapshot_bytes()
-             .map(|(id, content)| {
-                 Snapshot::new(id, content)
-             }).into_csv(path!("snapshots"))?;
+        // source.snapshot_bytes()
+        //      .map(|(id, content)| {
+        //          Snapshot::new(id, content)
+        //      }).into_csv(path!("snapshots"))?;
 
-        Ok(())
+        // Ok(())
     }
 }
 

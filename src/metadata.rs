@@ -307,7 +307,7 @@ pub struct ProjectMetadataSource {
 }
 
 impl ProjectMetadataSource {
-    pub fn new<Sa, Sb>(name: Sa, log: Log, dir: Sb) -> Self where Sa: Into<String>, Sb: Into<String> {
+    pub fn new<S>(log: Log, dir: S) -> Self where S: Into<String> {
         let dir = dir.into();
         ProjectMetadataSource {
             are_forks:     MetadataCacher::new("fork",               CACHE_FILE_PROJECT_IS_FORK,           dir.as_str(), &log, BoolExtractor),

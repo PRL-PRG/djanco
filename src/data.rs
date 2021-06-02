@@ -93,6 +93,7 @@ pub mod cache_filenames {
     pub static CACHE_FILE_IS_ABANDONED:                   &'static str = "is_abandoned";  
     pub static CACHE_FILE_SNAPSHOT_LOCS:                  &'static str = "snapshot_locs";  
     pub static CACHE_FILE_PROJECT_LOCS:                   &'static str = "project_locs";  
+    pub static CACHE_FILE_DUPLICATED_CODE:                &'static str = "duplicated_code";  
 }
 
 use cache_filenames::*;
@@ -425,7 +426,9 @@ impl Database {
     pub fn project_locs(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_locs(&self.source, id)
     }
-
+    pub fn duplicated_code(&self, id: &ProjectId) -> Option<f64> {
+        self.data.borrow_mut().duplicated_code(&self.source, id)
+    }
     pub fn snapshot_unique_projects(&self, id : &SnapshotId) -> usize {
         self.data.borrow_mut().snapshot_unique_projects(&self.source, id)
     }
@@ -1105,6 +1108,52 @@ impl QuadrupleMapExtractor for ProjectLocsExtractor {
         }).collect()
     }
 }
+
+
+struct DuplicatedCodeExtractor {}
+impl MapExtractor for DuplicatedCodeExtractor {
+    type Key = ProjectId;
+    type Value = f64;
+}
+impl TripleMapExtractor for DuplicatedCodeExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
+    //type D = ProjectMetadataSource;
+
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        // first for each snapshot get projects and 
+        let mut snapshot_projects = BTreeMap::<SnapshotId, SnapshotCloneInfo>::new();
+        // for each commit
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            let mut total_snapshots : f64 = 0.0;
+            let mut num_clones : f64 = 0.0;
+
+            commit_ids.iter().map(|commit_id| {
+                commit_changes[commit_id].iter().map(|change| {
+                    let snapshot_id = change.1;
+                    if !snapshot_id.is_none() {
+                        let snapshot = snapshot_projects.get(&snapshot_id.unwrap());
+
+                        if !snapshot.is_none() {
+                            if (&snapshot.unwrap()).original != *project_id {
+                                num_clones += 1.0;
+                            }
+                            total_snapshots+=1.0;
+                        }
+                        
+                    }
+                });
+            });
+
+            if total_snapshots == 0.0 {
+                (project_id.clone(), 0.0)
+            }else{
+                (project_id.clone(), f64::trunc(num_clones/total_snapshots*100.0)/100.0)
+            }
+        }).collect()
+    }
+}
             
 struct CommitProjectsExtractor {}
 impl MapExtractor for CommitProjectsExtractor {
@@ -1516,7 +1565,8 @@ pub(crate) struct Data {
     project_time_since_last_commit:       PersistentMap<TimeSinceLastCommitExtractor>,
     is_abandoned:                 PersistentMap<IsAbandonedExtractor>,
     snapshot_locs:                 PersistentMap<SnapshotLocsExtractor>,
-    project_locs:                 PersistentMap<ProjectLocsExtractor>
+    project_locs:                 PersistentMap<ProjectLocsExtractor>,
+    duplicated_code:                 PersistentMap<DuplicatedCodeExtractor>
 }
 
 impl Data {
@@ -1598,6 +1648,7 @@ impl Data {
             is_abandoned:                   PersistentMap::new(CACHE_FILE_IS_ABANDONED, log.clone(), dir.clone()),
             snapshot_locs:                  PersistentMap::new(CACHE_FILE_SNAPSHOT_LOCS, log.clone(), dir.clone()),
             project_locs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOCS, log.clone(), dir.clone()),
+            duplicated_code:                   PersistentMap::new(CACHE_FILE_DUPLICATED_CODE, log.clone(), dir.clone()),
         }
     }
 }
@@ -1934,6 +1985,9 @@ impl Data {
     pub fn project_locs(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_locs(source).get(id).pirate()
     }
+    pub fn duplicated_code(&mut self, source: &Source, id: &ProjectId) -> Option<f64> {
+        self.smart_load_project_duplicated_code(source).get(id).pirate()
+    }
     pub fn snapshot_unique_projects(&mut self, source: &Source, id : &SnapshotId) -> usize {
         // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
         self.smart_load_snapshot_projects(source).get(id).unwrap().0
@@ -2127,6 +2181,9 @@ impl Data {
     }
     fn smart_load_project_locs(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_locs, source, four, project_commits,  commit_committer_timestamps, commit_changes, snapshot_locs)
+    }
+    fn smart_load_project_duplicated_code(&mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
+        load_with_prerequisites!(self, duplicated_code, source, three, project_commits,  commit_changes, snapshot_projects)
     }
 
     fn smart_load_commit_projects(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<ProjectId>> {

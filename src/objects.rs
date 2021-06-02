@@ -427,6 +427,7 @@ impl Project {
     pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id) }
     pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                   }
     pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                  }
+    pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                  { store.duplicated_code(&self.id)                  }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -797,6 +798,7 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
     pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }
     pub fn project_locs (&self)        -> Option<usize>                    { self.item.project_locs(&self.data) }
+    pub fn duplicated_code (&self)        -> Option<f64>                    { self.item.duplicated_code(&self.data) }
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)     }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {

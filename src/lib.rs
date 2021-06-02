@@ -598,6 +598,9 @@ pub mod project {
     impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
     impl_attribute![?    objects::Project, Locs, usize, project_locs];
+
+    // Duplicated_code is a percentage. A number between 0 and 1
+    impl_attribute![?    objects::Project, DuplicatedCode, f64, duplicated_code];
     /* Number of snapshots in the project that only ever exist in the project. 
      */
     impl_attribute![?     objects::Project, UniqueFiles, usize, unique_files];

@@ -27,6 +27,7 @@ fn main() {
     projects_by_files(&config, &log, &database).into_csv(path!("projects_by_files")).unwrap();
     //projects_by_major_language_ratio(&config, &log, &database).into_csv(path!("projects_by_major_language_ratio")).unwrap();
     projects_by_major_language_changes(&config, &log, &database).into_csv(path!("projects_by_major_language_changes")).unwrap();    
+    projects_by_all_forks(&config, &log, &database).into_csv(path!("projects_by_all_forks")).unwrap();
 }
 
 /*
@@ -79,6 +80,13 @@ fn projects_by_major_language_changes<'a>(_config: &Configuration, _log: &Log, d
     database
         .projects()
         .sort_by(project::MajorLanguageChanges)
+        .sample(Top(50))
+}
+
+fn projects_by_all_forks<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .sort_by(Count(project::AllForks))
         .sample(Top(50))
 }
 

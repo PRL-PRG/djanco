@@ -403,8 +403,9 @@ impl Project {
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_master(&self.id)                 }
     pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>      { store.project_longest_inactivity_streak(&self.id)      }
     pub fn avg_commit_rate      (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_rate(&self.id)                }
-    pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id)         }
+    pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id) }
     pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                   }
+    pub fn project_locs      (&self, store: &Database)    -> Option<usize>                   { store.project_locs(&self.id)                  }
     
     // TODO project commit frequency
 
@@ -762,6 +763,7 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn avg_commit_rate (&self)      -> Option<i64>                    { self.item.avg_commit_rate(&self.data) }
     pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
     pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }
+    pub fn project_locs (&self)        -> Option<usize>                    { self.item.project_locs(&self.data) }
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)     }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
@@ -832,8 +834,8 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn hash               (&self) -> Option<String>                     { self.item.hash(&self.data)                 }
     pub fn message            (&self) -> Option<String>                     { self.item.message(&self.data)              }
     pub fn message_length     (&self) -> Option<usize>                      { self.item.message_length(&self.data)       }
-    pub fn author_timestamp   (&self) -> Option<Timestamp>                        { self.item.author_timestamp(&self.data)     }
-    pub fn committer_timestamp(&self) -> Option<Timestamp>                        { self.item.committer_timestamp(&self.data)  }
+    pub fn author_timestamp   (&self) -> Option<Timestamp>                  { self.item.author_timestamp(&self.data)     }
+    pub fn committer_timestamp(&self) -> Option<Timestamp>                  { self.item.committer_timestamp(&self.data)  }
     pub fn changes            (&self) -> Option<Vec<Change>>                { self.item.changes(&self.data)              }
     pub fn change_count       (&self) -> Option<usize>                      { self.item.change_count(&self.data)         }
     pub fn changed_path_ids    (&self) -> Option<Vec<PathId>>               { self.item.changed_path_ids(&self.data)     }

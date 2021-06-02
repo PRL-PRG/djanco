@@ -597,6 +597,7 @@ pub mod project {
     impl_attribute![?    objects::Project, AvgCommitRate, i64, avg_commit_rate];
     impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
+    impl_attribute![?    objects::Project, Locs, usize, project_locs];
 }
 
 pub mod commit {

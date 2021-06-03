@@ -74,7 +74,8 @@ use crate::data::Database;
 use crate::log::{Log, Verbosity};
 use crate::source::Source;
 
-pub type Timestamp = i64;
+pub type Timestamp = i64; // Epoch
+pub type Percentage = u8; // Positive integer value 0-100.
 
 pub trait AsTimestamp {
     fn as_naive_date_string(&self) -> String;
@@ -616,6 +617,7 @@ pub mod project {
     use crate::attrib::*;
     use crate::Timestamp;
     use crate::Store;
+    use crate::Percentage;
 
     impl_attribute![!+    objects::Project, Itself];
     impl_attribute![!     objects::Project, Raw];
@@ -662,18 +664,43 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
 
     /*
-     * Calculates the number of changes each author added to the project. 
+     * Calculates the percentage of changes each author added to the project. 
      * Returns a list of authors with the number of changes they did. 
      * The list is sorted by the number of changes in desceding order.
      */
-    impl_attribute![?..   objects::Project, ChangeContributions, (objects::User, usize), change_contributions, author_count];
+    impl_attribute![?..   objects::Project, ChangeContributions, (objects::User, Percentage), change_contributions, author_count];
 
     /*
-     * Calculates the number of commits each user authored in the project. 
+     * Calculates the percentage of commits each user authored in the project. 
      * Returns a list of authors with the number of committs they are responsible for.
      * The list is sorted by the number of commits in desceding order.
      */
-    impl_attribute![?..   objects::Project, CommitContributions, (objects::User, usize), commit_contributions, author_count];
+    impl_attribute![?..   objects::Project, CommitContributions, (objects::User, Percentage), commit_contributions, author_count];
+
+    /*
+     * Calculates the percentage of commits successive users authored in the project.
+     * The users are added to the aggregate in descending size of contributions.
+     * 
+     * CommitContributions                        => CummulativeCommitContributions
+     * [(User1, 50%), (User3, 40%), (User2, 10%)] => [50%, 90%, 100%]
+     * 
+     * The list is sorted so that [0] represents the contribution of 1 user, and 
+     * [i] represents the cumulative contribution of i-1 users.
+     */
+    impl_attribute![?..   objects::Project, CummulativeCommitContributions, Percentage, cumulative_commit_contributions, author_count];
+
+    /*
+     * Calculates the percentage of commits successive authors added to the project. 
+     * The users are added to the aggregate in descending size of contributions.
+     *
+     * CommitContributions                        => CummulativeCommitContributions
+     * [(User1, 50%), (User3, 40%), (User2, 10%)] => [50%, 90%, 100%]
+     * 
+     * The list is sorted so that [0] represents the contribution of 1 user, and 
+     * [i] represents the cumulative contribution of i-1 users.
+     */
+    impl_attribute![?..   objects::Project, CummulativeChangeContributions, Percentage, cumulative_change_contributions, author_count];
+
 
     /* Number of snapshots in the project that only ever exist in the project. 
      */

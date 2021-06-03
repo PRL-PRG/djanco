@@ -572,7 +572,7 @@ impl TripleMapExtractor for TimeSinceLastCommitExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     type C = BTreeMap<ProjectId, i64>;
-    fn extract(source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
@@ -591,7 +591,9 @@ impl TripleMapExtractor for TimeSinceLastCommitExtractor  {
                 timestamps.sort();
 
                 if let Some(now) = last_checkpoint.get(&project_id) {
-                    return Some((project_id.clone(), (*now) - timestamps[timestamps.len()-1]));
+                    if *now > 0 {
+                        return Some((project_id.clone(), (*now) - timestamps[timestamps.len()-1]));
+                    }
                 }
                 
                 Some((project_id.clone(), 0))
@@ -612,7 +614,7 @@ impl TripleMapExtractor for TimeSinceFirstCommitExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     type C = BTreeMap<ProjectId, i64>;
-    fn extract(source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
@@ -631,7 +633,10 @@ impl TripleMapExtractor for TimeSinceFirstCommitExtractor  {
                 timestamps.sort();
 
                 if let Some(now) = last_checkpoint.get(&project_id) {
-                    return Some((project_id.clone(), (*now) - timestamps[0]));
+                    if *now > 0 {
+                        return Some((project_id.clone(), (*now) - timestamps[0]));
+                    }
+                    
                 }
                 
                 Some((project_id.clone(), 0))

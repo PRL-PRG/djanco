@@ -1172,6 +1172,7 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
             // });
             println!("found {} total snapshots", total_snapshots);
             if total_snapshots == 0.0 {
+                //println!("found total snapshots");
                 (project_id.clone(), -1.0)
             }else{
                 (project_id.clone(), f64::trunc(num_clones/total_snapshots*100.0)/100.0)

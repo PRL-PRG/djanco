@@ -745,24 +745,6 @@ impl<'a> Into<usize> for ItemWithData<'a, usize> { fn into(self) -> usize { self
 impl<'a,A,B> Into<(A,B)> for ItemWithData<'a, (A,B)> { fn into(self) -> (A,B) { self.item } }
 
 impl<'a> ItemWithData<'a, Project> {
-    pub fn test0(&self,) ->bool {unimplemented!()}
-    pub fn test1(&self,x:usize) -> Option<bool> {unimplemented!()}
-    pub fn test2(&self,x:usize, y:usize) -> Option<u8> {unimplemented!()}
-    pub fn test3(&self,x:usize, y:usize) -> Option<Project> {unimplemented!()}
-    pub fn test4(&self,x:usize, y:usize) -> Option<Vec<Project>> {unimplemented!()}
-    pub fn test3b<'b>(&'b self,x:usize, y:usize) -> Option<ItemWithData<'a, Project>> { unimplemented!()}
-    pub fn test4b<'b>(&'b self,x:usize, y:usize) -> Option<Vec<ItemWithData<'a, Project>>> {unimplemented!()}
-    pub fn test_count(&self,x:usize, y:usize) -> Option<usize> {unimplemented!()}
-    pub fn test2x(&self,x:usize, y:usize) -> u8 {unimplemented!()}
-    pub fn test3x(&self,x:usize, y:usize) -> Project {unimplemented!()}
-    pub fn test4x(&self,x:usize, y:usize) -> Vec<Project> {unimplemented!()}
-    pub fn test3bx<'b>(&'b self,x:usize, y:usize) -> ItemWithData<'a, Project> { unimplemented!()}
-    pub fn test4bx<'b>(&'b self,x:usize, y:usize) -> Vec<ItemWithData<'a, Project>> {unimplemented!()}
-    pub fn test_countx(&self,x:usize, y:usize) -> usize {unimplemented!()}
-    // pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
-    //     self.item.commits(&self.data).attach_data_to_each(self.data)
-    // }
-
     pub fn id               (&self)    -> ProjectId                       { self.item.id()                               }
     pub fn url              (&self)    -> String                          { self.item.url().to_string()                  }
     pub fn issue_count      (&self)    -> Option<usize>                   { self.item.issue_count(&self.data)            }

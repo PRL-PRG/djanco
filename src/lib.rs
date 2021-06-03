@@ -716,19 +716,6 @@ pub mod project {
        For simplicity we assume a project is a fork if it is younger *and* if it shares at least one commit by hash. 
      */
     impl_attribute![?..   objects::Project, AllForks, objects::ProjectId, all_forks, all_forks_count];
-
-    impl_attribute![!     objects::Project, Test0, bool, test0];
-    impl_attribute![?     objects::Project, Test1(usize), bool, test1];
-    impl_attribute![?     objects::Project, Test2(usize, usize), u8, test2];
-    impl_attribute![?     objects::Project, Test3(usize, usize), objects::Project, test3];
-    impl_attribute![?..   objects::Project, Test4(usize, usize), objects::Project, test4, test_count];
-    impl_attribute![?+    objects::Project, Test3b(usize, usize), objects::Project, test3b];
-    impl_attribute![?+..  objects::Project, Test4b(usize, usize), objects::Project, test4b, test_count];
-    impl_attribute![!     objects::Project, Test2x(usize, usize), u8, test2x];
-    impl_attribute![!     objects::Project, Test3x(usize, usize), objects::Project, test3x];
-    impl_attribute![!..   objects::Project, Test4x(usize, usize), objects::Project, test4x, test_countx];
-    impl_attribute![!+    objects::Project, Test3bx(usize, usize), objects::Project, test3bx];
-    impl_attribute![!+..  objects::Project, Test4bx(usize, usize), objects::Project, test4bx, test_countx];
 }
 
 pub mod commit {

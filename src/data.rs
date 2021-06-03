@@ -1124,9 +1124,13 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
     fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         // first for each snapshot get projects and 
         // for each commit
+
+        let mut total_snapshots : f64 = 0.0;
+        let mut num_clones : f64 = 0.0;
+
         project_commits.iter().map(|(project_id, commit_ids)| {
-            let mut total_snapshots : f64 = 0.0;
-            let mut num_clones : f64 = 0.0;
+            total_snapshots = 0.0;
+            num_clones= 0.0;
 
             for commit_id in 0..commit_ids.len() {
                 let commitid = commit_ids.get(commit_id);
@@ -1166,7 +1170,7 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
                     
             //     });
             // });
-
+            println!("found {} total snapshots", total_snapshots);
             if total_snapshots == 0.0 {
                 (project_id.clone(), -1.0)
             }else{

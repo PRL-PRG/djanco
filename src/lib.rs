@@ -332,26 +332,15 @@ impl Djanco {
 }
 
 macro_rules! impl_attribute_definition {
-    // [$object:ty, $attribute:ident] => {
-    //     #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] pub struct $attribute;
-    //     impl Attribute for $attribute { type Object = $object; }
-    // }; // TODO: remove
     [$object:ty, $attribute:ident ()] => {
         #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] pub struct $attribute;
         impl Attribute for $attribute { type Object = $object; }
-    }; // TOOD maybe remove in favor of just the one below, if possible
+    };
     [$object:ty, $attribute:ident ( $($arg_type:ty),+ ) ] => {
         #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] 
-        pub struct $attribute($($arg_type,)+);
+        pub struct $attribute($(pub $arg_type,)+);
         impl Attribute for $attribute { type Object = $object; }
     };
-    // [$object:ty, $attribute:ident { $($arg:ident : $arg_type:ty),+ } ] => {
-    //     #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)] 
-    //     pub struct $attribute{
-    //         $($arg: $arg_type,)+
-    //     };
-    //     impl Attribute for $attribute { type Object = $object; }
-    // };
 }
 
 macro_rules! call_n {
@@ -379,7 +368,7 @@ macro_rules! call_n {
 }
 
 macro_rules! impl_attribute_getter {
-    [! $object:ty, $attribute:ident ()] => { /* OK */
+    [! $object:ty, $attribute:ident ()] => { 
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = Self::Object;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -393,7 +382,7 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [!+ $object:ty, $attribute:ident ()] => { /* OK */
+    [!+ $object:ty, $attribute:ident ()] => { 
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = objects::ItemWithData<'a, Self::Object>;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -407,7 +396,7 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [! $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident ] => { /* OK */
+    [! $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident ] => { 
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = $small_type;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -421,7 +410,7 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [? $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { /* OK */
+    [? $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { 
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = Option<$small_type>;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -435,7 +424,7 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [!+ $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { /* OK */
+    [!+ $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { 
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = objects::ItemWithData<'a, $small_type>;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -449,7 +438,7 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [?+ $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { /* OK */
+    [?+ $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { 
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = Option<objects::ItemWithData<'a, $small_type>>;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -463,7 +452,7 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [!+.. $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { /* OK */
+    [!+.. $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { 
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = Vec<objects::ItemWithData<'a, $small_type>>;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -477,7 +466,7 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [?+.. $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { /* OK */
+    [?+.. $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident] => { 
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = Option<Vec<objects::ItemWithData<'a, $small_type>>>;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -535,26 +524,26 @@ macro_rules! impl_attribute_filter {
 }
 
 macro_rules! impl_attribute {
-    [! $object:ty, $attribute:ident ] => { /* OK */
+    [! $object:ty, $attribute:ident ] => { 
         impl_attribute_definition![$object, $attribute()];
         impl_attribute_getter![! $object, $attribute()];
     };        
-    [!+ $object:ty, $attribute:ident] => { /* OK */
+    [!+ $object:ty, $attribute:ident] => { 
         impl_attribute_definition![$object, $attribute()];
         impl_attribute_getter![!+ $object, $attribute()];
     };
-    [! $object:ty, $attribute:ident, bool, $getter:ident] => { /* OK */
+    [! $object:ty, $attribute:ident, bool, $getter:ident] => { 
         impl_attribute![! $object, $attribute(), bool, $getter];
     };
-    [! $object:ty, $attribute:ident ($($parameter:ty),*), bool, $getter:ident ] => { /* OK */
+    [! $object:ty, $attribute:ident ($($parameter:ty),*), bool, $getter:ident ] => { 
         impl_attribute_definition![$object, $attribute($($parameter),*)];
         impl_attribute_getter![! $object, $attribute($($parameter),*), bool, $getter ];
         impl_attribute_filter![! $object, $attribute];
     };
-    [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => { /* OK */
+    [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => { 
         impl_attribute![! $object, $attribute(), $small_type, $getter];
     };
-    [! $object:ty, $attribute:ident ($($parameter:ty),*), $small_type:ty, $getter:ident] => { /* OK */
+    [! $object:ty, $attribute:ident ($($parameter:ty),*), $small_type:ty, $getter:ident] => { 
         impl_attribute_definition![$object, $attribute($($parameter),*)];
         impl_attribute_getter![! $object, $attribute($($parameter),*), $small_type, $getter];
     };
@@ -569,7 +558,7 @@ macro_rules! impl_attribute {
         impl_attribute![? $object, $attribute(), bool, $getter];
     };
     [? $object:ty, $attribute:ident ($($parameter:ty),*), bool, $getter:ident] => {
-        impl_attribute_definition![$object, $attribute()];
+        impl_attribute_definition![$object, $attribute($($parameter),*)];
         impl_attribute_getter![? $object, $attribute($($parameter),*), bool, $getter];
         impl_attribute_filter![? $object, $attribute];
     };
@@ -577,29 +566,29 @@ macro_rules! impl_attribute {
         impl_attribute![? $object, $attribute(), $small_type, $getter];
     };
     [? $object:ty, $attribute:ident ($($parameter:ty),*), $small_type:ty, $getter:ident] => {
-        impl_attribute_definition![$object, $attribute()];
+        impl_attribute_definition![$object, $attribute($($parameter),*)];
         impl_attribute_getter![? $object, $attribute($($parameter),*), $small_type, $getter];
     };
     [?+ $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
         impl_attribute![?+ $object, $attribute(), $small_type, $getter];
     };
     [?+ $object:ty, $attribute:ident ($($parameter:ty),*), $small_type:ty, $getter:ident] => {
-        impl_attribute_definition![$object, $attribute()];
+        impl_attribute_definition![$object, $attribute($($parameter),*)];
         impl_attribute_getter![?+ $object, $attribute($($parameter),*), $small_type, $getter];
     };
     [!.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute![!.. $object, $attribute(), $small_type, $getter, $counter];
     };
     [!.. $object:ty, $attribute:ident ($($parameter:ty),*), $small_type:ty, $getter:ident, $counter:ident] => {
-        impl_attribute_definition![$object, $attribute()];
-        impl_attribute_getter![! $object, $attribute(), Vec<$small_type>, $getter];
+        impl_attribute_definition![$object, $attribute($($parameter),*)];
+        impl_attribute_getter![! $object, $attribute($($parameter),*), Vec<$small_type>, $getter];
         impl_attribute_count![! $object, $attribute($($parameter),*), $counter];
     };
     [!+.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute![!+.. $object, $attribute(), $small_type, $getter, $counter];
     };
     [!+.. $object:ty, $attribute:ident ($($parameter:ty),*), $small_type:ty, $getter:ident, $counter:ident] => {
-        impl_attribute_definition![$object, $attribute()];
+        impl_attribute_definition![$object, $attribute($($parameter),*)];
         impl_attribute_getter![!+.. $object, $attribute($($parameter),*), $small_type, $getter];
         impl_attribute_count![! $object, $attribute($($parameter),*), $counter];
     };
@@ -607,7 +596,7 @@ macro_rules! impl_attribute {
         impl_attribute![?.. $object, $attribute(), $small_type, $getter, $counter];
     };
     [?.. $object:ty, $attribute:ident ($($parameter:ty),*), $small_type:ty, $getter:ident, $counter:ident] => {
-        impl_attribute_definition![$object, $attribute()];
+        impl_attribute_definition![$object, $attribute($($parameter),*)];
         impl_attribute_getter![? $object, $attribute($($parameter),*), Vec<$small_type>, $getter];
         impl_attribute_count![? $object, $attribute($($parameter),*), $counter];
     };
@@ -615,7 +604,7 @@ macro_rules! impl_attribute {
         impl_attribute![?+.. $object, $attribute(), $small_type, $getter, $counter];
     };
     [?+.. $object:ty, $attribute:ident ($($parameter:ty),*), $small_type:ty, $getter:ident, $counter:ident] => {
-        impl_attribute_definition![$object, $attribute()];
+        impl_attribute_definition![$object, $attribute($($parameter),*)];
         impl_attribute_getter![?+.. $object, $attribute($($parameter),*), $small_type, $getter];
         impl_attribute_count![? $object, $attribute($($parameter),*), $counter];
     };
@@ -728,8 +717,18 @@ pub mod project {
      */
     impl_attribute![?..   objects::Project, AllForks, objects::ProjectId, all_forks, all_forks_count];
 
-    impl_attribute![!     objects::Project, Test1(usize), bool, test1];
-    impl_attribute![!     objects::Project, Test2(usize, usize), bool, test2];
+    impl_attribute![!     objects::Project, Test0, bool, test0];
+    impl_attribute![?     objects::Project, Test1(usize), bool, test1];
+    impl_attribute![?     objects::Project, Test2(usize, usize), u8, test2];
+    impl_attribute![?     objects::Project, Test3(usize, usize), objects::Project, test3];
+    impl_attribute![?..   objects::Project, Test4(usize, usize), objects::Project, test4, test_count];
+    impl_attribute![?+    objects::Project, Test3b(usize, usize), objects::Project, test3b];
+    impl_attribute![?+..  objects::Project, Test4b(usize, usize), objects::Project, test4b, test_count];
+    impl_attribute![!     objects::Project, Test2x(usize, usize), u8, test2x];
+    impl_attribute![!     objects::Project, Test3x(usize, usize), objects::Project, test3x];
+    impl_attribute![!..   objects::Project, Test4x(usize, usize), objects::Project, test4x, test_countx];
+    impl_attribute![!+    objects::Project, Test3bx(usize, usize), objects::Project, test3bx];
+    impl_attribute![!+..  objects::Project, Test4bx(usize, usize), objects::Project, test4bx, test_countx];
 }
 
 pub mod commit {

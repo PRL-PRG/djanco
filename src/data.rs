@@ -980,7 +980,7 @@ impl DoubleMapExtractor for DeveloperExperienceExtractor  {
     type B = BTreeMap<CommitId, i64>;
     fn extract(_: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         user_commits.iter().map(|(user_id, commit_ids)| {
-            let mut h_index : i64 = 0;
+         
             let mut user_timestamps : Vec<i64> = Vec::new();
             for i in 0.. commit_ids.len() {
                 let commit = commit_ids[i];
@@ -1008,18 +1008,16 @@ impl DoubleMapExtractor for DeveloperExperienceExtractor  {
                 
                     month_commits.insert(index_month, month_commits.get(&index_month).unwrap() + 1 );
                 }
-                
-                loop {
-                    if let Some(count) = month_commits.get(&h_index) {
-                        if *count > h_index {
-                                break;
-                        }
-                        h_index+=1;
-                    }else{
-                        break;
+
+                let mut values: Vec<i64> = month_commits.values().cloned().collect();
+                values.sort();
+                values.reverse();
+                for i in 0..values.len() {
+                    if values[i] < (i+1) as i64  {
+                        return (user_id.clone(), (i+1) as i32);
                     }
                 }
-                (user_id.clone(), (h_index as i32)+1)
+                (user_id.clone(), values.len() as i32)
             }else{
                 (user_id.clone(), 0 as i32)
             }

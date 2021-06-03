@@ -379,21 +379,21 @@ macro_rules! call_n {
 }
 
 macro_rules! impl_attribute_getter {
-    [! $object:ty, $attribute:ident] => {
+    [! $object:ty, $attribute:ident ()] => { /* OK */
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = Self::Object;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
                 object.item.clone()
             }
         }
-        impl<'a> OptionGetter<'a> for $attribute {
+        impl<'a> OptionGetter<'a> for $attribute { 
             type IntoItem = Self::Object;
             fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
                 Some(object.item.clone())
             }
         }
     };
-    [!+ $object:ty, $attribute:ident] => {
+    [!+ $object:ty, $attribute:ident ()] => { /* OK */
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = objects::ItemWithData<'a, Self::Object>;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -407,21 +407,7 @@ macro_rules! impl_attribute_getter {
             }
         }
     };
-    [! $object:ty, $attribute:ident, $small_type:ty, $getter:ident] => {
-        impl<'a> Getter<'a> for $attribute {
-            type IntoItem = $small_type;
-            fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
-                object.$getter()
-            }
-        }
-        impl<'a> OptionGetter<'a> for $attribute {
-            type IntoItem = $small_type;
-            fn get_opt(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Option<Self::IntoItem> {
-                Some(object.$getter())
-            }
-        }
-    };
-    [! $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident ] => {
+    [! $object:ty, $attribute:ident ( $($parameter:ty),* ), $small_type:ty, $getter:ident ] => { /* OK */
         impl<'a> Getter<'a> for $attribute {
             type IntoItem = $small_type;
             fn get(&self, object: &objects::ItemWithData<'a, Self::Object>) -> Self::IntoItem {
@@ -550,12 +536,12 @@ macro_rules! impl_attribute_filter {
 
 macro_rules! impl_attribute {
     [! $object:ty, $attribute:ident ] => {
-        impl_attribute_definition![$object, $attribute];
-        impl_attribute_getter![! $object, $attribute];
+        impl_attribute_definition![$object, $attribute()];
+        impl_attribute_getter![! $object, $attribute()];
     };        
     [!+ $object:ty, $attribute:ident] => {
-        impl_attribute_definition![$object, $attribute];
-        impl_attribute_getter![!+ $object, $attribute];
+        impl_attribute_definition![$object, $attribute()];
+        impl_attribute_getter![!+ $object, $attribute()];
     };
     [! $object:ty, $attribute:ident, bool, $getter:ident] => {
         impl_attribute![! $object, $attribute, bool, $getter];
@@ -591,7 +577,7 @@ macro_rules! impl_attribute {
     };
     [!.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {
         impl_attribute_definition![$object, $attribute];
-        impl_attribute_getter![! $object, $attribute, Vec<$small_type>, $getter];
+        impl_attribute_getter![! $object, $attribute(), Vec<$small_type>, $getter];
         impl_attribute_count![! $object, $attribute, $counter];
     };
     [!+.. $object:ty, $attribute:ident, $small_type:ty, $getter:ident, $counter:ident] => {

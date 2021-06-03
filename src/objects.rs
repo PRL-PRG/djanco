@@ -492,6 +492,7 @@ impl User {
     pub fn committer_experience  (&self, store: &Database)   -> Option<Duration>      { store.user_committed_experience(&self.id)          }
     pub fn author_experience     (&self, store: &Database)   -> Option<Duration>      { store.user_author_experience(&self.id)             }
     pub fn experience            (&self, store: &Database)   -> Option<Duration>      { store.user_experience(&self.id)                    }
+    pub fn developer_experience  (&self, store: &Database)   -> Option<i32>           { store.developer_experience(&self.id)          }
 }
 impl Identifiable for User {
     type Identity = UserId;
@@ -878,6 +879,7 @@ impl<'a> ItemWithData<'a, User> {
     pub fn committer_experience  (&self)   -> Option<Duration>      { self.item.committer_experience(&self.data)   }
     pub fn author_experience     (&self)   -> Option<Duration>      { self.item.author_experience(&self.data)      }
     pub fn experience            (&self)   -> Option<Duration>      { self.item.experience(&self.data)             }
+    pub fn developer_experience  (&self)   -> Option<i32>           { self.item.developer_experience(&self.data)   }
 
     pub fn authored_commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.authored_commits(&self.data).attach_data_to_each(self.data)

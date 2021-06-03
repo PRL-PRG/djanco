@@ -599,6 +599,7 @@ pub mod project {
     impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
     impl_attribute![?    objects::Project, Locs, usize, project_locs];
+    
 
     // Duplicated_code is a percentage. A number between 0 and 1
     impl_attribute![?    objects::Project, DuplicatedCode, f64, duplicated_code];
@@ -713,6 +714,7 @@ pub mod user {
     impl_attribute![?..  objects::User, CommittedCommitIds, objects::CommitId, committed_commit_ids, committed_commit_count];
     impl_attribute![?+.. objects::User, AuthoredCommits, objects::Commit, authored_commits_with_data, authored_commit_count];
     impl_attribute![?+.. objects::User, CommittedCommits, objects::Commit, committed_commits_with_data, committed_commit_count];
+    impl_attribute![?    objects::User, DeveloperExperience, i32, developer_experience];
 }
 
 pub mod path {

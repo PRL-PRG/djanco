@@ -17,8 +17,6 @@ use crate::weights_and_measures::{Weighed};
 use crate::time::Duration;
 use crate::source::Source;
 use crate::{CacheDir, Store};
-use chrono::{Utc};
-use serde_json::Value as JSON;
 
 pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_IS_FORK:                &'static str = "project_is_fork";
@@ -77,6 +75,7 @@ pub mod cache_filenames {
     pub static CACHE_FILE_USER_EXPERIENCE:                &'static str = "user_experience";
     pub static CACHE_FILE_USER_AUTHORED_COMMIT_COUNT:     &'static str = "user_authored_commit_count";
     pub static CACHE_FILE_USER_COMMITTED_COMMIT_COUNT:    &'static str = "user_committed_commit_count";
+    pub static CACHE_FILE_DEVELOPER_EXPERIENCE:           &'static str = "developer_experience";
     pub static CACHE_FILE_PATHS:                          &'static str = "paths";
     pub static CACHE_FILE_COMMITS:                        &'static str = "commits";
     pub static CACHE_FILE_COMMIT_HASHES:                  &'static str = "commit_hashes";
@@ -411,6 +410,9 @@ impl Database {
     }
     pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
         self.data.borrow_mut().user_committed_commits(&self.source, id)
+    }
+    pub fn developer_experience(&self, id: &UserId) -> Option<i32> {
+        self.data.borrow_mut().developer_experience(&self.source, id)
     }
     pub fn project_longest_inactivity_streak(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().longest_inactivity_streak(&self.source, id)
@@ -940,6 +942,8 @@ impl SingleMapExtractor for UserAuthoredCommitsExtractor {
     }
 }
 
+
+
 struct UserExperienceExtractor {}
 impl MapExtractor for UserExperienceExtractor {
     type Key = UserId;
@@ -962,6 +966,64 @@ impl DoubleMapExtractor for UserExperienceExtractor  {
                 MinMaxResult::OneElement(_) => Some((user_id.clone(), 0)),
                 MinMaxResult::MinMax(min, max) => Some((user_id.clone(), (max - min) as u64)),
             }
+        }).collect()
+    }
+}
+
+struct DeveloperExperienceExtractor {}
+impl MapExtractor for DeveloperExperienceExtractor {
+    type Key = UserId;
+    type Value = i32;
+}
+impl DoubleMapExtractor for DeveloperExperienceExtractor  {
+    type A = BTreeMap<UserId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    fn extract(_: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        user_commits.iter().map(|(user_id, commit_ids)| {
+            let mut h_index : i64 = 0;
+            let mut user_timestamps : Vec<i64> = Vec::new();
+            for i in 0.. commit_ids.len() {
+                let commit = commit_ids[i];
+                if let Some(timestamp) = timestamps.get(&commit) {
+                    user_timestamps.push(*timestamp);
+                }                
+            }
+            
+            user_timestamps.sort();
+
+            if user_timestamps.len() > 0 {
+                let first_time = user_timestamps[0];
+                let delta_month = 2592001; // total seconds in a month
+
+                let mut month_commits : BTreeMap< i64, i64> = BTreeMap::new();
+                month_commits.insert(0, 1);
+
+                let mut index_month : i64;
+                for i in 1 .. user_timestamps.len() {
+                    index_month = (user_timestamps[i]-first_time)/delta_month;
+
+                    if !month_commits.contains_key(&index_month) {
+                        month_commits.insert(index_month, 0);
+                    }
+                
+                    month_commits.insert(index_month, month_commits.get(&index_month).unwrap() + 1 );
+                }
+                
+                loop {
+                    if let Some(count) = month_commits.get(&h_index) {
+                        if *count > h_index {
+                                break;
+                        }
+                        h_index+=1;
+                    }else{
+                        break;
+                    }
+                }
+                (user_id.clone(), (h_index as i32)+1)
+            }else{
+                (user_id.clone(), 0 as i32)
+            }
+
         }).collect()
     }
 }
@@ -1657,6 +1719,7 @@ pub(crate) struct Data {
     user_author_experience:      PersistentMap<UserExperienceExtractor>,
     user_committer_experience:   PersistentMap<UserExperienceExtractor>,
     user_experience:             PersistentMap<CombinedUserExperienceExtractor>,
+    developer_experience:        PersistentMap<DeveloperExperienceExtractor>,
 
     user_authored_commit_count:  PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
     user_committed_commit_count: PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
@@ -1754,6 +1817,7 @@ impl Data {
             user_experience:                PersistentMap::new(CACHE_FILE_USER_EXPERIENCE,                log.clone(),dir.clone()),
             user_authored_commit_count:     PersistentMap::new(CACHE_FILE_USER_AUTHORED_COMMIT_COUNT,     log.clone(),dir.clone()),
             user_committed_commit_count:    PersistentMap::new(CACHE_FILE_USER_COMMITTED_COMMIT_COUNT,    log.clone(),dir.clone()),
+            developer_experience:           PersistentMap::new(CACHE_FILE_DEVELOPER_EXPERIENCE,           log.clone(),dir.clone()),
             paths:                          PersistentMap::new(CACHE_FILE_PATHS,                          log.clone(),dir.clone()).without_cache(),
             commits:                        PersistentMap::new(CACHE_FILE_COMMITS,                        log.clone(),dir.clone()),
             commit_hashes:                  PersistentMap::new(CACHE_FILE_COMMIT_HASHES,                  log.clone(),dir.clone()).without_cache(),
@@ -2093,6 +2157,9 @@ impl Data {
             ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
         })
     }
+    pub fn developer_experience(&mut self, source: &Source, id: &UserId) -> Option<i32> {
+        self.smart_load_developer_experience(source).get(id).pirate()
+    }
     pub fn longest_inactivity_streak(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
         self.smart_load_project_longest_inactivity_streak(source).get(id).pirate()
     }
@@ -2271,6 +2338,9 @@ impl Data {
     }
     fn smart_load_user_authored_commit_count(&mut self, source: &Source) -> &BTreeMap<UserId, usize> {
         load_with_prerequisites!(self, user_authored_commit_count, source, one, user_authored_commits)
+    }
+    fn smart_load_developer_experience(&mut self, source: &Source) -> &BTreeMap<UserId, i32> {
+        load_with_prerequisites!(self, developer_experience, source, two, user_authored_commits, commit_author_timestamps)
     }
     fn smart_load_paths(&mut self, source: &Source) -> &BTreeMap<PathId, Path> {
         load_from_source!(self, paths, source)

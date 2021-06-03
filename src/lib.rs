@@ -596,6 +596,7 @@ pub mod project {
     impl_attribute![?    objects::Project, LongestInactivityStreak, i64, longest_inactivity_streak];
     impl_attribute![?    objects::Project, AvgCommitRate, i64, avg_commit_rate];
     impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
+    impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
     impl_attribute![?    objects::Project, Locs, usize, project_locs];
 
@@ -638,6 +639,8 @@ pub mod project {
     /* Number of changes to the major language. 
      */
     impl_attribute![?     objects::Project, MajorLanguageChanges, usize, major_language_changes];
+
+    impl_attribute![?     objects::Project, IsValid, bool, is_valid];
 }
 
 pub mod commit {

@@ -425,9 +425,11 @@ impl Project {
     pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>      { store.project_longest_inactivity_streak(&self.id)      }
     pub fn avg_commit_rate      (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_rate(&self.id)                }
     pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id) }
+    pub fn time_since_first_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_first_commit(&self.id) }
     pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                   }
     pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                  }
-    pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                  { store.duplicated_code(&self.id)                  }
+    pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                 { store.duplicated_code(&self.id)                  }
+    pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.is_valid(&self.id)                  }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -796,10 +798,12 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn longest_inactivity_streak (&self) -> Option<i64>               { self.item.longest_inactivity_streak(&self.data) }
     pub fn avg_commit_rate (&self)      -> Option<i64>                    { self.item.avg_commit_rate(&self.data) }
     pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
+    pub fn time_since_first_commit (&self) -> Option<i64>                  { self.item.time_since_first_commit(&self.data) }
     pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }
     pub fn project_locs (&self)        -> Option<usize>                    { self.item.project_locs(&self.data) }
     pub fn duplicated_code (&self)        -> Option<f64>                    { self.item.duplicated_code(&self.data) }
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)     }
+    pub fn is_valid   (&self)    -> Option<bool>                         { self.item.is_valid(&self.data)     }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)

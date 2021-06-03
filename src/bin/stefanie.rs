@@ -27,7 +27,7 @@ fn main() {
 fn projects_by_duplicated_code<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
-        .sort_by(project::DuplicatedCode)
+        //.sort_by(project::DuplicatedCode)
         .sample(Top(50))
 }
 

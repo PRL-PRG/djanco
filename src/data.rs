@@ -993,7 +993,6 @@ impl TripleMapExtractor for ProjectUniqueFilesExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();
@@ -1034,7 +1033,6 @@ impl TripleMapExtractor for ProjectOriginalFilesExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();
@@ -1076,7 +1074,6 @@ impl TripleMapExtractor for ProjectImpactExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();

@@ -591,8 +591,10 @@ impl TripleMapExtractor for TimeSinceLastCommitExtractor  {
                 timestamps.sort();
 
                 if let Some(now) = last_checkpoint.get(&project_id) {
-                    println!("parasite timestamp {}", *now);
-                    return Some((project_id.clone(), (*now) - timestamps[timestamps.len()-1]));
+                    if *now > 0 {
+                        return Some((project_id.clone(), (*now) - timestamps[timestamps.len()-1]));
+                    }
+                    
                 }
                 
                 Some((project_id.clone(), 0))

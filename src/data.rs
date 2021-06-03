@@ -18,6 +18,7 @@ use crate::time::Duration;
 use crate::source::Source;
 use crate::{CacheDir, Store};
 use chrono::{Utc};
+use serde_json::Value as JSON;
 
 pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_IS_FORK:                &'static str = "project_is_fork";
@@ -558,10 +559,19 @@ impl MapExtractor for TimeSinceLastCommitExtractor {
 impl DoubleMapExtractor for TimeSinceLastCommitExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
-    fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
+
+            let temp = source.project_github_metadata()
+            .map(|(id, json)|{
+                
+                println!("json: {} {}",id, json.unwrap());
+
+            });
+
+            
 
             for i in 0..commit_ids.len() {
                 let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
@@ -1119,7 +1129,7 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
-    //type D = ProjectMetadataSource;
+    
 
     fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         // first for each snapshot get projects and 
@@ -1135,11 +1145,11 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
             for commit_id in 0..commit_ids.len() {
                 let commitid = commit_ids.get(commit_id);
                 if !commitid.is_none() {
+                    
                     let changes =  commit_changes.get(commitid.unwrap());
                     
                     if !changes.is_none() {
                         let changes_unwrapped = changes.unwrap();
-                        println!("found {} changes code duplication", changes_unwrapped.len());
                         for changes_i in 0..changes_unwrapped.len() {
                             let change = changes_unwrapped[changes_i];
                             let snapshot_id = change.1;

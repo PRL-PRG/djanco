@@ -1132,9 +1132,10 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
                 let commitid = commit_ids.get(commit_id);
                 if !commitid.is_none() {
                     let changes =  commit_changes.get(commitid.unwrap());
-
+                    
                     if !changes.is_none() {
                         let changes_unwrapped = changes.unwrap();
+                        println!("found {} changes code duplication", changes_unwrapped.len());
                         for changes_i in 0..changes_unwrapped.len() {
                             let change = changes_unwrapped[changes_i];
                             let snapshot_id = change.1;

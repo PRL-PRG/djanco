@@ -1000,6 +1000,7 @@ impl DoubleMapExtractor for ProjectCommitContributionsExtractor {
                 .into_group_map()
                 .into_iter()
                 .map(|(author_id, commits)| {
+                    println!(">>> {}/{}={}: {}u8",commits.len(), commit_ids.len(), commits.len()/commit_ids.len(), (commits.len()/commit_ids.len()) as Percentage);
                     (author_id, (commits.len()/commit_ids.len()) as Percentage)
                 })
                 .sorted_by_key(|(_, contributed_commits)| *contributed_commits)

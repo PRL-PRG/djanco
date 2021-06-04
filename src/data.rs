@@ -934,13 +934,13 @@ impl MapExtractor for SnapshotProjectsExtractor {
     type Key = SnapshotId;
     type Value = (usize, ProjectId);
 }
-impl TripleMapExtractor for SnapshotProjectsExtractor {
+impl QuadrupleMapExtractor for SnapshotProjectsExtractor {
     type A = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type B = BTreeMap<CommitId, Vec<ProjectId>>;
     type C = BTreeMap<CommitId, i64>;
-    //type D = ProjectMetadataSource;
+    type D = BTreeMap<ProjectId, i64>;
 
-    fn extract (_: &Source, commit_changes : &Self::A, commit_projects : &Self::B, commit_author_timestamps : &Self::C) -> BTreeMap<SnapshotId, (usize, ProjectId)> {
+    fn extract (_: &Source, commit_changes : &Self::A, commit_projects : &Self::B, commit_author_timestamps : &Self::C, projects_created : &Self::D) -> BTreeMap<SnapshotId, (usize, ProjectId)> {
         // first for each snapshot get projects and 
         let mut snapshot_projects = BTreeMap::<SnapshotId, SnapshotCloneInfo>::new();
         // for each commit
@@ -959,10 +959,16 @@ impl TripleMapExtractor for SnapshotProjectsExtractor {
                             pids.iter().for_each(|pid| { sinfo.projects.insert(*pid); });
                             // if the commit is older than the current time associated with the snapshot, determine the oldest project 
                             if sinfo.oldest_commit_time > commit_time {
+                                sinfo.original = pids.iter()
+                                    .filter_map(|x| if let Some(ctime) = projects_created.get(x) { Some((*x, *ctime)) } else { None })
+                                    .min_by(|a, b| a.1.cmp(&b.1))
+                                    .unwrap().0; // there should be at least one
+                                    
                                 // TODO use oldest project really once we know how to get it, for now I am just using the first project
-                                if let Some(pid) = pids.get(0) {
+                                /*if let Some(pid) = pids.get(0) {
                                     sinfo.original = *pid;
                                 }
+                                */
                             }
                         }
                     }
@@ -1059,7 +1065,6 @@ impl TripleMapExtractor for ProjectUniqueFilesExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();
@@ -1100,7 +1105,6 @@ impl TripleMapExtractor for ProjectOriginalFilesExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();
@@ -1142,7 +1146,6 @@ impl TripleMapExtractor for ProjectImpactExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();
@@ -2002,7 +2005,7 @@ impl Data {
         load_with_prerequisites!(self, commit_projects_count, source, one, commit_projects)
     }
     fn smart_load_snapshot_projects(& mut self, source: &Source) -> &BTreeMap<SnapshotId,(usize, ProjectId)> {
-        load_with_prerequisites!(self, snapshot_projects, source, three, commit_changes, commit_projects, commit_author_timestamps)
+        load_with_prerequisites!(self, snapshot_projects, source, four, commit_changes, commit_projects, commit_author_timestamps, project_created)
     }
     pub fn smart_load_project_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
         load_with_prerequisites!(self, project_change_contributions, source, three, project_commits, commits, commit_changes)

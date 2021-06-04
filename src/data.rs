@@ -518,36 +518,26 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
-        
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
-
             for commit_id in commit_ids {
                 let committer_timestamp = committed_timestamps.get(&commit_id);
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
             }
-
             if timestamps.clone().len() == 0 {
                 Some((project_id.clone(), 0))
             }else{
                 timestamps.sort();
                 let mut ans: i64 = 0;
                 let mut previous: i64 = timestamps[0];
-                
                 for i in 1..timestamps.len() {
-                    
                     if (timestamps[i] - previous) > ans {
-                        
                         ans = timestamps[i] - previous;
-                        
                     }
-                    previous = timestamps[i];
-                    
+                    previous = timestamps[i];   
                 }
-
                 Some((project_id.clone(), ans))
             }
-            
         }).collect()
     }
 }
@@ -561,36 +551,27 @@ impl DoubleMapExtractor for AvgCommitRateExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, i64>;
     fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
-        
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
-
             for i in 0..commit_ids.len(){
                 let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
             }
-
             if timestamps.clone().len() == 0 {
                 Some((project_id.clone(), 0))
             }else{
                 timestamps.sort();
                 let mut ans: f64 = timestamps[0] as f64;
                 let mut previous: i64 = timestamps[0];
-                
                 for i in 1..timestamps.len() {
-
                     ans += (timestamps[i] - previous) as f64;
                     previous = timestamps[i];
-                
                 }
-
                 if timestamps.len() > 2 {
                     ans /= (timestamps.len()-1) as f64;
                 }
-
                 Some((project_id.clone(), ans.round() as i64))
             }
-            
         }).collect()
     }
 }
@@ -608,31 +589,21 @@ impl TripleMapExtractor for TimeSinceLastCommitExtractor  {
         
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
-
             for commit_id in commit_ids {
                 let committer_timestamp = committed_timestamps.get(&commit_id);
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
             }
-
             if timestamps.len() == 0 {
-
                 Some((project_id.clone(), 0))
-
             }else{
-                
                 timestamps.sort();
-
                 if let Some(now) = last_checkpoint.get(&project_id) {
                     if *now > 0 {
                         return Some((project_id.clone(), (*now) - timestamps[timestamps.len()-1]));
-                    }
-                    
-                }
-                
+                    }   
+                }   
                 Some((project_id.clone(), 0))
-                
             }
-            
         }).collect()
     }
 }
@@ -651,31 +622,21 @@ impl TripleMapExtractor for TimeSinceFirstCommitExtractor  {
         
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
-
             for commit_id in commit_ids {
-                let committer_timestamp = committed_timestamps.get(&commit_id);
+                let committer_timestamp = committed_timestamps.get( &commit_id );
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
             }
-
             if timestamps.clone().len() == 0 {
-
                 Some((project_id.clone(), 0))
-
             }else{
-                
                 timestamps.sort();
-
-                if let Some(now) = last_checkpoint.get(&project_id) {
+                if let Some(now) = last_checkpoint.get( &project_id ) {
                     if *now > 0 {
                         return Some((project_id.clone(), (*now) - timestamps[0]));
-                    }
-                    
+                    }   
                 }
-                
-                Some((project_id.clone(), 0))
-                
+                Some((project_id.clone(), 0))   
             }
-            
         }).collect()
     }
 }
@@ -689,15 +650,12 @@ impl DoubleMapExtractor for IsAbandonedExtractor  {
     type A = BTreeMap<ProjectId, i64>;
     type B = BTreeMap<ProjectId, i64>;
     fn extract(_: &Source, longest_inactivity_streak: &Self::A, time_since_last_commit: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
-        
         longest_inactivity_streak.iter().flat_map(|(project_id, inactivity_streak)| {
             let option_last_commit = time_since_last_commit.get(&project_id);
             if let Some(last_commit) = option_last_commit { 
                 return Some((project_id.clone(), *last_commit > *inactivity_streak));
             }
-
             Some((project_id.clone(), false))
-
         }).collect()
     }
 }
@@ -990,7 +948,6 @@ impl DoubleMapExtractor for UserExperienceExtractor  {
                     timestamps.get(commit_id).pirate()
                 })
                 .minmax();
-
             match min_max {
                 MinMaxResult::NoElements => None,
                 MinMaxResult::OneElement(_) => Some((user_id.clone(), 0)),
@@ -1010,34 +967,26 @@ impl DoubleMapExtractor for DeveloperExperienceExtractor  {
     type B = BTreeMap<CommitId, i64>;
     fn extract(_: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         user_commits.iter().map(|(user_id, commit_ids)| {
-         
             let mut user_timestamps : Vec<i64> = Vec::new();
             for commit_id in commit_ids {
                 if let Some(timestamp) = timestamps.get(&commit_id) {
                     user_timestamps.push(*timestamp);
                 }                
             }
-            
             user_timestamps.sort();
-
             if user_timestamps.len() > 0 {
                 let first_time = user_timestamps[0];
                 let delta_month = 2592001; // total seconds in a month (+1)
-
                 let mut month_commits : BTreeMap< i64, i64> = BTreeMap::new();
                 month_commits.insert(0, 1);
-
                 let mut index_month : i64;
                 for i in 1 .. user_timestamps.len() {
                     index_month = (user_timestamps[i]-first_time)/delta_month;
-                    
                     if !month_commits.contains_key(&index_month) {
                         month_commits.insert(index_month, 0);
                     }
-                
                     month_commits.insert(index_month, month_commits.get(&index_month).unwrap() + 1 );
                 }
-
                 let mut values: Vec<i64> = month_commits.values().cloned().collect();
                 values.sort();
                 values.reverse();
@@ -1050,7 +999,6 @@ impl DoubleMapExtractor for DeveloperExperienceExtractor  {
             }else{
                 (user_id.clone(), 0 as i32)
             }
-
         }).collect()
     }
 }
@@ -1199,13 +1147,10 @@ impl MapExtractor for SnapshotLocsExtractor {
     type Value = usize;
 }
 impl SourceMapExtractor for SnapshotLocsExtractor {
-
     fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
         source.snapshot_bytes().map(|(id, contents)| {
-
             let snapshot = Snapshot::new(id, contents);
             let contents = snapshot.contents_owned();
-            
             (id.clone(), contents.matches("\n").count())
        }).collect()
     }
@@ -1241,37 +1186,24 @@ impl TripleMapExtractor for ProjectLocsExtractor {
         project_commits.iter().map(|(project_id, commit_ids)| {
             let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new(); // store locs of a file from the latest seen snapshot
             let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();
-            
             for commit_id in commit_ids {
-                
-                
-                let changes = commit_changes.get(&commit_id).unwrap();
-
-                for change_i in 0..changes.len() {
-                    let path = &changes[change_i].0;
-                    let current_timestamp = commit_timestamps.get(&commit_id).unwrap();
-                    if !last_state_files.contains_key(path) ||  *current_timestamp > *last_timestamp.get(path).unwrap(){
-                        
-                        let snapshot_id = changes[change_i].1;
-
-                        if !snapshot_id.is_none() {
-                            let count_locs = snapshot_locs.get(&(snapshot_id).unwrap());
-                            if !count_locs.is_none() {
-                                last_timestamp.insert(*path, *current_timestamp);
-                                last_state_files.insert(*path, *count_locs.unwrap());
+                if let Some(changes) = commit_changes.get(&commit_id){
+                    for change in changes {
+                        let path = &(change.0);
+                        let current_timestamp = commit_timestamps.get(&commit_id).unwrap();
+                        if !last_state_files.contains_key(path) ||  *current_timestamp > *last_timestamp.get(path).unwrap() {
+                            if let Some(snapshot_id) = change.1 {
+                                if let Some(count_locs) =  snapshot_locs.get(&(snapshot_id)) {
+                                    last_timestamp.insert(*path, *current_timestamp);
+                                    last_state_files.insert(*path, *count_locs);
+                                }
                             }
                         }
-                        
-                        
-                    }
+                    }  
                 }
-                
             }
-
             let vec_locs : Vec<usize> = last_state_files.values().cloned().collect();
-
             (project_id.clone(), vec_locs.iter().sum())
-
         }).collect()
         */
     }
@@ -1287,55 +1219,32 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
-    
-
     fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
-        // first for each snapshot get projects and 
-        // for each commit
-
         let mut total_snapshots : f64 = 0.0;
         let mut num_clones : f64 = 0.0;
-
         project_commits.iter().map(|(project_id, commit_ids)| {
             total_snapshots = 0.0;
             num_clones= 0.0;
-
-            for commit_id in 0..commit_ids.len() {
-                let commitid = commit_ids.get(commit_id);
-                if !commitid.is_none() {
-                    
-                    let changes =  commit_changes.get(commitid.unwrap());
-                    
-                    if !changes.is_none() {
-                        let changes_unwrapped = changes.unwrap();
-                        for changes_i in 0..changes_unwrapped.len() {
-                            let change = changes_unwrapped[changes_i];
-                            let snapshot_id = change.1;
-                            if !snapshot_id.is_none() {
-                                total_snapshots+=1.0;
-                                let snapshot = snapshot_projects.get(&snapshot_id.unwrap());
-                                if !snapshot.is_none() {
-                                    if (*snapshot.unwrap()).1 != *project_id {
-                                        num_clones += 1.0;
-                                    }
-                                    
-                                }
-                                
-                            }
-
-                        } 
-                    }
-                    
-                    
+            for commitid in commit_ids {
+                if let Some(changes) = commit_changes.get(&commitid) {
+                    for change in changes {
+                        if let Some(snapshot_id) = change.1 {
+                            total_snapshots+=1.0;
+                            if let Some(snapshot) = snapshot_projects.get(&snapshot_id) {
+                                if (*snapshot).1 != *project_id {
+                                    num_clones += 1.0;
+                                }       
+                            }   
+                        }
+                    } 
                 }
-                
             }
-         
             if total_snapshots == 0.0 {
                 (project_id.clone(), -1.0)
             }else{
                 (project_id.clone(), f64::trunc(num_clones/total_snapshots*100.0)/100.0)
             }
+
         }).collect()
     }
 }
@@ -1723,17 +1632,13 @@ impl MapExtractor for ProjectLogsExtractor {
 impl SingleMapExtractor for ProjectLogsExtractor {
     type A = BTreeMap<ProjectId, bool>;
     fn extract(source: &Source, project_is_valid: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
-        
         source.project_logs().map(|(project_id, logs)|{
-
             if let Some(is_valid) = project_is_valid.get(&project_id) {
                 if *is_valid  && logs.len() > 0 {
                     return (project_id.clone(), logs[0].time());
                 }
-
             }
             (project_id.clone(), -1)
-            
         }).collect()
     }
 }
@@ -1745,7 +1650,6 @@ impl MapExtractor for ProjectIsValidExtractor {
 }
 impl SourceMapExtractor for ProjectIsValidExtractor{
     fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
-        //
         source.project_logs().map(|(project_id, logs)|{
             if logs.len() > 0 {
                 return (project_id.clone(), !logs[0].is_error());

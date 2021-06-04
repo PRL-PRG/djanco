@@ -393,7 +393,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
         vec!["project_id", "substore", "url",
              "is_fork", "is_archived", "is_disabled",
              "stars", "watchers", "size", 
-             "open_issues", 
+             "open_issues", "buggy_issues", "all_issues", 
              "forks", "subscribers",
              "language",
              "heads", "commits", "authors", "paths", "snapshots", "committers", "users",
@@ -406,7 +406,12 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "unique_files", "original_files", "impact",
              "files",
              "major_language", "major_language_ratio", "major_language_changes",
-             "all_forks_count"]
+             "all_forks_count",
+             "longest_inactivity_streak", "avg_commit_rate",
+             "first_commit","last_commit", 
+             "is_abandoned", "LOCs",
+             "duplicated_code", "is_valid"
+             ]
     }
 
     fn row(&self) -> Vec<String> {        
@@ -420,6 +425,8 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.watcher_count().to_string_or_empty(),
              self.size().to_string_or_empty(),
              self.open_issue_count().to_string_or_empty(),
+             self.buggy_issue_count().to_string_or_empty(),
+             self.combined_issue_count().to_string_or_empty(),
              self.fork_count().to_string_or_empty(),
              self.subscriber_count().to_string_or_empty(),
              self.language().to_string_or_empty(),
@@ -452,7 +459,16 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.major_language().to_string_or_empty(),
              self.major_language_ratio().to_string_or_empty(),
              self.major_language_changes().to_string_or_empty(),
-             self.all_forks_count().to_string_or_empty()]
+             self.all_forks_count().to_string_or_empty(),
+             self.longest_inactivity_streak().to_string_or_empty(),
+             self.avg_commit_rate().to_string_or_empty(),
+             self.time_since_first_commit().to_string_or_empty(),
+             self.time_since_last_commit().to_string_or_empty(),
+             self.is_abandoned().to_string_or_empty(),
+             self.project_locs().to_string_or_empty(),
+             self.duplicated_code().to_string_or_empty(),
+             self.is_valid().to_string_or_empty()
+        ]
     }
 
     fn rows(&self) -> Vec<Vec<String>> {
@@ -467,6 +483,8 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.watcher_count().to_string_or_empty(),
             self.size().to_string_or_empty(),
             self.open_issue_count().to_string_or_empty(),
+            self.buggy_issue_count().to_string_or_empty(),
+            self.combined_issue_count().to_string_or_empty(),
             self.fork_count().to_string_or_empty(),
             self.subscriber_count().to_string_or_empty(),
             self.language().to_string_or_empty(),
@@ -499,7 +517,15 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.major_language().to_string_or_empty(),
             self.major_language_ratio().to_string_or_empty(),
             self.major_language_changes().to_string_or_empty(),
-            self.all_forks_count().to_string_or_empty()
+            self.all_forks_count().to_string_or_empty(),
+            self.longest_inactivity_streak().to_string_or_empty(),
+            self.avg_commit_rate().to_string_or_empty(),
+            self.time_since_first_commit().to_string_or_empty(),
+            self.time_since_last_commit().to_string_or_empty(),
+            self.is_abandoned().to_string_or_empty(),
+            self.project_locs().to_string_or_empty(),
+            self.duplicated_code().to_string_or_empty(),
+            self.is_valid().to_string_or_empty()
         ]]
     }
 }

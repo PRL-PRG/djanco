@@ -437,6 +437,12 @@ impl Project {
     pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.is_valid(&self.id)                  }
     pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id) }
     pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id) }
+    pub fn head_trees   (&self, store: &Database) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        store.project_head_trees(&self.id)
+    }    
+    pub fn head_trees_count (&self, store: &Database) -> Option<usize> {
+        store.project_head_trees_count(&self.id)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -870,6 +876,12 @@ impl<'a> ItemWithData<'a, Project> {
     }
     pub fn all_forks_count(&self) -> Option<usize> {
         self.item.all_forks_count(&self.data)
+    }
+    pub fn head_trees(&self) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        self.item.head_trees(&self.data)
+    }
+    pub fn head_trees_count(&self) -> Option<usize> {
+        self.item.head_trees_count(&self.data)
     }
 }
 impl<'a> ItemWithData<'a, Snapshot> {

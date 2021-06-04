@@ -71,6 +71,8 @@ pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_MAJOR_LANGUAGE_CHANGES: &'static str = "project_major_language_changes";
     pub static CACHE_FILE_PROJECT_ALL_FORKS:              &'static str = "project_all_forks";
     pub static CACHE_FILE_PROJECT_ALL_FORKS_COUNT:        &'static str = "project_all_forks_count";
+    pub static CACHE_FILE_PROJECT_HEAD_TREES:             &'static str = "project_head_trees";
+    pub static CACHE_FILE_PROJECT_HEAD_TREES_COUNT:       &'static str = "project_head_trees_count";
     pub static CACHE_FILE_USERS:                          &'static str = "users";
     pub static CACHE_FILE_USER_AUTHORED_COMMITS:          &'static str = "user_authored_commits";
     pub static CACHE_FILE_USER_COMMITTED_COMMITS:         &'static str = "user_committed_commits";
@@ -366,6 +368,12 @@ impl Database {
     }
     pub fn project_all_forks_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_all_forks_count(&self.source, id)
+    }
+    pub fn project_head_trees(&self, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        self.data.borrow_mut().project_head_trees(&self.source, id)
+    }
+    pub fn project_head_trees_count(&self, id : &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_head_trees_count(&self.source, id)
     }
     pub fn user(&self, id: &UserId) -> Option<User> {
         self.data.borrow_mut().user(&self.source, id).pirate()
@@ -1770,6 +1778,45 @@ impl TripleMapExtractor for ProjectAllForksExtractor {
     }
 }
 
+struct ProjectHeadTreesExtractor {}
+
+impl MapExtractor for ProjectHeadTreesExtractor {
+    type Key = ProjectId;
+    type Value = Vec<(String, Vec<(PathId, SnapshotId)>)>;
+}
+
+impl TripleMapExtractor for ProjectHeadTreesExtractor {
+    type A = BTreeMap<ProjectId, Vec<Head>>;
+    type B = BTreeMap<CommitId, Commit>;
+    type C = BTreeMap<CommitId, Vec<ChangeTuple>>;
+
+    fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        project_heads.iter().map(|(pid, heads)| {
+            let heads = heads.iter().map(|Head{name, commit}| {
+                let mut contents = BTreeMap::<PathId, Option<SnapshotId>>::new();
+                let mut visited = BTreeSet::<CommitId>::new();
+                let mut q = Vec::<CommitId>::new();
+                q.push(*commit);
+                while let Some(cid) = q.pop() {
+                    if visited.insert(cid) {
+                        if let Some(changes) = commit_changes.get(&cid) {
+                            for (path_id, snapshot_id) in changes {
+                                if let Entry::Vacant(e) = contents.entry(*path_id) {
+                                    e.insert(*snapshot_id);
+                                }
+                            }
+                        }
+                        if let Some(cinfo) = commits.get(&cid) {
+                            q.extend(cinfo.parents.iter());
+                        }
+                    }
+                }
+                (name.clone(), contents.iter().filter(|x| x.1.is_some()).map(|x| (*x.0, x.1.unwrap())).collect())
+            }).collect();
+            (*pid, heads)
+        }).collect()
+    }
+}
 
 
 pub(crate) struct Data {
@@ -1803,8 +1850,10 @@ pub(crate) struct Data {
     project_major_language:         PersistentMap<ProjectMajorLanguageExtractor>,
     project_major_language_ratio:   PersistentMap<ProjectMajorLanguageRatioExtractor>,
     project_major_language_changes: PersistentMap<ProjectMajorLanguageChangesExtractor>,
-    project_all_forks :          PersistentMap<ProjectAllForksExtractor>,
-    project_all_forks_count:     PersistentMap<CountPerKeyExtractor<ProjectId, ProjectId>>,
+    project_all_forks:              PersistentMap<ProjectAllForksExtractor>,
+    project_all_forks_count:        PersistentMap<CountPerKeyExtractor<ProjectId, ProjectId>>,
+    project_head_trees:             PersistentMap<ProjectHeadTreesExtractor>,
+    project_head_trees_count:       PersistentMap<CountPerKeyExtractor<ProjectId, (String, Vec<(PathId, SnapshotId)>)>>,
 
     project_buggy_issue_count:   PersistentMap<ProjectBuggyIssuesExtractor>,
     project_issue_count:         PersistentMap<ProjectBuggyIssuesExtractor>,
@@ -1930,6 +1979,8 @@ impl Data {
             project_major_language_changes: PersistentMap::new(CACHE_FILE_PROJECT_MAJOR_LANGUAGE_CHANGES, log.clone(), dir.clone()),
             project_all_forks:              PersistentMap::new(CACHE_FILE_PROJECT_ALL_FORKS,              log.clone(), dir.clone()),
             project_all_forks_count:        PersistentMap::new(CACHE_FILE_PROJECT_ALL_FORKS_COUNT,        log.clone(), dir.clone()),
+            project_head_trees:             PersistentMap::new(CACHE_FILE_PROJECT_HEAD_TREES,             log.clone(), dir.clone()),
+            project_head_trees_count:       PersistentMap::new(CACHE_FILE_PROJECT_HEAD_TREES_COUNT,       log.clone(), dir.clone()),
             users:                          PersistentMap::new(CACHE_FILE_USERS,                          log.clone(),dir.clone()).without_cache(),
             user_authored_commits:          PersistentMap::new(CACHE_FILE_USER_AUTHORED_COMMITS,          log.clone(),dir.clone()),
             user_committed_commits:         PersistentMap::new(CACHE_FILE_USER_COMMITTED_COMMITS,         log.clone(),dir.clone()),
@@ -2222,6 +2273,14 @@ impl Data {
         self.smart_load_project_all_forks_count(source).get(id)
             .pirate()
     }
+    pub fn project_head_trees(& mut self, source: &Source, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        self.smart_load_project_head_trees(source).get(id)
+            .pirate()
+    }
+    pub fn project_head_trees_count(& mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_head_trees_count(source).get(id)
+            .pirate()
+    }
     pub fn user(&mut self, source: &Source, id: &UserId) -> Option<&User> {
         self.smart_load_users(source).get(id)
     }
@@ -2465,6 +2524,12 @@ impl Data {
     }
     fn smart_load_project_all_forks_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_all_forks_count, source, one, project_all_forks)
+    }
+    fn smart_load_project_head_trees(& mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        load_with_prerequisites!(self, project_head_trees, source, three, project_heads, commits, commit_changes)
+    }
+    fn smart_load_project_head_trees_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_head_trees_count, source, one, project_head_trees)
     }
     fn smart_load_users(&mut self, source: &Source) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)

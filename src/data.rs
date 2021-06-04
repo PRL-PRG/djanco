@@ -1050,7 +1050,7 @@ impl SingleMapExtractor for ProjectCumulativeContributionsExtractor {
     fn extract(_: &Source, project_change_contributions: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         project_change_contributions.iter().map(|(project_id, contributions)| {
             let mut cumulative_contributions: Vec<Percentage> = Vec::new();
-            for &(user_id, contribution) in contributions {
+            for &(_user_id, contribution) in contributions {
                 cumulative_contributions.push(0u8);
                 for i in 0..cumulative_contributions.len() {
                     cumulative_contributions[i] = cumulative_contributions[i] + contribution

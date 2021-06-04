@@ -1172,7 +1172,7 @@ impl TripleMapExtractor for ProjectLocsExtractor {
         project_head_trees.iter().filter_map(|(pid, heads)| {
             if let Some(default_branch_name) = project_default_branch.get(pid) {
                 let ref_name = format!("refs/heads/{}", default_branch_name);
-                if let Some((_, tree)) = heads.iter().filter(|(name, _)| name == &ref_name ).next() {
+                if let Some((_, tree)) = heads.iter().filter(|(name, _)| *name == ref_name ).next() {
                     let snapshot_locs = tree.iter().filter_map(|(_, snapshot_id)| snapshot_locs.get(snapshot_id)).sum(); 
                     return Some((*pid, snapshot_locs));
                 }

@@ -1164,19 +1164,20 @@ impl QuadrupleMapExtractor for ProjectLocsExtractor {
             let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new(); // store locs of a file from the latest seen snapshot
             let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();
             for commit_id in commit_ids {
-                let changes = commit_changes.get(&commit_id).unwrap();
-                for change in changes {
-                    let path = &(change.0);
-                    let current_timestamp = commit_timestamps.get(&commit_id).unwrap();
-                    if !last_state_files.contains_key(path) ||  *current_timestamp > *last_timestamp.get(path).unwrap() {
-                        if let Some(snapshot_id) = change.1 {
-                            if let Some(count_locs) =  snapshot_locs.get(&(snapshot_id)) {
-                                last_timestamp.insert(*path, *current_timestamp);
-                                last_state_files.insert(*path, *count_locs);
+                if let Some(changes) = commit_changes.get(&commit_id){
+                    for change in changes {
+                        let path = &(change.0);
+                        let current_timestamp = commit_timestamps.get(&commit_id).unwrap();
+                        if !last_state_files.contains_key(path) ||  *current_timestamp > *last_timestamp.get(path).unwrap() {
+                            if let Some(snapshot_id) = change.1 {
+                                if let Some(count_locs) =  snapshot_locs.get(&(snapshot_id)) {
+                                    last_timestamp.insert(*path, *current_timestamp);
+                                    last_state_files.insert(*path, *count_locs);
+                                }
                             }
                         }
-                    }
-                }   
+                    }  
+                }
             }
             let vec_locs : Vec<usize> = last_state_files.values().cloned().collect();
             (project_id.clone(), vec_locs.iter().sum())

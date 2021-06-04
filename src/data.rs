@@ -492,8 +492,8 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
 
-            for i in 0..commit_ids.len(){
-                let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
+            for commit_id in commit_ids {
+                let committer_timestamp = committed_timestamps.get(&commit_id);
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
             }
 
@@ -579,12 +579,12 @@ impl TripleMapExtractor for TimeSinceLastCommitExtractor  {
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
 
-            for i in 0..commit_ids.len() {
-                let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
+            for commit_id in commit_ids {
+                let committer_timestamp = committed_timestamps.get(&commit_id);
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
             }
 
-            if timestamps.clone().len() == 0 {
+            if timestamps.len() == 0 {
 
                 Some((project_id.clone(), 0))
 
@@ -622,8 +622,8 @@ impl TripleMapExtractor for TimeSinceFirstCommitExtractor  {
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
 
-            for i in 0..commit_ids.len() {
-                let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
+            for commit_id in commit_ids {
+                let committer_timestamp = committed_timestamps.get(&commit_id);
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
             }
 
@@ -982,9 +982,8 @@ impl DoubleMapExtractor for DeveloperExperienceExtractor  {
         user_commits.iter().map(|(user_id, commit_ids)| {
          
             let mut user_timestamps : Vec<i64> = Vec::new();
-            for i in 0.. commit_ids.len() {
-                let commit = commit_ids[i];
-                if let Some(timestamp) = timestamps.get(&commit) {
+            for commit_id in commit_ids {
+                if let Some(timestamp) = timestamps.get(&commit_id) {
                     user_timestamps.push(*timestamp);
                 }                
             }
@@ -993,7 +992,7 @@ impl DoubleMapExtractor for DeveloperExperienceExtractor  {
 
             if user_timestamps.len() > 0 {
                 let first_time = user_timestamps[0];
-                let delta_month = 2592001; // total seconds in a month
+                let delta_month = 2592001; // total seconds in a month (+1)
 
                 let mut month_commits : BTreeMap< i64, i64> = BTreeMap::new();
                 month_commits.insert(0, 1);
@@ -1001,7 +1000,7 @@ impl DoubleMapExtractor for DeveloperExperienceExtractor  {
                 let mut index_month : i64;
                 for i in 1 .. user_timestamps.len() {
                     index_month = (user_timestamps[i]-first_time)/delta_month;
-
+                    
                     if !month_commits.contains_key(&index_month) {
                         month_commits.insert(index_month, 0);
                     }
@@ -1195,17 +1194,17 @@ impl QuadrupleMapExtractor for ProjectLocsExtractor {
     fn extract(_: &Source, project_commits: &Self::A, commit_timestamps: &Self::B, commit_changes: &Self::C, snapshot_locs: &Self::D) -> BTreeMap<Self::Key, Self::Value> {
         // TODO: We should look after parent commits rather than timestamps. 
         project_commits.iter().map(|(project_id, commit_ids)| {
-            let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new();
+            let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new(); // store locs of a file from the latest seen snapshot
             let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();
             
-            for commit_i in 0..commit_ids.len() {
+            for commit_id in commit_ids {
                 
-                let commit = &commit_ids[commit_i];
-                let changes = commit_changes.get(commit).unwrap();
+                
+                let changes = commit_changes.get(&commit_id).unwrap();
 
                 for change_i in 0..changes.len() {
                     let path = &changes[change_i].0;
-                    let current_timestamp = commit_timestamps.get(commit).unwrap();
+                    let current_timestamp = commit_timestamps.get(&commit_id).unwrap();
                     if !last_state_files.contains_key(path) ||  *current_timestamp > *last_timestamp.get(path).unwrap(){
                         
                         let snapshot_id = changes[change_i].1;

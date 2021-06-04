@@ -660,13 +660,16 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Users, objects::User, users_with_data, user_count];
     impl_attribute![?+..  objects::Project, Paths, objects::Path, paths_with_data, path_count];
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
-    impl_attribute![?    objects::Project, LongestInactivityStreak, i64, longest_inactivity_streak];
-    impl_attribute![?    objects::Project, AvgCommitRate, i64, avg_commit_rate];
-    impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
-    impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
-    impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
-    impl_attribute![?    objects::Project, Locs, usize, project_locs];
-    
+    impl_attribute![?     objects::Project, LongestInactivityStreak, i64, longest_inactivity_streak];
+    impl_attribute![?     objects::Project, AvgCommitRate, i64, avg_commit_rate];
+    impl_attribute![?     objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
+    impl_attribute![?     objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
+    impl_attribute![?     objects::Project, IsAbandoned, bool, is_abandoned];
+    /* Size of the project in lines of code (see SnapshotLoc).
+
+       Takes the head of the project's default branch and calculates the size of its snapshots. Note that only snapshots of source code files (i.e. those that parasite downloads) will be calculated. 
+     */
+    impl_attribute![?     objects::Project, Locs, usize, project_locs];
 
     // Duplicated_code is a percentage. A number between 0 and 1
     impl_attribute![?    objects::Project, DuplicatedCode, f64, duplicated_code];

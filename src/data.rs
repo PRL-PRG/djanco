@@ -1216,13 +1216,28 @@ impl MapExtractor for ProjectLocsExtractor{
     type Key = ProjectId;
     type Value = usize;
 }
-impl QuadrupleMapExtractor for ProjectLocsExtractor {
-    type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
-    type C = BTreeMap<CommitId, Vec<ChangeTuple>>;
-    type D = BTreeMap<SnapshotId, usize>;
-    fn extract(_: &Source, project_commits: &Self::A, commit_timestamps: &Self::B, commit_changes: &Self::C, snapshot_locs: &Self::D) -> BTreeMap<Self::Key, Self::Value> {
+
+// project_default_branch, project_head_trees, snapshot_locs
+
+impl TripleMapExtractor for ProjectLocsExtractor {
+    type A = BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>>;
+    type B = BTreeMap<ProjectId, String>;
+    type C = BTreeMap<SnapshotId, usize>;
+    fn extract(_: &Source, project_head_trees: &Self::A, project_default_branch: &Self::B, snapshot_locs: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        project_head_trees.iter().filter_map(|(pid, heads)| {
+            if let Some(default_branch_name) = project_default_branch.get(pid) {
+                let ref_name = format!("refs/heads/{}", default_branch_name);
+                if let Some((_, tree)) = heads.iter().filter(|(name, _)| name == &ref_name ).next() {
+                    let snapshot_locs = tree.iter().filter_map(|(_, snapshot_id)| snapshot_locs.get(snapshot_id)).sum(); 
+                    return Some((*pid, snapshot_locs));
+                }
+            } 
+            return None;
+        }).collect()
+
+
         // TODO: We should look after parent commits rather than timestamps. 
+        /*
         project_commits.iter().map(|(project_id, commit_ids)| {
             let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new(); // store locs of a file from the latest seen snapshot
             let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();
@@ -1258,6 +1273,7 @@ impl QuadrupleMapExtractor for ProjectLocsExtractor {
             (project_id.clone(), vec_locs.iter().sum())
 
         }).collect()
+        */
     }
 }
 
@@ -2609,7 +2625,7 @@ impl Data {
         //load_with_prerequisites!(self, is_abandoned, source, one, project_snapshots)
     }
     fn smart_load_project_locs(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_locs, source, four, project_commits,  commit_committer_timestamps, commit_changes, snapshot_locs)
+        load_with_prerequisites!(self, project_locs, source, three, project_head_trees,  project_default_branch, snapshot_locs)
     }
     fn smart_load_project_duplicated_code(&mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
         load_with_prerequisites!(self, duplicated_code, source, three, project_commits,  commit_changes, snapshot_projects)

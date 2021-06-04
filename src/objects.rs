@@ -356,7 +356,7 @@ impl Project {
     pub fn new              (id: ProjectId, url: String) -> Self                            { Project { id, url }                            }
     pub fn url              (&self)                      -> String                          { self.url.to_string()                           }
 
-    pub fn timestamp        (&self,     _: &Database)    -> Timestamp                             { unimplemented!()  /* waiting for parasite */   }
+    pub fn timestamp        (&self,     _: &Database)    -> Timestamp                       { unimplemented!()  /* waiting for parasite */   }
     pub fn issue_count      (&self, store: &Database)    -> Option<usize>                   { store.project_issues(&self.id)                 }
     pub fn buggy_issue_count(&self, store: &Database)    -> Option<usize>                   { store.project_buggy_issues(&self.id)           }
     pub fn combined_issue_count  (&self, store: &Database)    -> Option<usize> { 

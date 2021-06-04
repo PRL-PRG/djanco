@@ -44,6 +44,8 @@ pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_DEFAULT_BRANCH:         &'static str = "project_default_branch";
     pub static CACHE_FILE_PROJECT_COMMIT_CONTRIBUTIONS:   &'static str = "project_commit_contributions";
     pub static CACHE_FILE_PROJECT_CHANGE_CONTRIBUTIONS:   &'static str = "project_change_contributions";
+    pub static CACHE_FILE_PROJECT_CUMULATIVE_COMMIT_CONTRIBUTIONS:   &'static str = "project_cumulative_commit_contributions";
+    pub static CACHE_FILE_PROJECT_CUMULATIVE_CHANGE_CONTRIBUTIONS:   &'static str = "project_cumulative_change_contributions";
     pub static CACHE_FILE_PROJECT_URL:                    &'static str = "project_url";
     pub static CACHE_FILE_PROJECT_SUBSTORE:               &'static str = "project_substore";
     pub static CACHE_FILE_PROJECT_HEADS:                  &'static str = "project_heads";
@@ -248,7 +250,7 @@ impl Database {
         self.data.borrow_mut().project_change_contribution_ids(&self.source, id)
     }
     pub fn project_cumulative_change_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>> {
-        unimplemented!()
+        self.data.borrow_mut().project_cumulative_change_contributions(&self.source, id)
     }
     pub fn project_commit_contributions(&self, id: &ProjectId) -> Option<Vec<(User, Percentage)>> {
         self.data.borrow_mut().project_commit_contributions(&self.source, id)
@@ -257,7 +259,7 @@ impl Database {
         self.data.borrow_mut().project_commit_contribution_ids(&self.source, id)
     }
     pub fn project_cumulative_commit_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>> {
-        unimplemented!()
+        self.data.borrow_mut().project_cumulative_commit_contributions(&self.source, id)
     }
     pub fn project_url(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_url(&self.source, id)
@@ -1038,6 +1040,27 @@ impl TripleMapExtractor for ProjectChangeContributionsExtractor {
     }
 }
 
+struct ProjectCumulativeContributionsExtractor {}
+impl MapExtractor for ProjectCumulativeContributionsExtractor {
+    type Key = ProjectId;
+    type Value = Vec<Percentage>;
+}
+impl SingleMapExtractor for ProjectCumulativeContributionsExtractor {
+    type A = BTreeMap<ProjectId, Vec<(UserId, Percentage)>>;
+    fn extract(_: &Source, project_change_contributions: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        project_change_contributions.iter().map(|(project_id, contributions)| {
+            let mut cumulative_contributions: Vec<Percentage> = Vec::new();
+            for &(user_id, contribution) in contributions {
+                cumulative_contributions.push(0u8);
+                for i in 0..cumulative_contributions.len() {
+                    cumulative_contributions[i] = cumulative_contributions[i] + contribution
+                }
+            }                    
+            (project_id.clone(), cumulative_contributions)
+        }).collect()
+    }
+} 
+
 struct ProjectUniqueFilesExtractor {}
 impl MapExtractor for ProjectUniqueFilesExtractor {
     type Key = ProjectId;
@@ -1334,8 +1357,11 @@ pub(crate) struct Data {
     project_committer_count:     PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_commit_count:        PersistentMap<CountPerKeyExtractor<ProjectId, CommitId>>,
 
-    project_change_contributions:   PersistentMap<ProjectChangeContributionsExtractor>,
-    project_commit_contributions:   PersistentMap<ProjectCommitContributionsExtractor>,
+    project_change_contributions:            PersistentMap<ProjectChangeContributionsExtractor>,
+    project_commit_contributions:            PersistentMap<ProjectCommitContributionsExtractor>,
+    project_cumulative_change_contributions: PersistentMap<ProjectCumulativeContributionsExtractor>,
+    project_cumulative_commit_contributions: PersistentMap<ProjectCumulativeContributionsExtractor>,
+
     project_unique_files:           PersistentMap<ProjectUniqueFilesExtractor>,
     project_original_files:         PersistentMap<ProjectOriginalFilesExtractor>,
     project_impact:                 PersistentMap<ProjectImpactExtractor>,
@@ -1447,8 +1473,10 @@ impl Data {
             project_updated:                PersistentMap::new(CACHE_FILE_PROJECT_UPDATED,                log.clone(),dir.clone()),
             project_pushed:                 PersistentMap::new(CACHE_FILE_PROJECT_PUSHED,                 log.clone(),dir.clone()),
             project_default_branch:         PersistentMap::new(CACHE_FILE_PROJECT_DEFAULT_BRANCH,         log.clone(),dir.clone()),
-            project_commit_contributions:   PersistentMap::new(CACHE_FILE_PROJECT_COMMIT_CONTRIBUTIONS,     log.clone(),dir.clone()),
-            project_change_contributions:   PersistentMap::new(CACHE_FILE_PROJECT_CHANGE_CONTRIBUTIONS,     log.clone(),dir.clone()),
+            project_commit_contributions:   PersistentMap::new(CACHE_FILE_PROJECT_COMMIT_CONTRIBUTIONS,   log.clone(),dir.clone()),
+            project_change_contributions:   PersistentMap::new(CACHE_FILE_PROJECT_CHANGE_CONTRIBUTIONS,   log.clone(),dir.clone()),
+            project_cumulative_commit_contributions: PersistentMap::new(CACHE_FILE_PROJECT_CUMULATIVE_COMMIT_CONTRIBUTIONS, log.clone(),dir.clone()),
+            project_cumulative_change_contributions: PersistentMap::new(CACHE_FILE_PROJECT_CUMULATIVE_CHANGE_CONTRIBUTIONS, log.clone(),dir.clone()),
             project_unique_files:           PersistentMap::new(CACHE_FILE_PROJECT_UNIQUE_FILES,           log.clone(),dir.clone()),
             project_original_files:         PersistentMap::new(CACHE_FILE_PROJECT_ORIGINAL_FILES,         log.clone(),dir.clone()),
             project_impact:                 PersistentMap::new(CACHE_FILE_PROJECT_IMPACT,                 log.clone(),dir.clone()),
@@ -1600,6 +1628,9 @@ impl Data {
             }).collect()
         })
     }
+    pub fn project_cumulative_commit_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Percentage>> {
+        self.smart_load_project_cumulative_commit_contributions(source).get(id).pirate()
+    }
     pub fn project_change_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, Percentage)>> {
         self.smart_load_project_change_contributions(source).get(id).pirate()
     }
@@ -1609,6 +1640,9 @@ impl Data {
                 self.user(source, user_id).map(|user| (user.clone(), *n))
             }).collect()
         })
+    }
+    pub fn project_cumulative_change_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Percentage>> {
+        self.smart_load_project_cumulative_change_contributions(source).get(id).pirate()
     }
     pub fn project_url(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
         self.smart_load_project_urls(source).get(id).pirate()
@@ -2019,6 +2053,12 @@ impl Data {
     }
     pub fn smart_load_project_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, Percentage)>> {
         load_with_prerequisites!(self, project_commit_contributions, source, two, project_commits, commits)
+    }
+    pub fn smart_load_project_cumulative_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<Percentage>> {
+        load_with_prerequisites!(self, project_cumulative_change_contributions, source, one, project_change_contributions)
+    }
+    pub fn smart_load_project_cumulative_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<Percentage>> {
+        load_with_prerequisites!(self, project_cumulative_commit_contributions, source, one, project_commit_contributions)
     }
 
     pub fn smart_load_project_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {

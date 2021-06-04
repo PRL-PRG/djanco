@@ -406,11 +406,16 @@ impl Project {
     pub fn has_downloads    (&self, store: &Database)    -> Option<bool>                    { store.project_has_downloads(&self.id)          }
     pub fn has_wiki         (&self, store: &Database)    -> Option<bool>                    { store.project_has_wiki(&self.id)               }
     pub fn has_pages        (&self, store: &Database)    -> Option<bool>                    { store.project_has_pages(&self.id)              }
-    pub fn created          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_created(&self.id)                }
-    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>                     { store.project_updated(&self.id)                }
-    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>                     { store.project_pushed(&self.id)                 }
+    pub fn created          (&self, store: &Database)    -> Option<Timestamp>               { store.project_created(&self.id)                }
+    pub fn updated          (&self, store: &Database)    -> Option<Timestamp>               { store.project_updated(&self.id)                }
+    pub fn pushed           (&self, store: &Database)    -> Option<Timestamp>               { store.project_pushed(&self.id)                 }
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_default_branch(&self.id)                 }
     // TODO project commit frequency
+
+    pub fn change_contributions   (&self, store: &Database) -> Option<Vec<(User, usize)>>   { store.project_change_contributions(&self.id)    }
+    pub fn commit_contributions   (&self, store: &Database) -> Option<Vec<(User, usize)>>   { store.project_commit_contributions(&self.id)    }
+    pub fn change_contribution_ids(&self, store: &Database) -> Option<Vec<(UserId, usize)>> { store.project_change_contribution_ids(&self.id) }
+    pub fn commit_contribution_ids(&self, store: &Database) -> Option<Vec<(UserId, usize)>> { store.project_commit_contribution_ids(&self.id) }
 
     pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }
     pub fn unique_files     (&self, store: &Database)    -> Option<usize>                   { store.project_unique_files(&self.id)                  }
@@ -430,6 +435,8 @@ impl Project {
     pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                  }
     pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                 { store.duplicated_code(&self.id)                  }
     pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.is_valid(&self.id)                  }
+    pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id) }
+    pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id) }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -805,6 +812,10 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn duplicated_code (&self)        -> Option<f64>                    { self.item.duplicated_code(&self.data) }
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)     }
     pub fn is_valid   (&self)    -> Option<bool>                         { self.item.is_valid(&self.data)     }
+    pub fn change_contributions(&self)    -> Option<Vec<(User, usize)>>   { self.item.change_contributions(self.data)    }
+    pub fn commit_contributions(&self)    -> Option<Vec<(User, usize)>>   { self.item.commit_contributions(self.data)    }
+    pub fn change_contribution_ids(&self) -> Option<Vec<(UserId, usize)>> { self.item.change_contribution_ids(self.data) }
+    pub fn commit_contribution_ids(&self) -> Option<Vec<(UserId, usize)>> { self.item.commit_contribution_ids(self.data) }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)
@@ -853,6 +864,12 @@ impl<'a> ItemWithData<'a, Project> {
     }
     pub fn major_language_changes(&self) -> Option<usize> {
         self.item.major_language_changes(&self.data)
+    }
+    pub fn all_forks(&self) -> Option<Vec<ProjectId>> {
+        self.item.all_forks(&self.data)
+    }
+    pub fn all_forks_count(&self) -> Option<usize> {
+        self.item.all_forks_count(&self.data)
     }
 }
 impl<'a> ItemWithData<'a, Snapshot> {

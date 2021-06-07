@@ -411,7 +411,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "longest_inactivity_streak", "avg_commit_rate",
              "first_commit","last_commit", 
              "is_abandoned", "locs",
-             "duplicated_code", "is_valid",
+             "duplicated_code", "is_valid", "max_experience", "project_experience",
              "authors_contributing_95%_commits", "authors_contributing_80%_commits", "authors_contributing_50%_commits",
              "authors_contributing_95%_changes", "authors_contributing_80%_changes", "authors_contributing_50%_changes"
          ]
@@ -471,6 +471,8 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.project_locs().to_string_or_empty(),
              self.duplicated_code().to_string_or_empty(),
              self.is_valid().to_string_or_empty(),
+             self.project_max_experience().to_string_or_empty(),
+             self.project_experience().to_string_or_empty(),
              self.authors_contributing_commits_count(95).to_string_or_empty(),
              self.authors_contributing_commits_count(80).to_string_or_empty(),
              self.authors_contributing_commits_count(50).to_string_or_empty(),
@@ -535,6 +537,8 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.project_locs().to_string_or_empty(),
             self.duplicated_code().to_string_or_empty(),
             self.is_valid().to_string_or_empty(),
+            self.project_max_experience().to_string_or_empty(),
+            self.project_experience().to_string_or_empty(),
             self.authors_contributing_commits_count(95).to_string_or_empty(),
             self.authors_contributing_commits_count(80).to_string_or_empty(),
             self.authors_contributing_commits_count(50).to_string_or_empty(),

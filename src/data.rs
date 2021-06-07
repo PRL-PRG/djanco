@@ -243,19 +243,19 @@ impl Database {
     pub fn project_default_branch(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_default_branch(&self.source, id)
     }
-    pub fn project_change_contributions(&self, id: &ProjectId) -> Option<Vec<(User, Percentage)>> {
+    pub fn project_change_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>> {
         self.data.borrow_mut().project_change_contributions(&self.source, id)
     }
-    pub fn project_change_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, Percentage)>> {
+    pub fn project_change_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
         self.data.borrow_mut().project_change_contribution_ids(&self.source, id)
     }
     pub fn project_cumulative_change_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>> {
         self.data.borrow_mut().project_cumulative_change_contributions(&self.source, id)
     }
-    pub fn project_commit_contributions(&self, id: &ProjectId) -> Option<Vec<(User, Percentage)>> {
+    pub fn project_commit_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>> {
         self.data.borrow_mut().project_commit_contributions(&self.source, id)
     }
-    pub fn project_commit_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, Percentage)>> {
+    pub fn project_commit_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
         self.data.borrow_mut().project_commit_contribution_ids(&self.source, id)
     }
     pub fn project_cumulative_commit_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>> {
@@ -1005,7 +1005,7 @@ impl TripleMapExtractor for SnapshotProjectsExtractor {
 struct ProjectCommitContributionsExtractor {}
 impl MapExtractor for ProjectCommitContributionsExtractor {
     type Key = ProjectId;
-    type Value = Vec<(UserId, Percentage)>;
+    type Value = Vec<(UserId, usize)>;
 }
 impl DoubleMapExtractor for ProjectCommitContributionsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
@@ -1018,11 +1018,11 @@ impl DoubleMapExtractor for ProjectCommitContributionsExtractor {
                 .into_group_map()
                 .into_iter()
                 .map(|(author_id, commits)| {
-                    (author_id, (commits.len()/commit_ids.len()) as Percentage)
+                    (author_id, commits.len())
                 })
                 .sorted_by_key(|(_, contributed_commits)| *contributed_commits)
                 .rev()
-                .collect::<Vec<(UserId, Percentage)>>())
+                .collect::<Vec<(UserId, usize)>>())
         }).collect()
     }
 }
@@ -1030,7 +1030,7 @@ impl DoubleMapExtractor for ProjectCommitContributionsExtractor {
 struct ProjectChangeContributionsExtractor {}
 impl MapExtractor for ProjectChangeContributionsExtractor {
     type Key = ProjectId;
-    type Value = Vec<(UserId, Percentage)>;
+    type Value = Vec<(UserId, usize)>;
 }
 impl TripleMapExtractor for ProjectChangeContributionsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
@@ -1048,12 +1048,12 @@ impl TripleMapExtractor for ProjectChangeContributionsExtractor {
                 })
                 .into_group_map()
                 .into_iter()
-                .map(|(author_id, commits)| {
-                    (author_id, (commits.len()/commit_ids.len()) as Percentage)
+                .map(|(author_id, changes)| {
+                    (author_id, changes.into_iter().sum()) 
                 })
                 .sorted_by_key(|(_, contributed_commits)| *contributed_commits)
                 .rev()
-                .collect::<Vec<(UserId, Percentage)>>())
+                .collect::<Vec<(UserId, usize)>>())
         }).collect()
     }
 }
@@ -1064,17 +1064,22 @@ impl MapExtractor for ProjectCumulativeContributionsExtractor {
     type Value = Vec<Percentage>;
 }
 impl SingleMapExtractor for ProjectCumulativeContributionsExtractor {
-    type A = BTreeMap<ProjectId, Vec<(UserId, Percentage)>>;
+    type A = BTreeMap<ProjectId, Vec<(UserId, usize)>>;
     fn extract(_: &Source, project_change_contributions: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         project_change_contributions.iter().map(|(project_id, contributions)| {
-            let mut cumulative_contributions: Vec<Percentage> = Vec::new();
+            let mut total_contributions = 0usize;
+            let mut cumulative_contributions: Vec<usize> = Vec::new();
             for &(_user_id, contribution) in contributions {
-                cumulative_contributions.push(0u8);
+                cumulative_contributions.push(0usize);
                 for i in 0..cumulative_contributions.len() {
-                    cumulative_contributions[i] = cumulative_contributions[i] + contribution
+                    cumulative_contributions[i] = cumulative_contributions[i] + contribution;                    
                 }
+                total_contributions = total_contributions + contribution;
             }                    
-            (project_id.clone(), cumulative_contributions)
+            let cumulative_contribution_percentages = cumulative_contributions.into_iter()
+                .map(|contributions| (contributions / total_contributions) as Percentage)
+                .collect();
+            (project_id.clone(), cumulative_contribution_percentages)
         }).collect()
     }
 } 
@@ -1636,10 +1641,10 @@ impl Data {
     pub fn project_default_branch(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
         self.smart_load_project_default_branch(source).get(id).pirate()
     }
-    pub fn project_commit_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, Percentage)>> {
+    pub fn project_commit_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
         self.smart_load_project_commit_contributions(source).get(id).pirate()
     }
-    pub fn project_commit_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(User, Percentage)>> {
+    pub fn project_commit_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(User, usize)>> {
         self.smart_load_project_commit_contributions(source).get(id).pirate().map(|contributions| {
             contributions.iter().flat_map(|(user_id, n)| {
                 self.user(source, user_id).map(|user| (user.clone(), *n))
@@ -1649,10 +1654,10 @@ impl Data {
     pub fn project_cumulative_commit_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Percentage>> {
         self.smart_load_project_cumulative_commit_contributions(source).get(id).pirate()
     }
-    pub fn project_change_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, Percentage)>> {
+    pub fn project_change_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
         self.smart_load_project_change_contributions(source).get(id).pirate()
     }
-    pub fn project_change_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(User, Percentage)>> {
+    pub fn project_change_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(User, usize)>> {
         self.smart_load_project_change_contributions(source).get(id).pirate().map(|contributions| {
             contributions.iter().flat_map(|(user_id, n)| {
                 self.user(source, user_id).map(|user| (user.clone(), *n))
@@ -2086,10 +2091,10 @@ impl Data {
     fn smart_load_snapshot_projects(& mut self, source: &Source) -> &BTreeMap<SnapshotId,(usize, ProjectId)> {
         load_with_prerequisites!(self, snapshot_projects, source, three, commit_changes, commit_projects, commit_author_timestamps)
     }
-    pub fn smart_load_project_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, Percentage)>> {
+    pub fn smart_load_project_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
         load_with_prerequisites!(self, project_change_contributions, source, three, project_commits, commits, commit_changes)
     }
-    pub fn smart_load_project_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, Percentage)>> {
+    pub fn smart_load_project_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
         load_with_prerequisites!(self, project_commit_contributions, source, two, project_commits, commits)
     }
     pub fn smart_load_project_cumulative_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<Percentage>> {

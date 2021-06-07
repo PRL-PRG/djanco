@@ -412,12 +412,12 @@ impl Project {
     pub fn default_branch   (&self, store: &Database)    -> Option<String>                  { store.project_default_branch(&self.id)                 }
     // TODO project commit frequency
 
-    pub fn change_contributions           (&self, store: &Database) -> Option<Vec<(User, Percentage)>>   { store.project_change_contributions(&self.id)            }
-    pub fn commit_contributions           (&self, store: &Database) -> Option<Vec<(User, Percentage)>>   { store.project_commit_contributions(&self.id)            }
-    pub fn change_contribution_ids        (&self, store: &Database) -> Option<Vec<(UserId, Percentage)>> { store.project_change_contribution_ids(&self.id)         }
-    pub fn commit_contribution_ids        (&self, store: &Database) -> Option<Vec<(UserId, Percentage)>> { store.project_commit_contribution_ids(&self.id)         }
-    pub fn cumulative_change_contributions(&self, store: &Database) -> Option<Vec<Percentage>>           { store.project_cumulative_change_contributions(&self.id) }
-    pub fn cumulative_commit_contributions(&self, store: &Database) -> Option<Vec<Percentage>>           { store.project_cumulative_commit_contributions(&self.id) }
+    pub fn change_contributions           (&self, store: &Database) -> Option<Vec<(User, usize)>>   { store.project_change_contributions(&self.id)            }
+    pub fn commit_contributions           (&self, store: &Database) -> Option<Vec<(User, usize)>>   { store.project_commit_contributions(&self.id)            }
+    pub fn change_contribution_ids        (&self, store: &Database) -> Option<Vec<(UserId, usize)>> { store.project_change_contribution_ids(&self.id)         }
+    pub fn commit_contribution_ids        (&self, store: &Database) -> Option<Vec<(UserId, usize)>> { store.project_commit_contribution_ids(&self.id)         }
+    pub fn cumulative_change_contributions(&self, store: &Database) -> Option<Vec<Percentage>>      { store.project_cumulative_change_contributions(&self.id) }
+    pub fn cumulative_commit_contributions(&self, store: &Database) -> Option<Vec<Percentage>>      { store.project_cumulative_commit_contributions(&self.id) }
 
     pub fn authors_contributing_commits      (&self, store: &Database, percentage: Percentage) -> Option<Vec<User>>   { store.project_authors_contributing_commits(&self.id, percentage)       }
     pub fn authors_contributing_changes      (&self, store: &Database, percentage: Percentage) -> Option<Vec<User>>   { store.project_authors_contributing_changes(&self.id, percentage)       }
@@ -803,12 +803,12 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn pushed           (&self)    -> Option<Timestamp>               { self.item.pushed(&self.data)                 }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)         }
 
-    pub fn change_contributions(&self)            -> Option<Vec<(User, Percentage)>>   { self.item.change_contributions(self.data)    }
-    pub fn commit_contributions(&self)            -> Option<Vec<(User, Percentage)>>   { self.item.commit_contributions(self.data)    }
-    pub fn change_contribution_ids(&self)         -> Option<Vec<(UserId, Percentage)>> { self.item.change_contribution_ids(self.data) }    
-    pub fn commit_contribution_ids(&self)         -> Option<Vec<(UserId, Percentage)>> { self.item.commit_contribution_ids(self.data) }
-    pub fn cumulative_change_contributions(&self) -> Option<Vec<Percentage>>           { self.item.cumulative_change_contributions(self.data) }
-    pub fn cumulative_commit_contributions(&self) -> Option<Vec<Percentage>>           { self.item.cumulative_commit_contributions(self.data) }
+    pub fn change_contributions(&self)            -> Option<Vec<(User, usize)>>   { self.item.change_contributions(self.data)    }
+    pub fn commit_contributions(&self)            -> Option<Vec<(User, usize)>>   { self.item.commit_contributions(self.data)    }
+    pub fn change_contribution_ids(&self)         -> Option<Vec<(UserId, usize)>> { self.item.change_contribution_ids(self.data) }    
+    pub fn commit_contribution_ids(&self)         -> Option<Vec<(UserId, usize)>> { self.item.commit_contribution_ids(self.data) }
+    pub fn cumulative_change_contributions(&self) -> Option<Vec<Percentage>>      { self.item.cumulative_change_contributions(self.data) }
+    pub fn cumulative_commit_contributions(&self) -> Option<Vec<Percentage>>      { self.item.cumulative_commit_contributions(self.data) }
 
     pub fn authors_contributing_commits          (&self, percentage: Percentage) -> Option<Vec<User>>   { self.item.authors_contributing_commits(self.data, percentage)       }
     pub fn authors_contributing_changes          (&self, percentage: Percentage) -> Option<Vec<User>>   { self.item.authors_contributing_changes(self.data, percentage)       }

@@ -408,9 +408,8 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "files",
              "major_language", "major_language_ratio", "major_language_changes",
              "all_forks_count",
-             "commit_contributions", "cumulative commit_contributions",
-             "change_contributions", "cumulative_change_contributions"]
-             
+             "authors_contributing_95%_commits", "authors_contributing_80%_commits", "authors_contributing_50%_commits",
+             "authors_contributing_95%_changes", "authors_contributing_80%_changes", "authors_contributing_50%_changes"]        
     }
 
     fn row(&self) -> Vec<String> {        
@@ -457,10 +456,12 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.major_language_ratio().to_string_or_empty(),
              self.major_language_changes().to_string_or_empty(),
              self.all_forks_count().to_string_or_empty(),
-             self.commit_contribution_ids().map(|v| v.drop_first().format_as_percentages().to_space_separated_string()).to_string_or_empty(),
-             self.cumulative_commit_contributions().map(|v| v.format_as_percentages().to_space_separated_string()).to_string_or_empty(),
-             self.change_contribution_ids().map(|v| v.drop_first().format_as_percentages().to_space_separated_string()).to_string_or_empty(),
-             self.cumulative_change_contributions().map(|v| v.format_as_percentages().to_space_separated_string()).to_string_or_empty()]
+             self.authors_contributing_commits_count(95).to_string_or_empty(),
+             self.authors_contributing_commits_count(80).to_string_or_empty(),
+             self.authors_contributing_commits_count(50).to_string_or_empty(),
+             self.authors_contributing_changes_count(95).to_string_or_empty(),
+             self.authors_contributing_changes_count(80).to_string_or_empty(),
+             self.authors_contributing_changes_count(50).to_string_or_empty()]
     }
 
     fn rows(&self) -> Vec<Vec<String>> {
@@ -508,10 +509,12 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.major_language_ratio().to_string_or_empty(),
             self.major_language_changes().to_string_or_empty(),
             self.all_forks_count().to_string_or_empty(),
-            self.commit_contribution_ids().map(|v| v.drop_first().format_as_percentages().to_space_separated_string()).to_string_or_empty(),
-            self.cumulative_commit_contributions().map(|v| v.format_as_percentages().to_space_separated_string()).to_string_or_empty(),
-            self.change_contribution_ids().map(|v| v.drop_first().format_as_percentages().to_space_separated_string()).to_string_or_empty(),
-            self.cumulative_change_contributions().map(|v| v.format_as_percentages().to_space_separated_string()).to_string_or_empty()
+            self.authors_contributing_commits_count(95).to_string_or_empty(),
+            self.authors_contributing_commits_count(80).to_string_or_empty(),
+            self.authors_contributing_commits_count(50).to_string_or_empty(),
+            self.authors_contributing_changes_count(95).to_string_or_empty(),
+            self.authors_contributing_changes_count(80).to_string_or_empty(),
+            self.authors_contributing_changes_count(50).to_string_or_empty(),
         ]]
     }
 }

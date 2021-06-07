@@ -664,18 +664,18 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
 
     /*
-     * Calculates the percentage of changes each author added to the project. 
+     * Calculates the number of changes each author added to the project. 
      * Returns a list of authors with the number of changes they did. 
      * The list is sorted by the number of changes in desceding order.
      */
-    impl_attribute![?..   objects::Project, ChangeContributions, (objects::User, Percentage), change_contributions, author_count];
+    impl_attribute![?..   objects::Project, ChangeContributions, (objects::User, usize), change_contributions, author_count];
 
     /*
-     * Calculates the percentage of commits each user authored in the project. 
+     * Calculates the number of commits each user authored in the project. 
      * Returns a list of authors with the number of committs they are responsible for.
      * The list is sorted by the number of commits in desceding order.
      */
-    impl_attribute![?..   objects::Project, CommitContributions, (objects::User, Percentage), commit_contributions, author_count];
+    impl_attribute![?..   objects::Project, CommitContributions, (objects::User, usize), commit_contributions, author_count];
 
     /*
      * Calculates the percentage of commits successive users authored in the project.

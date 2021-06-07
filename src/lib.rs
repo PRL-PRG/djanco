@@ -74,7 +74,8 @@ use crate::data::Database;
 use crate::log::{Log, Verbosity};
 use crate::source::Source;
 
-pub type Timestamp = i64;
+pub type Timestamp = i64; // Epoch
+pub type Percentage = u8; // Positive integer value 0-100.
 
 pub trait AsTimestamp {
     fn as_naive_date_string(&self) -> String;
@@ -616,6 +617,7 @@ pub mod project {
     use crate::attrib::*;
     use crate::Timestamp;
     use crate::Store;
+    use crate::Percentage;
 
     impl_attribute![!+    objects::Project, Itself];
     impl_attribute![!     objects::Project, Raw];
@@ -686,6 +688,66 @@ pub mod project {
      * The list is sorted by the number of commits in desceding order.
      */
     impl_attribute![?..   objects::Project, CommitContributions, (objects::User, usize), commit_contributions, author_count];
+
+    /*
+     * Calculates the percentage of commits successive users authored in the project.
+     * The users are added to the aggregate in descending size of contributions.
+     * 
+     * CommitContributions                        => CummulativeCommitContributions
+     * [(User1, 50%), (User3, 40%), (User2, 10%)] => [50%, 90%, 100%]
+     * 
+     * The list is sorted so that [0] represents the contribution of 1 user, and 
+     * [i] represents the cumulative contribution of i-1 users.
+     */
+    impl_attribute![?..   objects::Project, CummulativeCommitContributions, Percentage, cumulative_commit_contributions, author_count];
+
+    /*
+     * Calculates the percentage of commits successive authors added to the project. 
+     * The users are added to the aggregate in descending size of contributions.
+     *
+     * ChangesContributions                       => CummulativeChangesContributions
+     * [(User1, 50%), (User3, 40%), (User2, 10%)] => [50%, 90%, 100%]
+     * 
+     * The list is sorted so that [0] represents the contribution of 1 user, and 
+     * [i] represents the cumulative contribution of i-1 users.
+     */
+    impl_attribute![?..   objects::Project, CummulativeChangeContributions, Percentage, cumulative_change_contributions, author_count];
+
+    /*
+     * Calculates the (minimum) number of authors responsible for N% commits. 
+     * The authors are return in decreasing order of most contributions
+     * 
+     * CommitContributions                        => AuthorsContributingCommits(95)
+     * [(User1, 50%), (User3, 40%), (User2, 10%)] => [User1, User3, User2]
+     * 
+     *                                            => AuthorsContributingCommits(80)
+     *                                            => [User1, User3]
+     * 
+     *                                            => AuthorsContributingCommits(50)
+     *                                            => [User1]
+     * 
+     * Since this is parameterized, this attribute is not cached. 
+     * CommitContributions is cached.
+     */
+    impl_attribute![?+..  objects::Project, AuthorsContributingCommits(Percentage), objects::User, authors_contributing_commits_with_data, authors_contributing_commits_count];
+
+    /*
+     * Calculates the (minimum) number of authors responsible for N% changes. 
+     * The authors are return in decreasing order of most contributions
+     * 
+     * ChangesContributions                       => AuthorsContributingChanges(95)
+     * [(User1, 50%), (User3, 40%), (User2, 10%)] => [User1, User3, User2]
+     * 
+     *                                            => AuthorsContributingChanges(80)
+     *                                            => [User1, User3]
+     * 
+     *                                            => AuthorsContributingChanges(50)
+     *                                            => [User1]
+     * 
+     * Since this is parameterized, this attribute is not cached. 
+     * CommitContributions is cached.
+     */
+    impl_attribute![?+..  objects::Project, AuthorsContributingChanges(Percentage), objects::User, authors_contributing_changes_with_data, authors_contributing_changes_count];
 
     /* Number of snapshots in the project that only ever exist in the project. 
      */

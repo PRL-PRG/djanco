@@ -1,3 +1,4 @@
+use crate::Percentage;
 use std::io::Write;
 use std::fs::{File, create_dir_all};
 use std::path::PathBuf;
@@ -409,9 +410,11 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "all_forks_count",
              "longest_inactivity_streak", "avg_commit_rate",
              "first_commit","last_commit", 
-             "is_abandoned", "LOCs",
-             "duplicated_code", "is_valid"
-             ]
+             "is_abandoned", "locs",
+             "duplicated_code", "is_valid",
+             "authors_contributing_95%_commits", "authors_contributing_80%_commits", "authors_contributing_50%_commits",
+             "authors_contributing_95%_changes", "authors_contributing_80%_changes", "authors_contributing_50%_changes"
+         ]
     }
 
     fn row(&self) -> Vec<String> {        
@@ -467,7 +470,13 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.is_abandoned().to_string_or_empty(),
              self.project_locs().to_string_or_empty(),
              self.duplicated_code().to_string_or_empty(),
-             self.is_valid().to_string_or_empty()
+             self.is_valid().to_string_or_empty(),
+             self.authors_contributing_commits_count(95).to_string_or_empty(),
+             self.authors_contributing_commits_count(80).to_string_or_empty(),
+             self.authors_contributing_commits_count(50).to_string_or_empty(),
+             self.authors_contributing_changes_count(95).to_string_or_empty(),
+             self.authors_contributing_changes_count(80).to_string_or_empty(),
+             self.authors_contributing_changes_count(50).to_string_or_empty()
         ]
     }
 
@@ -525,7 +534,13 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
             self.is_abandoned().to_string_or_empty(),
             self.project_locs().to_string_or_empty(),
             self.duplicated_code().to_string_or_empty(),
-            self.is_valid().to_string_or_empty()
+            self.is_valid().to_string_or_empty(),
+            self.authors_contributing_commits_count(95).to_string_or_empty(),
+            self.authors_contributing_commits_count(80).to_string_or_empty(),
+            self.authors_contributing_commits_count(50).to_string_or_empty(),
+            self.authors_contributing_changes_count(95).to_string_or_empty(),
+            self.authors_contributing_changes_count(80).to_string_or_empty(),
+            self.authors_contributing_changes_count(50).to_string_or_empty()
         ]]
     }
 }
@@ -868,6 +883,35 @@ impl FromCSV for SnapshotId {
 }
 
 // --- convenience functions -----------------------------------------------------------------------
+
+pub trait TupleVectorConvenience<Ta, Tb>{
+    fn drop_second(self) -> Vec<Ta>;
+    fn drop_first(self) -> Vec<Tb>;
+}
+
+impl<Ta, Tb> TupleVectorConvenience<Ta, Tb> for Vec<(Ta, Tb)> {
+    fn drop_second(self) -> Vec<Ta> {
+        self.into_iter().map(|(e, _)| e).collect()
+    }
+    fn drop_first(self) -> Vec<Tb> {
+        self.into_iter().map(|(_, e)| e).collect()
+    }
+}
+
+pub trait PercentageVectorConvenience {
+    fn format_as_percentages(&self) -> Vec<String>;
+}
+
+impl PercentageVectorConvenience for Vec<Percentage> {
+    fn format_as_percentages(&self) -> Vec<String> {
+        self.iter().map(|p| {
+            if p > &100 {
+                eprintln!("WARNING: percentage value should <0, 100> but found {}", p);
+            }
+            format!("{}%", p)
+        }).collect()
+    }
+}
 
 pub trait JoinConvenience {
     fn to_space_separated_string(&self) -> String;

@@ -729,6 +729,12 @@ pub mod project {
        For simplicity we assume a project is a fork if it is younger *and* if it shares at least one commit by hash. 
      */
     impl_attribute![?..   objects::Project, AllForks, objects::ProjectId, all_forks, all_forks_count];
+
+    /* For each branch returns the head tree.
+     
+       The tree is a mapping from path ids to snapshot ids. All paths are considered. Deleted files are not displayed.
+     */
+    impl_attribute![?..   objects::Project, HeadTrees, (String, Vec<(objects::PathId, objects::SnapshotId)>), head_trees, head_trees_count];
 }
 
 pub mod commit {

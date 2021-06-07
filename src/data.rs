@@ -1668,24 +1668,45 @@ impl Data {
         self.smart_load_project_cumulative_change_contributions(source).get(id).pirate()
     }
     // TODO make a mechanism for caching parameterized attributes
-    pub fn project_authors_contributing_commits(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
-        //self.project_commit_contribution_ids(source: &Source, id: &ProjectId).
-        unimplemented!()
+    fn calculate_contributing_authors_at_cutoff(contributions: Option<Vec<(UserId, usize)>>, percentage: Percentage) -> Option<Vec<UserId>>{
+        if let Some(contributions) = contributions {
+            let total_contributions: usize = contributions.iter().map(|(_, contributions)| contributions).sum();
+            let target_contributions: usize = (percentage as usize) * total_contributions;
+            let mut contributing_author_ids: Vec<UserId> = Vec::new();
+            let mut contributions_so_far: usize = 0usize;
+            for (author_id, contribution) in contributions {
+                contributions_so_far = contributions_so_far + contribution;
+                contributing_author_ids.push(author_id);
+                if contributions_so_far >= target_contributions {
+                    break;
+                }
+            }
+            return Some(contributing_author_ids)
+        } else {
+            None
+        }  
     }
-    pub fn project_authors_contributing_changes(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
-        unimplemented!()
-    }
-    pub fn project_author_ids_contributing_commits(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
-        unimplemented!()
+    pub fn project_author_ids_contributing_commits(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {        
+        Self::calculate_contributing_authors_at_cutoff(self.project_commit_contribution_ids(source, id), percentage)
     }
     pub fn project_author_ids_contributing_changes(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
-        unimplemented!()
+        Self::calculate_contributing_authors_at_cutoff(self.project_change_contribution_ids(source, id), percentage)
+    }
+    pub fn project_authors_contributing_commits(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
+        self.project_author_ids_contributing_commits(source, id, percentage).map(|ids| {
+            ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
+        })
+    }
+    pub fn project_authors_contributing_changes(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
+        self.project_author_ids_contributing_changes(source, id, percentage).map(|ids| {
+            ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
+        })
     }
     pub fn project_authors_contributing_commits_count(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<usize> {
-        unimplemented!()
+        self.project_author_ids_contributing_commits(source, id, percentage).map(|ids| ids.len())
     }
     pub fn project_authors_contributing_changes_count(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<usize> {
-        unimplemented!()
+        self.project_author_ids_contributing_changes(source, id, percentage).map(|ids| ids.len())
     }
     pub fn project_url(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
         self.smart_load_project_urls(source).get(id).pirate()

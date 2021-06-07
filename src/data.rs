@@ -1671,7 +1671,7 @@ impl Data {
     fn calculate_contributing_authors_at_cutoff(contributions: Option<Vec<(UserId, usize)>>, percentage: Percentage) -> Option<Vec<UserId>>{
         if let Some(contributions) = contributions {
             let total_contributions: usize = contributions.iter().map(|(_, contributions)| contributions).sum();
-            let target_contributions: usize = (percentage as usize) * total_contributions;
+            let target_contributions: usize = ((percentage as usize) * total_contributions) / 100;
             let mut contributing_author_ids: Vec<UserId> = Vec::new();
             let mut contributions_so_far: usize = 0usize;
             for (author_id, contribution) in contributions {

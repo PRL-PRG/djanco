@@ -662,6 +662,17 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Users, objects::User, users_with_data, user_count];
     impl_attribute![?+..  objects::Project, Paths, objects::Path, paths_with_data, path_count];
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
+    impl_attribute![?    objects::Project, LongestInactivityStreak, i64, longest_inactivity_streak];
+    impl_attribute![?    objects::Project, AvgCommitRate, i64, avg_commit_rate];
+    impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
+    impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
+    impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
+    impl_attribute![?    objects::Project, Locs, usize, project_locs];
+    impl_attribute![?    objects::Project, MaxExperience, i32, project_max_experience];
+    
+
+    // Duplicated_code is a percentage. A number between 0 and 1
+    impl_attribute![?    objects::Project, DuplicatedCode, f64, duplicated_code];
 
     /*
      * Calculates the number of changes each author added to the project. 
@@ -773,11 +784,19 @@ pub mod project {
     /* Number of changes to the major language. 
      */
     impl_attribute![?     objects::Project, MajorLanguageChanges, usize, major_language_changes];
+
+    impl_attribute![?     objects::Project, IsValid, bool, is_valid];
     /* Returns the list of projects that have been forked from the current project. 
 
        For simplicity we assume a project is a fork if it is younger *and* if it shares at least one commit by hash. 
      */
     impl_attribute![?..   objects::Project, AllForks, objects::ProjectId, all_forks, all_forks_count];
+
+    /* For each branch returns the head tree.
+     
+       The tree is a mapping from path ids to snapshot ids. All paths are considered. Deleted files are not displayed.
+     */
+    impl_attribute![?..   objects::Project, HeadTrees, (String, Vec<(objects::PathId, objects::SnapshotId)>), head_trees, head_trees_count];
 }
 
 pub mod commit {
@@ -850,6 +869,7 @@ pub mod user {
     impl_attribute![?..  objects::User, CommittedCommitIds, objects::CommitId, committed_commit_ids, committed_commit_count];
     impl_attribute![?+.. objects::User, AuthoredCommits, objects::Commit, authored_commits_with_data, authored_commit_count];
     impl_attribute![?+.. objects::User, CommittedCommits, objects::Commit, committed_commits_with_data, committed_commit_count];
+    impl_attribute![?    objects::User, DeveloperExperience, i32, developer_experience];
 }
 
 pub mod path {
@@ -872,6 +892,7 @@ pub mod snapshot {
     impl_attribute![!   objects::Snapshot, Id, objects::SnapshotId, id];
     impl_attribute![!   objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned];
     impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];
+    impl_attribute![?   objects::Snapshot, Loc, usize, snapshot_locs];
 
     /* Number of projects in the database that contain the snapshot (or did in the past). 
     

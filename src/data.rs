@@ -73,6 +73,8 @@ pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_MAJOR_LANGUAGE_CHANGES: &'static str = "project_major_language_changes";
     pub static CACHE_FILE_PROJECT_ALL_FORKS:              &'static str = "project_all_forks";
     pub static CACHE_FILE_PROJECT_ALL_FORKS_COUNT:        &'static str = "project_all_forks_count";
+    pub static CACHE_FILE_PROJECT_HEAD_TREES:             &'static str = "project_head_trees";
+    pub static CACHE_FILE_PROJECT_HEAD_TREES_COUNT:       &'static str = "project_head_trees_count";
     pub static CACHE_FILE_USERS:                          &'static str = "users";
     pub static CACHE_FILE_USER_AUTHORED_COMMITS:          &'static str = "user_authored_commits";
     pub static CACHE_FILE_USER_COMMITTED_COMMITS:         &'static str = "user_committed_commits";
@@ -81,6 +83,7 @@ pub mod cache_filenames {
     pub static CACHE_FILE_USER_EXPERIENCE:                &'static str = "user_experience";
     pub static CACHE_FILE_USER_AUTHORED_COMMIT_COUNT:     &'static str = "user_authored_commit_count";
     pub static CACHE_FILE_USER_COMMITTED_COMMIT_COUNT:    &'static str = "user_committed_commit_count";
+    pub static CACHE_FILE_DEVELOPER_EXPERIENCE:           &'static str = "developer_experience";
     pub static CACHE_FILE_PATHS:                          &'static str = "paths";
     pub static CACHE_FILE_COMMITS:                        &'static str = "commits";
     pub static CACHE_FILE_COMMIT_HASHES:                  &'static str = "commit_hashes";
@@ -92,6 +95,17 @@ pub mod cache_filenames {
     pub static CACHE_FILE_COMMIT_PROJECTS:                &'static str = "commit_projects";
     pub static CACHE_FILE_COMMIT_PROJECTS_COUNT:          &'static str = "commit_projects_count";
     pub static CACHE_FILE_SNAPSHOT_PROJECTS:              &'static str = "snapshot_projects";
+    pub static CACHE_FILE_LONGEST_INACTIVITTY_STREAK:     &'static str = "longest_inactivity_streak";
+    pub static CACHE_FILE_AVG_COMMIT_RATE:                &'static str = "avg_commit_rate";  
+    pub static CACHE_FILE_TIME_SINCE_LAST_COMMIT:         &'static str = "time_since_last_commit";  
+    pub static CACHE_FILE_TIME_SINCE_FIRST_COMMIT:        &'static str = "time_since_first_commit";  
+    pub static CACHE_FILE_IS_ABANDONED:                   &'static str = "is_abandoned";  
+    pub static CACHE_FILE_SNAPSHOT_LOCS:                  &'static str = "snapshot_locs";  
+    pub static CACHE_FILE_PROJECT_LOCS:                   &'static str = "project_locs";  
+    pub static CACHE_FILE_DUPLICATED_CODE:                &'static str = "duplicated_code";  
+    pub static CACHE_FILE_PROJECT_LOGS:                   &'static str = "project_logs";
+    pub static CACHE_FILE_PROJECT_IS_VALID:               &'static str = "project_is_valid";
+    pub static CACHE_FILE_PROJECT_MAX_EXPERIENCE:         &'static str = "project_max_experience";
 }
 
 use cache_filenames::*;
@@ -382,6 +396,12 @@ impl Database {
     pub fn project_all_forks_count(&self, id: &ProjectId) -> Option<usize> {
         self.data.borrow_mut().project_all_forks_count(&self.source, id)
     }
+    pub fn project_head_trees(&self, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        self.data.borrow_mut().project_head_trees(&self.source, id)
+    }
+    pub fn project_head_trees_count(&self, id : &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_head_trees_count(&self.source, id)
+    }
     pub fn user(&self, id: &UserId) -> Option<User> {
         self.data.borrow_mut().user(&self.source, id).pirate()
     }
@@ -448,11 +468,47 @@ impl Database {
     pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
         self.data.borrow_mut().user_committed_commits(&self.source, id)
     }
+    pub fn developer_experience(&self, id: &UserId) -> Option<i32> {
+        self.data.borrow_mut().developer_experience(&self.source, id)
+    }
+    pub fn project_longest_inactivity_streak(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().longest_inactivity_streak(&self.source, id)
+    }
+    pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32> {
+        self.data.borrow_mut().project_max_experience(&self.source, id)
+    }
+    pub fn avg_commit_rate(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().avg_commit_rate(&self.source, id)
+    }
+    pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().time_since_last_commit(&self.source, id)
+    }
+    pub fn project_time_since_first_commit(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().time_since_first_commit(&self.source, id)
+    }
+    pub fn is_abandoned(&self, id: &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().is_abandoned(&self.source, id)
+    }
+    pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize> {
+        self.data.borrow_mut().snapshot_locs(&self.source, id)
+    }
+    pub fn project_locs(&self, id: &ProjectId) -> Option<usize> {
+        self.data.borrow_mut().project_locs(&self.source, id)
+    }
+    pub fn duplicated_code(&self, id: &ProjectId) -> Option<f64> {
+        self.data.borrow_mut().duplicated_code(&self.source, id)
+    }
     pub fn snapshot_unique_projects(&self, id : &SnapshotId) -> usize {
         self.data.borrow_mut().snapshot_unique_projects(&self.source, id)
     }
     pub fn snapshot_original_project(&self, id : &SnapshotId) -> ProjectId {
         self.data.borrow_mut().snapshot_original_project(&self.source, id)
+    }
+    pub fn project_logs(&self, id : &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().project_logs(&self.source, id)
+    }
+    pub fn is_valid(&self, id : &ProjectId) -> Option<bool> {
+        self.data.borrow_mut().project_is_valid(&self.source, id)
     }
 }
 
@@ -480,6 +536,182 @@ impl MapExtractor for ProjectUrlExtractor {
 impl SourceMapExtractor for ProjectUrlExtractor {
     fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
         source.project_urls().collect()
+    }
+}
+
+struct LongestInactivityStreakExtractor {}
+impl MapExtractor for LongestInactivityStreakExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_commits.iter().flat_map(|(project_id, commit_ids)| {
+            let mut timestamps: Vec<i64> = Vec::new();
+            for commit_id in commit_ids {
+                let committer_timestamp = committed_timestamps.get(&commit_id);
+                if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
+            }
+            if timestamps.clone().len() == 0 {
+                Some((project_id.clone(), 0))
+            }else{
+                timestamps.sort();
+                let mut ans: i64 = 0;
+                let mut previous: i64 = timestamps[0];
+                for i in 1..timestamps.len() {
+                    if (timestamps[i] - previous) > ans {
+                        ans = timestamps[i] - previous;
+                    }
+                    previous = timestamps[i];   
+                }
+                Some((project_id.clone(), ans))
+            }
+        }).collect()
+    }
+}
+
+struct ProjectMaxExperienceExtractor {}
+impl MapExtractor for ProjectMaxExperienceExtractor {
+    type Key = ProjectId;
+    type Value = i32;
+}
+impl DoubleMapExtractor for ProjectMaxExperienceExtractor  {
+    type A = BTreeMap<ProjectId, Vec<UserId>>;
+    type B = BTreeMap<UserId, i32>;
+    fn extract(_: &Source, project_authors: &Self::A, developer_experience: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_authors.iter().map(|(project_id, author_ids)| {
+            let mut experiences: Vec<i32> = Vec::new();
+            for author_id in author_ids {
+                if let Some(author_experience ) = developer_experience.get(&author_id){ 
+                    experiences.push(*author_experience) 
+                };
+            }
+            if let Some(max_value) = experiences.iter().max(){
+                return (project_id.clone(), *max_value);
+            }
+            (project_id.clone(), 0)
+            
+        }).collect()
+    }
+}
+
+struct AvgCommitRateExtractor {}
+impl MapExtractor for AvgCommitRateExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl DoubleMapExtractor for AvgCommitRateExtractor  {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_commits.iter().flat_map(|(project_id, commit_ids)| {
+            let mut timestamps: Vec<i64> = Vec::new();
+            for i in 0..commit_ids.len(){
+                let committer_timestamp = committed_timestamps.get(&commit_ids[i]);
+                if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
+            }
+            if timestamps.clone().len() == 0 {
+                Some((project_id.clone(), 0))
+            }else{
+                timestamps.sort();
+                let mut ans: f64 = timestamps[0] as f64;
+                let mut previous: i64 = timestamps[0];
+                for i in 1..timestamps.len() {
+                    ans += (timestamps[i] - previous) as f64;
+                    previous = timestamps[i];
+                }
+                if timestamps.len() > 2 {
+                    ans /= (timestamps.len()-1) as f64;
+                }
+                Some((project_id.clone(), ans.round() as i64))
+            }
+        }).collect()
+    }
+}
+
+struct TimeSinceLastCommitExtractor {}
+impl MapExtractor for TimeSinceLastCommitExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl TripleMapExtractor for TimeSinceLastCommitExtractor  {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    type C = BTreeMap<ProjectId, i64>;
+    fn extract(_source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        
+        project_commits.iter().flat_map(|(project_id, commit_ids)| {
+            let mut timestamps: Vec<i64> = Vec::new();
+            for commit_id in commit_ids {
+                let committer_timestamp = committed_timestamps.get(&commit_id);
+                if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
+            }
+            if timestamps.len() == 0 {
+                Some((project_id.clone(), 0))
+            }else{
+                timestamps.sort();
+                if let Some(now) = last_checkpoint.get(&project_id) {
+                    if *now > 0 {
+                        return Some((project_id.clone(), (*now) - timestamps[timestamps.len()-1]));
+                    }   
+                }   
+                Some((project_id.clone(), 0))
+            }
+        }).collect()
+    }
+}
+
+
+struct TimeSinceFirstCommitExtractor {}
+impl MapExtractor for TimeSinceFirstCommitExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl TripleMapExtractor for TimeSinceFirstCommitExtractor  {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    type C = BTreeMap<ProjectId, i64>;
+    fn extract(_source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        
+        project_commits.iter().flat_map(|(project_id, commit_ids)| {
+            let mut timestamps: Vec<i64> = Vec::new();
+            for commit_id in commit_ids {
+                let committer_timestamp = committed_timestamps.get( &commit_id );
+                if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
+            }
+            if timestamps.clone().len() == 0 {
+                Some((project_id.clone(), 0))
+            }else{
+                timestamps.sort();
+                if let Some(now) = last_checkpoint.get( &project_id ) {
+                    if *now > 0 {
+                        return Some((project_id.clone(), (*now) - timestamps[0]));
+                    }   
+                }
+                Some((project_id.clone(), 0))   
+            }
+        }).collect()
+    }
+}
+
+struct IsAbandonedExtractor {}
+impl MapExtractor for IsAbandonedExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl DoubleMapExtractor for IsAbandonedExtractor  {
+    type A = BTreeMap<ProjectId, i64>;
+    type B = BTreeMap<ProjectId, i64>;
+    fn extract(_: &Source, longest_inactivity_streak: &Self::A, time_since_last_commit: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        longest_inactivity_streak.iter().flat_map(|(project_id, inactivity_streak)| {
+            let option_last_commit = time_since_last_commit.get(&project_id);
+            if let Some(last_commit) = option_last_commit { 
+                return Some((project_id.clone(), *last_commit > *inactivity_streak));
+            }
+            Some((project_id.clone(), false))
+        }).collect()
     }
 }
 
@@ -753,6 +985,8 @@ impl SingleMapExtractor for UserAuthoredCommitsExtractor {
     }
 }
 
+
+
 struct UserExperienceExtractor {}
 impl MapExtractor for UserExperienceExtractor {
     type Key = UserId;
@@ -769,11 +1003,56 @@ impl DoubleMapExtractor for UserExperienceExtractor  {
                     timestamps.get(commit_id).pirate()
                 })
                 .minmax();
-
             match min_max {
                 MinMaxResult::NoElements => None,
                 MinMaxResult::OneElement(_) => Some((user_id.clone(), 0)),
                 MinMaxResult::MinMax(min, max) => Some((user_id.clone(), (max - min) as u64)),
+            }
+        }).collect()
+    }
+}
+
+struct DeveloperExperienceExtractor {}
+impl MapExtractor for DeveloperExperienceExtractor {
+    type Key = UserId;
+    type Value = i32;
+}
+impl DoubleMapExtractor for DeveloperExperienceExtractor  {
+    type A = BTreeMap<UserId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+    fn extract(_: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        user_commits.iter().map(|(user_id, commit_ids)| {
+            let mut user_timestamps : Vec<i64> = Vec::new();
+            for commit_id in commit_ids {
+                if let Some(timestamp) = timestamps.get(&commit_id) {
+                    user_timestamps.push(*timestamp);
+                }                
+            }
+            user_timestamps.sort();
+            if user_timestamps.len() > 0 {
+                let first_time = user_timestamps[0];
+                let delta_month = 2592001; // total seconds in a month (+1)
+                let mut month_commits : BTreeMap< i64, i64> = BTreeMap::new();
+                month_commits.insert(0, 1);
+                let mut index_month : i64;
+                for i in 1 .. user_timestamps.len() {
+                    index_month = (user_timestamps[i]-first_time)/delta_month;
+                    if !month_commits.contains_key(&index_month) {
+                        month_commits.insert(index_month, 0);
+                    }
+                    month_commits.insert(index_month, month_commits.get(&index_month).unwrap() + 1 );
+                }
+                let mut values: Vec<i64> = month_commits.values().cloned().collect();
+                values.sort();
+                values.reverse();
+                for i in 0..values.len() {
+                    if values[i] < (i+1) as i64  {
+                        return (user_id.clone(), (i+1) as i32);
+                    }
+                }
+                (user_id.clone(), values.len() as i32)
+            }else{
+                (user_id.clone(), 0 as i32)
             }
         }).collect()
     }
@@ -917,6 +1196,114 @@ impl SourceMapExtractor for AuthorTimestampExtractor {
     }
 }
 
+struct SnapshotLocsExtractor{}
+impl MapExtractor for SnapshotLocsExtractor {
+    type Key = SnapshotId;
+    type Value = usize;
+}
+impl SourceMapExtractor for SnapshotLocsExtractor {
+    fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
+        source.snapshot_bytes().map(|(id, contents)| {
+            let snapshot = Snapshot::new(id, contents);
+            let contents = snapshot.contents_owned();
+            (id.clone(), contents.matches("\n").count())
+       }).collect()
+    }
+}
+
+struct ProjectLocsExtractor{} 
+impl MapExtractor for ProjectLocsExtractor{
+    type Key = ProjectId;
+    type Value = usize;
+}
+
+// project_default_branch, project_head_trees, snapshot_locs
+
+impl TripleMapExtractor for ProjectLocsExtractor {
+    type A = BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>>;
+    type B = BTreeMap<ProjectId, String>;
+    type C = BTreeMap<SnapshotId, usize>;
+    fn extract(_: &Source, project_head_trees: &Self::A, project_default_branch: &Self::B, snapshot_locs: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        project_head_trees.iter().filter_map(|(pid, heads)| {
+            if let Some(default_branch_name) = project_default_branch.get(pid) {
+                let ref_name = format!("refs/heads/{}", default_branch_name);
+                if let Some((_, tree)) = heads.iter().filter(|(name, _)| *name == ref_name ).next() {
+                    let snapshot_locs = tree.iter().filter_map(|(_, snapshot_id)| snapshot_locs.get(snapshot_id)).sum(); 
+                    return Some((*pid, snapshot_locs));
+                }
+            } 
+            return None;
+        }).collect()
+
+
+        // TODO: We should look after parent commits rather than timestamps. 
+        /*
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new(); // store locs of a file from the latest seen snapshot
+            let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();
+            for commit_id in commit_ids {
+                if let Some(changes) = commit_changes.get(&commit_id){
+                    for change in changes {
+                        let path = &(change.0);
+                        let current_timestamp = commit_timestamps.get(&commit_id).unwrap();
+                        if !last_state_files.contains_key(path) ||  *current_timestamp > *last_timestamp.get(path).unwrap() {
+                            if let Some(snapshot_id) = change.1 {
+                                if let Some(count_locs) =  snapshot_locs.get(&(snapshot_id)) {
+                                    last_timestamp.insert(*path, *current_timestamp);
+                                    last_state_files.insert(*path, *count_locs);
+                                }
+                            }
+                        }
+                    }  
+                }
+            }
+            let vec_locs : Vec<usize> = last_state_files.values().cloned().collect();
+            (project_id.clone(), vec_locs.iter().sum())
+        }).collect()
+        */
+    }
+}
+
+
+struct DuplicatedCodeExtractor {}
+impl MapExtractor for DuplicatedCodeExtractor {
+    type Key = ProjectId;
+    type Value = f64;
+}
+impl TripleMapExtractor for DuplicatedCodeExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        let mut total_snapshots : f64 = 0.0;
+        let mut num_clones : f64 = 0.0;
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            total_snapshots = 0.0;
+            num_clones= 0.0;
+            for commitid in commit_ids {
+                if let Some(changes) = commit_changes.get(&commitid) {
+                    for change in changes {
+                        if let Some(snapshot_id) = change.1 {
+                            total_snapshots+=1.0;
+                            if let Some(snapshot) = snapshot_projects.get(&snapshot_id) {
+                                if (*snapshot).1 != *project_id {
+                                    num_clones += 1.0;
+                                }       
+                            }   
+                        }
+                    } 
+                }
+            }
+            if total_snapshots == 0.0 {
+                (project_id.clone(), -1.0)
+            }else{
+                (project_id.clone(), f64::trunc(num_clones/total_snapshots*100.0)/100.0)
+            }
+
+        }).collect()
+    }
+}
+            
 struct CommitProjectsExtractor {}
 impl MapExtractor for CommitProjectsExtractor {
     type Key = CommitId;
@@ -960,13 +1347,13 @@ impl MapExtractor for SnapshotProjectsExtractor {
     type Key = SnapshotId;
     type Value = (usize, ProjectId);
 }
-impl TripleMapExtractor for SnapshotProjectsExtractor {
+impl QuadrupleMapExtractor for SnapshotProjectsExtractor {
     type A = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type B = BTreeMap<CommitId, Vec<ProjectId>>;
     type C = BTreeMap<CommitId, i64>;
-    //type D = ProjectMetadataSource;
+    type D = BTreeMap<ProjectId, i64>;
 
-    fn extract (_: &Source, commit_changes : &Self::A, commit_projects : &Self::B, commit_author_timestamps : &Self::C) -> BTreeMap<SnapshotId, (usize, ProjectId)> {
+    fn extract (_: &Source, commit_changes : &Self::A, commit_projects : &Self::B, commit_author_timestamps : &Self::C, projects_created : &Self::D) -> BTreeMap<SnapshotId, (usize, ProjectId)> {
         // first for each snapshot get projects and 
         let mut snapshot_projects = BTreeMap::<SnapshotId, SnapshotCloneInfo>::new();
         // for each commit
@@ -985,10 +1372,16 @@ impl TripleMapExtractor for SnapshotProjectsExtractor {
                             pids.iter().for_each(|pid| { sinfo.projects.insert(*pid); });
                             // if the commit is older than the current time associated with the snapshot, determine the oldest project 
                             if sinfo.oldest_commit_time > commit_time {
+                                sinfo.original = pids.iter()
+                                    .filter_map(|x| if let Some(ctime) = projects_created.get(x) { Some((*x, *ctime)) } else { None })
+                                    .min_by(|a, b| a.1.cmp(&b.1))
+                                    .unwrap().0; // there should be at least one
+                                    
                                 // TODO use oldest project really once we know how to get it, for now I am just using the first project
-                                if let Some(pid) = pids.get(0) {
+                                /*if let Some(pid) = pids.get(0) {
                                     sinfo.original = *pid;
                                 }
+                                */
                             }
                         }
                     }
@@ -1115,7 +1508,6 @@ impl TripleMapExtractor for ProjectUniqueFilesExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();
@@ -1156,7 +1548,6 @@ impl TripleMapExtractor for ProjectOriginalFilesExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();
@@ -1198,7 +1589,6 @@ impl TripleMapExtractor for ProjectImpactExtractor {
                         0
                     }).sum::<usize>()
                 } else {
-                    println!("No commit changes for commit : {}", cid);
                     0
                 }
             }).sum();
@@ -1319,6 +1709,41 @@ impl SingleMapExtractor for ProjectMajorLanguageChangesExtractor {
     }
 }
 
+struct ProjectLogsExtractor;
+impl MapExtractor for ProjectLogsExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+impl SingleMapExtractor for ProjectLogsExtractor {
+    type A = BTreeMap<ProjectId, bool>;
+    fn extract(source: &Source, project_is_valid: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        source.project_logs().map(|(project_id, logs)|{
+            if let Some(is_valid) = project_is_valid.get(&project_id) {
+                if *is_valid  && logs.len() > 0 {
+                    return (project_id.clone(), logs[0].time());
+                }
+            }
+            (project_id.clone(), -1)
+        }).collect()
+    }
+}
+
+struct ProjectIsValidExtractor;
+impl MapExtractor for ProjectIsValidExtractor {
+    type Key = ProjectId;
+    type Value = bool;
+}
+impl SourceMapExtractor for ProjectIsValidExtractor{
+    fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
+        source.project_logs().map(|(project_id, logs)|{
+            if logs.len() > 0 {
+                return (project_id.clone(), !logs[0].is_error());
+            }
+            (project_id.clone(), false)
+        }).collect()
+    }
+}
+
 struct ProjectAllForksExtractor {}
 impl MapExtractor for ProjectAllForksExtractor {
     type Key = ProjectId;
@@ -1358,6 +1783,45 @@ impl TripleMapExtractor for ProjectAllForksExtractor {
     }
 }
 
+struct ProjectHeadTreesExtractor {}
+
+impl MapExtractor for ProjectHeadTreesExtractor {
+    type Key = ProjectId;
+    type Value = Vec<(String, Vec<(PathId, SnapshotId)>)>;
+}
+
+impl TripleMapExtractor for ProjectHeadTreesExtractor {
+    type A = BTreeMap<ProjectId, Vec<Head>>;
+    type B = BTreeMap<CommitId, Commit>;
+    type C = BTreeMap<CommitId, Vec<ChangeTuple>>;
+
+    fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        project_heads.iter().map(|(pid, heads)| {
+            let heads = heads.iter().map(|Head{name, commit}| {
+                let mut contents = BTreeMap::<PathId, Option<SnapshotId>>::new();
+                let mut visited = BTreeSet::<CommitId>::new();
+                let mut q = Vec::<CommitId>::new();
+                q.push(*commit);
+                while let Some(cid) = q.pop() {
+                    if visited.insert(cid) {
+                        if let Some(changes) = commit_changes.get(&cid) {
+                            for (path_id, snapshot_id) in changes {
+                                if let Entry::Vacant(e) = contents.entry(*path_id) {
+                                    e.insert(*snapshot_id);
+                                }
+                            }
+                        }
+                        if let Some(cinfo) = commits.get(&cid) {
+                            q.extend(cinfo.parents.iter());
+                        }
+                    }
+                }
+                (name.clone(), contents.iter().filter(|x| x.1.is_some()).map(|x| (*x.0, x.1.unwrap())).collect())
+            }).collect();
+            (*pid, heads)
+        }).collect()
+    }
+}
 
 
 pub(crate) struct Data {
@@ -1394,8 +1858,10 @@ pub(crate) struct Data {
     project_major_language:         PersistentMap<ProjectMajorLanguageExtractor>,
     project_major_language_ratio:   PersistentMap<ProjectMajorLanguageRatioExtractor>,
     project_major_language_changes: PersistentMap<ProjectMajorLanguageChangesExtractor>,
-    project_all_forks :          PersistentMap<ProjectAllForksExtractor>,
-    project_all_forks_count:     PersistentMap<CountPerKeyExtractor<ProjectId, ProjectId>>,
+    project_all_forks:              PersistentMap<ProjectAllForksExtractor>,
+    project_all_forks_count:        PersistentMap<CountPerKeyExtractor<ProjectId, ProjectId>>,
+    project_head_trees:             PersistentMap<ProjectHeadTreesExtractor>,
+    project_head_trees_count:       PersistentMap<CountPerKeyExtractor<ProjectId, (String, Vec<(PathId, SnapshotId)>)>>,
 
     project_buggy_issue_count:   PersistentMap<ProjectBuggyIssuesExtractor>,
     project_issue_count:         PersistentMap<ProjectBuggyIssuesExtractor>,
@@ -1427,6 +1893,7 @@ pub(crate) struct Data {
     user_author_experience:      PersistentMap<UserExperienceExtractor>,
     user_committer_experience:   PersistentMap<UserExperienceExtractor>,
     user_experience:             PersistentMap<CombinedUserExperienceExtractor>,
+    developer_experience:        PersistentMap<DeveloperExperienceExtractor>,
 
     user_authored_commit_count:  PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
     user_committed_commit_count: PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
@@ -1449,6 +1916,18 @@ pub(crate) struct Data {
 
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
+
+    project_longest_inactivity_streak:    PersistentMap<LongestInactivityStreakExtractor>,
+    avg_commit_rate:              PersistentMap<AvgCommitRateExtractor>,
+    project_time_since_last_commit:       PersistentMap<TimeSinceLastCommitExtractor>,
+    project_time_since_first_commit:       PersistentMap<TimeSinceFirstCommitExtractor>,
+    is_abandoned:                 PersistentMap<IsAbandonedExtractor>,
+    snapshot_locs:                PersistentMap<SnapshotLocsExtractor>,
+    project_locs:                 PersistentMap<ProjectLocsExtractor>,
+    duplicated_code:              PersistentMap<DuplicatedCodeExtractor>,
+    project_is_valid:             PersistentMap<ProjectIsValidExtractor>,
+    project_logs:                 PersistentMap<ProjectLogsExtractor>,
+    project_max_experience:       PersistentMap<ProjectMaxExperienceExtractor>
 }
 
 impl Data {
@@ -1511,6 +1990,8 @@ impl Data {
             project_major_language_changes: PersistentMap::new(CACHE_FILE_PROJECT_MAJOR_LANGUAGE_CHANGES, log.clone(), dir.clone()),
             project_all_forks:              PersistentMap::new(CACHE_FILE_PROJECT_ALL_FORKS,              log.clone(), dir.clone()),
             project_all_forks_count:        PersistentMap::new(CACHE_FILE_PROJECT_ALL_FORKS_COUNT,        log.clone(), dir.clone()),
+            project_head_trees:             PersistentMap::new(CACHE_FILE_PROJECT_HEAD_TREES,             log.clone(), dir.clone()),
+            project_head_trees_count:       PersistentMap::new(CACHE_FILE_PROJECT_HEAD_TREES_COUNT,       log.clone(), dir.clone()),
             users:                          PersistentMap::new(CACHE_FILE_USERS,                          log.clone(),dir.clone()).without_cache(),
             user_authored_commits:          PersistentMap::new(CACHE_FILE_USER_AUTHORED_COMMITS,          log.clone(),dir.clone()),
             user_committed_commits:         PersistentMap::new(CACHE_FILE_USER_COMMITTED_COMMITS,         log.clone(),dir.clone()),
@@ -1519,6 +2000,7 @@ impl Data {
             user_experience:                PersistentMap::new(CACHE_FILE_USER_EXPERIENCE,                log.clone(),dir.clone()),
             user_authored_commit_count:     PersistentMap::new(CACHE_FILE_USER_AUTHORED_COMMIT_COUNT,     log.clone(),dir.clone()),
             user_committed_commit_count:    PersistentMap::new(CACHE_FILE_USER_COMMITTED_COMMIT_COUNT,    log.clone(),dir.clone()),
+            developer_experience:           PersistentMap::new(CACHE_FILE_DEVELOPER_EXPERIENCE,           log.clone(),dir.clone()),
             paths:                          PersistentMap::new(CACHE_FILE_PATHS,                          log.clone(),dir.clone()).without_cache(),
             commits:                        PersistentMap::new(CACHE_FILE_COMMITS,                        log.clone(),dir.clone()),
             commit_hashes:                  PersistentMap::new(CACHE_FILE_COMMIT_HASHES,                  log.clone(),dir.clone()).without_cache(),
@@ -1530,6 +2012,17 @@ impl Data {
             commit_projects:                PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS,                log.clone(),dir.clone()),
             commit_projects_count:          PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS_COUNT,          log.clone(),dir.clone()),
             snapshot_projects:              PersistentMap::new(CACHE_FILE_SNAPSHOT_PROJECTS,              log.clone(),dir.clone()),
+            project_longest_inactivity_streak:   PersistentMap::new(CACHE_FILE_LONGEST_INACTIVITTY_STREAK, log.clone(), dir.clone()),
+            avg_commit_rate:                PersistentMap::new(CACHE_FILE_AVG_COMMIT_RATE, log.clone(), dir.clone()),
+            project_time_since_last_commit: PersistentMap::new(CACHE_FILE_TIME_SINCE_LAST_COMMIT, log.clone(), dir.clone()),
+            project_time_since_first_commit: PersistentMap::new(CACHE_FILE_TIME_SINCE_FIRST_COMMIT, log.clone(), dir.clone()),
+            is_abandoned:                   PersistentMap::new(CACHE_FILE_IS_ABANDONED, log.clone(), dir.clone()),
+            snapshot_locs:                  PersistentMap::new(CACHE_FILE_SNAPSHOT_LOCS, log.clone(), dir.clone()),
+            project_locs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOCS, log.clone(), dir.clone()),
+            duplicated_code:                PersistentMap::new(CACHE_FILE_DUPLICATED_CODE, log.clone(), dir.clone()),
+            project_is_valid:               PersistentMap::new(CACHE_FILE_PROJECT_IS_VALID, log.clone(), dir.clone()),
+            project_logs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOGS, log.clone(), dir.clone()),
+            project_max_experience:         PersistentMap::new(CACHE_FILE_PROJECT_MAX_EXPERIENCE, log.clone(), dir.clone())
         }
     }
 }
@@ -1590,6 +2083,7 @@ impl Data {
     pub fn project_star_gazer_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_star_gazer_count(source).get(id).pirate()
     }
+
     pub fn project_watcher_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
         self.smart_load_project_watcher_count(source).get(id).pirate()
     }
@@ -1838,6 +2332,14 @@ impl Data {
         self.smart_load_project_all_forks_count(source).get(id)
             .pirate()
     }
+    pub fn project_head_trees(& mut self, source: &Source, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        self.smart_load_project_head_trees(source).get(id)
+            .pirate()
+    }
+    pub fn project_head_trees_count(& mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_head_trees_count(source).get(id)
+            .pirate()
+    }
     pub fn user(&mut self, source: &Source, id: &UserId) -> Option<&User> {
         self.smart_load_users(source).get(id)
     }
@@ -1922,6 +2424,39 @@ impl Data {
             ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
         })
     }
+    pub fn developer_experience(&mut self, source: &Source, id: &UserId) -> Option<i32> {
+        self.smart_load_developer_experience(source).get(id).pirate()
+    }
+    pub fn longest_inactivity_streak(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_longest_inactivity_streak(source).get(id).pirate()
+    }
+    pub fn project_max_experience(&mut self, source: &Source, id: &ProjectId) -> Option<i32> {
+        self.smart_load_project_max_experience(source).get(id).pirate()
+    }
+    pub fn avg_commit_rate(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_avg_commit_rate(source).get(id).pirate()
+    }
+    pub fn time_since_last_commit(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_time_since_last_commit(source).get(id).pirate()
+    }
+    pub fn time_since_first_commit(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_time_since_first_commit(source).get(id).pirate()
+    }
+    pub fn is_abandoned(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+        self.smart_load_project_is_abandoned(source).get(id).pirate()
+    }
+    pub fn snapshot_locs(&mut self, source: &Source, id: &SnapshotId) -> Option<usize> {
+        self.smart_load_snapshot_locs(source).get(id).pirate()
+    }
+    pub fn project_locs(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+        self.smart_load_project_locs(source).get(id).pirate()
+    }
+    pub fn project_logs(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_logs(source).get(id).pirate()
+    }
+    pub fn duplicated_code(&mut self, source: &Source, id: &ProjectId) -> Option<f64> {
+        self.smart_load_project_duplicated_code(source).get(id).pirate()
+    }
     pub fn snapshot_unique_projects(&mut self, source: &Source, id : &SnapshotId) -> usize {
         // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
         self.smart_load_snapshot_projects(source).get(id).unwrap().0
@@ -1929,6 +2464,10 @@ impl Data {
     pub fn snapshot_original_project(&mut self, source: &Source, id : &SnapshotId) -> ProjectId {
         // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
         self.smart_load_snapshot_projects(source).get(id).unwrap().1
+    }
+    pub fn project_is_valid(&mut self, source: &Source, id : &ProjectId) ->  Option<bool>{
+        // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
+        self.smart_load_project_is_valid(source).get(id).pirate()
     }
 }
 
@@ -2048,6 +2587,12 @@ impl Data {
     fn smart_load_project_all_forks_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_all_forks_count, source, one, project_all_forks)
     }
+    fn smart_load_project_head_trees(& mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        load_with_prerequisites!(self, project_head_trees, source, three, project_heads, commits, commit_changes)
+    }
+    fn smart_load_project_head_trees_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_head_trees_count, source, one, project_head_trees)
+    }
     fn smart_load_users(&mut self, source: &Source) -> &BTreeMap<UserId, User> {
         load_from_source!(self, users, source)
     }
@@ -2076,6 +2621,9 @@ impl Data {
     fn smart_load_user_authored_commit_count(&mut self, source: &Source) -> &BTreeMap<UserId, usize> {
         load_with_prerequisites!(self, user_authored_commit_count, source, one, user_authored_commits)
     }
+    fn smart_load_developer_experience(&mut self, source: &Source) -> &BTreeMap<UserId, i32> {
+        load_with_prerequisites!(self, developer_experience, source, two, user_authored_commits, commit_author_timestamps)
+    }
     fn smart_load_paths(&mut self, source: &Source) -> &BTreeMap<PathId, Path> {
         load_from_source!(self, paths, source)
     }
@@ -2103,6 +2651,38 @@ impl Data {
     fn smart_load_commit_change_count(&mut self, source: &Source) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, source, one, commit_changes)
     }
+    fn smart_load_project_longest_inactivity_streak(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, project_longest_inactivity_streak, source, two, project_commits, commit_committer_timestamps)
+    }
+    fn smart_load_project_max_experience(&mut self, source: &Source) -> &BTreeMap<ProjectId, i32> {
+        load_with_prerequisites!(self, project_max_experience, source, two, project_authors, developer_experience)
+    }
+    fn smart_load_project_avg_commit_rate(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, avg_commit_rate, source, two, project_commits, commit_committer_timestamps)
+    }
+    fn smart_load_project_time_since_last_commit(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, project_time_since_last_commit, source, three, project_commits, commit_committer_timestamps, project_logs)
+    }
+    fn smart_load_project_time_since_first_commit(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, project_time_since_first_commit, source, three, project_commits, commit_committer_timestamps, project_logs)
+    }
+    fn smart_load_project_is_abandoned(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_with_prerequisites!(self, is_abandoned, source, two, project_longest_inactivity_streak, project_time_since_last_commit)
+    }
+    fn smart_load_snapshot_locs(&mut self, source: &Source) -> &BTreeMap<SnapshotId, usize> {
+        load_from_source!(self, snapshot_locs, source)
+        //load_with_prerequisites!(self, is_abandoned, source, one, project_snapshots)
+    }
+    fn smart_load_project_locs(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_locs, source, three, project_head_trees,  project_default_branch, snapshot_locs)
+    }
+    fn smart_load_project_duplicated_code(&mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
+        load_with_prerequisites!(self, duplicated_code, source, three, project_commits,  commit_changes, snapshot_projects)
+    }
+    fn smart_load_project_logs(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, project_logs, source, one, project_is_valid)
+    }
+
     fn smart_load_commit_projects(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<ProjectId>> {
         load_with_prerequisites!(self, commit_projects, source, one, project_commits)
     }
@@ -2110,7 +2690,7 @@ impl Data {
         load_with_prerequisites!(self, commit_projects_count, source, one, commit_projects)
     }
     fn smart_load_snapshot_projects(& mut self, source: &Source) -> &BTreeMap<SnapshotId,(usize, ProjectId)> {
-        load_with_prerequisites!(self, snapshot_projects, source, three, commit_changes, commit_projects, commit_author_timestamps)
+        load_with_prerequisites!(self, snapshot_projects, source, four, commit_changes, commit_projects, commit_author_timestamps, project_created)
     }
     pub fn smart_load_project_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
         load_with_prerequisites!(self, project_change_contributions, source, three, project_commits, commits, commit_changes)
@@ -2194,6 +2774,10 @@ impl Data {
     pub fn smart_load_project_default_branch(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
         load_from_metadata!(self, project_default_branch, source)
     }
+    pub fn smart_load_project_is_valid(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_source!(self, project_is_valid, source)
+        
+    }
 }
 
 impl Data {
@@ -2235,3 +2819,4 @@ impl Database {
         self.data.borrow_mut().export_to_csv(&self.source, dir)
     }
 }
+    

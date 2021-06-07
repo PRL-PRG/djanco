@@ -20,6 +20,8 @@ fn main() {
                           timestamp!(December 2020), stores!(Generic), log.clone())
             .expect("Error initializing datastore.");
 
+    projects_all(&config, &log, &database).into_csv(path!("projects_all")).unwrap();
+    /*
     //snapshots_by_num_projects(&config, &log, &database).into_csv(path!("snapshots_by_projects")).unwrap();
     projects_by_unique_files(&config, &log, &database).into_csv(path!("projects_by_unique_files")).unwrap();
     projects_by_original_files(&config, &log, &database).into_csv(path!("projects_by_original_files")).unwrap();
@@ -28,6 +30,8 @@ fn main() {
     //projects_by_major_language_ratio(&config, &log, &database).into_csv(path!("projects_by_major_language_ratio")).unwrap();
     projects_by_major_language_changes(&config, &log, &database).into_csv(path!("projects_by_major_language_changes")).unwrap();    
     projects_by_all_forks(&config, &log, &database).into_csv(path!("projects_by_all_forks")).unwrap();
+    projects_by_loc(&config, &log, &database).into_csv(path!("projects_by_loc")).unwrap();
+    */
 }
 
 /*
@@ -38,6 +42,12 @@ fn snapshots_by_num_projects<'a>(_config: &Configuration, _log: &Log, database: 
         .sample(Top(50))
 }
 */
+
+fn projects_all<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+}
+
 
 fn projects_by_unique_files<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
@@ -88,6 +98,13 @@ fn projects_by_all_forks<'a>(_config: &Configuration, _log: &Log, database: &'a 
         .projects()
         .sort_by(Count(project::AllForks))
         .sample(Top(50))
+}
+
+fn projects_by_loc<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+    database
+        .projects()
+        .sort_by(project::Locs)
+//        .sample(Top(50))
 }
 
 

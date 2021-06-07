@@ -436,8 +436,23 @@ impl Project {
     pub fn major_language   (&self, store: &Database)    -> Option<Language>                { store.project_major_language(&self.id)      }
     pub fn major_language_ratio (&self, store: &Database) -> Option<f64>                    { store.project_major_language_ratio(&self.id) }
     pub fn major_language_changes (&self, store: &Database) -> Option<usize>                { store.project_major_language_changes(&self.id) }
+    pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>      { store.project_longest_inactivity_streak(&self.id)      }
+    pub fn avg_commit_rate      (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_rate(&self.id)                }
+    pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id) }
+    pub fn time_since_first_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_first_commit(&self.id) }
+    pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                   }
+    pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                  }
+    pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                 { store.duplicated_code(&self.id)                  }
+    pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.is_valid(&self.id)                  }
     pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id) }
     pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id) }
+    pub fn project_max_experience  (&self, store: &Database) -> Option<i32>                      { store.project_max_experience(&self.id) }
+    pub fn head_trees   (&self, store: &Database) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        store.project_head_trees(&self.id)
+    }    
+    pub fn head_trees_count (&self, store: &Database) -> Option<usize> {
+        store.project_head_trees_count(&self.id)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -500,6 +515,7 @@ impl User {
     pub fn committer_experience  (&self, store: &Database)   -> Option<Duration>      { store.user_committed_experience(&self.id)          }
     pub fn author_experience     (&self, store: &Database)   -> Option<Duration>      { store.user_author_experience(&self.id)             }
     pub fn experience            (&self, store: &Database)   -> Option<Duration>      { store.user_experience(&self.id)                    }
+    pub fn developer_experience  (&self, store: &Database)   -> Option<i32>           { store.developer_experience(&self.id)          }
 }
 impl Identifiable for User {
     type Identity = UserId;
@@ -660,6 +676,7 @@ impl Snapshot {
     }
 
     // FIXME add hashes
+    pub fn snapshot_locs      (&self, store: &Database)    -> Option<usize>                   { store.snapshot_locs(&self.id)                   }
 }
 impl Identifiable for Snapshot {
     type Identity = SnapshotId;
@@ -798,10 +815,20 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn has_downloads    (&self)    -> Option<bool>                    { self.item.has_downloads(&self.data)          }
     pub fn has_wiki         (&self)    -> Option<bool>                    { self.item.has_wiki(&self.data)               }
     pub fn has_pages        (&self)    -> Option<bool>                    { self.item.has_pages(&self.data)              }
-    pub fn created          (&self)    -> Option<Timestamp>               { self.item.created(&self.data)                }
-    pub fn updated          (&self)    -> Option<Timestamp>               { self.item.updated(&self.data)                }
-    pub fn pushed           (&self)    -> Option<Timestamp>               { self.item.pushed(&self.data)                 }
-    pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)         }
+    pub fn created          (&self)    -> Option<Timestamp>                     { self.item.created(&self.data)             }
+    pub fn updated          (&self)    -> Option<Timestamp>                     { self.item.updated(&self.data)             }
+    pub fn pushed           (&self)    -> Option<Timestamp>                     { self.item.pushed(&self.data)              }
+    pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)            }
+    pub fn longest_inactivity_streak (&self) -> Option<i64>               { self.item.longest_inactivity_streak(&self.data) }
+    pub fn avg_commit_rate (&self)      -> Option<i64>                    { self.item.avg_commit_rate(&self.data) }
+    pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
+    pub fn time_since_first_commit (&self) -> Option<i64>                  { self.item.time_since_first_commit(&self.data) }
+    pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }
+    pub fn project_locs (&self)        -> Option<usize>                    { self.item.project_locs(&self.data) }
+    pub fn duplicated_code (&self)        -> Option<f64>                    { self.item.duplicated_code(&self.data) }
+    pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)     }
+    pub fn is_valid   (&self)    -> Option<bool>                         { self.item.is_valid(&self.data)     }
+    pub fn project_max_experience   (&self)    -> Option<i32>             { self.item.project_max_experience(&self.data)     }
 
     pub fn change_contributions(&self)            -> Option<Vec<(User, usize)>>   { self.item.change_contributions(self.data)    }
     pub fn commit_contributions(&self)            -> Option<Vec<(User, usize)>>   { self.item.commit_contributions(self.data)    }
@@ -823,8 +850,6 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn authors_contributing_changes_with_data<'b>(&'b self, percentage: Percentage) -> Option<Vec<ItemWithData<'a, User>>>   { 
         self.item.authors_contributing_changes(self.data, percentage).attach_data_to_each(self.data)
     }
-
-    pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)         }
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)
@@ -880,6 +905,12 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn all_forks_count(&self) -> Option<usize> {
         self.item.all_forks_count(&self.data)
     }
+    pub fn head_trees(&self) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+        self.item.head_trees(&self.data)
+    }
+    pub fn head_trees_count(&self) -> Option<usize> {
+        self.item.head_trees_count(&self.data)
+    }
 }
 impl<'a> ItemWithData<'a, Snapshot> {
     pub fn raw_contents(&self) -> &Vec<u8> { self.item.raw_contents() }
@@ -888,6 +919,7 @@ impl<'a> ItemWithData<'a, Snapshot> {
     pub fn contents(&self) -> Cow<str> { self.item.contents() }
     pub fn contents_owned(&self) -> String { self.item.contents_owned() }
     pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
+    pub fn snapshot_locs (&self)        -> Option<usize>                    { self.item.snapshot_locs(&self.data) }
     pub fn unique_projects(&self) -> usize { self.item.unique_projects(&self.data) }
     pub fn original_project(&self) -> ProjectId { self.item.original_project(&self.data) }
 }
@@ -904,6 +936,7 @@ impl<'a> ItemWithData<'a, User> {
     pub fn committer_experience  (&self)   -> Option<Duration>      { self.item.committer_experience(&self.data)   }
     pub fn author_experience     (&self)   -> Option<Duration>      { self.item.author_experience(&self.data)      }
     pub fn experience            (&self)   -> Option<Duration>      { self.item.experience(&self.data)             }
+    pub fn developer_experience  (&self)   -> Option<i32>           { self.item.developer_experience(&self.data)   }
 
     pub fn authored_commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.authored_commits(&self.data).attach_data_to_each(self.data)
@@ -926,8 +959,8 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn hash               (&self) -> Option<String>                     { self.item.hash(&self.data)                 }
     pub fn message            (&self) -> Option<String>                     { self.item.message(&self.data)              }
     pub fn message_length     (&self) -> Option<usize>                      { self.item.message_length(&self.data)       }
-    pub fn author_timestamp   (&self) -> Option<Timestamp>                        { self.item.author_timestamp(&self.data)     }
-    pub fn committer_timestamp(&self) -> Option<Timestamp>                        { self.item.committer_timestamp(&self.data)  }
+    pub fn author_timestamp   (&self) -> Option<Timestamp>                  { self.item.author_timestamp(&self.data)     }
+    pub fn committer_timestamp(&self) -> Option<Timestamp>                  { self.item.committer_timestamp(&self.data)  }
     pub fn changes            (&self) -> Option<Vec<Change>>                { self.item.changes(&self.data)              }
     pub fn change_count       (&self) -> Option<usize>                      { self.item.change_count(&self.data)         }
     pub fn changed_path_ids    (&self) -> Option<Vec<PathId>>               { self.item.changed_path_ids(&self.data)     }

@@ -693,7 +693,7 @@ pub mod project {
      * Calculates the percentage of commits successive authors added to the project. 
      * The users are added to the aggregate in descending size of contributions.
      *
-     * CommitContributions                        => CummulativeCommitContributions
+     * ChangesContributions                       => CummulativeChangesContributions
      * [(User1, 50%), (User3, 40%), (User2, 10%)] => [50%, 90%, 100%]
      * 
      * The list is sorted so that [0] represents the contribution of 1 user, and 
@@ -701,6 +701,41 @@ pub mod project {
      */
     impl_attribute![?..   objects::Project, CummulativeChangeContributions, Percentage, cumulative_change_contributions, author_count];
 
+    /*
+     * Calculates the (minimum) number of authors responsible for N% commits. 
+     * The authors are return in decreasing order of most contributions
+     * 
+     * CommitContributions                        => AuthorsContributingCommits(95)
+     * [(User1, 50%), (User3, 40%), (User2, 10%)] => [User1, User3, User2]
+     * 
+     *                                            => AuthorsContributingCommits(80)
+     *                                            => [User1, User3]
+     * 
+     *                                            => AuthorsContributingCommits(50)
+     *                                            => [User1]
+     * 
+     * Since this is parameterized, this attribute is not cached. 
+     * CommitContributions is cached.
+     */
+    impl_attribute![?+..  objects::Project, AuthorsContributingCommits(Percentage), objects::User, authors_contributing_commits_with_data, authors_contributing_commits_count];
+
+    /*
+     * Calculates the (minimum) number of authors responsible for N% changes. 
+     * The authors are return in decreasing order of most contributions
+     * 
+     * ChangesContributions                       => AuthorsContributingChanges(95)
+     * [(User1, 50%), (User3, 40%), (User2, 10%)] => [User1, User3, User2]
+     * 
+     *                                            => AuthorsContributingChanges(80)
+     *                                            => [User1, User3]
+     * 
+     *                                            => AuthorsContributingChanges(50)
+     *                                            => [User1]
+     * 
+     * Since this is parameterized, this attribute is not cached. 
+     * CommitContributions is cached.
+     */
+    impl_attribute![?+..  objects::Project, AuthorsContributingChanges(Percentage), objects::User, authors_contributing_changes_with_data, authors_contributing_changes_count];
 
     /* Number of snapshots in the project that only ever exist in the project. 
      */

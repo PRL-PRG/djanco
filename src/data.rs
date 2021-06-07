@@ -261,6 +261,24 @@ impl Database {
     pub fn project_cumulative_commit_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>> {
         self.data.borrow_mut().project_cumulative_commit_contributions(&self.source, id)
     }
+    pub fn project_authors_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
+        self.data.borrow_mut().project_authors_contributing_commits(&self.source, id, percentage)
+    }
+    pub fn project_authors_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
+        self.data.borrow_mut().project_authors_contributing_changes(&self.source, id, percentage)
+    }
+    pub fn project_author_ids_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
+        self.data.borrow_mut().project_author_ids_contributing_commits(&self.source, id, percentage)
+    }
+    pub fn project_author_ids_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
+        self.data.borrow_mut().project_author_ids_contributing_changes(&self.source, id, percentage)
+    }
+    pub fn project_authors_contributing_commits_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize> {
+        self.data.borrow_mut().project_authors_contributing_commits_count(&self.source, id, percentage)
+    }
+    pub fn project_authors_contributing_changes_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize> {
+        self.data.borrow_mut().project_authors_contributing_changes_count(&self.source, id, percentage)
+    }
     pub fn project_url(&self, id: &ProjectId) -> Option<String> {
         self.data.borrow_mut().project_url(&self.source, id)
     }
@@ -1000,7 +1018,6 @@ impl DoubleMapExtractor for ProjectCommitContributionsExtractor {
                 .into_group_map()
                 .into_iter()
                 .map(|(author_id, commits)| {
-                    println!(">>> {}/{}={}: {}u8",commits.len(), commit_ids.len(), commits.len()/commit_ids.len(), (commits.len()/commit_ids.len()) as Percentage);
                     (author_id, (commits.len()/commit_ids.len()) as Percentage)
                 })
                 .sorted_by_key(|(_, contributed_commits)| *contributed_commits)
@@ -1644,6 +1661,26 @@ impl Data {
     }
     pub fn project_cumulative_change_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Percentage>> {
         self.smart_load_project_cumulative_change_contributions(source).get(id).pirate()
+    }
+    // TODO make a mechanism for caching parameterized attributes
+    pub fn project_authors_contributing_commits(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
+        //self.project_commit_contribution_ids(source: &Source, id: &ProjectId).
+        unimplemented!()
+    }
+    pub fn project_authors_contributing_changes(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
+        unimplemented!()
+    }
+    pub fn project_author_ids_contributing_commits(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
+        unimplemented!()
+    }
+    pub fn project_author_ids_contributing_changes(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
+        unimplemented!()
+    }
+    pub fn project_authors_contributing_commits_count(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<usize> {
+        unimplemented!()
+    }
+    pub fn project_authors_contributing_changes_count(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<usize> {
+        unimplemented!()
     }
     pub fn project_url(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
         self.smart_load_project_urls(source).get(id).pirate()

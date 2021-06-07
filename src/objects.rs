@@ -437,6 +437,7 @@ impl Project {
     pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.is_valid(&self.id)                  }
     pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id) }
     pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id) }
+    pub fn project_max_experience  (&self, store: &Database) -> Option<i32>                      { store.project_max_experience(&self.id) }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -812,10 +813,12 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn duplicated_code (&self)        -> Option<f64>                    { self.item.duplicated_code(&self.data) }
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)     }
     pub fn is_valid   (&self)    -> Option<bool>                         { self.item.is_valid(&self.data)     }
+    pub fn project_max_experience   (&self)    -> Option<i32>             { self.item.project_max_experience(&self.data)     }
     pub fn change_contributions(&self)    -> Option<Vec<(User, usize)>>   { self.item.change_contributions(self.data)    }
     pub fn commit_contributions(&self)    -> Option<Vec<(User, usize)>>   { self.item.commit_contributions(self.data)    }
     pub fn change_contribution_ids(&self) -> Option<Vec<(UserId, usize)>> { self.item.change_contribution_ids(self.data) }
     pub fn commit_contribution_ids(&self) -> Option<Vec<(UserId, usize)>> { self.item.commit_contribution_ids(self.data) }
+
 
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)

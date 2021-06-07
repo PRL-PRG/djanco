@@ -94,13 +94,14 @@ pub mod cache_filenames {
     pub static CACHE_FILE_LONGEST_INACTIVITTY_STREAK:     &'static str = "longest_inactivity_streak";
     pub static CACHE_FILE_AVG_COMMIT_RATE:                &'static str = "avg_commit_rate";  
     pub static CACHE_FILE_TIME_SINCE_LAST_COMMIT:         &'static str = "time_since_last_commit";  
-    pub static CACHE_FILE_TIME_SINCE_FIRST_COMMIT:         &'static str = "time_since_first_commit";  
+    pub static CACHE_FILE_TIME_SINCE_FIRST_COMMIT:        &'static str = "time_since_first_commit";  
     pub static CACHE_FILE_IS_ABANDONED:                   &'static str = "is_abandoned";  
     pub static CACHE_FILE_SNAPSHOT_LOCS:                  &'static str = "snapshot_locs";  
     pub static CACHE_FILE_PROJECT_LOCS:                   &'static str = "project_locs";  
     pub static CACHE_FILE_DUPLICATED_CODE:                &'static str = "duplicated_code";  
     pub static CACHE_FILE_PROJECT_LOGS:                   &'static str = "project_logs";
     pub static CACHE_FILE_PROJECT_IS_VALID:               &'static str = "project_is_valid";
+    pub static CACHE_FILE_PROJECT_MAX_EXPERIENCE:         &'static str = "project_max_experience";
 }
 
 use cache_filenames::*;
@@ -439,6 +440,9 @@ impl Database {
     pub fn project_longest_inactivity_streak(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().longest_inactivity_streak(&self.source, id)
     }
+    pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32> {
+        self.data.borrow_mut().project_max_experience(&self.source, id)
+    }
     pub fn avg_commit_rate(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().avg_commit_rate(&self.source, id)
     }
@@ -530,6 +534,31 @@ impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
                 }
                 Some((project_id.clone(), ans))
             }
+        }).collect()
+    }
+}
+
+struct ProjectMaxExperienceExtractor {}
+impl MapExtractor for ProjectMaxExperienceExtractor {
+    type Key = ProjectId;
+    type Value = i32;
+}
+impl DoubleMapExtractor for ProjectMaxExperienceExtractor  {
+    type A = BTreeMap<ProjectId, Vec<UserId>>;
+    type B = BTreeMap<UserId, i32>;
+    fn extract(_: &Source, project_authors: &Self::A, developer_experience: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_authors.iter().map(|(project_id, author_ids)| {
+            let mut experiences: Vec<i32> = Vec::new();
+            for author_id in author_ids {
+                if let Some(author_experience ) = developer_experience.get(&author_id){ 
+                    experiences.push(*author_experience) 
+                };
+            }
+            if let Some(max_value) = experiences.iter().max(){
+                return (project_id.clone(), *max_value);
+            }
+            (project_id.clone(), 0)
+            
         }).collect()
     }
 }
@@ -1773,7 +1802,8 @@ pub(crate) struct Data {
     project_locs:                 PersistentMap<ProjectLocsExtractor>,
     duplicated_code:              PersistentMap<DuplicatedCodeExtractor>,
     project_is_valid:             PersistentMap<ProjectIsValidExtractor>,
-    project_logs:                 PersistentMap<ProjectLogsExtractor>
+    project_logs:                 PersistentMap<ProjectLogsExtractor>,
+    project_max_experience:       PersistentMap<ProjectMaxExperienceExtractor>
 }
 
 impl Data {
@@ -1863,7 +1893,8 @@ impl Data {
             project_locs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOCS, log.clone(), dir.clone()),
             duplicated_code:                PersistentMap::new(CACHE_FILE_DUPLICATED_CODE, log.clone(), dir.clone()),
             project_is_valid:               PersistentMap::new(CACHE_FILE_PROJECT_IS_VALID, log.clone(), dir.clone()),
-            project_logs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOGS, log.clone(), dir.clone())
+            project_logs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOGS, log.clone(), dir.clone()),
+            project_max_experience:         PersistentMap::new(CACHE_FILE_PROJECT_MAX_EXPERIENCE, log.clone(), dir.clone())
         }
     }
 }
@@ -2216,6 +2247,9 @@ impl Data {
     pub fn longest_inactivity_streak(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
         self.smart_load_project_longest_inactivity_streak(source).get(id).pirate()
     }
+    pub fn project_max_experience(&mut self, source: &Source, id: &ProjectId) -> Option<i32> {
+        self.smart_load_project_max_experience(source).get(id).pirate()
+    }
     pub fn avg_commit_rate(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
         self.smart_load_project_avg_commit_rate(source).get(id).pirate()
     }
@@ -2430,6 +2464,9 @@ impl Data {
     }
     fn smart_load_project_longest_inactivity_streak(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, project_longest_inactivity_streak, source, two, project_commits, commit_committer_timestamps)
+    }
+    fn smart_load_project_max_experience(&mut self, source: &Source) -> &BTreeMap<ProjectId, i32> {
+        load_with_prerequisites!(self, project_max_experience, source, two, project_authors, developer_experience)
     }
     fn smart_load_project_avg_commit_rate(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, avg_commit_rate, source, two, project_commits, commit_committer_timestamps)

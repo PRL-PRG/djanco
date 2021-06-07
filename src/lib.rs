@@ -666,6 +666,7 @@ pub mod project {
     impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
     impl_attribute![?    objects::Project, Locs, usize, project_locs];
+    impl_attribute![?    objects::Project, MaxExperience, i32, project_max_experience];
     
 
     // Duplicated_code is a percentage. A number between 0 and 1

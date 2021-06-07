@@ -106,6 +106,7 @@ pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_LOGS:                   &'static str = "project_logs";
     pub static CACHE_FILE_PROJECT_IS_VALID:               &'static str = "project_is_valid";
     pub static CACHE_FILE_PROJECT_MAX_EXPERIENCE:         &'static str = "project_max_experience";
+    pub static CACHE_FILE_PROJECT_EXPERIENCE:         &'static str = "project_experience";
 }
 
 use cache_filenames::*;
@@ -473,6 +474,9 @@ impl Database {
     }
     pub fn project_longest_inactivity_streak(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().longest_inactivity_streak(&self.source, id)
+    }
+    pub fn project_experience(&self, id: &ProjectId) -> Option<f64> {
+        self.data.borrow_mut().project_experience(&self.source, id)
     }
     pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32> {
         self.data.borrow_mut().project_max_experience(&self.source, id)
@@ -1823,6 +1827,35 @@ impl TripleMapExtractor for ProjectHeadTreesExtractor {
     }
 }
 
+struct ProjectExperienceExtractor {}
+impl MapExtractor for ProjectExperienceExtractor {
+    type Key = ProjectId;
+    type Value = f64;
+}
+impl TripleMapExtractor for ProjectExperienceExtractor {
+    type A = BTreeMap<UserId, i32>;
+    type B = BTreeMap<ProjectId, Vec<CommitId>>;
+    type C = BTreeMap<CommitId, Commit>;
+
+    fn extract (_: &Source, developers_experience : &Self::A, project_commits : &Self::B, commits : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        
+        project_commits.iter().map(|(project_id, commit_ids)| {
+            let mut result : f64 = 0.0;
+            let mut total_commits : f64 = 0.0;
+
+            for commit_id in commit_ids {
+                if let Some(commit) = commits.get(&commit_id) {
+                    if let Some(dev_exp) = developers_experience.get(&(*commit).author) {
+                        total_commits += 1.0;
+                        result += *dev_exp as f64;
+                    }
+                }
+            }
+            (project_id.clone(), result/total_commits)
+        }).collect()
+    }
+}
+
 
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
@@ -1927,7 +1960,8 @@ pub(crate) struct Data {
     duplicated_code:              PersistentMap<DuplicatedCodeExtractor>,
     project_is_valid:             PersistentMap<ProjectIsValidExtractor>,
     project_logs:                 PersistentMap<ProjectLogsExtractor>,
-    project_max_experience:       PersistentMap<ProjectMaxExperienceExtractor>
+    project_max_experience:       PersistentMap<ProjectMaxExperienceExtractor>,
+    project_experience:           PersistentMap<ProjectExperienceExtractor>
 }
 
 impl Data {
@@ -2022,7 +2056,8 @@ impl Data {
             duplicated_code:                PersistentMap::new(CACHE_FILE_DUPLICATED_CODE, log.clone(), dir.clone()),
             project_is_valid:               PersistentMap::new(CACHE_FILE_PROJECT_IS_VALID, log.clone(), dir.clone()),
             project_logs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOGS, log.clone(), dir.clone()),
-            project_max_experience:         PersistentMap::new(CACHE_FILE_PROJECT_MAX_EXPERIENCE, log.clone(), dir.clone())
+            project_max_experience:         PersistentMap::new(CACHE_FILE_PROJECT_MAX_EXPERIENCE, log.clone(), dir.clone()),
+            project_experience:             PersistentMap::new(CACHE_FILE_PROJECT_EXPERIENCE, log.clone(), dir.clone())
         }
     }
 }
@@ -2433,6 +2468,9 @@ impl Data {
     pub fn project_max_experience(&mut self, source: &Source, id: &ProjectId) -> Option<i32> {
         self.smart_load_project_max_experience(source).get(id).pirate()
     }
+    pub fn project_experience(&mut self, source: &Source, id: &ProjectId) -> Option<f64> {
+        self.smart_load_project_experience(source).get(id).pirate()
+    }
     pub fn avg_commit_rate(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
         self.smart_load_project_avg_commit_rate(source).get(id).pirate()
     }
@@ -2656,6 +2694,9 @@ impl Data {
     }
     fn smart_load_project_max_experience(&mut self, source: &Source) -> &BTreeMap<ProjectId, i32> {
         load_with_prerequisites!(self, project_max_experience, source, two, project_authors, developer_experience)
+    }
+    fn smart_load_project_experience(&mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
+        load_with_prerequisites!(self, project_experience, source, three, developer_experience, project_commits, commits)
     }
     fn smart_load_project_avg_commit_rate(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, avg_commit_rate, source, two, project_commits, commit_committer_timestamps)

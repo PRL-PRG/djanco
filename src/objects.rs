@@ -426,27 +426,28 @@ impl Project {
     pub fn authors_contributing_commits_count(&self, store: &Database, percentage: Percentage) -> Option<usize>       { store.project_authors_contributing_commits_count(&self.id, percentage) }
     pub fn authors_contributing_changes_count(&self, store: &Database, percentage: Percentage) -> Option<usize>       { store.project_authors_contributing_changes_count(&self.id, percentage) }
 
-    pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                  }
-    pub fn unique_files     (&self, store: &Database)    -> Option<usize>                   { store.project_unique_files(&self.id)                  }
-    pub fn original_files   (&self, store: &Database)    -> Option<usize>                   { store.project_original_files(&self.id)                  }
-    pub fn impact           (&self, store: &Database)    -> Option<usize>                   { store.project_impact(&self.id)     }
-    pub fn files            (&self, store: &Database)    -> Option<usize>                   { store.project_files(&self.id)      }
-    pub fn languages        (&self, store: &Database)    -> Option<Vec<(Language,usize)>>   { store.project_languages(&self.id)      }
-    pub fn languages_count  (&self, store: &Database)    -> Option<usize>                   { store.project_languages_count(&self.id)      }
-    pub fn major_language   (&self, store: &Database)    -> Option<Language>                { store.project_major_language(&self.id)      }
-    pub fn major_language_ratio (&self, store: &Database) -> Option<f64>                    { store.project_major_language_ratio(&self.id) }
-    pub fn major_language_changes (&self, store: &Database) -> Option<usize>                { store.project_major_language_changes(&self.id) }
-    pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>      { store.project_longest_inactivity_streak(&self.id)      }
-    pub fn avg_commit_rate      (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_rate(&self.id)                }
-    pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id) }
-    pub fn time_since_first_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_first_commit(&self.id) }
-    pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                   }
-    pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                  }
-    pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                 { store.duplicated_code(&self.id)                  }
-    pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.is_valid(&self.id)                  }
-    pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id) }
-    pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id) }
-    pub fn project_max_experience  (&self, store: &Database) -> Option<i32>                      { store.project_max_experience(&self.id) }
+    pub fn substore         (&self, store: &Database)    -> Option<Store>                   { store.project_substore(&self.id)                }
+    pub fn unique_files     (&self, store: &Database)    -> Option<usize>                   { store.project_unique_files(&self.id)            }
+    pub fn original_files   (&self, store: &Database)    -> Option<usize>                   { store.project_original_files(&self.id)          }
+    pub fn impact           (&self, store: &Database)    -> Option<usize>                   { store.project_impact(&self.id)                  }
+    pub fn files            (&self, store: &Database)    -> Option<usize>                   { store.project_files(&self.id)                   }
+    pub fn languages        (&self, store: &Database)    -> Option<Vec<(Language,usize)>>   { store.project_languages(&self.id)               }
+    pub fn languages_count  (&self, store: &Database)    -> Option<usize>                   { store.project_languages_count(&self.id)         }
+    pub fn major_language   (&self, store: &Database)    -> Option<Language>                { store.project_major_language(&self.id)          }
+    pub fn major_language_ratio (&self, store: &Database) -> Option<f64>                    { store.project_major_language_ratio(&self.id)    }
+    pub fn major_language_changes (&self, store: &Database) -> Option<usize>                { store.project_major_language_changes(&self.id)  }
+    pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>      { store.project_longest_inactivity_streak(&self.id)}
+    pub fn project_experience(&self, store: &Database)    -> Option<f64>      { store.project_experience(&self.id)              }
+    pub fn avg_commit_rate    (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_rate(&self.id)                 }
+    pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id)  }
+    pub fn time_since_first_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_first_commit(&self.id)}
+    pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                    }
+    pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                    }
+    pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                 { store.duplicated_code(&self.id)                 }
+    pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.is_valid(&self.id)                        }
+    pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id)               }
+    pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id)         }
+    pub fn project_max_experience  (&self, store: &Database) -> Option<i32>                      { store.project_max_experience(&self.id)     }
     pub fn head_trees   (&self, store: &Database) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
         store.project_head_trees(&self.id)
     }    
@@ -815,19 +816,20 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn has_downloads    (&self)    -> Option<bool>                    { self.item.has_downloads(&self.data)          }
     pub fn has_wiki         (&self)    -> Option<bool>                    { self.item.has_wiki(&self.data)               }
     pub fn has_pages        (&self)    -> Option<bool>                    { self.item.has_pages(&self.data)              }
-    pub fn created          (&self)    -> Option<Timestamp>                     { self.item.created(&self.data)             }
-    pub fn updated          (&self)    -> Option<Timestamp>                     { self.item.updated(&self.data)             }
-    pub fn pushed           (&self)    -> Option<Timestamp>                     { self.item.pushed(&self.data)              }
+    pub fn created          (&self)    -> Option<Timestamp>               { self.item.created(&self.data)             }
+    pub fn updated          (&self)    -> Option<Timestamp>               { self.item.updated(&self.data)             }
+    pub fn pushed           (&self)    -> Option<Timestamp>               { self.item.pushed(&self.data)              }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)            }
     pub fn longest_inactivity_streak (&self) -> Option<i64>               { self.item.longest_inactivity_streak(&self.data) }
+    pub fn project_experience (&self) -> Option<f64>                      { self.item.project_experience(&self.data) }
     pub fn avg_commit_rate (&self)      -> Option<i64>                    { self.item.avg_commit_rate(&self.data) }
     pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
-    pub fn time_since_first_commit (&self) -> Option<i64>                  { self.item.time_since_first_commit(&self.data) }
+    pub fn time_since_first_commit (&self) -> Option<i64>                 { self.item.time_since_first_commit(&self.data) }
     pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }
-    pub fn project_locs (&self)        -> Option<usize>                    { self.item.project_locs(&self.data) }
-    pub fn duplicated_code (&self)        -> Option<f64>                    { self.item.duplicated_code(&self.data) }
+    pub fn project_locs (&self)        -> Option<usize>                   { self.item.project_locs(&self.data) }
+    pub fn duplicated_code (&self)        -> Option<f64>                  { self.item.duplicated_code(&self.data) }
     pub fn substore   (&self)    -> Option<Store>                         { self.item.substore(&self.data)     }
-    pub fn is_valid   (&self)    -> Option<bool>                         { self.item.is_valid(&self.data)     }
+    pub fn is_valid   (&self)    -> Option<bool>                          { self.item.is_valid(&self.data)     }
     pub fn project_max_experience   (&self)    -> Option<i32>             { self.item.project_max_experience(&self.data)     }
 
     pub fn change_contributions(&self)            -> Option<Vec<(User, usize)>>   { self.item.change_contributions(self.data)    }

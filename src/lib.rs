@@ -667,12 +667,34 @@ pub mod project {
     impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
     impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
+
+    /*
+     * Reconstructs the main branch to get the latest snapshots and return
+     * the number of lines of code associated with a project.
+    */
     impl_attribute![?    objects::Project, Locs, usize, project_locs];
+
+    /*
+     * Return the max developer experience that we can find among all the Authors
+     * of a given project.
+    */
     impl_attribute![?    objects::Project, MaxExperience, i32, project_max_experience];
+
+    /*
+     * Return a single number. Let DE be a number that describes some developer's experience,
+     * DC the number of commits of a given developer, and PC the total sum of commits of a given project.
+     * Then for a given project, x,  we sum DE_x*DC_x/PC. 
+    */
     impl_attribute![?    objects::Project, ProjectExperience, f64, project_experience];
     
-
-    // Duplicated_code is a percentage. A number between 0 and 1
+    /*
+     * Calculates the percentage of duplicated code by first looking at the changes of files
+     * related to a commit, and the snapshot related to a given change. 
+     * (Recall each change is related to one path). 
+     * If this snapshot has differente project_id than the current one then a given 
+     * file is considered cloned.
+     * Returns a number between 0 and 1. It is a percetange of duplicated code 
+    */
     impl_attribute![?    objects::Project, DuplicatedCode, f64, duplicated_code];
 
     /*

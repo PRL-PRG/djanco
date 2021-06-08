@@ -1967,6 +1967,7 @@ pub(crate) struct Data {
 impl Data {
     pub fn new(/*source: DataSource,*/ cache_dir: CacheDir, log: Log) -> Data {
         let dir = cache_dir.as_string();
+        println!("Caching into {}", dir);
         Data {
             project_metadata:               ProjectMetadataSource::new(log.clone(),dir.clone()),
    

@@ -1,16 +1,22 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::fs::create_dir_all;
+
 use parasite;
-use crate::{Store, objects};
+use parasite::Metadata;
+use parasite::HashId;
+use parasite::StoreKind;
+use parasite::ValidateAll;
+use parasite::Table;
 
 use anyhow::*;
-use crate::objects::SnapshotId;
-use std::collections::HashMap;
-use parasite::{Metadata, HashId, StoreKind, ValidateAll};
-use parasite::Table;
 use serde_json::Value as JSON;
-use std::str::FromStr;
-use crate::CacheDir;
-use std::fs::create_dir_all;
+
 use itertools::Itertools;
+
+use crate::Store;
+use crate::objects;
 
 macro_rules! convert {
     ($type:ident from $id:expr) => {
@@ -80,14 +86,14 @@ impl Source {
     }
 
     fn from_multiple_subsets<Sc,Sd>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>) -> Result<Self> where Sd: Into<String>, Sc: Into<String> {
-        let cache_path = cache_path.into();
-        let mut merged_store_path = CacheDir::from(cache_path, savepoint, substores.clone()).as_path();
-        merged_store_path.push("merged_store");
-        let merged_store_path_string = merged_store_path.as_os_str().to_str().unwrap();
+        let mut cache_path = PathBuf::from(cache_path.into());
+        //let mut merged_store_path = CacheDir::from(cache_path, savepoint, substores.clone()).as_path();
+        cache_path.push("merged_store");
+        let merged_store_path_string = cache_path.as_os_str().to_str().unwrap();
         create_dir_all(merged_store_path_string)?;
 
-        let mut merger = parasite::DatastoreMerger::new(merged_store_path_string,
-                                                        dataset_path.into().as_str());
+        let mut merger = 
+            parasite::DatastoreMerger::new(merged_store_path_string, dataset_path.into().as_str());
         for substore in substores {
             merger.merge_substore(StoreKind::Generic, substore.kind(), ValidateAll::new())
         }
@@ -194,7 +200,7 @@ impl Source {
     }
 
     // TODO hashes?
-    pub fn get_snapshot(&self, id: SnapshotId) -> Option<Bytes> {
+    pub fn get_snapshot(&self, id: objects::SnapshotId) -> Option<Bytes> {
         self.store.contents(self.substore)
             .get(parasite::HashId::from(Into::<u64>::into(id)))
             .map(|(_kind, hash)| hash)

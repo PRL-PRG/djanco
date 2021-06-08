@@ -166,6 +166,15 @@ impl Display for Store {
 }
 
 impl Store {
+    pub fn all_subsets() -> Vec<Store> {
+        StoreKind::all().map(|kind| Store::from(kind)).collect()
+    }
+    pub fn discretize_selection(selection: Vec<Store>) -> Vec<Store> {
+        let mut selection = 
+            if selection.len() == 0 { Self::all_subsets() } else { selection };
+        selection.sort();
+        selection
+    }
     pub fn kind(&self) -> StoreKind {
         match self {
             Store::Generic => StoreKind::Generic,
@@ -269,6 +278,7 @@ impl std::convert::From<String> for Store {
     ($($t:tt)+) => { stores!($($t)+) }
 }
 
+#[derive(Debug)]
 pub struct CacheDir {
     root_dir: PathBuf,
     savepoint: Timestamp,
@@ -301,8 +311,9 @@ impl Djanco {
     pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
         let cache_path = cache_path.into();
+        let substores = Store::discretize_selection(substores);
         let cache_dir = CacheDir::from(cache_path.clone(), savepoint, substores.clone());
-        let source = Source::new(dataset_path, cache_path, savepoint, substores)?;
+        let source = Source::new(dataset_path, cache_dir.as_string(), savepoint, substores)?;
         Ok(Database::new(source, cache_dir, log))
     }
     pub fn from_store<Sd>(dataset_path: Sd, savepoint: Timestamp, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {

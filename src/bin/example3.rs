@@ -11,8 +11,7 @@ fn main() {
     let config = Configuration::from_args();
 
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(),
-                          timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
+        Djanco::from_config(&config, timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
             .expect("Error initializing datastore.");
 
     with_elapsed_secs!("executing query", {

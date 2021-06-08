@@ -24,6 +24,12 @@ pub struct Configuration {
 
     #[structopt(long)]
     pub grep_snapshots: bool,
+
+    #[structopt(long)]
+    pub preclean_cache: bool,
+
+    #[structopt(long)]
+    pub preclean_merged_substores: bool,    
 }
 
 impl Configuration {

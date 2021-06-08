@@ -17,8 +17,7 @@ fn main() {
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(),
-                          timestamp!(March 2021), stores!(Python), log.clone())
+        Djanco::from_config(&config, timestamp!(March 2021), stores!(Python), log.clone())
             .expect("Error initializing datastore.");
 
     projects_by_duplicated_code(&config, &log, &database).into_csv(path!("projects_by_duplicated_code")).unwrap();

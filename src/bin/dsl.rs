@@ -10,7 +10,7 @@ use djanco::log::{Log, Verbosity};
 fn main() {
     let config = Configuration::from_args();
     let database =
-        Djanco::from_spec(config.dataset_path(), config.cache_path(), timestamp!(December 2020), store!(JavaScript, TypeScript, Python), Log::new(Verbosity::Log)).unwrap();
+        Djanco::from_config(&config, timestamp!(December 2020), store!(JavaScript, TypeScript, Python), Log::new(Verbosity::Log)).unwrap();
 
     macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
 

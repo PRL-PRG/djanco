@@ -50,6 +50,7 @@
 // dump metadata, also make raw metadata accessible from objects::Project
 // TODO rename Users to Contributors
 
+use std::fs::{remove_file, remove_dir_all, read_dir, metadata};
 use std::iter::{Sum, FromIterator};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
@@ -58,6 +59,7 @@ use std::env;
 use std::path::PathBuf;
 use std::fmt::Display;
 
+use commandline::Configuration;
 use itertools::Itertools;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
@@ -72,7 +74,7 @@ use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
 use crate::log::{Log, Verbosity};
-use crate::source::Source;
+use crate::source::{Source, MERGED_SUBSTORE_DIR_NAME};
 
 pub type Timestamp = i64; // Epoch
 pub type Percentage = u8; // Positive integer value 0-100.
@@ -308,15 +310,33 @@ impl CacheDir {
 pub struct Djanco;
 impl Djanco {
     // FIXME this still sucks
-    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
+    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, substores: Vec<Store>, log: Log, preclean: bool, preclean_merged_substores: bool) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
         let cache_path = cache_path.into();
         let substores = Store::discretize_selection(substores);
         let cache_dir = CacheDir::from(cache_path.clone(), savepoint, substores.clone());
+        if preclean {
+            read_dir(&cache_dir.as_string())
+                .with_context(|| format!("Preclean error: cannot remove directory {:?}", &cache_path))?
+                .into_iter()
+                .flat_map(|e| e.map(|e| {
+                    e.path().as_os_str().to_str().unwrap().to_owned()
+                }))
+                .filter(|path| preclean_merged_substores || path != MERGED_SUBSTORE_DIR_NAME)
+                .for_each(|path| {
+                    if metadata(&path).unwrap().is_dir() {
+                        println!("Cleaning {:?}", &path);
+                        remove_dir_all(&path)                        
+                    } else {
+                        println!("Cleaning {:?}", &path);
+                        remove_file(&path)
+                    }.with_context(|| format!("Preclean error: cannot remove directory {:?}", path)).unwrap();
+                });      
+        }   
         let source = Source::new(dataset_path, cache_dir.as_string(), savepoint, substores)?;
         Ok(Database::new(source, cache_dir, log))
     }
-    pub fn from_store<Sd>(dataset_path: Sd, savepoint: Timestamp, substores: Vec<Store>) -> Result<Database> where Sd: Into<String> {
+    pub fn from_store<Sd>(dataset_path: Sd, savepoint: Timestamp, substores: Vec<Store>, preclean: bool, preclean_merged_substores: bool) -> Result<Database> where Sd: Into<String> {
         let dataset_path = dataset_path.into();
         let cache_path = env::var("DJANCO_CACHE_PATH").unwrap_or_else(|_| {
             let mut path = PathBuf::from(dataset_path.clone());
@@ -331,15 +351,30 @@ impl Djanco {
             path.into_os_string().to_str().unwrap().to_owned()
         });
         let log = Log::new(Verbosity::Log);
-        Djanco::from_spec(dataset_path, cache_path, savepoint, substores, log)
+        Djanco::from_spec(dataset_path, cache_path, savepoint, substores, log, preclean, preclean_merged_substores)
     }
-    pub fn from<Sd>(dataset_path: Sd) -> Result<Database>  where Sd: Into<String> {
-        Djanco::from_store(dataset_path, chrono::Utc::now().timestamp(), vec![])
+    pub fn from<Sd>(dataset_path: Sd, preclean: bool, preclean_merged_substores: bool) -> Result<Database>  where Sd: Into<String> {
+        Djanco::from_store(dataset_path, chrono::Utc::now().timestamp(), vec![], preclean, preclean_merged_substores)
     }
     pub fn new() -> Result<Database> {
         let dataset_path = env::var("DJANCO_DATASET_PATH")
                 .unwrap_or("/data/djcode/dataset".to_owned());
-        Djanco::from(dataset_path)
+        let preclean = env::var("DJANCO_CACHE_PRECLEAN")
+                .unwrap_or("false".to_owned()).parse::<bool>().unwrap();
+        let preclean_merged_substores = env::var("DJANCO_CACHE_PRECLEAN")
+                .unwrap_or("false".to_owned()).parse::<bool>().unwrap();                
+        Djanco::from(dataset_path, preclean, preclean_merged_substores)
+    }
+    pub fn from_config(config: &Configuration, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
+        Djanco::from_spec(
+            config.dataset_path(), 
+            config.cache_path(), 
+            savepoint, 
+            substores, 
+            log, 
+            config.preclean_cache, 
+            config.preclean_merged_substores
+        )
     }
 }
 

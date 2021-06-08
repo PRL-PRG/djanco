@@ -59,11 +59,13 @@ macro_rules! parse_github_json {
     }
 }
 
-type URL = String;
-type SHA = String;
-type Path = String;
-type Timestamp = i64;
-type Bytes = Vec<u8>;
+pub type URL = String;
+pub type SHA = String;
+pub type Path = String;
+pub type Timestamp = i64;
+pub type Bytes = Vec<u8>;
+
+pub const MERGED_SUBSTORE_DIR_NAME: &'static str = "merged_store";
 
 #[allow(dead_code)]
 pub struct Source {
@@ -88,7 +90,7 @@ impl Source {
     fn from_multiple_subsets<Sc,Sd>(dataset_path: Sd, cache_path: Sc, savepoint: i64, substores: Vec<Store>) -> Result<Self> where Sd: Into<String>, Sc: Into<String> {
         let mut cache_path = PathBuf::from(cache_path.into());
         //let mut merged_store_path = CacheDir::from(cache_path, savepoint, substores.clone()).as_path();
-        cache_path.push("merged_store");
+        cache_path.push(MERGED_SUBSTORE_DIR_NAME);
         let merged_store_path_string = cache_path.as_os_str().to_str().unwrap();
         create_dir_all(merged_store_path_string)?;
 

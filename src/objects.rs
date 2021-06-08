@@ -436,9 +436,9 @@ impl Project {
     pub fn major_language   (&self, store: &Database)    -> Option<Language>                { store.project_major_language(&self.id)          }
     pub fn major_language_ratio (&self, store: &Database) -> Option<f64>                    { store.project_major_language_ratio(&self.id)    }
     pub fn major_language_changes (&self, store: &Database) -> Option<usize>                { store.project_major_language_changes(&self.id)  }
-    pub fn longest_inactivity_streak       (&self, store: &Database)    -> Option<i64>      { store.project_longest_inactivity_streak(&self.id)}
+    pub fn max_commit_delta      (&self, store: &Database)    -> Option<i64>                { store.project_max_commit_delta(&self.id)}
     pub fn project_experience(&self, store: &Database)    -> Option<f64>      { store.project_experience(&self.id)              }
-    pub fn avg_commit_rate    (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_rate(&self.id)                 }
+    pub fn avg_commit_delta    (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_delta(&self.id)                 }
     pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id)  }
     pub fn time_since_first_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_first_commit(&self.id)}
     pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                    }
@@ -820,9 +820,9 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn updated          (&self)    -> Option<Timestamp>               { self.item.updated(&self.data)             }
     pub fn pushed           (&self)    -> Option<Timestamp>               { self.item.pushed(&self.data)              }
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)            }
-    pub fn longest_inactivity_streak (&self) -> Option<i64>               { self.item.longest_inactivity_streak(&self.data) }
+    pub fn max_commit_delta (&self) -> Option<i64>                        { self.item.max_commit_delta(&self.data) }
     pub fn project_experience (&self) -> Option<f64>                      { self.item.project_experience(&self.data) }
-    pub fn avg_commit_rate (&self)      -> Option<i64>                    { self.item.avg_commit_rate(&self.data) }
+    pub fn avg_commit_delta (&self)      -> Option<i64>                    { self.item.avg_commit_delta(&self.data) }
     pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
     pub fn time_since_first_commit (&self) -> Option<i64>                 { self.item.time_since_first_commit(&self.data) }
     pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }

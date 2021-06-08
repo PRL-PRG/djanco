@@ -662,10 +662,37 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Users, objects::User, users_with_data, user_count];
     impl_attribute![?+..  objects::Project, Paths, objects::Path, paths_with_data, path_count];
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
-    impl_attribute![?    objects::Project, LongestInactivityStreak, i64, longest_inactivity_streak];
-    impl_attribute![?    objects::Project, AvgCommitRate, i64, avg_commit_rate];
+
+    /*
+     * For each project, it goes through the commits, sorts them according to their timestamp
+     * and then find the time passed between 2 commits (deltas) that are adjacents in terms of time.
+     * Finally, returns the max delta found.
+    */
+    impl_attribute![?    objects::Project, MaxCommitDelta, i64, max_commit_delta];
+
+
+    /*
+     * For each project, it goes through the commits, sorts them according to their timestamp
+     * and then find the time passed between 2 commits (deltas) that are adjacents in terms of time.
+     * Finally, returns the average of these deltas.
+    */
+    impl_attribute![?    objects::Project, AvgCommitDelta, i64, avg_commit_delta];
+
+    /*
+     * Returns the time in seconds. It is the time passed between the last commit and the last time
+     * parasite updated a given project. 
+    */
     impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
+
+    /*
+     * Returns the time in seconds. It is the time passed between the first commit and the last time
+     * parasite updated a given project.
+    */
     impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
+
+    /*
+     * If MaxCommitDelta is less than TimeSinceLastCommit then it returns true.
+    */
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
 
     /*

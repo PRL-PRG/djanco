@@ -808,6 +808,10 @@ pub mod project {
      */
     impl_attribute![?     objects::Project, MajorLanguageChanges, usize, major_language_changes];
 
+    /* 
+     * A project is `valid` if it was downloaded correctly in the most recent download attempt.
+     * Otherwise the project is `corrupted`: the downloaded data may be incoherent.
+     */
     impl_attribute![?     objects::Project, IsValid, bool, is_valid];
     /* Returns the list of projects that have been forked from the current project. 
 

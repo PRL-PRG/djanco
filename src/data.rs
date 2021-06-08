@@ -127,7 +127,7 @@ impl Database {
     // pub fn from<S>(source: DataSource, cache_dir: S, log: Log) -> Database where S: Into<String> {
     //     Database { data: RefCell::new(Data::new(cache_dir, log.clone())), source, log }
     // }
-    //pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: i64, subsources: Vec<source>) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
+    //pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, subsources: Vec<source>) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
     pub fn new(source: Source, cache_dir: CacheDir, log: Log) -> Self {
         let data = RefCell::new(Data::new(cache_dir, log.clone()));
         Database { data, source, log }
@@ -246,13 +246,13 @@ impl Database {
     pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool> {
         self.data.borrow_mut().project_has_pages(&self.source, id)
     }
-    pub fn project_created(&self, id: &ProjectId) -> Option<i64> {
+    pub fn project_created(&self, id: &ProjectId) -> Option<Timestamp> {
         self.data.borrow_mut().project_created(&self.source, id)
     }
-    pub fn project_updated(&self, id: &ProjectId) -> Option<i64> {
+    pub fn project_updated(&self, id: &ProjectId) -> Option<Timestamp> {
         self.data.borrow_mut().project_updated(&self.source, id)
     }
-    pub fn project_pushed(&self, id: &ProjectId) -> Option<i64> {
+    pub fn project_pushed(&self, id: &ProjectId) -> Option<Timestamp> {
         self.data.borrow_mut().project_pushed(&self.source, id)
     }
     pub fn project_default_branch(&self, id: &ProjectId) -> Option<String> {
@@ -418,10 +418,10 @@ impl Database {
     pub fn commit_message(&self, id: &CommitId) -> Option<String> {
         self.data.borrow_mut().commit_message(&self.source, id).pirate()
     }
-    pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<i64> {
+    pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<Timestamp> {
         self.data.borrow_mut().commit_author_timestamp(&self.source, id)
     }
-    pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<i64> {
+    pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<Timestamp> {
         self.data.borrow_mut().commit_committer_timestamp(&self.source, id)
     }
     pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<Change>> {
@@ -550,7 +550,7 @@ impl MapExtractor for LongestInactivityStreakExtractor {
 }
 impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
+    type B = BTreeMap<CommitId, Timestamp>;
     fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
@@ -608,7 +608,7 @@ impl MapExtractor for AvgCommitRateExtractor {
 }
 impl DoubleMapExtractor for AvgCommitRateExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
+    type B = BTreeMap<CommitId, Timestamp>;
     fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
             let mut timestamps: Vec<i64> = Vec::new();
@@ -621,7 +621,7 @@ impl DoubleMapExtractor for AvgCommitRateExtractor  {
             }else{
                 timestamps.sort();
                 let mut ans: f64 = timestamps[0] as f64;
-                let mut previous: i64 = timestamps[0];
+                let mut previous: Timestamp = timestamps[0];
                 for i in 1..timestamps.len() {
                     ans += (timestamps[i] - previous) as f64;
                     previous = timestamps[i];
@@ -642,12 +642,12 @@ impl MapExtractor for TimeSinceLastCommitExtractor {
 }
 impl TripleMapExtractor for TimeSinceLastCommitExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
-    type C = BTreeMap<ProjectId, i64>;
+    type B = BTreeMap<CommitId, Timestamp>;
+    type C = BTreeMap<ProjectId, Timestamp>;
     fn extract(_source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
-            let mut timestamps: Vec<i64> = Vec::new();
+            let mut timestamps: Vec<Timestamp> = Vec::new();
             for commit_id in commit_ids {
                 let committer_timestamp = committed_timestamps.get(&commit_id);
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
@@ -675,12 +675,12 @@ impl MapExtractor for TimeSinceFirstCommitExtractor {
 }
 impl TripleMapExtractor for TimeSinceFirstCommitExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
-    type C = BTreeMap<ProjectId, i64>;
+    type B = BTreeMap<CommitId, Timestamp>;
+    type C = BTreeMap<ProjectId, Timestamp>;
     fn extract(_source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         
         project_commits.iter().flat_map(|(project_id, commit_ids)| {
-            let mut timestamps: Vec<i64> = Vec::new();
+            let mut timestamps: Vec<Timestamp> = Vec::new();
             for commit_id in commit_ids {
                 let committer_timestamp = committed_timestamps.get( &commit_id );
                 if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
@@ -930,8 +930,8 @@ impl MapExtractor for ProjectLifetimesExtractor {
 }
 impl TripleMapExtractor for ProjectLifetimesExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
-    type C = BTreeMap<CommitId, i64>;
+    type B = BTreeMap<CommitId, Timestamp>;
+    type C = BTreeMap<CommitId, Timestamp>;
     fn extract(_: &Source, 
                project_commits: &Self::A,
                authored_timestamps: &Self::B,
@@ -941,7 +941,7 @@ impl TripleMapExtractor for ProjectLifetimesExtractor {
            let min_max =
                commit_ids.iter()
                    .flat_map(|commit_id: &CommitId| {
-                       let mut timestamps: Vec<i64> = Vec::new();
+                       let mut timestamps: Vec<Timestamp> = Vec::new();
                        let author_timestamp = authored_timestamps.get(commit_id);
                        let committer_timestamp = committed_timestamps.get(commit_id);
                        if let Some(timestamp) = author_timestamp { timestamps.push(*timestamp) }
@@ -998,7 +998,7 @@ impl MapExtractor for UserExperienceExtractor {
 }
 impl DoubleMapExtractor for UserExperienceExtractor  {
     type A = BTreeMap<UserId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
+    type B = BTreeMap<CommitId, Timestamp>;
     fn extract(_: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         user_commits.iter()
         .flat_map(|(user_id, commit_ids)| {
@@ -1023,10 +1023,10 @@ impl MapExtractor for DeveloperExperienceExtractor {
 }
 impl DoubleMapExtractor for DeveloperExperienceExtractor  {
     type A = BTreeMap<UserId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
+    type B = BTreeMap<CommitId, Timestamp>;
     fn extract(_: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         user_commits.iter().map(|(user_id, commit_ids)| {
-            let mut user_timestamps : Vec<i64> = Vec::new();
+            let mut user_timestamps : Vec<Timestamp> = Vec::new();
             for commit_id in commit_ids {
                 if let Some(timestamp) = timestamps.get(&commit_id) {
                     user_timestamps.push(*timestamp);
@@ -1069,14 +1069,14 @@ impl MapExtractor for CombinedUserExperienceExtractor {
 }
 impl TripleMapExtractor for CombinedUserExperienceExtractor  {
     type A = BTreeMap<UserId, Vec<CommitId>>;
-    type B = BTreeMap<CommitId, i64>;
-    type C = BTreeMap<CommitId, i64>;
+    type B = BTreeMap<CommitId, Timestamp>;
+    type C = BTreeMap<CommitId, Timestamp>;
     fn extract(_: &Source, user_commits: &Self::A, authored_timestamps: &Self::B, committed_timestamps: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         user_commits.iter()
             .flat_map(|(user_id, commit_ids)| {
                 let min_max = commit_ids.iter()
                     .flat_map(|commit_id| {
-                        let mut timestamps: Vec<i64> = Vec::new();
+                        let mut timestamps: Vec<Timestamp> = Vec::new();
                         let authored_timestamp = authored_timestamps.get(commit_id).pirate();
                         let committed_timestamp = committed_timestamps.get(commit_id).pirate();
                         if let Some(timestamp) = authored_timestamp { timestamps.push(timestamp) }
@@ -1163,7 +1163,7 @@ impl SourceMapExtractor for CommitMessageExtractor {
 struct CommitterTimestampExtractor {}
 impl MapExtractor for CommitterTimestampExtractor {
     type Key = CommitId;
-    type Value = i64;
+    type Value = Timestamp;
 }
 impl SourceMapExtractor for CommitterTimestampExtractor {
     fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
@@ -1190,7 +1190,7 @@ impl SourceMapExtractor for CommitChangesExtractor {
 struct AuthorTimestampExtractor {}
 impl MapExtractor for AuthorTimestampExtractor {
     type Key = CommitId;
-    type Value = i64; // TODO wrap
+    type Value = Timestamp; // TODO wrap
 }
 impl SourceMapExtractor for AuthorTimestampExtractor {
     fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
@@ -1244,7 +1244,7 @@ impl TripleMapExtractor for ProjectLocsExtractor {
         /*
         project_commits.iter().map(|(project_id, commit_ids)| {
             let mut last_state_files : BTreeMap<PathId, usize> = BTreeMap::new(); // store locs of a file from the latest seen snapshot
-            let mut last_timestamp : BTreeMap<PathId, i64> = BTreeMap::new();
+            let mut last_timestamp : BTreeMap<PathId, Timestamp> = BTreeMap::new();
             for commit_id in commit_ids {
                 if let Some(changes) = commit_changes.get(&commit_id){
                     for change in changes {
@@ -1332,7 +1332,7 @@ impl SingleMapExtractor for CommitProjectsExtractor {
 
 struct SnapshotCloneInfo {
     original : ProjectId,
-    oldest_commit_time : i64,
+    oldest_commit_time : Timestamp,
     projects : BTreeSet<ProjectId>,
 }
 
@@ -1340,7 +1340,7 @@ impl SnapshotCloneInfo {
     pub fn new() -> SnapshotCloneInfo {
         return SnapshotCloneInfo{
             original : ProjectId(0),
-            oldest_commit_time: i64::MAX,
+            oldest_commit_time: Timestamp::MAX,
             projects : BTreeSet::new(),
         };
     }
@@ -1354,8 +1354,8 @@ impl MapExtractor for SnapshotProjectsExtractor {
 impl QuadrupleMapExtractor for SnapshotProjectsExtractor {
     type A = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type B = BTreeMap<CommitId, Vec<ProjectId>>;
-    type C = BTreeMap<CommitId, i64>;
-    type D = BTreeMap<ProjectId, i64>;
+    type C = BTreeMap<CommitId, Timestamp>;
+    type D = BTreeMap<ProjectId, Timestamp>;
 
     fn extract (_: &Source, commit_changes : &Self::A, commit_projects : &Self::B, commit_author_timestamps : &Self::C, projects_created : &Self::D) -> BTreeMap<SnapshotId, (usize, ProjectId)> {
         // first for each snapshot get projects and 
@@ -1757,7 +1757,7 @@ impl MapExtractor for ProjectAllForksExtractor {
 impl TripleMapExtractor for ProjectAllForksExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Vec<ProjectId>>;
-    type C = BTreeMap<ProjectId, i64>;
+    type C = BTreeMap<ProjectId, Timestamp>;
 
     fn extract (_: &Source, project_commits: &Self::A, commit_projects: &Self::B, project_created: & Self::C) -> BTreeMap<ProjectId, Vec<ProjectId>> {
         project_commits.iter()
@@ -2158,13 +2158,13 @@ impl Data {
     pub fn project_has_pages(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
         self.smart_load_project_has_pages(source).get(id).pirate()
     }
-    pub fn project_created(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+    pub fn project_created(&mut self, source: &Source, id: &ProjectId) -> Option<Timestamp> {
         self.smart_load_project_created(source).get(id).pirate()        
     }
-    pub fn project_updated(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+    pub fn project_updated(&mut self, source: &Source, id: &ProjectId) -> Option<Timestamp> {
         self.smart_load_project_updated(source).get(id).pirate()
     }
-    pub fn project_pushed(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+    pub fn project_pushed(&mut self, source: &Source, id: &ProjectId) -> Option<Timestamp> {
         self.smart_load_project_pushed(source).get(id).pirate()
     }
     pub fn project_default_branch(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
@@ -2390,10 +2390,10 @@ impl Data {
     pub fn commit_message(&mut self, source: &Source, id: &CommitId) -> Option<&String> {
         self.smart_load_commit_messages(source).get(id)
     }
-    pub fn commit_author_timestamp(&mut self, source: &Source, id: &CommitId) -> Option<i64> {
+    pub fn commit_author_timestamp(&mut self, source: &Source, id: &CommitId) -> Option<Timestamp> {
         self.smart_load_commit_author_timestamps(source).get(id).pirate()
     }
-    pub fn commit_committer_timestamp(&mut self, source: &Source, id: &CommitId) -> Option<i64> {
+    pub fn commit_committer_timestamp(&mut self, source: &Source, id: &CommitId) -> Option<Timestamp> {
         self.smart_load_commit_committer_timestamps(source).get(id).pirate()
     }
     pub fn commit_changes(&mut self, source: &Source, id: &CommitId) -> Option<Vec<Change>> {
@@ -2677,10 +2677,10 @@ impl Data {
     fn smart_load_commit_messages(&mut self, source: &Source) -> &BTreeMap<CommitId, String> {
         load_from_source!(self, commit_messages, source)
     }
-    fn smart_load_commit_committer_timestamps(&mut self, source: &Source) -> &BTreeMap<CommitId, i64> {
+    fn smart_load_commit_committer_timestamps(&mut self, source: &Source) -> &BTreeMap<CommitId, Timestamp> {
         load_from_source!(self, commit_committer_timestamps, source)
     }
-    fn smart_load_commit_author_timestamps(&mut self, source: &Source) -> &BTreeMap<CommitId, i64> {
+    fn smart_load_commit_author_timestamps(&mut self, source: &Source) -> &BTreeMap<CommitId, Timestamp> {
         load_from_source!(self, commit_author_timestamps, source)
     }
     fn smart_load_commit_changes(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<ChangeTuple>> {
@@ -2803,13 +2803,13 @@ impl Data {
     pub fn smart_load_project_has_pages(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_from_metadata!(self, project_has_pages, source)
     }
-    fn smart_load_project_created(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+    fn smart_load_project_created(&mut self, source: &Source) -> &BTreeMap<ProjectId, Timestamp> {
         load_from_metadata!(self, project_created, source)
     }
-    pub fn smart_load_project_updated(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+    pub fn smart_load_project_updated(&mut self, source: &Source) -> &BTreeMap<ProjectId, Timestamp> {
         load_from_metadata!(self, project_updated, source)
     }
-    pub fn smart_load_project_pushed(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+    pub fn smart_load_project_pushed(&mut self, source: &Source) -> &BTreeMap<ProjectId, Timestamp> {
         load_from_metadata!(self, project_pushed, source)
     }
     pub fn smart_load_project_default_branch(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {

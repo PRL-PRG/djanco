@@ -48,7 +48,7 @@ fn projects_all<'a>(_config: &Configuration, _log: &Log, database: &'a Database)
         .projects()
 }
 
-
+#[allow(dead_code)]
 fn projects_by_unique_files<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
@@ -56,6 +56,7 @@ fn projects_by_unique_files<'a>(_config: &Configuration, _log: &Log, database: &
         .sample(Top(50))
 }
 
+#[allow(dead_code)]
 fn projects_by_original_files<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
@@ -63,6 +64,7 @@ fn projects_by_original_files<'a>(_config: &Configuration, _log: &Log, database:
         .sample(Top(50))
 }
 
+#[allow(dead_code)]
 fn projects_by_impact<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
@@ -70,6 +72,7 @@ fn projects_by_impact<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
         .sample(Top(50))
 }
 
+#[allow(dead_code)]
 fn projects_by_files<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
@@ -86,6 +89,7 @@ fn projects_by_major_language_ratio<'a>(_config: &Configuration, _log: &Log, dat
 }
 */
 
+#[allow(dead_code)]
 fn projects_by_major_language_changes<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
@@ -93,6 +97,7 @@ fn projects_by_major_language_changes<'a>(_config: &Configuration, _log: &Log, d
         .sample(Top(50))
 }
 
+#[allow(dead_code)]
 fn projects_by_all_forks<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
@@ -100,6 +105,7 @@ fn projects_by_all_forks<'a>(_config: &Configuration, _log: &Log, database: &'a 
         .sample(Top(50))
 }
 
+#[allow(dead_code)]
 fn projects_by_loc<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()

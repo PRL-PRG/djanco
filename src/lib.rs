@@ -26,7 +26,7 @@
 #[macro_use] extern crate mashup;
 
 // Re-export
-pub use commandline::Configuration;
+pub use commandline::*;
 
 // TODO features
 // maybe it's time to capitulate from the whole ItemWithData oidea and just make it a trait.

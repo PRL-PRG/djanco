@@ -4,7 +4,7 @@ use clap::{Clap, crate_version, crate_authors};
 
 use crate::log::Verbosity;
 
-//pub type CommandLineOptions = Configuration;
+pub type CommandLineOptions = Configuration;
 
 #[derive(Clap)]
 #[clap(version = crate_version!(), author = crate_authors!(), name = "Djanco query execution helper")]

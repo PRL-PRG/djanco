@@ -95,8 +95,8 @@ pub mod cache_filenames {
     pub static CACHE_FILE_COMMIT_PROJECTS:                &'static str = "commit_projects";
     pub static CACHE_FILE_COMMIT_PROJECTS_COUNT:          &'static str = "commit_projects_count";
     pub static CACHE_FILE_SNAPSHOT_PROJECTS:              &'static str = "snapshot_projects";
-    pub static CACHE_FILE_LONGEST_INACTIVITTY_STREAK:     &'static str = "longest_inactivity_streak";
-    pub static CACHE_FILE_AVG_COMMIT_RATE:                &'static str = "avg_commit_rate";  
+    pub static CACHE_FILE_MAX_COMMIT_DELTA:               &'static str = "max_commit_delta";
+    pub static CACHE_FILE_AVG_COMMIT_DELTA:                &'static str = "avg_commit_delta";  
     pub static CACHE_FILE_TIME_SINCE_LAST_COMMIT:         &'static str = "time_since_last_commit";  
     pub static CACHE_FILE_TIME_SINCE_FIRST_COMMIT:        &'static str = "time_since_first_commit";  
     pub static CACHE_FILE_IS_ABANDONED:                   &'static str = "is_abandoned";  
@@ -472,8 +472,8 @@ impl Database {
     pub fn developer_experience(&self, id: &UserId) -> Option<i32> {
         self.data.borrow_mut().developer_experience(&self.source, id)
     }
-    pub fn project_longest_inactivity_streak(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().longest_inactivity_streak(&self.source, id)
+    pub fn project_max_commit_delta(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().max_commit_delta(&self.source, id)
     }
     pub fn project_experience(&self, id: &ProjectId) -> Option<f64> {
         self.data.borrow_mut().project_experience(&self.source, id)
@@ -481,8 +481,8 @@ impl Database {
     pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32> {
         self.data.borrow_mut().project_max_experience(&self.source, id)
     }
-    pub fn avg_commit_rate(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().avg_commit_rate(&self.source, id)
+    pub fn avg_commit_delta(&self, id: &ProjectId) -> Option<i64> {
+        self.data.borrow_mut().avg_commit_delta(&self.source, id)
     }
     pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64> {
         self.data.borrow_mut().time_since_last_commit(&self.source, id)
@@ -543,12 +543,12 @@ impl SourceMapExtractor for ProjectUrlExtractor {
     }
 }
 
-struct LongestInactivityStreakExtractor {}
-impl MapExtractor for LongestInactivityStreakExtractor {
+struct MaxCommitDeltaExtractor {}
+impl MapExtractor for MaxCommitDeltaExtractor {
     type Key = ProjectId;
     type Value = i64;
 }
-impl DoubleMapExtractor for LongestInactivityStreakExtractor  {
+impl DoubleMapExtractor for MaxCommitDeltaExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Timestamp>;
     fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
@@ -601,12 +601,12 @@ impl DoubleMapExtractor for ProjectMaxExperienceExtractor  {
     }
 }
 
-struct AvgCommitRateExtractor {}
-impl MapExtractor for AvgCommitRateExtractor {
+struct AvgCommitDeltaExtractor {}
+impl MapExtractor for AvgCommitDeltaExtractor {
     type Key = ProjectId;
     type Value = i64;
 }
-impl DoubleMapExtractor for AvgCommitRateExtractor  {
+impl DoubleMapExtractor for AvgCommitDeltaExtractor  {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Timestamp>;
     fn extract(_: &Source, project_commits: &Self::A, committed_timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
@@ -708,11 +708,11 @@ impl MapExtractor for IsAbandonedExtractor {
 impl DoubleMapExtractor for IsAbandonedExtractor  {
     type A = BTreeMap<ProjectId, i64>;
     type B = BTreeMap<ProjectId, i64>;
-    fn extract(_: &Source, longest_inactivity_streak: &Self::A, time_since_last_commit: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
-        longest_inactivity_streak.iter().flat_map(|(project_id, inactivity_streak)| {
+    fn extract(_: &Source, max_commit_delta: &Self::A, time_since_last_commit: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        max_commit_delta.iter().flat_map(|(project_id, delta)| {
             let option_last_commit = time_since_last_commit.get(&project_id);
             if let Some(last_commit) = option_last_commit { 
-                return Some((project_id.clone(), *last_commit > *inactivity_streak));
+                return Some((project_id.clone(), *last_commit > *delta));
             }
             Some((project_id.clone(), false))
         }).collect()
@@ -1950,8 +1950,8 @@ pub(crate) struct Data {
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
 
-    project_longest_inactivity_streak:    PersistentMap<LongestInactivityStreakExtractor>,
-    avg_commit_rate:              PersistentMap<AvgCommitRateExtractor>,
+    project_max_commit_delta:    PersistentMap<MaxCommitDeltaExtractor>,
+    avg_commit_delta:              PersistentMap<AvgCommitDeltaExtractor>,
     project_time_since_last_commit:       PersistentMap<TimeSinceLastCommitExtractor>,
     project_time_since_first_commit:       PersistentMap<TimeSinceFirstCommitExtractor>,
     is_abandoned:                 PersistentMap<IsAbandonedExtractor>,
@@ -2046,10 +2046,10 @@ impl Data {
             commit_projects:                PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS,                log.clone(),dir.clone()),
             commit_projects_count:          PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS_COUNT,          log.clone(),dir.clone()),
             snapshot_projects:              PersistentMap::new(CACHE_FILE_SNAPSHOT_PROJECTS,              log.clone(),dir.clone()),
-            project_longest_inactivity_streak:   PersistentMap::new(CACHE_FILE_LONGEST_INACTIVITTY_STREAK, log.clone(), dir.clone()),
-            avg_commit_rate:                PersistentMap::new(CACHE_FILE_AVG_COMMIT_RATE, log.clone(), dir.clone()),
+            project_max_commit_delta:       PersistentMap::new(CACHE_FILE_MAX_COMMIT_DELTA, log.clone(), dir.clone()),
+            avg_commit_delta:               PersistentMap::new(CACHE_FILE_AVG_COMMIT_DELTA, log.clone(), dir.clone()),
             project_time_since_last_commit: PersistentMap::new(CACHE_FILE_TIME_SINCE_LAST_COMMIT, log.clone(), dir.clone()),
-            project_time_since_first_commit: PersistentMap::new(CACHE_FILE_TIME_SINCE_FIRST_COMMIT, log.clone(), dir.clone()),
+            project_time_since_first_commit:PersistentMap::new(CACHE_FILE_TIME_SINCE_FIRST_COMMIT, log.clone(), dir.clone()),
             is_abandoned:                   PersistentMap::new(CACHE_FILE_IS_ABANDONED, log.clone(), dir.clone()),
             snapshot_locs:                  PersistentMap::new(CACHE_FILE_SNAPSHOT_LOCS, log.clone(), dir.clone()),
             project_locs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOCS, log.clone(), dir.clone()),
@@ -2462,8 +2462,8 @@ impl Data {
     pub fn developer_experience(&mut self, source: &Source, id: &UserId) -> Option<i32> {
         self.smart_load_developer_experience(source).get(id).pirate()
     }
-    pub fn longest_inactivity_streak(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
-        self.smart_load_project_longest_inactivity_streak(source).get(id).pirate()
+    pub fn max_commit_delta(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_max_commit_delta(source).get(id).pirate()
     }
     pub fn project_max_experience(&mut self, source: &Source, id: &ProjectId) -> Option<i32> {
         self.smart_load_project_max_experience(source).get(id).pirate()
@@ -2471,8 +2471,8 @@ impl Data {
     pub fn project_experience(&mut self, source: &Source, id: &ProjectId) -> Option<f64> {
         self.smart_load_project_experience(source).get(id).pirate()
     }
-    pub fn avg_commit_rate(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
-        self.smart_load_project_avg_commit_rate(source).get(id).pirate()
+    pub fn avg_commit_delta(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+        self.smart_load_project_avg_commit_delta(source).get(id).pirate()
     }
     pub fn time_since_last_commit(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
         self.smart_load_project_time_since_last_commit(source).get(id).pirate()
@@ -2689,8 +2689,8 @@ impl Data {
     fn smart_load_commit_change_count(&mut self, source: &Source) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, source, one, commit_changes)
     }
-    fn smart_load_project_longest_inactivity_streak(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
-        load_with_prerequisites!(self, project_longest_inactivity_streak, source, two, project_commits, commit_committer_timestamps)
+    fn smart_load_project_max_commit_delta(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, project_max_commit_delta, source, two, project_commits, commit_committer_timestamps)
     }
     fn smart_load_project_max_experience(&mut self, source: &Source) -> &BTreeMap<ProjectId, i32> {
         load_with_prerequisites!(self, project_max_experience, source, two, project_authors, developer_experience)
@@ -2698,8 +2698,8 @@ impl Data {
     fn smart_load_project_experience(&mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
         load_with_prerequisites!(self, project_experience, source, three, developer_experience, project_commits, commits)
     }
-    fn smart_load_project_avg_commit_rate(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
-        load_with_prerequisites!(self, avg_commit_rate, source, two, project_commits, commit_committer_timestamps)
+    fn smart_load_project_avg_commit_delta(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, avg_commit_delta, source, two, project_commits, commit_committer_timestamps)
     }
     fn smart_load_project_time_since_last_commit(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, project_time_since_last_commit, source, three, project_commits, commit_committer_timestamps, project_logs)
@@ -2708,7 +2708,7 @@ impl Data {
         load_with_prerequisites!(self, project_time_since_first_commit, source, three, project_commits, commit_committer_timestamps, project_logs)
     }
     fn smart_load_project_is_abandoned(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
-        load_with_prerequisites!(self, is_abandoned, source, two, project_longest_inactivity_streak, project_time_since_last_commit)
+        load_with_prerequisites!(self, is_abandoned, source, two, project_max_commit_delta, project_time_since_last_commit)
     }
     fn smart_load_snapshot_locs(&mut self, source: &Source) -> &BTreeMap<SnapshotId, usize> {
         load_from_source!(self, snapshot_locs, source)

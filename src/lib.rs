@@ -711,17 +711,66 @@ pub mod project {
     impl_attribute![?+..  objects::Project, Users, objects::User, users_with_data, user_count];
     impl_attribute![?+..  objects::Project, Paths, objects::Path, paths_with_data, path_count];
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
-    impl_attribute![?    objects::Project, LongestInactivityStreak, i64, longest_inactivity_streak];
-    impl_attribute![?    objects::Project, AvgCommitRate, i64, avg_commit_rate];
+
+    /*
+     * For each project, it goes through the commits, sorts them according to their timestamp
+     * and then find the time passed between 2 commits (deltas) that are adjacents in terms of time.
+     * Finally, returns the max delta found.
+    */
+    impl_attribute![?    objects::Project, MaxCommitDelta, i64, max_commit_delta];
+
+
+    /*
+     * For each project, it goes through the commits, sorts them according to their timestamp
+     * and then find the time passed between 2 commits (deltas) that are adjacents in terms of time.
+     * Finally, returns the average of these deltas.
+    */
+    impl_attribute![?    objects::Project, AvgCommitDelta, i64, avg_commit_delta];
+
+    /*
+     * Returns the time in seconds. It is the time passed between the last commit and the last time
+     * parasite updated a given project. 
+    */
     impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
+
+    /*
+     * Returns the time in seconds. It is the time passed between the first commit and the last time
+     * parasite updated a given project.
+    */
     impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
+
+    /*
+     * If MaxCommitDelta is less than TimeSinceLastCommit then it returns true.
+    */
     impl_attribute![?    objects::Project, IsAbandoned, bool, is_abandoned];
+
+    /*
+     * Reconstructs the main branch to get the latest snapshots and return
+     * the number of lines of code associated with a project.
+    */
     impl_attribute![?    objects::Project, Locs, usize, project_locs];
+
+    /*
+     * Return the max developer experience that we can find among all the Authors
+     * of a given project.
+    */
     impl_attribute![?    objects::Project, MaxExperience, i32, project_max_experience];
+
+    /*
+     * Return a single number. Let DE be a number that describes some developer's experience,
+     * DC the number of commits of a given developer, and PC the total sum of commits of a given project.
+     * Then for a given project, x,  we sum DE_x*DC_x/PC. 
+    */
     impl_attribute![?    objects::Project, ProjectExperience, f64, project_experience];
     
-
-    // Duplicated_code is a percentage. A number between 0 and 1
+    /*
+     * Calculates the percentage of duplicated code by first looking at the changes of files
+     * related to a commit, and the snapshot related to a given change. 
+     * (Recall each change is related to one path). 
+     * If this snapshot has differente project_id than the current one then a given 
+     * file is considered cloned.
+     * Returns a number between 0 and 1. It is a percetange of duplicated code 
+    */
     impl_attribute![?    objects::Project, DuplicatedCode, f64, duplicated_code];
 
     /*

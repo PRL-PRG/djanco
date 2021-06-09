@@ -11,7 +11,7 @@ use djanco::log::{Verbosity, Log};
 fn main() {
     let config = Configuration::parse();
     let database =
-        Djanco::from_options(&config, timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
+        Djanco::from_config(&config, timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
             .expect("Error initializing datastore.");
 
     // If file does not exist, filter snapshots with required string and save to file.

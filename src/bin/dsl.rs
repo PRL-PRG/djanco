@@ -9,7 +9,7 @@ use djanco::log::*;
 fn main() {
     let config = Configuration::parse();
     let database =
-        Djanco::from_options(&config, timestamp!(December 2020), store!(JavaScript, TypeScript, Python), Log::new(Verbosity::Log)).unwrap();
+        Djanco::from_config(&config, timestamp!(December 2020), store!(JavaScript, TypeScript, Python), Log::new(Verbosity::Log)).unwrap();
 
     // TODO a priori size estimate for logging
     database.projects().sort_by(project::Stars).into_csv_in_dir(&config.output_path,  "sort_by_stars").unwrap();

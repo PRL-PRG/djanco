@@ -10,7 +10,7 @@ fn main() {
     let config = Configuration::parse();
 
     let database =
-        Djanco::from_options(&config, timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
+        Djanco::from_config(&config, timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
             .expect("Error initializing datastore.");
 
     let bug_regex = regex!("(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s+#[0-9]+");

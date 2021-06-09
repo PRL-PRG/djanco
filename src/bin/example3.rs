@@ -10,7 +10,7 @@ fn main() {
     let config = Configuration::parse();
 
     let database =
-        Djanco::from_options(&config, timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
+        Djanco::from_config(&config, timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
             .expect("Error initializing datastore.");
 
     with_elapsed_secs!("executing query", {

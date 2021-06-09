@@ -13,7 +13,7 @@ fn main() {
     let log = Log::new(Verbosity::Debug);
 
     let database =
-        Djanco::from_options(&config, timestamp!(December 2020), stores!(Generic), log.clone())
+        Djanco::from_config(&config, timestamp!(December 2020), stores!(Generic), log.clone())
             .expect("Error initializing datastore.");
 
     projects_all(&config, &log, &database).into_csv_in_dir(&config.output_path, "projects_all").unwrap();

@@ -28,17 +28,9 @@
 // Re-export
 pub use commandline::Configuration;
 
-// TODO
-// post paper todo:
-// entities are empty, have only their IDs.
-// then we can remove IDs?
-// maybe it's time to capitulate from the whole ItemWithData oidea and just make it a trait.
-// caches for specific views
-
 // TODO features
-// CSV export
-// receipts
-// Git commit as version
+// maybe it's time to capitulate from the whole ItemWithData oidea and just make it a trait.
+// CSV export (for entire database)
 // commit frequency
 // fill in CSV-capable objects
 // maybe length for all strings
@@ -46,7 +38,6 @@ pub use commandline::Configuration;
 // buckets
 // Fraction vs f64
 // more comprehensive unit tests
-// print out fractions as decimals
 // flat_map select
 // explore parallelism
 // prefiltering
@@ -385,7 +376,7 @@ impl Djanco {
     //         config.preclean_merged_substores
     //     )
     // }
-    pub fn from_options(options: &Configuration, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
+    pub fn from_config(options: &Configuration, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
         Djanco::from_full_spec(
             options.dataset_path_as_str(), 
             options.cache_path_as_str(), 

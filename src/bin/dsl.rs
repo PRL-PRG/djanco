@@ -1,14 +1,13 @@
 use clap::Clap;
 
 use djanco::*;
-use djanco::utils::CommandLineOptions;
 use djanco::objects::*;
 use djanco::csv::*;
-use djanco::log::{Log, Verbosity};
+use djanco::log::*;
 
 // `cargo run --bin dsl --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
-    let config = CommandLineOptions::parse();
+    let config = Configuration::parse();
     let database =
         Djanco::from_options(&config, timestamp!(December 2020), store!(JavaScript, TypeScript, Python), Log::new(Verbosity::Log)).unwrap();
 

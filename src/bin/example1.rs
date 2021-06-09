@@ -5,12 +5,11 @@ use clap::Clap;
 use djanco::*;
 use djanco::objects::*;
 use djanco::csv::*;
-use djanco::utils::CommandLineOptions;
 use djanco::log::{Verbosity, Log};
 
 // `cargo run --bin example1 --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
-    let config = CommandLineOptions::parse();
+    let config = Configuration::parse();
     let database =
         Djanco::from_options(&config, timestamp!(December 2020), vec![], Log::new(Verbosity::Log))
             .expect("Error initializing datastore.");

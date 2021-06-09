@@ -6,10 +6,9 @@ use djanco::time::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
-use djanco::utils::CommandLineOptions;
 use djanco::fraction::Fraction;
 
-fn stars<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn stars<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -18,7 +17,7 @@ fn stars<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -
         .ungroup()
 }
 
-fn mean_changed_paths<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn mean_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -27,7 +26,7 @@ fn mean_changed_paths<'a>(_config: &CommandLineOptions, _log: &Log, database: &'
         .ungroup()
 }
 
-fn median_changed_paths<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn median_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -36,7 +35,7 @@ fn median_changed_paths<'a>(_config: &CommandLineOptions, _log: &Log, database: 
         .ungroup()
 }
 
-fn experienced_author<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn experienced_author<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -48,7 +47,7 @@ fn experienced_author<'a>(_config: &CommandLineOptions, _log: &Log, database: &'
         .ungroup()
 }
 
-fn experienced_authors_ratio<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn experienced_authors_ratio<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -59,7 +58,7 @@ fn experienced_authors_ratio<'a>(_config: &CommandLineOptions, _log: &Log, datab
         .ungroup()
 }
 
-fn mean_commit_message_sizes<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn mean_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -68,7 +67,7 @@ fn mean_commit_message_sizes<'a>(_config: &CommandLineOptions, _log: &Log, datab
         .ungroup()
 }
 
-fn median_commit_message_sizes<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn median_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -77,7 +76,7 @@ fn median_commit_message_sizes<'a>(_config: &CommandLineOptions, _log: &Log, dat
         .ungroup()
 }
 
-fn commits<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn commits<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -88,7 +87,7 @@ fn commits<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database)
 
 // `cargo run --bin example_queries --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
-    let config = CommandLineOptions::parse();
+    let config = Configuration::parse();
     let log = Log::new(Verbosity::Debug);
 
     let database =

@@ -21,8 +21,12 @@
 #[cfg(test)] mod testing;
              mod source;
 #[macro_use] pub mod utils;
+             pub mod commandline;
 
 #[macro_use] extern crate mashup;
+
+// Re-export
+pub use commandline::Configuration;
 
 // TODO
 // post paper todo:
@@ -73,7 +77,6 @@ use crate::fraction::*;
 use crate::data::Database;
 use crate::log::{Log, Verbosity};
 use crate::source::{Source, MERGED_SUBSTORE_DIR_NAME};
-use crate::utils::CommandLineOptions;
 
 pub type Timestamp = i64; // Epoch
 pub type Percentage = u8; // Positive integer value 0-100.
@@ -382,7 +385,7 @@ impl Djanco {
     //         config.preclean_merged_substores
     //     )
     // }
-    pub fn from_options(options: &CommandLineOptions, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
+    pub fn from_options(options: &Configuration, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
         Djanco::from_full_spec(
             options.dataset_path_as_str(), 
             options.cache_path_as_str(), 

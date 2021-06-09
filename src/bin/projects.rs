@@ -3,10 +3,9 @@ use clap::Clap;
 use djanco::*;
 use djanco::csv::*;
 use djanco::log::*;
-use djanco::utils::CommandLineOptions;
 
 fn main() {
-    let config = CommandLineOptions::parse();
+    let config = Configuration::parse();
     let log = Log::new(Verbosity::Debug);
 
     let database =

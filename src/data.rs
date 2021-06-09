@@ -96,7 +96,7 @@ pub mod cache_filenames {
     pub static CACHE_FILE_COMMIT_PROJECTS_COUNT:          &'static str = "commit_projects_count";
     pub static CACHE_FILE_SNAPSHOT_PROJECTS:              &'static str = "snapshot_projects";
     pub static CACHE_FILE_MAX_COMMIT_DELTA:               &'static str = "max_commit_delta";
-    pub static CACHE_FILE_AVG_COMMIT_DELTA:                &'static str = "avg_commit_delta";  
+    pub static CACHE_FILE_AVG_COMMIT_DELTA:               &'static str = "avg_commit_delta";  
     pub static CACHE_FILE_TIME_SINCE_LAST_COMMIT:         &'static str = "time_since_last_commit";  
     pub static CACHE_FILE_TIME_SINCE_FIRST_COMMIT:        &'static str = "time_since_first_commit";  
     pub static CACHE_FILE_IS_ABANDONED:                   &'static str = "is_abandoned";  
@@ -106,7 +106,7 @@ pub mod cache_filenames {
     pub static CACHE_FILE_PROJECT_LOGS:                   &'static str = "project_logs";
     pub static CACHE_FILE_PROJECT_IS_VALID:               &'static str = "project_is_valid";
     pub static CACHE_FILE_PROJECT_MAX_EXPERIENCE:         &'static str = "project_max_experience";
-    pub static CACHE_FILE_PROJECT_EXPERIENCE:         &'static str = "project_experience";
+    pub static CACHE_FILE_PROJECT_EXPERIENCE:             &'static str = "project_experience";
 }
 
 use cache_filenames::*;

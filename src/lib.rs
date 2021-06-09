@@ -320,22 +320,26 @@ impl Djanco {
         let substores = Store::discretize_selection(substores);
         let cache_dir = CacheDir::from(cache_path.clone(), savepoint, substores.clone());
         if preclean {
-            read_dir(&cache_dir.as_string())
-                .with_context(|| format!("Preclean error: cannot remove directory {:?}", &cache_path))?
-                .into_iter()
-                .flat_map(|e| e.map(|e| {
-                    e.path().as_os_str().to_str().unwrap().to_owned()
-                }))
-                .filter(|path| preclean_merged_substores || path != MERGED_SUBSTORE_DIR_NAME)
-                .for_each(|path| {
-                    if metadata(&path).unwrap().is_dir() {
-                        println!("Cleaning {:?}", &path);
-                        remove_dir_all(&path)                        
-                    } else {
-                        println!("Cleaning {:?}", &path);
-                        remove_file(&path)
-                    }.with_context(|| format!("Preclean error: cannot remove directory {:?}", path)).unwrap();
-                });      
+            match read_dir(cache_dir.as_string()) {
+                Err(e) => {
+                    println!("Cannot clean directory {}, skipping. Reason: {}", cache_dir.as_string(), e);
+                }
+                Ok(contents) => 
+                    contents.into_iter()
+                        .flat_map(|e| e.map(|e| {
+                            e.path().as_os_str().to_str().unwrap().to_owned()
+                        }))
+                        .filter(|path| preclean_merged_substores || path != MERGED_SUBSTORE_DIR_NAME)
+                        .for_each(|path| {
+                            if metadata(&path).unwrap().is_dir() {
+                                println!("Cleaning {:?}", &path);
+                                remove_dir_all(&path)                        
+                            } else {
+                                println!("Cleaning {:?}", &path);
+                                remove_file(&path)
+                            }.with_context(|| format!("Preclean error: cannot remove {:?}", path)).unwrap();
+                        })
+            };      
         }   
         let source = Source::new(dataset_path, cache_dir.as_string(), savepoint, substores)?;
         Ok(Database::new(source, cache_dir, log))

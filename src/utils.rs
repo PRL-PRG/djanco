@@ -66,7 +66,6 @@ pub struct CommandLineOptions {
     #[clap(short = 'd', long = "dataset-path", parse(from_os_str))]
     pub dataset_path: PathBuf,
 
-
     #[clap(long = "skip-results")]
     pub do_not_archive_results: bool,
 

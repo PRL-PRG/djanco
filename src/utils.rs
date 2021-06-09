@@ -78,6 +78,12 @@ pub struct CommandLineOptions {
 
     #[clap(long = "verbosity", short = 'v', default_value = "log")]
     pub verbosity: Verbosity,
+
+    #[clap(long = "preclean-cache", alias = "preclean")]
+    pub preclean_cache: bool,
+
+    #[clap(long = "preclean-merged-substores", alias = "preclean-merged")]
+    pub preclean_merged_substores: bool,   
 }
 
 impl FromStr for Verbosity {

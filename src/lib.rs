@@ -69,6 +69,7 @@ use anyhow::*;
 
 use parasite;
 use parasite::{StoreKind};
+use utils::CommandLineOptions;
 
 use crate::attrib::*;
 use crate::fraction::*;
@@ -377,6 +378,17 @@ impl Djanco {
             log, 
             config.preclean_cache, 
             config.preclean_merged_substores
+        )
+    }
+    pub fn from_options(options: &CommandLineOptions, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
+        Djanco::from_full_spec(
+            options.dataset_path_as_str(), 
+            options.cache_path_as_str(), 
+            savepoint, 
+            substores, 
+            log, 
+            options.preclean_cache, 
+            options.preclean_merged_substores
         )
     }
 }

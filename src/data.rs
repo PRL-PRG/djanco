@@ -6,6 +6,7 @@ use std::iter::FromIterator;
 
 use anyhow::*;
 use itertools::{Itertools, MinMaxResult};
+use delegate::delegate;
 
 use crate::objects::*;
 use crate::piracy::*;
@@ -183,6 +184,14 @@ impl Database {
 }
 
 impl Database {
+
+    delegate! {
+        to self.data.borrow_mut() {
+            #[arg(true)]
+            pub fn test(&mut self, id: &ProjectId) -> bool;
+        }
+    }
+
     pub fn project(&self, id: &ProjectId) -> Option<Project> {
         self.data.borrow_mut().project(&self.source, id)
     }
@@ -2096,6 +2105,10 @@ impl Data { // Quincunx, sort of
 }
 
 impl Data {
+    pub fn test(&mut self, id: &ProjectId, butts: bool) -> bool {
+        unimplemented!()
+    }
+
     pub fn project(&mut self, source: &Source, id: &ProjectId) -> Option<Project> {
         self.smart_load_project_urls(source).get(id)
             .map(|url| Project::new(id.clone(), url.clone()))

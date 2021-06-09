@@ -818,7 +818,12 @@ impl std::fmt::Display for Error {
 pub trait FromCSV: Sized {
     fn item_from_csv_row(values: HashMap<String, String>) -> Result<Self, Error>;
 
-    fn from_csv<S>(location: S) -> Result<Vec<Self>, Error> where S: Into<String> {
+    fn from_csv_in_dir(dir: &std::path::Path, file: impl Into<String>) -> Result<Vec<Self>, Error> {
+        let location = dir.join(PathBuf::from(file.into()));
+        Self::from_csv(location.into_os_string().to_str().unwrap())
+    }
+
+    fn from_csv(location: impl Into<String>) -> Result<Vec<Self>, Error> {
         let file = File::open(location.into())?;
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(true)

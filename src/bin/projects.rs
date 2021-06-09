@@ -1,19 +1,17 @@
-use structopt::StructOpt;
+use clap::Clap;
 
 use djanco::*;
 use djanco::csv::*;
 use djanco::log::*;
-use djanco::commandline::*;
+use djanco::utils::CommandLineOptions;
 
 fn main() {
-    let config = Configuration::from_args();
+    let config = CommandLineOptions::parse();
     let log = Log::new(Verbosity::Debug);
 
-    macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
-
     let database =
-        Djanco::from_config(&config, timestamp!(December 2020), stores!(All), log.clone())
+        Djanco::from_options(&config, timestamp!(December 2020), stores!(All), log.clone())
             .expect("Error initializing datastore.");
 
-    database.projects().into_csv(path!("projects")).unwrap();
+    database.projects().into_csv_in_dir(&config.output_path, "projects").unwrap();
 }

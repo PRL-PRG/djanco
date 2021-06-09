@@ -1,25 +1,23 @@
-use structopt::StructOpt;
+use clap::Clap;
 
 use djanco::*;
 use djanco::data::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
-use djanco::commandline::*;
+use djanco::utils::CommandLineOptions;
 
 // rm -rf ~/djanco_cache && cargo run --bin clones --release -- -o ~/output -d /home/peta/devel/codedj-2/datasets/java-1k5-merged -c ~/djanco_cache --data-dump ~/output/dump > out.txt
 
 fn main() {
-    let config = Configuration::from_args();
+    let config = CommandLineOptions::parse();
     let log = Log::new(Verbosity::Debug);
 
-    macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
-
     let database =
-        Djanco::from_config(&config, timestamp!(December 2020), stores!(Generic), log.clone())
+        Djanco::from_options(&config, timestamp!(December 2020), stores!(Generic), log.clone())
             .expect("Error initializing datastore.");
 
-    projects_all(&config, &log, &database).into_csv(path!("projects_all")).unwrap();
+    projects_all(&config, &log, &database).into_csv_in_dir(&config.output_path, "projects_all").unwrap();
     /*
     //snapshots_by_num_projects(&config, &log, &database).into_csv(path!("snapshots_by_projects")).unwrap();
     projects_by_unique_files(&config, &log, &database).into_csv(path!("projects_by_unique_files")).unwrap();
@@ -42,13 +40,13 @@ fn snapshots_by_num_projects<'a>(_config: &Configuration, _log: &Log, database: 
 }
 */
 
-fn projects_all<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn projects_all<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
 }
 
 #[allow(dead_code)]
-fn projects_by_unique_files<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn projects_by_unique_files<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .sort_by(project::UniqueFiles)
@@ -56,7 +54,7 @@ fn projects_by_unique_files<'a>(_config: &Configuration, _log: &Log, database: &
 }
 
 #[allow(dead_code)]
-fn projects_by_original_files<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn projects_by_original_files<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .sort_by(project::OriginalFiles)
@@ -64,7 +62,7 @@ fn projects_by_original_files<'a>(_config: &Configuration, _log: &Log, database:
 }
 
 #[allow(dead_code)]
-fn projects_by_impact<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn projects_by_impact<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .sort_by(project::Impact)
@@ -72,7 +70,7 @@ fn projects_by_impact<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
 }
 
 #[allow(dead_code)]
-fn projects_by_files<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn projects_by_files<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .sort_by(project::Files)
@@ -89,7 +87,7 @@ fn projects_by_major_language_ratio<'a>(_config: &Configuration, _log: &Log, dat
 */
 
 #[allow(dead_code)]
-fn projects_by_major_language_changes<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn projects_by_major_language_changes<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .sort_by(project::MajorLanguageChanges)
@@ -97,7 +95,7 @@ fn projects_by_major_language_changes<'a>(_config: &Configuration, _log: &Log, d
 }
 
 #[allow(dead_code)]
-fn projects_by_all_forks<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn projects_by_all_forks<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .sort_by(Count(project::AllForks))
@@ -105,7 +103,7 @@ fn projects_by_all_forks<'a>(_config: &Configuration, _log: &Log, database: &'a 
 }
 
 #[allow(dead_code)]
-fn projects_by_loc<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn projects_by_loc<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .sort_by(project::Locs)

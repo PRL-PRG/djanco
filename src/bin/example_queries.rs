@@ -1,4 +1,4 @@
-use structopt::StructOpt;
+use clap::Clap;
 
 use djanco::*;
 use djanco::data::*;
@@ -6,10 +6,10 @@ use djanco::time::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;
-use djanco::commandline::*;
+use djanco::utils::CommandLineOptions;
 use djanco::fraction::Fraction;
 
-fn stars<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn stars<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -18,7 +18,7 @@ fn stars<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> imp
         .ungroup()
 }
 
-fn mean_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn mean_changed_paths<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -27,7 +27,7 @@ fn mean_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
         .ungroup()
 }
 
-fn median_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn median_changed_paths<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -36,7 +36,7 @@ fn median_changed_paths<'a>(_config: &Configuration, _log: &Log, database: &'a D
         .ungroup()
 }
 
-fn experienced_author<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn experienced_author<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -48,7 +48,7 @@ fn experienced_author<'a>(_config: &Configuration, _log: &Log, database: &'a Dat
         .ungroup()
 }
 
-fn experienced_authors_ratio<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn experienced_authors_ratio<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -59,7 +59,7 @@ fn experienced_authors_ratio<'a>(_config: &Configuration, _log: &Log, database: 
         .ungroup()
 }
 
-fn mean_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn mean_commit_message_sizes<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -68,7 +68,7 @@ fn mean_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database: 
         .ungroup()
 }
 
-fn median_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn median_commit_message_sizes<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -77,7 +77,7 @@ fn median_commit_message_sizes<'a>(_config: &Configuration, _log: &Log, database
         .ungroup()
 }
 
-fn commits<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
+fn commits<'a>(_config: &CommandLineOptions, _log: &Log, database: &'a Database) -> impl Iterator<Item=ItemWithData<'a, Project>> {
     database
         .projects()
         .group_by(project::Language)
@@ -88,21 +88,19 @@ fn commits<'a>(_config: &Configuration, _log: &Log, database: &'a Database) -> i
 
 // `cargo run --bin example_queries --release -- -o ~/output -d /mnt/data/dataset -c /mnt/data/cache --data-dump=~/output/dump`
 fn main() {
-    let config = Configuration::from_args();
+    let config = CommandLineOptions::parse();
     let log = Log::new(Verbosity::Debug);
 
-    macro_rules! path { ($name:expr) => { config.output_csv_path($name) } }
-
     let database =
-        Djanco::from_config(&config, timestamp!(December 2020), stores!(Javascript), log.clone())
+        Djanco::from_options(&config, timestamp!(December 2020), stores!(Javascript), log.clone())
             .expect("Error initializing datastore.");
 
-    stars(&config, &log, &database).into_csv(path!("stars")).unwrap();
-    mean_changed_paths(&config, &log, &database).into_csv(path!("mean_changed_paths")).unwrap();
-    median_changed_paths(&config, &log, &database).into_csv(path!("median_changed_paths")).unwrap();
-    experienced_author(&config, &log, &database).into_csv(path!("experienced_author")).unwrap();
-    experienced_authors_ratio(&config, &log, &database).into_csv(path!("experienced_authors_ratio")).unwrap();
-    mean_commit_message_sizes(&config, &log, &database).into_csv(path!("mean_commit_message_sizes")).unwrap();
-    median_commit_message_sizes(&config, &log, &database).into_csv(path!("median_commit_message_sizes")).unwrap();
-    commits(&config, &log, &database).into_csv(path!("commits")).unwrap();
+    stars(&config, &log, &database).into_csv_in_dir(&config.output_path, "stars").unwrap();
+    mean_changed_paths(&config, &log, &database).into_csv_in_dir(&config.output_path, "mean_changed_paths").unwrap();
+    median_changed_paths(&config, &log, &database).into_csv_in_dir(&config.output_path, "median_changed_paths").unwrap();
+    experienced_author(&config, &log, &database).into_csv_in_dir(&config.output_path, "experienced_author").unwrap();
+    experienced_authors_ratio(&config, &log, &database).into_csv_in_dir(&config.output_path, "experienced_authors_ratio").unwrap();
+    mean_commit_message_sizes(&config, &log, &database).into_csv_in_dir(&config.output_path, "mean_commit_message_sizes").unwrap();
+    median_commit_message_sizes(&config, &log, &database).into_csv_in_dir(&config.output_path, "median_commit_message_sizes").unwrap();
+    commits(&config, &log, &database).into_csv_in_dir(&config.output_path, "commits").unwrap();
 }

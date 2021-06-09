@@ -2,7 +2,6 @@
 
              pub mod fraction;
              pub mod ordf64;
-             pub mod commandline;
              pub mod weights_and_measures;
 #[macro_use] pub mod log;
              pub mod csv;
@@ -59,7 +58,6 @@ use std::env;
 use std::path::PathBuf;
 use std::fmt::Display;
 
-use commandline::Configuration;
 use itertools::Itertools;
 use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
@@ -69,13 +67,13 @@ use anyhow::*;
 
 use parasite;
 use parasite::{StoreKind};
-use utils::CommandLineOptions;
 
 use crate::attrib::*;
 use crate::fraction::*;
 use crate::data::Database;
 use crate::log::{Log, Verbosity};
 use crate::source::{Source, MERGED_SUBSTORE_DIR_NAME};
+use crate::utils::CommandLineOptions;
 
 pub type Timestamp = i64; // Epoch
 pub type Percentage = u8; // Positive integer value 0-100.
@@ -373,17 +371,17 @@ impl Djanco {
                 .unwrap_or("false".to_owned()).parse::<bool>().unwrap();                
         Djanco::from(dataset_path, preclean, preclean_merged_substores)
     }
-    pub fn from_config(config: &Configuration, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
-        Djanco::from_full_spec(
-            config.dataset_path(), 
-            config.cache_path(), 
-            savepoint, 
-            substores, 
-            log, 
-            config.preclean_cache, 
-            config.preclean_merged_substores
-        )
-    }
+    // pub fn from_config(config: &Configuration, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
+    //     Djanco::from_full_spec(
+    //         config.dataset_path(), 
+    //         config.cache_path(), 
+    //         savepoint, 
+    //         substores, 
+    //         log, 
+    //         config.preclean_cache, 
+    //         config.preclean_merged_substores
+    //     )
+    // }
     pub fn from_options(options: &CommandLineOptions, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
         Djanco::from_full_spec(
             options.dataset_path_as_str(), 

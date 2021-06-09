@@ -309,8 +309,11 @@ impl CacheDir {
 
 pub struct Djanco;
 impl Djanco {
+    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
+        Self::from_full_spec(dataset_path, cache_path, savepoint, substores, log, false, false)
+    }
     // FIXME this still sucks
-    pub fn from_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, substores: Vec<Store>, log: Log, preclean: bool, preclean_merged_substores: bool) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
+    pub fn from_full_spec<Sd, Sc>(dataset_path: Sd, cache_path: Sc, savepoint: Timestamp, substores: Vec<Store>, log: Log, preclean: bool, preclean_merged_substores: bool) -> anyhow::Result<Database> where Sd: Into<String>, Sc: Into<String> {
         //DatastoreView::new(&dataset_path.into(), savepoint).with_cache(cache_path)
         let cache_path = cache_path.into();
         let substores = Store::discretize_selection(substores);
@@ -351,7 +354,7 @@ impl Djanco {
             path.into_os_string().to_str().unwrap().to_owned()
         });
         let log = Log::new(Verbosity::Log);
-        Djanco::from_spec(dataset_path, cache_path, savepoint, substores, log, preclean, preclean_merged_substores)
+        Djanco::from_full_spec(dataset_path, cache_path, savepoint, substores, log, preclean, preclean_merged_substores)
     }
     pub fn from<Sd>(dataset_path: Sd, preclean: bool, preclean_merged_substores: bool) -> Result<Database>  where Sd: Into<String> {
         Djanco::from_store(dataset_path, chrono::Utc::now().timestamp(), vec![], preclean, preclean_merged_substores)
@@ -366,7 +369,7 @@ impl Djanco {
         Djanco::from(dataset_path, preclean, preclean_merged_substores)
     }
     pub fn from_config(config: &Configuration, savepoint: Timestamp, substores: Vec<Store>, log: Log) -> Result<Database> {
-        Djanco::from_spec(
+        Djanco::from_full_spec(
             config.dataset_path(), 
             config.cache_path(), 
             savepoint, 

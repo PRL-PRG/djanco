@@ -184,344 +184,125 @@ impl Database {
 }
 
 impl Database {
-
     delegate! {
         to self.data.borrow_mut() {
-            #[arg(true)]
-            pub fn test(&mut self, id: &ProjectId) -> bool;
+            #[extra_args(&self.source)] pub fn project(&self, id: &ProjectId) -> Option<Project>;
+            #[extra_args(&self.source)] pub fn project_issues(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool>;
+            #[extra_args(&self.source)] pub fn project_is_archived(&self, id: &ProjectId) -> Option<bool>;
+            #[extra_args(&self.source)] pub fn project_is_disabled(&self, id: &ProjectId) -> Option<bool>;
+            #[extra_args(&self.source)] pub fn project_star_gazer_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_watcher_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_size(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_open_issue_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_fork_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_subscriber_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_license(&self, id: &ProjectId) -> Option<String>;
+            #[extra_args(&self.source)] pub fn project_language(&self, id: &ProjectId) -> Option<Language>;
+            #[extra_args(&self.source)] pub fn project_substore(&self, id: &ProjectId) -> Option<Store>;
+            #[extra_args(&self.source)] pub fn project_description(&self, id: &ProjectId) -> Option<String>;
+            #[extra_args(&self.source)] pub fn project_homepage(&self, id: &ProjectId) -> Option<String>;
+            #[extra_args(&self.source)] pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool>;
+            #[extra_args(&self.source)] pub fn project_has_downloads(&self, id: &ProjectId) -> Option<bool>;
+            #[extra_args(&self.source)] pub fn project_has_wiki(&self, id: &ProjectId) -> Option<bool>;
+            #[extra_args(&self.source)] pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool>;
+            #[extra_args(&self.source)] pub fn project_created(&self, id: &ProjectId) -> Option<Timestamp>;
+            #[extra_args(&self.source)] pub fn project_updated(&self, id: &ProjectId) -> Option<Timestamp>;
+            #[extra_args(&self.source)] pub fn project_pushed(&self, id: &ProjectId) -> Option<Timestamp>;
+            #[extra_args(&self.source)] pub fn project_default_branch(&self, id: &ProjectId) -> Option<String>;
+            #[extra_args(&self.source)] pub fn project_change_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>>;
+            #[extra_args(&self.source)] pub fn project_change_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>>;
+            #[extra_args(&self.source)] pub fn project_cumulative_change_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>>;
+            #[extra_args(&self.source)] pub fn project_commit_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>>;
+            #[extra_args(&self.source)] pub fn project_commit_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>>;
+            #[extra_args(&self.source)] pub fn project_cumulative_commit_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>>;
+            #[extra_args(&self.source)] pub fn project_authors_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>>;
+            #[extra_args(&self.source)] pub fn project_authors_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>>;
+            #[extra_args(&self.source)] pub fn project_author_ids_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>>;
+            #[extra_args(&self.source)] pub fn project_author_ids_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>>;
+            #[extra_args(&self.source)] pub fn project_authors_contributing_commits_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_authors_contributing_changes_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_url(&self, id: &ProjectId) -> Option<String>;
+            #[extra_args(&self.source)] pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<Head>>;
+            #[extra_args(&self.source)] pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>>; // TODO pirate
+            #[extra_args(&self.source)] pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>>;
+            #[extra_args(&self.source)] pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>; // TODO pirate
+            #[extra_args(&self.source)] pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>>;
+            #[extra_args(&self.source)] pub fn project_author_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_path_ids(&self, id: &ProjectId) -> Option<Vec<PathId>>; // TODO pirate
+            #[extra_args(&self.source)] pub fn project_paths(&self, id: &ProjectId) -> Option<Vec<Path>>;
+            #[extra_args(&self.source)] pub fn project_path_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_snapshot_ids(&self, id: &ProjectId) -> Option<Vec<SnapshotId>>; // TODO pirate
+            #[extra_args(&self.source)] pub fn project_snapshot_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>; // TODO pirate
+            #[extra_args(&self.source)] pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>>;
+            #[extra_args(&self.source)] pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>;
+            #[extra_args(&self.source)] pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>>;
+            #[extra_args(&self.source)] pub fn project_user_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration>;
+            #[extra_args(&self.source)] pub fn project_unique_files(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_original_files(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_impact(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_files(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_languages(&self, id: & ProjectId) -> Option<Vec<(Language,usize)>>;
+            #[extra_args(&self.source)] pub fn project_languages_count(&self, id: & ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_major_language(&self, id: &ProjectId) -> Option<Language>;
+            #[extra_args(&self.source)] pub fn project_major_language_ratio(&self, id: &ProjectId) -> Option<f64>;
+            #[extra_args(&self.source)] pub fn project_major_language_changes(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_all_forks(&self, id: &ProjectId) -> Option<Vec<ProjectId>>;
+            #[extra_args(&self.source)] pub fn project_all_forks_count(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_head_trees(&self, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>>;
+            #[extra_args(&self.source)] pub fn project_head_trees_count(&self, id : &ProjectId) -> Option<usize>; // TODO pirate
+            #[extra_args(&self.source)] pub fn user(&self, id: &UserId) -> Option<User>; // TODO pirate
+            #[extra_args(&self.source)] pub fn path(&self, id: &PathId) -> Option<Path>; // TODO pirate
+            #[extra_args(&self.source)] pub fn commit(&self, id: &CommitId) -> Option<Commit>; // TODO pirate
+            #[extra_args(&self.source)] pub fn commit_hash(&self, id: &CommitId) -> Option<String>; // TODO pirate
+            #[extra_args(&self.source)] pub fn commit_message(&self, id: &CommitId) -> Option<String>; // TODO pirate
+            #[extra_args(&self.source)] pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<Timestamp>;
+            #[extra_args(&self.source)] pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<Timestamp>;
+            #[extra_args(&self.source)] pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<Change>>;
+            #[extra_args(&self.source)] pub fn commit_changed_paths(&self, id: &CommitId) -> Option<Vec<Path>>;
+            #[extra_args(&self.source)] pub fn commit_change_count(&self, id: &CommitId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn commit_changed_path_count(&self, id: &CommitId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn commit_projects(&self, id : &CommitId) -> Option<Vec<Project>>;
+            #[extra_args(&self.source)] pub fn commit_projects_count(&self, id: &CommitId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>>; // TODO pirate
+            #[extra_args(&self.source)] pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>>;
+            #[extra_args(&self.source)] pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>>;
+            #[extra_args(&self.source)] pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration>;
+            #[extra_args(&self.source)] pub fn user_author_experience(&self, id: &UserId) -> Option<Duration>;
+            #[extra_args(&self.source)] pub fn user_experience(&self, id: &UserId) -> Option<Duration>;
+            #[extra_args(&self.source)] pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>>;
+            #[extra_args(&self.source)] pub fn developer_experience(&self, id: &UserId) -> Option<i32>; // TODO user_
+            #[extra_args(&self.source)] pub fn project_max_commit_delta(&self, id: &ProjectId) -> Option<i64>;
+            #[extra_args(&self.source)] pub fn project_experience(&self, id: &ProjectId) -> Option<f64>;
+            #[extra_args(&self.source)] pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32>;
+            #[extra_args(&self.source)] pub fn avg_commit_delta(&self, id: &ProjectId) -> Option<i64>; // TODO project_avg_commit_delta
+            #[extra_args(&self.source)] pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64>;
+            #[extra_args(&self.source)] pub fn project_time_since_first_commit(&self, id: &ProjectId) -> Option<i64>;
+            #[extra_args(&self.source)] pub fn is_abandoned(&self, id: &ProjectId) -> Option<bool>; // TODO project_is_abandoned
+            #[extra_args(&self.source)] pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn project_locs(&self, id: &ProjectId) -> Option<usize>;
+            #[extra_args(&self.source)] pub fn duplicated_code(&self, id: &ProjectId) -> Option<f64>; // TODO project_deduplicated code
+            #[extra_args(&self.source)] pub fn snapshot_unique_projects(&self, id : &SnapshotId) -> usize;
+            #[extra_args(&self.source)] pub fn snapshot_original_project(&self, id : &SnapshotId) -> ProjectId;
+            #[extra_args(&self.source)] pub fn project_logs(&self, id : &ProjectId) -> Option<i64>;
+            #[extra_args(&self.source)] pub fn project_is_valid(&self, id : &ProjectId) -> Option<bool>;
+
         }
     }
 
-    pub fn project(&self, id: &ProjectId) -> Option<Project> {
-        self.data.borrow_mut().project(&self.source, id)
-    }
-    pub fn project_issues(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_issues(&self.source, id)
-    }
-    pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_buggy_issues(&self.source, id)
-    }
-    pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_fork(&self.source, id)
-    }
-    pub fn project_is_archived(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_archived(&self.source, id)
-    }
-    pub fn project_is_disabled(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_disabled(&self.source, id)
-    }
-    pub fn project_star_gazer_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_star_gazer_count(&self.source, id)
-    }
-    pub fn project_watcher_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_watcher_count(&self.source, id)
-    }
-    pub fn project_size(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_size(&self.source, id)
-    }
-    pub fn project_open_issue_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_open_issue_count(&self.source, id)
-    }
-    pub fn project_fork_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_fork_count(&self.source, id)
-    }
-    pub fn project_subscriber_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_subscriber_count(&self.source, id)
-    }
-    pub fn project_license(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_license(&self.source, id)
-    }
-    pub fn project_language(&self, id: &ProjectId) -> Option<Language> {
-        self.data.borrow_mut().project_language(&self.source, id)
-    }
-    pub fn project_substore(&self, id: &ProjectId) -> Option<Store> {
-        self.data.borrow_mut().project_substore(&self.source, id)
-    }
-    pub fn project_description(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_description(&self.source, id)
-    }
-    pub fn project_homepage(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_homepage(&self.source, id)
-    }
-    pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_issues(&self.source, id)
-    }
-    pub fn project_has_downloads(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_downloads(&self.source, id)
-    }
-    pub fn project_has_wiki(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_wiki(&self.source, id)
-    }
-    pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_has_pages(&self.source, id)
-    }
-    pub fn project_created(&self, id: &ProjectId) -> Option<Timestamp> {
-        self.data.borrow_mut().project_created(&self.source, id)
-    }
-    pub fn project_updated(&self, id: &ProjectId) -> Option<Timestamp> {
-        self.data.borrow_mut().project_updated(&self.source, id)
-    }
-    pub fn project_pushed(&self, id: &ProjectId) -> Option<Timestamp> {
-        self.data.borrow_mut().project_pushed(&self.source, id)
-    }
-    pub fn project_default_branch(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_default_branch(&self.source, id)
-    }
-    pub fn project_change_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>> {
-        self.data.borrow_mut().project_change_contributions(&self.source, id)
-    }
-    pub fn project_change_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
-        self.data.borrow_mut().project_change_contribution_ids(&self.source, id)
-    }
-    pub fn project_cumulative_change_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>> {
-        self.data.borrow_mut().project_cumulative_change_contributions(&self.source, id)
-    }
-    pub fn project_commit_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>> {
-        self.data.borrow_mut().project_commit_contributions(&self.source, id)
-    }
-    pub fn project_commit_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
-        self.data.borrow_mut().project_commit_contribution_ids(&self.source, id)
-    }
-    pub fn project_cumulative_commit_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>> {
-        self.data.borrow_mut().project_cumulative_commit_contributions(&self.source, id)
-    }
-    pub fn project_authors_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_authors_contributing_commits(&self.source, id, percentage)
-    }
-    pub fn project_authors_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_authors_contributing_changes(&self.source, id, percentage)
-    }
-    pub fn project_author_ids_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_author_ids_contributing_commits(&self.source, id, percentage)
-    }
-    pub fn project_author_ids_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_author_ids_contributing_changes(&self.source, id, percentage)
-    }
-    pub fn project_authors_contributing_commits_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize> {
-        self.data.borrow_mut().project_authors_contributing_commits_count(&self.source, id, percentage)
-    }
-    pub fn project_authors_contributing_changes_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize> {
-        self.data.borrow_mut().project_authors_contributing_changes_count(&self.source, id, percentage)
-    }
-    pub fn project_url(&self, id: &ProjectId) -> Option<String> {
-        self.data.borrow_mut().project_url(&self.source, id)
-    }
-    // pub fn project_head_ids(&self, id: &ProjectId) -> Option<Vec<(String, CommitId)>> {
-    //     self.data.borrow_mut().project_head_ids(&self.source, id)
-    // }
-    pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<Head>> {
-        self.data.borrow_mut().project_heads(&self.source, id)
-    }
-    pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().project_commit_ids(&self.source, id).pirate()
-    }
-    pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().project_commits(&self.source, id)
-    }
-    pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_commit_count(&self.source, id)
-    }
-    pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_author_ids(&self.source, id).pirate()
-    }
-    pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_authors(&self.source, id)
-    }
-    pub fn project_author_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_author_count(&self.source, id)
-    }
-    pub fn project_path_ids(&self, id: &ProjectId) -> Option<Vec<PathId>> {
-        self.data.borrow_mut().project_path_ids(&self.source, id).pirate()
-    }
-    pub fn project_paths(&self, id: &ProjectId) -> Option<Vec<Path>> {
-        self.data.borrow_mut().project_paths(&self.source, id)
-    }
-    pub fn project_path_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_path_count(&self.source, id)
-    }
-    pub fn project_snapshot_ids(&self, id: &ProjectId) -> Option<Vec<SnapshotId>> {
-        self.data.borrow_mut().project_snapshot_ids(&self.source, id).pirate()
-    }
     pub fn project_snapshots(&self, id: &ProjectId) -> Option<Vec<Snapshot>> {
         self.project_snapshot_ids(id).map(|vector| {
             vector.into_iter()
                 .flat_map(|id| self.snapshot(&id))
                 .collect::<Vec<Snapshot>>()
         })
-    }
-    pub fn project_snapshot_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_snapshot_count(&self.source, id)
-    }
-    pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_committer_ids(&self.source, id).pirate()
-    }
-    pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_committers(&self.source, id)
-    }
-    pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_committer_count(&self.source, id)
-    }
-    pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>> {
-        self.data.borrow_mut().project_user_ids(&self.source, id).pirate()
-    }
-    pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>> {
-        self.data.borrow_mut().project_users(&self.source, id)
-    }
-    pub fn project_user_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_user_count(&self.source, id)
-    }
-    pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration> {
-        self.data.borrow_mut().project_lifetime(&self.source, id)
-    }
-    pub fn project_unique_files(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_unique_files(&self.source, id)
-    }
-    pub fn project_original_files(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_original_files(&self.source, id)
-    }
-    pub fn project_impact(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_impact(&self.source, id)
-    }
-    pub fn project_files(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_files(&self.source, id)
-    }
-    pub fn project_languages(&self, id: & ProjectId) -> Option<Vec<(Language,usize)>> {
-        self.data.borrow_mut().project_languages(&self.source, id)
-    }
-    pub fn project_languages_count(&self, id: & ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_languages_count(&self.source, id)
-    }
-    pub fn project_major_language(&self, id: &ProjectId) -> Option<Language> {
-        self.data.borrow_mut().project_major_language(&self.source, id)
-    }
-    pub fn project_major_language_ratio(&self, id: &ProjectId) -> Option<f64> {
-        self.data.borrow_mut().project_major_language_ratio(&self.source, id)
-    }
-    pub fn project_major_language_changes(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_major_language_changes(&self.source, id)
-    }
-    pub fn project_all_forks(&self, id: &ProjectId) -> Option<Vec<ProjectId>> {
-        self.data.borrow_mut().project_all_forks(&self.source, id)
-    }
-    pub fn project_all_forks_count(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_all_forks_count(&self.source, id)
-    }
-    pub fn project_head_trees(&self, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
-        self.data.borrow_mut().project_head_trees(&self.source, id)
-    }
-    pub fn project_head_trees_count(&self, id : &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_head_trees_count(&self.source, id)
-    }
-    pub fn user(&self, id: &UserId) -> Option<User> {
-        self.data.borrow_mut().user(&self.source, id).pirate()
-    }
-    pub fn path(&self, id: &PathId) -> Option<Path> {
-        self.data.borrow_mut().path(&self.source, id).pirate()
-    }
-    pub fn commit(&self, id: &CommitId) -> Option<Commit> {
-        self.data.borrow_mut().commit(&self.source, id).pirate()
-    }
-    pub fn commit_hash(&self, id: &CommitId) -> Option<String> {
-        self.data.borrow_mut().commit_hash(&self.source, id).pirate()
-    }
-    pub fn commit_message(&self, id: &CommitId) -> Option<String> {
-        self.data.borrow_mut().commit_message(&self.source, id).pirate()
-    }
-    pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<Timestamp> {
-        self.data.borrow_mut().commit_author_timestamp(&self.source, id)
-    }
-    pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<Timestamp> {
-        self.data.borrow_mut().commit_committer_timestamp(&self.source, id)
-    }
-    pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<Change>> {
-        self.data.borrow_mut().commit_changes(&self.source, id)
-    }
-    pub fn commit_changed_paths(&self, id: &CommitId) -> Option<Vec<Path>> {
-        self.data.borrow_mut().commit_changed_paths(&self.source, id)
-    }
-    pub fn commit_change_count(&self, id: &CommitId) -> Option<usize> {
-        self.data.borrow_mut().commit_change_count(&self.source, id)
-    }
-    pub fn commit_changed_path_count(&self, id: &CommitId) -> Option<usize> {
-        self.data.borrow_mut().commit_changed_path_count(&self.source, id)
-    }
-    pub fn commit_projects(&self, id : &CommitId) -> Option<Vec<Project>> {
-        self.data.borrow_mut().commit_projects(&self.source, id)
-    }
-    pub fn commit_projects_count(&self, id: &CommitId) -> Option<usize> {
-        self.data.borrow_mut().commit_projects_count(&self.source, id)
-    }
-    pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().user_committed_commit_ids(&self.source, id).pirate()
-    }
-    pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().user_authored_commits(&self.source, id)
-    }
-    pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>> {
-        self.data.borrow_mut().user_authored_commit_ids(&self.source, id).pirate()
-    }
-    pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_committed_experience(&self.source, id)
-    }
-    pub fn user_author_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_author_experience(&self.source, id)
-    }
-    pub fn user_experience(&self, id: &UserId) -> Option<Duration> {
-        self.data.borrow_mut().user_experience(&self.source, id)
-    }
-    pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize> {
-        self.data.borrow_mut().user_committed_commit_count(&self.source, id)
-    }
-    pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize> {
-        self.data.borrow_mut().user_authored_commit_count(&self.source, id)
-    }
-    pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>> {
-        self.data.borrow_mut().user_committed_commits(&self.source, id)
-    }
-    pub fn developer_experience(&self, id: &UserId) -> Option<i32> {
-        self.data.borrow_mut().developer_experience(&self.source, id)
-    }
-    pub fn project_max_commit_delta(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().max_commit_delta(&self.source, id)
-    }
-    pub fn project_experience(&self, id: &ProjectId) -> Option<f64> {
-        self.data.borrow_mut().project_experience(&self.source, id)
-    }
-    pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32> {
-        self.data.borrow_mut().project_max_experience(&self.source, id)
-    }
-    pub fn avg_commit_delta(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().avg_commit_delta(&self.source, id)
-    }
-    pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().time_since_last_commit(&self.source, id)
-    }
-    pub fn project_time_since_first_commit(&self, id: &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().time_since_first_commit(&self.source, id)
-    }
-    pub fn is_abandoned(&self, id: &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().is_abandoned(&self.source, id)
-    }
-    pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize> {
-        self.data.borrow_mut().snapshot_locs(&self.source, id)
-    }
-    pub fn project_locs(&self, id: &ProjectId) -> Option<usize> {
-        self.data.borrow_mut().project_locs(&self.source, id)
-    }
-    pub fn duplicated_code(&self, id: &ProjectId) -> Option<f64> {
-        self.data.borrow_mut().duplicated_code(&self.source, id)
-    }
-    pub fn snapshot_unique_projects(&self, id : &SnapshotId) -> usize {
-        self.data.borrow_mut().snapshot_unique_projects(&self.source, id)
-    }
-    pub fn snapshot_original_project(&self, id : &SnapshotId) -> ProjectId {
-        self.data.borrow_mut().snapshot_original_project(&self.source, id)
-    }
-    pub fn project_logs(&self, id : &ProjectId) -> Option<i64> {
-        self.data.borrow_mut().project_logs(&self.source, id)
-    }
-    pub fn is_valid(&self, id : &ProjectId) -> Option<bool> {
-        self.data.borrow_mut().project_is_valid(&self.source, id)
     }
 }
 
@@ -2105,108 +1886,108 @@ impl Data { // Quincunx, sort of
 }
 
 impl Data {
-    pub fn test(&mut self, id: &ProjectId, butts: bool) -> bool {
+    pub fn test(&mut self, id: &ProjectId, source: &Source, x: bool, y: bool) -> bool {
         unimplemented!()
     }
 
-    pub fn project(&mut self, source: &Source, id: &ProjectId) -> Option<Project> {
+    pub fn project(&mut self, id: &ProjectId, source: &Source) -> Option<Project> {
         self.smart_load_project_urls(source).get(id)
             .map(|url| Project::new(id.clone(), url.clone()))
     }
-    pub fn project_issues(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_issues(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_issues(source).get(id).pirate()
     }
-    pub fn project_buggy_issues(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_buggy_issues(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_buggy_issues(source).get(id).pirate()
     }
-    pub fn project_is_fork(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+    pub fn project_is_fork(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_is_fork(source).get(id).pirate()
     }
-    pub fn project_is_archived(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+    pub fn project_is_archived(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_is_archived(source).get(id).pirate()
     }
-    pub fn project_is_disabled(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+    pub fn project_is_disabled(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_is_disabled(source).get(id).pirate()
     }
-    pub fn project_star_gazer_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_star_gazer_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_star_gazer_count(source).get(id).pirate()
     }
 
-    pub fn project_watcher_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_watcher_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_watcher_count(source).get(id).pirate()
     }
-    pub fn project_size(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_size(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_size(source).get(id).pirate()
     }
-    pub fn project_open_issue_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_open_issue_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_open_issue_count(source).get(id).pirate()
     }
-    pub fn project_fork_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_fork_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_fork_count(source).get(id).pirate()
     }
-    pub fn project_subscriber_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_subscriber_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_subscriber_count(source).get(id).pirate()
     }
-    pub fn project_license(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
+    pub fn project_license(&mut self, id: &ProjectId, source: &Source) -> Option<String> {
         self.smart_load_project_license(source).get(id).pirate()
     }
-    pub fn project_language(&mut self, source: &Source, id: &ProjectId) -> Option<Language> {
+    pub fn project_language(&mut self, id: &ProjectId, source: &Source) -> Option<Language> {
         self.smart_load_project_language(source).get(id).pirate()
     }
-    pub fn project_description(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
+    pub fn project_description(&mut self, id: &ProjectId, source: &Source) -> Option<String> {
         self.smart_load_project_description(source).get(id).pirate()
     }
-    pub fn project_homepage(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
+    pub fn project_homepage(&mut self, id: &ProjectId, source: &Source) -> Option<String> {
         self.smart_load_project_homepage(source).get(id).pirate()
     }
-    pub fn project_has_issues(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+    pub fn project_has_issues(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_has_issues(source).get(id).pirate()
     }
-    pub fn project_has_downloads(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+    pub fn project_has_downloads(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_has_downloads(source).get(id).pirate()
     }
-    pub fn project_has_wiki(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+    pub fn project_has_wiki(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_has_wiki(source).get(id).pirate()
     }
-    pub fn project_has_pages(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+    pub fn project_has_pages(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_has_pages(source).get(id).pirate()
     }
-    pub fn project_created(&mut self, source: &Source, id: &ProjectId) -> Option<Timestamp> {
+    pub fn project_created(&mut self, id: &ProjectId, source: &Source) -> Option<Timestamp> {
         self.smart_load_project_created(source).get(id).pirate()        
     }
-    pub fn project_updated(&mut self, source: &Source, id: &ProjectId) -> Option<Timestamp> {
+    pub fn project_updated(&mut self, id: &ProjectId, source: &Source) -> Option<Timestamp> {
         self.smart_load_project_updated(source).get(id).pirate()
     }
-    pub fn project_pushed(&mut self, source: &Source, id: &ProjectId) -> Option<Timestamp> {
+    pub fn project_pushed(&mut self, id: &ProjectId, source: &Source) -> Option<Timestamp> {
         self.smart_load_project_pushed(source).get(id).pirate()
     }
-    pub fn project_default_branch(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
+    pub fn project_default_branch(&mut self, id: &ProjectId, source: &Source) -> Option<String> {
         self.smart_load_project_default_branch(source).get(id).pirate()
     }
-    pub fn project_commit_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
+    pub fn project_commit_contribution_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<(UserId, usize)>> {
         self.smart_load_project_commit_contributions(source).get(id).pirate()
     }
-    pub fn project_commit_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(User, usize)>> {
+    pub fn project_commit_contributions(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<(User, usize)>> {
         self.smart_load_project_commit_contributions(source).get(id).pirate().map(|contributions| {
             contributions.iter().flat_map(|(user_id, n)| {
                 self.user(source, user_id).map(|user| (user.clone(), *n))
             }).collect()
         })
     }
-    pub fn project_cumulative_commit_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Percentage>> {
+    pub fn project_cumulative_commit_contributions(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Percentage>> {
         self.smart_load_project_cumulative_commit_contributions(source).get(id).pirate()
     }
-    pub fn project_change_contribution_ids(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(UserId, usize)>> {
+    pub fn project_change_contribution_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<(UserId, usize)>> {
         self.smart_load_project_change_contributions(source).get(id).pirate()
     }
-    pub fn project_change_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<(User, usize)>> {
+    pub fn project_change_contributions(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<(User, usize)>> {
         self.smart_load_project_change_contributions(source).get(id).pirate().map(|contributions| {
             contributions.iter().flat_map(|(user_id, n)| {
                 self.user(source, user_id).map(|user| (user.clone(), *n))
             }).collect()
         })
     }
-    pub fn project_cumulative_change_contributions(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Percentage>> {
+    pub fn project_cumulative_change_contributions(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Percentage>> {
         self.smart_load_project_cumulative_change_contributions(source).get(id).pirate()
     }
     // TODO make a mechanism for caching parameterized attributes
@@ -2228,32 +2009,32 @@ impl Data {
             None
         }  
     }
-    pub fn project_author_ids_contributing_commits(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {        
+    pub fn project_author_ids_contributing_commits(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<Vec<UserId>> {        
         Self::calculate_contributing_authors_at_cutoff(self.project_commit_contribution_ids(source, id), percentage)
     }
-    pub fn project_author_ids_contributing_changes(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>> {
+    pub fn project_author_ids_contributing_changes(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<Vec<UserId>> {
         Self::calculate_contributing_authors_at_cutoff(self.project_change_contribution_ids(source, id), percentage)
     }
-    pub fn project_authors_contributing_commits(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
+    pub fn project_authors_contributing_commits(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<Vec<User>> {
         self.project_author_ids_contributing_commits(source, id, percentage).map(|ids| {
             ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
         })
     }
-    pub fn project_authors_contributing_changes(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>> {
+    pub fn project_authors_contributing_changes(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<Vec<User>> {
         self.project_author_ids_contributing_changes(source, id, percentage).map(|ids| {
             ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
         })
     }
-    pub fn project_authors_contributing_commits_count(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<usize> {
+    pub fn project_authors_contributing_commits_count(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<usize> {
         self.project_author_ids_contributing_commits(source, id, percentage).map(|ids| ids.len())
     }
-    pub fn project_authors_contributing_changes_count(&mut self, source: &Source, id: &ProjectId, percentage: Percentage) -> Option<usize> {
+    pub fn project_authors_contributing_changes_count(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<usize> {
         self.project_author_ids_contributing_changes(source, id, percentage).map(|ids| ids.len())
     }
-    pub fn project_url(&mut self, source: &Source, id: &ProjectId) -> Option<String> {
+    pub fn project_url(&mut self, id: &ProjectId, source: &Source) -> Option<String> {
         self.smart_load_project_urls(source).get(id).pirate()
     }
-    pub fn project_heads(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Head>> {
+    pub fn project_heads(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Head>> {
         self.smart_load_project_heads(source).get(id).pirate()
     }
     // pub fn project_heads(&mut self, source: &DataSource, id: &ProjectId) -> Option<Vec<(String, Commit)>> {
@@ -2265,74 +2046,74 @@ impl Data {
     //         }).collect()
     //     })
     // }
-    pub fn project_commit_ids(&mut self, source: &Source, id: &ProjectId) -> Option<&Vec<CommitId>> {
+    pub fn project_commit_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<CommitId>> {
         self.smart_load_project_commits(source).get(id)
     }
-    pub fn project_commits(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Commit>> {
+    pub fn project_commits(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Commit>> {
         self.smart_load_project_commits(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
             // FIXME issue warnings in situations like these (when self.commit(id) fails etc.)
         })
     }
-    pub fn project_commit_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_commit_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_commit_count(source).get(id).pirate()
     }
-    pub fn project_path_ids(&mut self, source: &Source, id: &ProjectId) -> Option<&Vec<PathId>> {
+    pub fn project_path_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<PathId>> {
         self.smart_load_project_paths(source).get(id)
     }
-    pub fn project_paths(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<Path>> {
+    pub fn project_paths(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Path>> {
         self.smart_load_project_paths(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.path(source, id).pirate()).collect()
         })
     }
-    pub fn project_path_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_path_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_path_count(source).get(id).pirate()
     }
-    pub fn project_snapshot_ids(&mut self, source: &Source, id: &ProjectId) -> Option<&Vec<SnapshotId>> {
+    pub fn project_snapshot_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<SnapshotId>> {
         self.smart_load_project_snapshots(source).get(id)
     }
-    pub fn project_snapshot_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_snapshot_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_snapshot_count(source).get(id).pirate()
     }
-    pub fn project_author_ids(&mut self, source: &Source, id: &ProjectId) -> Option<&Vec<UserId>> {
+    pub fn project_author_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<UserId>> {
         self.smart_load_project_authors(source).get(id)
     }
-    pub fn project_authors(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<User>> {
+    pub fn project_authors(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<User>> {
         self.smart_load_project_authors(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
         })
     }
-    pub fn project_author_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_author_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_author_count(source).get(id).pirate()
     }
-    pub fn project_committer_ids(&mut self, source: &Source, id: &ProjectId) -> Option<&Vec<UserId>> {
+    pub fn project_committer_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<UserId>> {
         self.smart_load_project_committers(source).get(id)
     }
-    pub fn project_committers(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<User>> {
+    pub fn project_committers(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<User>> {
         self.smart_load_project_committers(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
         })
     }
-    pub fn project_committer_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_committer_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_committer_count(source).get(id).pirate()
     }
-    pub fn project_user_ids(&mut self, source: &Source, id: &ProjectId) -> Option<&Vec<UserId>> {
+    pub fn project_user_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<UserId>> {
         self.smart_load_project_users(source).get(id)
     }
-    pub fn project_users(&mut self, source: &Source, id: &ProjectId) -> Option<Vec<User>> {
+    pub fn project_users(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<User>> {
         self.smart_load_project_users(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
         })
     }
-    pub fn project_user_count(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_user_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_user_count(source).get(id).pirate()
     }
-    pub fn project_lifetime(&mut self, source: &Source, id: &ProjectId) -> Option<Duration> {
+    pub fn project_lifetime(&mut self, id: &ProjectId, source: &Source) -> Option<Duration> {
         self.smart_load_project_lifetimes(source).get(id)
             .pirate()
             .map(|seconds| Duration::from(seconds))
     }
-    pub fn project_substore(&mut self, source: &Source, id: &ProjectId) -> Option<Store> {
+    pub fn project_substore(&mut self, id: &ProjectId, source: &Source) -> Option<Store> {
         self.smart_load_project_substore(source).get(id)
             .pirate()
     }
@@ -2380,11 +2161,11 @@ impl Data {
         self.smart_load_project_all_forks_count(source).get(id)
             .pirate()
     }
-    pub fn project_head_trees(& mut self, source: &Source, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+    pub fn project_head_trees(& mut self, id: &ProjectId, source: &Source) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
         self.smart_load_project_head_trees(source).get(id)
             .pirate()
     }
-    pub fn project_head_trees_count(& mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_head_trees_count(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_head_trees_count(source).get(id)
             .pirate()
     }
@@ -2475,37 +2256,37 @@ impl Data {
     pub fn developer_experience(&mut self, source: &Source, id: &UserId) -> Option<i32> {
         self.smart_load_developer_experience(source).get(id).pirate()
     }
-    pub fn max_commit_delta(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+    pub fn max_commit_delta(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_max_commit_delta(source).get(id).pirate()
     }
-    pub fn project_max_experience(&mut self, source: &Source, id: &ProjectId) -> Option<i32> {
+    pub fn project_max_experience(&mut self, id: &ProjectId, source: &Source) -> Option<i32> {
         self.smart_load_project_max_experience(source).get(id).pirate()
     }
-    pub fn project_experience(&mut self, source: &Source, id: &ProjectId) -> Option<f64> {
+    pub fn project_experience(&mut self, id: &ProjectId, source: &Source) -> Option<f64> {
         self.smart_load_project_experience(source).get(id).pirate()
     }
-    pub fn avg_commit_delta(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+    pub fn avg_commit_delta(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_avg_commit_delta(source).get(id).pirate()
     }
-    pub fn time_since_last_commit(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+    pub fn time_since_last_commit(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_time_since_last_commit(source).get(id).pirate()
     }
-    pub fn time_since_first_commit(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+    pub fn time_since_first_commit(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_time_since_first_commit(source).get(id).pirate()
     }
-    pub fn is_abandoned(&mut self, source: &Source, id: &ProjectId) -> Option<bool> {
+    pub fn is_abandoned(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_is_abandoned(source).get(id).pirate()
     }
     pub fn snapshot_locs(&mut self, source: &Source, id: &SnapshotId) -> Option<usize> {
         self.smart_load_snapshot_locs(source).get(id).pirate()
     }
-    pub fn project_locs(&mut self, source: &Source, id: &ProjectId) -> Option<usize> {
+    pub fn project_locs(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_locs(source).get(id).pirate()
     }
-    pub fn project_logs(&mut self, source: &Source, id: &ProjectId) -> Option<i64> {
+    pub fn project_logs(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_logs(source).get(id).pirate()
     }
-    pub fn duplicated_code(&mut self, source: &Source, id: &ProjectId) -> Option<f64> {
+    pub fn duplicated_code(&mut self, id: &ProjectId, source: &Source) -> Option<f64> {
         self.smart_load_project_duplicated_code(source).get(id).pirate()
     }
     pub fn snapshot_unique_projects(&mut self, source: &Source, id : &SnapshotId) -> usize {

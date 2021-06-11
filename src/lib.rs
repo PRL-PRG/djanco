@@ -1,16 +1,14 @@
 #![type_length_limit="1405002"]
 
+             pub mod database;
              pub mod fraction;
              pub mod ordf64;
              pub mod weights_and_measures;
 #[macro_use] pub mod log;
              pub mod csv;
 #[macro_use] pub mod attrib;
-             pub mod metadata;
-             pub mod persistent;
              pub mod iterators;
              pub mod tuples;
-             pub mod data;
              pub mod objects;
              pub mod receipt;
              pub mod spec;
@@ -19,7 +17,6 @@
              mod piracy;
              mod product;
 #[cfg(test)] mod testing;
-             mod source;
 #[macro_use] pub mod utils;
              pub mod commandline;
 
@@ -65,9 +62,9 @@ use parasite::{StoreKind};
 
 use crate::attrib::*;
 use crate::fraction::*;
-use crate::data::Database;
+use crate::database::Database;
 use crate::log::{Log, Verbosity};
-use crate::source::{Source, MERGED_SUBSTORE_DIR_NAME};
+use crate::database::source::{Source, MERGED_SUBSTORE_DIR_NAME};
 
 pub type Timestamp = i64; // Epoch
 pub type Percentage = u8; // Positive integer value 0-100.

@@ -7,9 +7,10 @@ use std::error::Error;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::source::Source;
 use crate::log::{Log, Verbosity};
 use crate::weights_and_measures::*;
+
+use super::source::Source;
 
 pub static PERSISTENT_EXTENSION: &str = "cbor";
 

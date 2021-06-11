@@ -1,7 +1,7 @@
 use clap::Clap;
 
 use djanco::*;
-use djanco::data::*;
+use djanco::database::*;
 use djanco::objects::*;
 use djanco::csv::*;
 use djanco::log::*;

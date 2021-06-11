@@ -6,13 +6,14 @@ use std::fs::{File, create_dir_all};
 use serde_json::Value as JSON;
 use chrono::DateTime;
 
-use crate::persistent::*;
 use crate::objects::*;
+
 use crate::log::{Log, Verbosity, Warning};
 use crate::weights_and_measures::{Weighed};
-use crate::source::Source;
-use crate::objects;
-use crate::data::cache_filenames::*;
+
+use super::cache::*;
+use super::persistent::*;
+use super::source::Source;
 
 trait MetadataFieldExtractor {
     type Value: Persistent + Weighed;
@@ -639,7 +640,7 @@ impl MetadataMapExtractor<ProjectMetadataSource> for ProjectLicenseExtractor {
 pub(crate) struct ProjectLanguageExtractor {}
 impl MapExtractor for ProjectLanguageExtractor {
     type Key = ProjectId;
-    type Value = objects::Language;
+    type Value = Language;
 }
 impl MetadataMapExtractor<ProjectMetadataSource> for ProjectLanguageExtractor {
     fn extract(source: &Source, metadata: &ProjectMetadataSource) -> BTreeMap<Self::Key, Self::Value> {

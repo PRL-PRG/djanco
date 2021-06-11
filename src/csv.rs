@@ -14,8 +14,9 @@ use crate::objects::*;
 use crate::fraction::*;
 use crate::product::*;
 use crate::time::Duration;
-use crate::metadata::ProjectMetadata;
 use crate::Store;
+
+use crate::database::metadata::ProjectMetadata;
 
 macro_rules! create_file {
     ($location:expr) => {{

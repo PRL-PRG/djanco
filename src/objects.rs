@@ -10,7 +10,7 @@ use bstr::ByteSlice;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
-use crate::data::Database;
+use crate::database::Database;
 use crate::time::Duration;
 use crate::iterators::*;
 use crate::weights_and_measures::Weighed;

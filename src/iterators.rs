@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::iter::Map;
 
 use crate::objects::*;
-use crate::data::*;
+use crate::database::*;
 
 pub struct IterWithData<'a, T, I: Iterator<Item=T> + 'a> { data: &'a Database, iterator: I }
 

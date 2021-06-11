@@ -676,48 +676,308 @@ pub mod project {
     use crate::Store;
     use crate::Percentage;
 
+    /* 
+     * Retrieves the entire Project object (wrapped in an ItemWithData object).
+     * 
+     * Useful for Select! to retrieve specific attribtues from inside the objects as well as the object itself.
+     */
     impl_attribute![!+    objects::Project, Itself];
+
+    /*
+     * Retrieves the entire Project object (now wrapped in an ItemWithData object).
+     * 
+     * Useful for Select! to retrieve specific attribtues from inside the objects as well as the object itself.
+     */
     impl_attribute![!     objects::Project, Raw];
+
+    /*
+     * Retrieves the ID of the project. It identifies the project uniquely in the dataset.
+     */
     impl_attribute![!     objects::Project, Id, objects::ProjectId, id];
+
+    /*
+     * Retrieves the URL of the project.
+     */
     impl_attribute![!     objects::Project, URL, String, url];
+
+    /*
+     * Retrieves the number of non-buggy issues in the project. 
+     * A buggy issue is an issue that is marked as `buggy` in GH.
+     * 
+     * This is currrently not collected in the dataset, so it always yields None.
+     */
     impl_attribute![?     objects::Project, Issues, usize, issue_count];
+
+    /*
+     * Retrieves the number of buggy issues in the project. 
+     * A buggy issue is an issue that is marked as `buggy` in GH.
+     * 
+     * This is currrently not collected in the dataset, so it always yields None.
+     */
     impl_attribute![?     objects::Project, BuggyIssues, usize, buggy_issue_count];
+
+    /*
+     * Retrieves the number of buggy and non-buggy issues in the project. 
+     * Its calculated as the sum of BuggyIssues and Issues.
+     * A buggy issue is an issue that is marked as `buggy` in GH.
+     * 
+     * This is currrently not collected in the dataset, so it always yields None.
+     */
     impl_attribute![?     objects::Project, AllIssues, usize, combined_issue_count];
-    impl_attribute![?     objects::Project, IsFork, bool, is_fork];
-    impl_attribute![?     objects::Project, IsArchived, bool, is_archived];
-    impl_attribute![?     objects::Project, IsDisabled, bool, is_disabled];
-    impl_attribute![?     objects::Project, Stars, usize, star_count];
-    impl_attribute![?     objects::Project, Watchers, usize, watcher_count];
-    impl_attribute![?     objects::Project, Size, usize, size];
+
+    /*
+     * Retrieves the number of open issues in the project. 
+     * An open issue is an issue that is marked as such in GH.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, OpenIssues, usize, open_issue_count];
-    impl_attribute![?     objects::Project, Forks, usize, fork_count];
+
+    /*
+     * Returns true if the project is a fork.
+     * A fork is a copy of another user's repository. A project is a fork if it has been forked in GH. 
+     * Projects that are implicitly forked (copied manually and given a new origin) are not covered by this attribute.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
+    impl_attribute![?     objects::Project, IsFork, bool, is_fork];
+
+    /*
+     * Returns true if the project was archived in GH.
+     * An archived project is a project that is no longer actively maintained and read-only.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
+    impl_attribute![?     objects::Project, IsArchived, bool, is_archived];
+
+    /*
+     * Returns true if the project was disabled in GH.
+     * A disabled project is a project that is no longer used. 
+     * It is hidden from the GH website and inaccessible GH API.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
+    impl_attribute![?     objects::Project, IsDisabled, bool, is_disabled];
+
+    /*
+     * Returns the number of stars this project received.
+     * A star is akin to a `like` on the GH website. 
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
+    impl_attribute![?     objects::Project, Stars, usize, star_count];
+
+    /*
+     * Returns the number of watchers this project has.
+     * Subscribing to a project is done via a button on the GH website. 
+     * It is the equivalent of `following` it. 
+     * When a user watches a project they receive notifications about all discussions (issues, pull requests, etc.) in that project.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
+    impl_attribute![?     objects::Project, Watchers, usize, watcher_count];
+
+    /*
+     * Returns the number of subsribers this project has.
+     * Watching a project is done via a button on the GH website. 
+     * It is the equivalent of `following` it. 
+     * When a user watches a project they receive notifications about all activity (commits, etc.) in that project.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, Subscribers, usize, subscriber_count];
+
+    /*
+     * The size of the project on disk.
+     * This is the size of the repository directory. If a project is forked, the size excludes the size of the original project.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
+    impl_attribute![?     objects::Project, Size, usize, size];
+    
+    /*
+     * Retrieves the number of projects that are forks of this project (in all of GH).
+     * A fork is a copy of another user's repository. A project is a fork if it has been forked in GH. 
+     * Projects that are implicitly forked (copied manually and given a new origin) are not covered by this attribute.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
+    impl_attribute![?     objects::Project, Forks, usize, fork_count];
+
+    /*
+     * This project's license.
+     * GH recognizes the license from the project's tree.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, License, String, license];
+
+    /*
+     * Retrieves this project's language.
+     * The language is the major language as recognized by GH.
+     * There are a number of rpedefined languages we recognize. 
+     * If the language fits neither or these, it is reported as None.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, Language, objects::Language, language];
+
+    /*
+     * Retrieves this project's substore.
+     * When Parasite downloads projects it allocates them to distinct substores. 
+     * Generally there is one substore for small proejcts and a separate substore for each language. 
+     * If a datastore is created by merging multiple substores into a sinlge substore, that substore is called general.
+     */
     impl_attribute![?     objects::Project, Substore, Store, substore];
+
+    /*
+     * Retrieves the descriptin of the project.
+     * The description is set on the GH website.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, Description, String, description];
+
+    /*
+     * Retrieves URL of the project's homepage.
+     * The homepage is set on the GH website.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, Homepage, String, homepage];
+
+    /*
+     * Returns true if the project has the issues page active on GH.
+     * The issues page is turned on in the project's settings on GH. It is turned on by default.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, HasIssues, bool, has_issues];
+
+    /*
+     * TODO
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, HasDownloads, bool, has_downloads];
+
+    /*
+     * Returns true if the project has the wiki page active on GH.
+     * The wiki page is turned on in the project's settings on GH. It is turned on by default.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, HasWiki, bool, has_wiki];
+
+    /*
+     * Returns true if the project has an associated github.io page.
+     * The page is set up on in the project's settings on GH. It is turned off by default.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, HasPages, bool, has_pages];
+
+    /*
+     * Returns the timestamp at which the project was created on GH.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, Created, Timestamp, created];
+
+    /*
+     * Returns the timestamp at which the project was last updated on GH.
+     * This involves any changes to the repository in GH (eg. pushing a commit) and 
+     * strictly GH-related changes (eg. changing the project description), 
+     * including GH-internal updates (eg. last time the language composition was recalculated).
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, Updated, Timestamp, updated];
+
+    /*
+     * Returns the timestamp at which the project was last upshed to on GH.
+     * This time reflects the most recent push of a commit to any of the branches in the project.
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, Pushed, Timestamp, pushed];
+
+    /*
+     * Retrieves the name of the default branch as set in GH, eg. "master" or "main".
+     * 
+     * This attribute is retrieved from GH REST API.
+     */
     impl_attribute![?     objects::Project, DefaultBranch, String, default_branch];
+
+    /*
+     * Retrieves the lifespan of the project calculated as the duration between the earliest and most recent commit.
+     */
     impl_attribute![?     objects::Project, Age, time::Duration, lifetime];
+
+    /*
+     * Retrieves the heads of this project.
+     * A head represents the last commit of a given named branch.
+     */
     impl_attribute![?+..  objects::Project, Heads, objects::Head, heads_with_data, head_count];
+
+    /*
+     * Returns the IDs of all the commits in all the branches of this project.
+     */
     impl_attribute![?..   objects::Project, CommitIds, objects::CommitId, commit_ids, commit_count];
+
+    /*
+     * Returns the IDs of all the users who authored any commit in any of the branches of this project.
+     */
     impl_attribute![?..   objects::Project, AuthorIds, objects::UserId, author_ids, author_count];
+
+    /*
+     * Returns the IDs of all the users who committed any commit in any of the branches of this project.
+     */
     impl_attribute![?..   objects::Project, CommitterIds, objects::UserId, committer_ids, committer_count];
+
+    /*
+     * Returns the IDs of all the users who authored or committed anything in any of the branches of this project.
+     */
     impl_attribute![?..   objects::Project, UserIds, objects::UserId, user_ids, user_count];
+
+    /*
+     * Returns the IDs in of all the file paths constituting any of the branches of this project.
+     */
     impl_attribute![?..   objects::Project, PathIds, objects::PathId, path_ids, path_count];
+
+    /*
+     * Returns the IDs in of all the file contents constituting any of the branches of this project.
+     */
     impl_attribute![?..   objects::Project, SnapshotIds, objects::SnapshotId, snapshot_ids, snapshot_count];
+
+    /*
+     * Returns all the commits in all the branches of this project.
+     */
     impl_attribute![?+..  objects::Project, Commits, objects::Commit, commits_with_data, commit_count];
+
+    /*
+     * Returns all the users who authored any commit in any of the branches of this project.
+     */
     impl_attribute![?+..  objects::Project, Authors, objects::User, authors_with_data, author_count];
+
+    /*
+     * Returns all the users who committed any commit in any of the branches of this project.
+     */
     impl_attribute![?+..  objects::Project, Committers, objects::User, committers_with_data, committer_count];
+
+    /*
+     * Returns all the users who authored or committed anything in any of the branches of this project.
+     */
     impl_attribute![?+..  objects::Project, Users, objects::User, users_with_data, user_count];
+
+    /*
+     * Returns the IDs in of all the file paths constituting any of the branches of this project.
+     */
     impl_attribute![?+..  objects::Project, Paths, objects::Path, paths_with_data, path_count];
+
+    /*
+     * Returns the IDs in of all the file contents constituting any of the branches of this project.
+     */
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
 
     /*

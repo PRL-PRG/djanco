@@ -438,13 +438,13 @@ impl Project {
     pub fn major_language_changes (&self, store: &Database) -> Option<usize>                { store.project_major_language_changes(&self.id)  }
     pub fn max_commit_delta      (&self, store: &Database)    -> Option<i64>                { store.project_max_commit_delta(&self.id)}
     pub fn project_experience(&self, store: &Database)    -> Option<f64>      { store.project_experience(&self.id)              }
-    pub fn avg_commit_delta    (&self, store: &Database)    -> Option<i64>                 { store.avg_commit_delta(&self.id)                 }
+    pub fn avg_commit_delta    (&self, store: &Database)    -> Option<i64>                 { store.project_avg_commit_delta(&self.id)                 }
     pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id)  }
     pub fn time_since_first_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_first_commit(&self.id)}
-    pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.is_abandoned(&self.id)                    }
+    pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.project_is_abandoned(&self.id)                    }
     pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                    }
-    pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                 { store.duplicated_code(&self.id)                 }
-    pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.is_valid(&self.id)                        }
+    pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                 { store.project_duplicated_code(&self.id)                 }
+    pub fn is_valid      (&self, store: &Database)    -> Option<bool>                       { store.project_is_valid(&self.id)                        }
     pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id)               }
     pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id)         }
     pub fn project_max_experience  (&self, store: &Database) -> Option<i32>                      { store.project_max_experience(&self.id)     }

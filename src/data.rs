@@ -282,15 +282,15 @@ impl Database {
             #[extra_args(&self.source)] pub fn project_max_commit_delta(&self, id: &ProjectId) -> Option<i64>;
             #[extra_args(&self.source)] pub fn project_experience(&self, id: &ProjectId) -> Option<f64>;
             #[extra_args(&self.source)] pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32>;
-            #[extra_args(&self.source)] pub fn avg_commit_delta(&self, id: &ProjectId) -> Option<i64>; // TODO project_avg_commit_delta
+            #[extra_args(&self.source)] pub fn project_avg_commit_delta(&self, id: &ProjectId) -> Option<i64>; // TODO project_avg_commit_delta
             #[extra_args(&self.source)] pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64>;
             #[extra_args(&self.source)] pub fn project_time_since_first_commit(&self, id: &ProjectId) -> Option<i64>;
-            #[extra_args(&self.source)] pub fn is_abandoned(&self, id: &ProjectId) -> Option<bool>; // TODO project_is_abandoned
+            #[extra_args(&self.source)] pub fn project_is_abandoned(&self, id: &ProjectId) -> Option<bool>; // TODO project_is_abandoned
             #[extra_args(&self.source)] pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize>;
             #[extra_args(&self.source)] pub fn project_locs(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn duplicated_code(&self, id: &ProjectId) -> Option<f64>; // TODO project_deduplicated code
-            #[extra_args(&self.source)] pub fn snapshot_unique_projects(&self, id : &SnapshotId) -> usize;
-            #[extra_args(&self.source)] pub fn snapshot_original_project(&self, id : &SnapshotId) -> ProjectId;
+            #[extra_args(&self.source)] pub fn project_duplicated_code(&self, id: &ProjectId) -> Option<f64>; // TODO project_deduplicated code
+            #[extra_args(&self.source)] pub fn snapshot_unique_projects(&self, id: &SnapshotId) -> usize;
+            #[extra_args(&self.source)] pub fn snapshot_original_project(&self, id: &SnapshotId) -> ProjectId;
             #[extra_args(&self.source)] pub fn project_logs(&self, id : &ProjectId) -> Option<i64>;
             #[extra_args(&self.source)] pub fn project_is_valid(&self, id : &ProjectId) -> Option<bool>;
 
@@ -1886,10 +1886,6 @@ impl Data { // Quincunx, sort of
 }
 
 impl Data {
-    pub fn test(&mut self, id: &ProjectId, source: &Source, x: bool, y: bool) -> bool {
-        unimplemented!()
-    }
-
     pub fn project(&mut self, id: &ProjectId, source: &Source) -> Option<Project> {
         self.smart_load_project_urls(source).get(id)
             .map(|url| Project::new(id.clone(), url.clone()))
@@ -1970,7 +1966,7 @@ impl Data {
     pub fn project_commit_contributions(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<(User, usize)>> {
         self.smart_load_project_commit_contributions(source).get(id).pirate().map(|contributions| {
             contributions.iter().flat_map(|(user_id, n)| {
-                self.user(source, user_id).map(|user| (user.clone(), *n))
+                self.user(user_id, source).map(|user| (user.clone(), *n))
             }).collect()
         })
     }
@@ -1983,7 +1979,7 @@ impl Data {
     pub fn project_change_contributions(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<(User, usize)>> {
         self.smart_load_project_change_contributions(source).get(id).pirate().map(|contributions| {
             contributions.iter().flat_map(|(user_id, n)| {
-                self.user(source, user_id).map(|user| (user.clone(), *n))
+                self.user(user_id, source).map(|user| (user.clone(), *n))
             }).collect()
         })
     }
@@ -2010,26 +2006,26 @@ impl Data {
         }  
     }
     pub fn project_author_ids_contributing_commits(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<Vec<UserId>> {        
-        Self::calculate_contributing_authors_at_cutoff(self.project_commit_contribution_ids(source, id), percentage)
+        Self::calculate_contributing_authors_at_cutoff(self.project_commit_contribution_ids(id, source), percentage)
     }
     pub fn project_author_ids_contributing_changes(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<Vec<UserId>> {
-        Self::calculate_contributing_authors_at_cutoff(self.project_change_contribution_ids(source, id), percentage)
+        Self::calculate_contributing_authors_at_cutoff(self.project_change_contribution_ids(id, source), percentage)
     }
     pub fn project_authors_contributing_commits(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<Vec<User>> {
-        self.project_author_ids_contributing_commits(source, id, percentage).map(|ids| {
-            ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
+        self.project_author_ids_contributing_commits(id, percentage, source).map(|ids| {
+            ids.iter().flat_map(|id| self.user(id, source)).collect()
         })
     }
     pub fn project_authors_contributing_changes(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<Vec<User>> {
-        self.project_author_ids_contributing_changes(source, id, percentage).map(|ids| {
-            ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
+        self.project_author_ids_contributing_changes(id, percentage, source).map(|ids| {
+            ids.iter().flat_map(|id| self.user(id, source)).collect()
         })
     }
     pub fn project_authors_contributing_commits_count(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<usize> {
-        self.project_author_ids_contributing_commits(source, id, percentage).map(|ids| ids.len())
+        self.project_author_ids_contributing_commits(id, percentage, source).map(|ids| ids.len())
     }
     pub fn project_authors_contributing_changes_count(&mut self, id: &ProjectId, percentage: Percentage, source: &Source) -> Option<usize> {
-        self.project_author_ids_contributing_changes(source, id, percentage).map(|ids| ids.len())
+        self.project_author_ids_contributing_changes(id, percentage, source).map(|ids| ids.len())
     }
     pub fn project_url(&mut self, id: &ProjectId, source: &Source) -> Option<String> {
         self.smart_load_project_urls(source).get(id).pirate()
@@ -2046,63 +2042,63 @@ impl Data {
     //         }).collect()
     //     })
     // }
-    pub fn project_commit_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<CommitId>> {
-        self.smart_load_project_commits(source).get(id)
+    pub fn project_commit_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<CommitId>> {
+        self.smart_load_project_commits(source).get(id).pirate()
     }
     pub fn project_commits(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Commit>> {
         self.smart_load_project_commits(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
+            ids.iter().flat_map(|id| self.commit(id, source)).collect()
             // FIXME issue warnings in situations like these (when self.commit(id) fails etc.)
         })
     }
     pub fn project_commit_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_commit_count(source).get(id).pirate()
     }
-    pub fn project_path_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<PathId>> {
-        self.smart_load_project_paths(source).get(id)
+    pub fn project_path_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<PathId>> {
+        self.smart_load_project_paths(source).get(id).pirate()
     }
     pub fn project_paths(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Path>> {
         self.smart_load_project_paths(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.path(source, id).pirate()).collect()
+            ids.iter().flat_map(|id| self.path(id, source)).collect()
         })
     }
     pub fn project_path_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_path_count(source).get(id).pirate()
     }
-    pub fn project_snapshot_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<SnapshotId>> {
-        self.smart_load_project_snapshots(source).get(id)
+    pub fn project_snapshot_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<SnapshotId>> {
+        self.smart_load_project_snapshots(source).get(id).pirate()
     }
     pub fn project_snapshot_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_snapshot_count(source).get(id).pirate()
     }
-    pub fn project_author_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<UserId>> {
-        self.smart_load_project_authors(source).get(id)
+    pub fn project_author_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<UserId>> {
+        self.smart_load_project_authors(source).get(id).pirate()
     }
     pub fn project_authors(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<User>> {
         self.smart_load_project_authors(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
+            ids.iter().flat_map(|id| self.user(id, source)).collect()
         })
     }
     pub fn project_author_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_author_count(source).get(id).pirate()
     }
-    pub fn project_committer_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<UserId>> {
-        self.smart_load_project_committers(source).get(id)
+    pub fn project_committer_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<UserId>> {
+        self.smart_load_project_committers(source).get(id).pirate()
     }
     pub fn project_committers(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<User>> {
         self.smart_load_project_committers(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
+            ids.iter().flat_map(|id| self.user(id, source)).collect()
         })
     }
     pub fn project_committer_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_committer_count(source).get(id).pirate()
     }
-    pub fn project_user_ids(&mut self, id: &ProjectId, source: &Source) -> Option<&Vec<UserId>> {
-        self.smart_load_project_users(source).get(id)
+    pub fn project_user_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<UserId>> {
+        self.smart_load_project_users(source).get(id).pirate()
     }
     pub fn project_users(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<User>> {
         self.smart_load_project_users(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.user(source, id).pirate()).collect()
+            ids.iter().flat_map(|id| self.user(id, source)).collect()
         })
     }
     pub fn project_user_count(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
@@ -2117,47 +2113,47 @@ impl Data {
         self.smart_load_project_substore(source).get(id)
             .pirate()
     }
-    pub fn project_unique_files(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+    pub fn project_unique_files(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_unique_files(source).get(id)
             .pirate()
     }
-    pub fn project_original_files(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+    pub fn project_original_files(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_original_files(source).get(id)
             .pirate()
     }
-    pub fn project_impact(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+    pub fn project_impact(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_impact(source).get(id)
             .pirate()
     }
-    pub fn project_files(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+    pub fn project_files(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_files(source).get(id)
             .pirate()
     }
-    pub fn project_languages(& mut self, source: &Source, id:&ProjectId) -> Option<Vec<(Language,usize)>> {
+    pub fn project_languages(& mut self, id: &ProjectId, source: &Source) -> Option<Vec<(Language,usize)>> {
         self.smart_load_project_languages(source).get(id)
             .pirate()
     }
-    pub fn project_languages_count(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+    pub fn project_languages_count(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_languages_count(source).get(id)
             .pirate()
     }
-    pub fn project_major_language(& mut self, source: &Source, id:&ProjectId) -> Option<Language> {
+    pub fn project_major_language(& mut self, id: &ProjectId, source: &Source) -> Option<Language> {
         self.smart_load_project_major_language(source).get(id)
             .pirate()
     }
-    pub fn project_major_language_ratio(& mut self, source: &Source, id:&ProjectId) -> Option<f64> {
+    pub fn project_major_language_ratio(& mut self, id: &ProjectId, source: &Source) -> Option<f64> {
         self.smart_load_project_major_language_ratio(source).get(id)
             .pirate()
     }
-    pub fn project_major_language_changes(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+    pub fn project_major_language_changes(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_major_language_changes(source).get(id)
             .pirate()
     }
-    pub fn project_all_forks(& mut self, source: &Source, id:&ProjectId) -> Option<Vec<ProjectId>> {
+    pub fn project_all_forks(& mut self, id: &ProjectId, source: &Source) -> Option<Vec<ProjectId>> {
         self.smart_load_project_all_forks(source).get(id)
             .pirate()
     }
-    pub fn project_all_forks_count(& mut self, source: &Source, id:&ProjectId) -> Option<usize> {
+    pub fn project_all_forks_count(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_all_forks_count(source).get(id)
             .pirate()
     }
@@ -2169,94 +2165,94 @@ impl Data {
         self.smart_load_project_head_trees_count(source).get(id)
             .pirate()
     }
-    pub fn user(&mut self, source: &Source, id: &UserId) -> Option<&User> {
-        self.smart_load_users(source).get(id)
+    pub fn user(&mut self, id: &UserId, source: &Source) -> Option<User> {
+        self.smart_load_users(source).get(id).pirate()
     }
-    pub fn path(&mut self, source: &Source, id: &PathId) -> Option<&Path> {
-        self.smart_load_paths(source).get(id)
+    pub fn path(&mut self, id: &PathId, source: &Source) -> Option<Path> {
+        self.smart_load_paths(source).get(id).pirate()
     }
-    pub fn commit(&mut self, source: &Source, id: &CommitId) -> Option<&Commit> {
-        self.smart_load_commits(source).get(id)
+    pub fn commit(&mut self, id: &CommitId, source: &Source) -> Option<Commit> {
+        self.smart_load_commits(source).get(id).pirate()
     }
-    pub fn commit_hash(&mut self, source: &Source, id: &CommitId) -> Option<&String> {
-        self.smart_load_commit_hashes(source).get(id)
+    pub fn commit_hash(&mut self, id: &CommitId, source: &Source) -> Option<String> {
+        self.smart_load_commit_hashes(source).get(id).pirate()
     }
-    pub fn commit_message(&mut self, source: &Source, id: &CommitId) -> Option<&String> {
-        self.smart_load_commit_messages(source).get(id)
+    pub fn commit_message(&mut self, id: &CommitId, source: &Source) -> Option<String> {
+        self.smart_load_commit_messages(source).get(id).pirate()
     }
-    pub fn commit_author_timestamp(&mut self, source: &Source, id: &CommitId) -> Option<Timestamp> {
+    pub fn commit_author_timestamp(&mut self, id: &CommitId, source: &Source) -> Option<Timestamp> {
         self.smart_load_commit_author_timestamps(source).get(id).pirate()
     }
-    pub fn commit_committer_timestamp(&mut self, source: &Source, id: &CommitId) -> Option<Timestamp> {
+    pub fn commit_committer_timestamp(&mut self, id: &CommitId, source: &Source) -> Option<Timestamp> {
         self.smart_load_commit_committer_timestamps(source).get(id).pirate()
     }
-    pub fn commit_changes(&mut self, source: &Source, id: &CommitId) -> Option<Vec<Change>> {
+    pub fn commit_changes(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Change>> {
         self.smart_load_commit_changes(source).get(id).map(|vector| {
             vector.iter().map(|(path_id, snapshot_id)| {
                 Change::new(path_id.clone(), snapshot_id.clone())
             }).collect()
         })
     }
-    pub fn commit_changed_paths(&mut self, source: &Source, id: &CommitId) -> Option<Vec<Path>> {
+    pub fn commit_changed_paths(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Path>> {
         self.smart_load_commit_changes(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|change| self.path(source, &change.0/*path_id()*/).pirate()).collect()
+            ids.iter().flat_map(|change| self.path(&change.0/*path_id()*/, source)).collect()
         })
     }
-    pub fn commit_change_count(&mut self, source: &Source, id: &CommitId) -> Option<usize> {
+    pub fn commit_change_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
         self.smart_load_commit_change_count(source).get(id).pirate()
     }
-    pub fn commit_changed_path_count(&mut self, source: &Source, id: &CommitId) -> Option<usize> {
+    pub fn commit_changed_path_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
         self.smart_load_commit_change_count(source).get(id).pirate()
     }
-    pub fn commit_projects(&mut self, source: &Source, id : &CommitId) -> Option<Vec<Project>> {
+    pub fn commit_projects(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Project>> {
         self.smart_load_commit_projects(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.project(source, id)).collect()
+            ids.iter().flat_map(|id| self.project(id, source)).collect()
         })   
     }
-    pub fn commit_projects_count(&mut self, source: &Source, id : &CommitId) -> Option<usize> {
+    pub fn commit_projects_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
         self.smart_load_commit_projects_count(source).get(id).pirate()
     }
-    pub fn user_committed_commit_ids(&mut self, source: &Source, id: &UserId) -> Option<&Vec<CommitId>> {
-        self.smart_load_user_committed_commits(source).get(id)
+    pub fn user_committed_commit_ids(&mut self, id: &UserId, source: &Source) -> Option<Vec<CommitId>> {
+        self.smart_load_user_committed_commits(source).get(id).pirate()
     }
-    pub fn user_authored_commits(&mut self, source: &Source, id: &UserId) -> Option<Vec<Commit>> {
+    pub fn user_authored_commits(&mut self, id: &UserId, source: &Source) -> Option<Vec<Commit>> {
         self.smart_load_user_authored_commits(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
+            ids.iter().flat_map(|id| self.commit(id, source)).collect()
         })
     }
-    pub fn user_authored_commit_ids(&mut self, source: &Source, id: &UserId) -> Option<&Vec<CommitId>> {
-        self.smart_load_user_authored_commits(source).get(id)
+    pub fn user_authored_commit_ids(&mut self, id: &UserId, source: &Source) -> Option<Vec<CommitId>> {
+        self.smart_load_user_authored_commits(source).get(id).pirate()
     }
-    pub fn user_committed_experience(&mut self, source: &Source, id: &UserId) -> Option<Duration> {
+    pub fn user_committed_experience(&mut self, id: &UserId, source: &Source) -> Option<Duration> {
         self.smart_load_user_committer_experience(source)
             .get(id)
             .map(|seconds| Duration::from(*seconds))
     }
-    pub fn user_author_experience(&mut self, source: &Source, id: &UserId) -> Option<Duration> {
+    pub fn user_author_experience(&mut self, id: &UserId, source: &Source) -> Option<Duration> {
         self.smart_load_user_author_experience(source)
             .get(id)
             .map(|seconds| Duration::from(*seconds))
     }
-    pub fn user_experience(&mut self, source: &Source, id: &UserId) -> Option<Duration> {
+    pub fn user_experience(&mut self, id: &UserId, source: &Source) -> Option<Duration> {
         self.smart_load_user_experience(source)
             .get(id)
             .map(|seconds| Duration::from(*seconds))
     }
-    pub fn user_committed_commit_count(&mut self, source: &Source, id: &UserId) -> Option<usize> {
+    pub fn user_committed_commit_count(&mut self, id: &UserId, source: &Source) -> Option<usize> {
         self.smart_load_user_committed_commit_count(source).get(id).pirate()
     }
-    pub fn user_authored_commit_count(&mut self, source: &Source, id: &UserId) -> Option<usize> {
+    pub fn user_authored_commit_count(&mut self, id: &UserId, source: &Source) -> Option<usize> {
         self.smart_load_user_authored_commit_count(source).get(id).pirate()
     }
-    pub fn user_committed_commits(&mut self, source: &Source, id: &UserId) -> Option<Vec<Commit>> {
+    pub fn user_committed_commits(&mut self, id: &UserId, source: &Source) -> Option<Vec<Commit>> {
         self.smart_load_user_committed_commits(source).get(id).pirate().map(|ids| {
-            ids.iter().flat_map(|id| self.commit(source, id).pirate()).collect()
+            ids.iter().flat_map(|id| self.commit(id, source)).collect()
         })
     }
-    pub fn developer_experience(&mut self, source: &Source, id: &UserId) -> Option<i32> {
+    pub fn developer_experience(&mut self, id: &UserId, source: &Source) -> Option<i32> {
         self.smart_load_developer_experience(source).get(id).pirate()
     }
-    pub fn max_commit_delta(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
+    pub fn project_max_commit_delta(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_max_commit_delta(source).get(id).pirate()
     }
     pub fn project_max_experience(&mut self, id: &ProjectId, source: &Source) -> Option<i32> {
@@ -2265,19 +2261,19 @@ impl Data {
     pub fn project_experience(&mut self, id: &ProjectId, source: &Source) -> Option<f64> {
         self.smart_load_project_experience(source).get(id).pirate()
     }
-    pub fn avg_commit_delta(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
+    pub fn project_avg_commit_delta(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_avg_commit_delta(source).get(id).pirate()
     }
-    pub fn time_since_last_commit(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
+    pub fn project_time_since_last_commit(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_time_since_last_commit(source).get(id).pirate()
     }
-    pub fn time_since_first_commit(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
+    pub fn project_time_since_first_commit(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_time_since_first_commit(source).get(id).pirate()
     }
-    pub fn is_abandoned(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
+    pub fn project_is_abandoned(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_is_abandoned(source).get(id).pirate()
     }
-    pub fn snapshot_locs(&mut self, source: &Source, id: &SnapshotId) -> Option<usize> {
+    pub fn snapshot_locs(&mut self, id: &SnapshotId, source: &Source) -> Option<usize> {
         self.smart_load_snapshot_locs(source).get(id).pirate()
     }
     pub fn project_locs(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
@@ -2286,18 +2282,18 @@ impl Data {
     pub fn project_logs(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_logs(source).get(id).pirate()
     }
-    pub fn duplicated_code(&mut self, id: &ProjectId, source: &Source) -> Option<f64> {
+    pub fn project_duplicated_code(&mut self, id: &ProjectId, source: &Source) -> Option<f64> {
         self.smart_load_project_duplicated_code(source).get(id).pirate()
     }
-    pub fn snapshot_unique_projects(&mut self, source: &Source, id : &SnapshotId) -> usize {
+    pub fn snapshot_unique_projects(&mut self, id : &SnapshotId, source: &Source) -> usize {
         // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
         self.smart_load_snapshot_projects(source).get(id).unwrap().0
     }
-    pub fn snapshot_original_project(&mut self, source: &Source, id : &SnapshotId) -> ProjectId {
+    pub fn snapshot_original_project(&mut self, id : &SnapshotId, source: &Source) -> ProjectId {
         // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
         self.smart_load_snapshot_projects(source).get(id).unwrap().1
     }
-    pub fn project_is_valid(&mut self, source: &Source, id : &ProjectId) ->  Option<bool>{
+    pub fn project_is_valid(&mut self, id : &ProjectId, source: &Source) ->  Option<bool>{
         // TODO I am sure rust frowns upon this, but how do I return ! attributes that are cached in the datastore? 
         self.smart_load_project_is_valid(source).get(id).pirate()
     }

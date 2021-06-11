@@ -13,7 +13,7 @@ chrono = "0.4.19"           # various time/dates
 bstr = "0.2.14"             # Vec<u8>::to_str_lossy
 
 mashup = "0.1.12"           # some macros in data,  metaprogramming: allows constructing idents in macros
-delegate = { path = "../rust-delegate" }          # databaswe definition, metaprogramming: delegate from Database to Rc<Data>
+delegate = { git = "https://github.com/kondziu/rust-delegate", branch = "main" } # databaswe definition, metaprogramming: delegate from Database to Rc<Data>
 
 rand = "0.8.3"              # distributions and sampling in queries
 rand_pcg = "0.3.0"          # specific/better RNG implementations in queries

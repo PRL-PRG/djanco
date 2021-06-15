@@ -98,7 +98,7 @@ impl Database {
      * 
      * E.g. 
      * ```
-     * #[extra_args(&self.source)] 
+     * #[append_args(&self.source)] 
      * pub fn project(&self, id: &ProjectId) -> Option<Project>;
      * ```
      * 
@@ -141,130 +141,130 @@ impl Database {
     delegate! {
         to self.data.borrow_mut() {
             // Project attributes
-            #[extra_args(&self.source)] pub fn project(&self, id: &ProjectId) -> Option<Project>;
-            #[extra_args(&self.source)] pub fn project_issues(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool>;
-            #[extra_args(&self.source)] pub fn project_is_archived(&self, id: &ProjectId) -> Option<bool>;
-            #[extra_args(&self.source)] pub fn project_is_disabled(&self, id: &ProjectId) -> Option<bool>;
-            #[extra_args(&self.source)] pub fn project_star_gazer_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_watcher_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_size(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_open_issue_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_fork_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_subscriber_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_license(&self, id: &ProjectId) -> Option<String>;
-            #[extra_args(&self.source)] pub fn project_language(&self, id: &ProjectId) -> Option<Language>;
-            #[extra_args(&self.source)] pub fn project_substore(&self, id: &ProjectId) -> Option<Store>;
-            #[extra_args(&self.source)] pub fn project_description(&self, id: &ProjectId) -> Option<String>;
-            #[extra_args(&self.source)] pub fn project_homepage(&self, id: &ProjectId) -> Option<String>;
-            #[extra_args(&self.source)] pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool>;
-            #[extra_args(&self.source)] pub fn project_has_downloads(&self, id: &ProjectId) -> Option<bool>;
-            #[extra_args(&self.source)] pub fn project_has_wiki(&self, id: &ProjectId) -> Option<bool>;
-            #[extra_args(&self.source)] pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool>;
-            #[extra_args(&self.source)] pub fn project_created(&self, id: &ProjectId) -> Option<Timestamp>;
-            #[extra_args(&self.source)] pub fn project_updated(&self, id: &ProjectId) -> Option<Timestamp>;
-            #[extra_args(&self.source)] pub fn project_pushed(&self, id: &ProjectId) -> Option<Timestamp>;
-            #[extra_args(&self.source)] pub fn project_default_branch(&self, id: &ProjectId) -> Option<String>;
-            #[extra_args(&self.source)] pub fn project_change_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>>;
-            #[extra_args(&self.source)] pub fn project_change_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>>;
-            #[extra_args(&self.source)] pub fn project_cumulative_change_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>>;
-            #[extra_args(&self.source)] pub fn project_commit_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>>;
-            #[extra_args(&self.source)] pub fn project_commit_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>>;
-            #[extra_args(&self.source)] pub fn project_cumulative_commit_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>>;
-            #[extra_args(&self.source)] pub fn project_authors_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>>;
-            #[extra_args(&self.source)] pub fn project_authors_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>>;
-            #[extra_args(&self.source)] pub fn project_author_ids_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>>;
-            #[extra_args(&self.source)] pub fn project_author_ids_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>>;
-            #[extra_args(&self.source)] pub fn project_authors_contributing_commits_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_authors_contributing_changes_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_url(&self, id: &ProjectId) -> Option<String>;
-            #[extra_args(&self.source)] pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<Head>>;
-            #[extra_args(&self.source)] pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>>;
-            #[extra_args(&self.source)] pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>>;
-            #[extra_args(&self.source)] pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>;
-            #[extra_args(&self.source)] pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>>;
-            #[extra_args(&self.source)] pub fn project_author_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_path_ids(&self, id: &ProjectId) -> Option<Vec<PathId>>;
-            #[extra_args(&self.source)] pub fn project_paths(&self, id: &ProjectId) -> Option<Vec<Path>>;
-            #[extra_args(&self.source)] pub fn project_path_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_snapshot_ids(&self, id: &ProjectId) -> Option<Vec<SnapshotId>>;
-            #[extra_args(&self.source)] pub fn project_snapshot_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>;
-            #[extra_args(&self.source)] pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>>;
-            #[extra_args(&self.source)] pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>;
-            #[extra_args(&self.source)] pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>>;
-            #[extra_args(&self.source)] pub fn project_user_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration>;
-            #[extra_args(&self.source)] pub fn project_unique_files(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_original_files(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_impact(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_files(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_languages(&self, id: & ProjectId) -> Option<Vec<(Language,usize)>>;
-            #[extra_args(&self.source)] pub fn project_languages_count(&self, id: & ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_major_language(&self, id: &ProjectId) -> Option<Language>;
-            #[extra_args(&self.source)] pub fn project_major_language_ratio(&self, id: &ProjectId) -> Option<f64>;
-            #[extra_args(&self.source)] pub fn project_major_language_changes(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_all_forks(&self, id: &ProjectId) -> Option<Vec<ProjectId>>;
-            #[extra_args(&self.source)] pub fn project_all_forks_count(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_head_trees(&self, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>>;
-            #[extra_args(&self.source)] pub fn project_head_trees_count(&self, id : &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_max_commit_delta(&self, id: &ProjectId) -> Option<i64>;
-            #[extra_args(&self.source)] pub fn project_experience(&self, id: &ProjectId) -> Option<f64>;
-            #[extra_args(&self.source)] pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32>;
-            #[extra_args(&self.source)] pub fn project_avg_commit_delta(&self, id: &ProjectId) -> Option<i64>;
-            #[extra_args(&self.source)] pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64>;
-            #[extra_args(&self.source)] pub fn project_time_since_first_commit(&self, id: &ProjectId) -> Option<i64>;
-            #[extra_args(&self.source)] pub fn project_is_abandoned(&self, id: &ProjectId) -> Option<bool>;
-            #[extra_args(&self.source)] pub fn project_locs(&self, id: &ProjectId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn project_duplicated_code(&self, id: &ProjectId) -> Option<f64>;
-            #[extra_args(&self.source)] pub fn project_logs(&self, id : &ProjectId) -> Option<i64>;
-            #[extra_args(&self.source)] pub fn project_is_valid(&self, id : &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project(&self, id: &ProjectId) -> Option<Project>;
+            #[append_args(&self.source)] pub fn project_issues(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_buggy_issues(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_is_fork(&self, id: &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project_is_archived(&self, id: &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project_is_disabled(&self, id: &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project_star_gazer_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_watcher_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_size(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_open_issue_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_fork_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_subscriber_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_license(&self, id: &ProjectId) -> Option<String>;
+            #[append_args(&self.source)] pub fn project_language(&self, id: &ProjectId) -> Option<Language>;
+            #[append_args(&self.source)] pub fn project_substore(&self, id: &ProjectId) -> Option<Store>;
+            #[append_args(&self.source)] pub fn project_description(&self, id: &ProjectId) -> Option<String>;
+            #[append_args(&self.source)] pub fn project_homepage(&self, id: &ProjectId) -> Option<String>;
+            #[append_args(&self.source)] pub fn project_has_issues(&self, id: &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project_has_downloads(&self, id: &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project_has_wiki(&self, id: &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project_has_pages(&self, id: &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project_created(&self, id: &ProjectId) -> Option<Timestamp>;
+            #[append_args(&self.source)] pub fn project_updated(&self, id: &ProjectId) -> Option<Timestamp>;
+            #[append_args(&self.source)] pub fn project_pushed(&self, id: &ProjectId) -> Option<Timestamp>;
+            #[append_args(&self.source)] pub fn project_default_branch(&self, id: &ProjectId) -> Option<String>;
+            #[append_args(&self.source)] pub fn project_change_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>>;
+            #[append_args(&self.source)] pub fn project_change_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>>;
+            #[append_args(&self.source)] pub fn project_cumulative_change_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>>;
+            #[append_args(&self.source)] pub fn project_commit_contributions(&self, id: &ProjectId) -> Option<Vec<(User, usize)>>;
+            #[append_args(&self.source)] pub fn project_commit_contribution_ids(&self, id: &ProjectId) -> Option<Vec<(UserId, usize)>>;
+            #[append_args(&self.source)] pub fn project_cumulative_commit_contributions(&self, id: &ProjectId) -> Option<Vec<Percentage>>;
+            #[append_args(&self.source)] pub fn project_authors_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>>;
+            #[append_args(&self.source)] pub fn project_authors_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<User>>;
+            #[append_args(&self.source)] pub fn project_author_ids_contributing_commits(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>>;
+            #[append_args(&self.source)] pub fn project_author_ids_contributing_changes(&self, id: &ProjectId, percentage: Percentage) -> Option<Vec<UserId>>;
+            #[append_args(&self.source)] pub fn project_authors_contributing_commits_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_authors_contributing_changes_count(&self, id: &ProjectId, percentage: Percentage) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_url(&self, id: &ProjectId) -> Option<String>;
+            #[append_args(&self.source)] pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<Head>>;
+            #[append_args(&self.source)] pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>>;
+            #[append_args(&self.source)] pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>>;
+            #[append_args(&self.source)] pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>;
+            #[append_args(&self.source)] pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>>;
+            #[append_args(&self.source)] pub fn project_author_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_path_ids(&self, id: &ProjectId) -> Option<Vec<PathId>>;
+            #[append_args(&self.source)] pub fn project_paths(&self, id: &ProjectId) -> Option<Vec<Path>>;
+            #[append_args(&self.source)] pub fn project_path_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_snapshot_ids(&self, id: &ProjectId) -> Option<Vec<SnapshotId>>;
+            #[append_args(&self.source)] pub fn project_snapshot_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_committer_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>;
+            #[append_args(&self.source)] pub fn project_committers(&self, id: &ProjectId) -> Option<Vec<User>>;
+            #[append_args(&self.source)] pub fn project_committer_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_user_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>;
+            #[append_args(&self.source)] pub fn project_users(&self, id: &ProjectId) -> Option<Vec<User>>;
+            #[append_args(&self.source)] pub fn project_user_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_lifetime(&self, id: &ProjectId) -> Option<Duration>;
+            #[append_args(&self.source)] pub fn project_unique_files(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_original_files(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_impact(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_files(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_languages(&self, id: & ProjectId) -> Option<Vec<(Language,usize)>>;
+            #[append_args(&self.source)] pub fn project_languages_count(&self, id: & ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_major_language(&self, id: &ProjectId) -> Option<Language>;
+            #[append_args(&self.source)] pub fn project_major_language_ratio(&self, id: &ProjectId) -> Option<f64>;
+            #[append_args(&self.source)] pub fn project_major_language_changes(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_all_forks(&self, id: &ProjectId) -> Option<Vec<ProjectId>>;
+            #[append_args(&self.source)] pub fn project_all_forks_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_head_trees(&self, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>>;
+            #[append_args(&self.source)] pub fn project_head_trees_count(&self, id : &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_max_commit_delta(&self, id: &ProjectId) -> Option<i64>;
+            #[append_args(&self.source)] pub fn project_experience(&self, id: &ProjectId) -> Option<f64>;
+            #[append_args(&self.source)] pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32>;
+            #[append_args(&self.source)] pub fn project_avg_commit_delta(&self, id: &ProjectId) -> Option<i64>;
+            #[append_args(&self.source)] pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64>;
+            #[append_args(&self.source)] pub fn project_time_since_first_commit(&self, id: &ProjectId) -> Option<i64>;
+            #[append_args(&self.source)] pub fn project_is_abandoned(&self, id: &ProjectId) -> Option<bool>;
+            #[append_args(&self.source)] pub fn project_locs(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_duplicated_code(&self, id: &ProjectId) -> Option<f64>;
+            #[append_args(&self.source)] pub fn project_logs(&self, id : &ProjectId) -> Option<i64>;
+            #[append_args(&self.source)] pub fn project_is_valid(&self, id : &ProjectId) -> Option<bool>;
 
             // User/developer/author/committer attributes
-            #[extra_args(&self.source)] pub fn user(&self, id: &UserId) -> Option<User>;
-            #[extra_args(&self.source)] pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>>;
-            #[extra_args(&self.source)] pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>>;
-            #[extra_args(&self.source)] pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>>;
-            #[extra_args(&self.source)] pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration>;
-            #[extra_args(&self.source)] pub fn user_author_experience(&self, id: &UserId) -> Option<Duration>;
-            #[extra_args(&self.source)] pub fn user_experience(&self, id: &UserId) -> Option<Duration>;
-            #[extra_args(&self.source)] pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>>;
-            #[extra_args(&self.source)] pub fn developer_experience(&self, id: &UserId) -> Option<i32>;
+            #[append_args(&self.source)] pub fn user(&self, id: &UserId) -> Option<User>;
+            #[append_args(&self.source)] pub fn user_committed_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>>;
+            #[append_args(&self.source)] pub fn user_authored_commits(&self, id: &UserId) -> Option<Vec<Commit>>;
+            #[append_args(&self.source)] pub fn user_authored_commit_ids(&self, id: &UserId) -> Option<Vec<CommitId>>;
+            #[append_args(&self.source)] pub fn user_committed_experience(&self, id: &UserId) -> Option<Duration>;
+            #[append_args(&self.source)] pub fn user_author_experience(&self, id: &UserId) -> Option<Duration>;
+            #[append_args(&self.source)] pub fn user_experience(&self, id: &UserId) -> Option<Duration>;
+            #[append_args(&self.source)] pub fn user_committed_commit_count(&self, id: &UserId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>>;
+            #[append_args(&self.source)] pub fn developer_experience(&self, id: &UserId) -> Option<i32>;
 
             // File path attributes
-            #[extra_args(&self.source)] pub fn path(&self, id: &PathId) -> Option<Path>;
+            #[append_args(&self.source)] pub fn path(&self, id: &PathId) -> Option<Path>;
 
             // Commit attributes
-            #[extra_args(&self.source)] pub fn commit(&self, id: &CommitId) -> Option<Commit>;
-            #[extra_args(&self.source)] pub fn commit_hash(&self, id: &CommitId) -> Option<String>;
-            #[extra_args(&self.source)] pub fn commit_message(&self, id: &CommitId) -> Option<String>;
-            #[extra_args(&self.source)] pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<Timestamp>;
-            #[extra_args(&self.source)] pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<Timestamp>;
-            #[extra_args(&self.source)] pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<Change>>;
-            #[extra_args(&self.source)] pub fn commit_changed_paths(&self, id: &CommitId) -> Option<Vec<Path>>;
-            #[extra_args(&self.source)] pub fn commit_change_count(&self, id: &CommitId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn commit_changed_path_count(&self, id: &CommitId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn commit_projects(&self, id : &CommitId) -> Option<Vec<Project>>;
-            #[extra_args(&self.source)] pub fn commit_projects_count(&self, id: &CommitId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn commit(&self, id: &CommitId) -> Option<Commit>;
+            #[append_args(&self.source)] pub fn commit_hash(&self, id: &CommitId) -> Option<String>;
+            #[append_args(&self.source)] pub fn commit_message(&self, id: &CommitId) -> Option<String>;
+            #[append_args(&self.source)] pub fn commit_author_timestamp(&self, id: &CommitId) -> Option<Timestamp>;
+            #[append_args(&self.source)] pub fn commit_committer_timestamp(&self, id: &CommitId) -> Option<Timestamp>;
+            #[append_args(&self.source)] pub fn commit_changes(&self, id: &CommitId) -> Option<Vec<Change>>;
+            #[append_args(&self.source)] pub fn commit_changed_paths(&self, id: &CommitId) -> Option<Vec<Path>>;
+            #[append_args(&self.source)] pub fn commit_change_count(&self, id: &CommitId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn commit_changed_path_count(&self, id: &CommitId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn commit_projects(&self, id : &CommitId) -> Option<Vec<Project>>;
+            #[append_args(&self.source)] pub fn commit_projects_count(&self, id: &CommitId) -> Option<usize>;
 
             // Snapshot attributes
-            #[extra_args(&self.source)] pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize>;
-            #[extra_args(&self.source)] pub fn snapshot_unique_projects(&self, id: &SnapshotId) -> usize;
-            #[extra_args(&self.source)] pub fn snapshot_original_project(&self, id: &SnapshotId) -> ProjectId;
+            #[append_args(&self.source)] pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn snapshot_unique_projects(&self, id: &SnapshotId) -> usize;
+            #[append_args(&self.source)] pub fn snapshot_original_project(&self, id: &SnapshotId) -> ProjectId;
 
             // Entity IDs
-            #[extra_args(&self.source)] pub fn all_project_ids(&self) -> Vec<ProjectId>;
-            #[extra_args(&self.source)] pub fn all_user_ids(&self)    -> Vec<UserId>;
-            #[extra_args(&self.source)] pub fn all_path_ids(&self)    -> Vec<PathId>;
-            #[extra_args(&self.source)] pub fn all_commit_ids(&self)  -> Vec<CommitId>;
+            #[append_args(&self.source)] pub fn all_project_ids(&self) -> Vec<ProjectId>;
+            #[append_args(&self.source)] pub fn all_user_ids(&self)    -> Vec<UserId>;
+            #[append_args(&self.source)] pub fn all_path_ids(&self)    -> Vec<PathId>;
+            #[append_args(&self.source)] pub fn all_commit_ids(&self)  -> Vec<CommitId>;
 
             // Misc.
-            #[extra_args(&self.source)] pub fn export_to_csv<S>(&self, dir: S) -> Result<(), std::io::Error> where S: Into<String>;
+            #[append_args(&self.source)] pub fn export_to_csv<S>(&self, dir: S) -> Result<(), std::io::Error> where S: Into<String>;
         }
     }
 

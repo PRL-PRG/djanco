@@ -1128,13 +1128,13 @@ pub mod project {
        TODO the current version does not provide information about deletions and so there is no way we can reconstruct only active files. At this moment this metric simply returns the number of unique paths throughout the project's history.
      */
     impl_attribute![?     objects::Project, Files, usize, files];
-    /* Languages of the project. 
+    /* LanguageComposition of the project. 
 
        For each language used in the project returns the number of snapshots throught the project history ordered by descending number. 
 
        TODO for now, this is only done using file extensions. We might want to do this using real contents analysis. 
      */
-    impl_attribute![?..   objects::Project, Languages, (objects::Language, usize), languages, languages_count];
+    impl_attribute![?..   objects::Project, LanguageComposition, (objects::Language, usize), language_composition, languages_count];
     /* Shorthand for the major language. 
      
         This is the language with most changes in the project history. 

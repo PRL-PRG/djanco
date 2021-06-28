@@ -202,7 +202,8 @@ impl Database {
             #[append_args(&self.source)] pub fn project_original_files(&self, id: &ProjectId) -> Option<usize>;
             #[append_args(&self.source)] pub fn project_impact(&self, id: &ProjectId) -> Option<usize>;
             #[append_args(&self.source)] pub fn project_files(&self, id: &ProjectId) -> Option<usize>;
-            #[append_args(&self.source)] pub fn project_languages(&self, id: & ProjectId) -> Option<Vec<(Language,usize)>>;
+            #[append_args(&self.source)] pub fn project_languages(&self, id: & ProjectId) -> Option<Vec<Language>>;
+            #[append_args(&self.source)] pub fn project_language_composition(&self, id: & ProjectId) -> Option<Vec<(Language,usize)>>;
             #[append_args(&self.source)] pub fn project_languages_count(&self, id: & ProjectId) -> Option<usize>;
             #[append_args(&self.source)] pub fn project_major_language(&self, id: &ProjectId) -> Option<Language>;
             #[append_args(&self.source)] pub fn project_major_language_ratio(&self, id: &ProjectId) -> Option<f64>;

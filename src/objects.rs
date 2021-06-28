@@ -431,7 +431,8 @@ impl Project {
     pub fn original_files   (&self, store: &Database)    -> Option<usize>                   { store.project_original_files(&self.id)          }
     pub fn impact           (&self, store: &Database)    -> Option<usize>                   { store.project_impact(&self.id)                  }
     pub fn files            (&self, store: &Database)    -> Option<usize>                   { store.project_files(&self.id)                   }
-    pub fn languages        (&self, store: &Database)    -> Option<Vec<(Language,usize)>>   { store.project_languages(&self.id)               }
+    pub fn languages        (&self, store: &Database)    -> Option<Vec<Language>>           { store.project_languages(&self.id)               }
+    pub fn language_composition(&self, store: &Database)    -> Option<Vec<(Language,usize)>>{ store.project_language_composition(&self.id)    }
     pub fn languages_count  (&self, store: &Database)    -> Option<usize>                   { store.project_languages_count(&self.id)         }
     pub fn major_language   (&self, store: &Database)    -> Option<Language>                { store.project_major_language(&self.id)          }
     pub fn major_language_ratio (&self, store: &Database) -> Option<f64>                    { store.project_major_language_ratio(&self.id)    }
@@ -886,8 +887,11 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn files(&self) -> Option<usize> {
         self.item.files(&self.data)
     }
-    pub fn languages(&self) -> Option<Vec<(Language,usize)>> {
+    pub fn languages(&self) -> Option<Vec<Language>> {
         self.item.languages(&self.data)
+    }
+    pub fn language_composition(&self) -> Option<Vec<(Language,usize)>> {
+        self.item.language_composition(&self.data)
     }
     pub fn languages_count(&self) -> Option<usize> {
         self.item.languages_count(&self.data)

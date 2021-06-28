@@ -496,9 +496,14 @@ impl Data {
         self.smart_load_project_files(source).get(id)
             .pirate()
     }
-    pub fn project_languages(& mut self, id: &ProjectId, source: &Source) -> Option<Vec<(Language,usize)>> {
+    pub fn project_language_composition(& mut self, id: &ProjectId, source: &Source) -> Option<Vec<(Language,usize)>> {
         self.smart_load_project_languages(source).get(id)
             .pirate()
+    }
+    pub fn project_languages(& mut self, id: &ProjectId, source: &Source) -> Option<Vec<Language>> {
+        self.smart_load_project_languages(source).get(id).map(|vector| {
+            vector.iter().map(|e| e.0.clone()).collect::<Vec<Language>>()
+        })
     }
     pub fn project_languages_count(& mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_languages_count(source).get(id)

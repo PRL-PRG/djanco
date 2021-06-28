@@ -32,4 +32,4 @@ serde = { version = "1.0.120", features = ["derive"] } # caching
 serde_cbor = "0.11.1"                                  # caching
 serde_json = "1.0.59"                                  # parsing JSON metadata gathered from GH
 
-parasite = { git = "https://github.com/PRL-PRG/codedj-parasite.git", branch = "master" }
+parasite = { git = "https://github.com/PRL-PRG/codedj-parasite.git", tag = "moving-sentinel" }

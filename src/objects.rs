@@ -588,6 +588,12 @@ impl Commit {
     pub fn projects_count(& self, store: &Database) -> Option<usize> {
         store.commit_projects_count(&self.id)
     }
+    pub fn languages(& self, store: &Database) -> Option<Vec<Language>> {
+        store.commit_languages(&self.id)
+    } 
+    pub fn languages_count(& self, store: &Database) -> Option<usize> {
+        store.commit_languages_count(&self.id)
+    }
 }
 
 impl Identifiable for Commit {
@@ -996,6 +1002,8 @@ impl<'a> ItemWithData<'a, Commit> {
     }
     pub fn projects(&self) -> Option<Vec<Project>> { self.item.projects(&self.data) }
     pub fn projects_count(& self) -> Option<usize> { self.item.projects_count(& self.data) }
+    pub fn languages(&self) -> Option<Vec<Language>> { self.item.languages(&self.data) }
+    pub fn languages_count(& self) -> Option<usize> { self.item.languages_count(& self.data) }
 
 }
 impl<'a> ItemWithData<'a, Path> {

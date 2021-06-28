@@ -827,6 +827,28 @@ impl SingleMapExtractor for CommitProjectsExtractor {
     }
 }
 
+
+pub(crate) struct CommitLanguagesExtractor {}
+impl MapExtractor for CommitLanguagesExtractor {
+    type Key = CommitId;
+    type Value = Vec<Language>;
+}
+
+impl DoubleMapExtractor for CommitLanguagesExtractor {
+    type A = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type B = BTreeMap<PathId, Path>;
+    fn extract(_source: &Source, changes: &Self::A, paths: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        changes.iter().map(|(commit_id, commit_changes)| {
+            (
+                commit_id.clone(), 
+                commit_changes.iter().flat_map(|(path_id, _snapshot_id)| {
+                    paths.get(path_id).map(|path| path.language()).flatten()
+                }).unique().collect::<Vec<Language>>()
+            )
+        }).collect()
+    }
+}
+
 pub(crate) struct SnapshotCloneInfo {
     original : ProjectId,
     oldest_commit_time : Timestamp,

@@ -1199,11 +1199,17 @@ pub mod commit {
     impl_attribute![?+.. objects::Commit, Paths, objects::Path, changed_paths_with_data, changed_path_count];
     impl_attribute![?+.. objects::Commit, Snapshots, objects::Snapshot, changed_snapshots_with_data, changed_snapshot_count];
     impl_attribute![!+.. objects::Commit, Parents, objects::Commit, parents_with_data, parent_count];
+
     /* The list of projects the commit belongs to. 
 
        This is pretty much the reverse of the project-commits mapping.
      */
     impl_attribute![?..  objects::Commit, Projects, objects::Project, projects, projects_count];
+
+    /*
+     * The list of all languages in a commit.
+     */
+    impl_attribute![?..  objects::Commit, Languages, objects::Language, languages, languages_count];
 }
 
 pub mod head {

@@ -102,6 +102,8 @@ pub(crate) struct Data {
 
     commit_projects:             PersistentMap<CommitProjectsExtractor>,
     commit_projects_count:       PersistentMap<CountPerKeyExtractor<CommitId, ProjectId>>,
+    commit_languages:            PersistentMap<CommitLanguagesExtractor>,
+    commit_languages_count:      PersistentMap<CountPerKeyExtractor<CommitId, Language>>,
     snapshot_projects :          PersistentMap<SnapshotProjectsExtractor>,
 
     // TODO frequency of commits/regularity of commits
@@ -202,6 +204,8 @@ impl Data {
             commit_change_count:            PersistentMap::new(CACHE_FILE_COMMIT_CHANGE_COUNT,            log.clone(),dir.clone()),
             commit_projects:                PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS,                log.clone(),dir.clone()),
             commit_projects_count:          PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS_COUNT,          log.clone(),dir.clone()),
+            commit_languages:               PersistentMap::new(CACHE_FILE_COMMIT_LANGUAGES,               log.clone(),dir.clone()),
+            commit_languages_count:         PersistentMap::new(CACHE_FILE_COMMIT_LANGUAGES_COUNT,         log.clone(),dir.clone()),
             snapshot_projects:              PersistentMap::new(CACHE_FILE_SNAPSHOT_PROJECTS,              log.clone(),dir.clone()),
             project_max_commit_delta:       PersistentMap::new(CACHE_FILE_MAX_COMMIT_DELTA, log.clone(), dir.clone()),
             avg_commit_delta:               PersistentMap::new(CACHE_FILE_AVG_COMMIT_DELTA, log.clone(), dir.clone()),
@@ -584,6 +588,12 @@ impl Data {
     pub fn commit_projects_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
         self.smart_load_commit_projects_count(source).get(id).pirate()
     }
+    pub fn commit_languages(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Language>> {
+        self.smart_load_commit_languages(source).get(id).pirate()   
+    }
+    pub fn commit_languages_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
+        self.smart_load_commit_languages_count(source).get(id).pirate()
+    }
     pub fn user_committed_commit_ids(&mut self, id: &UserId, source: &Source) -> Option<Vec<CommitId>> {
         self.smart_load_user_committed_commits(source).get(id).pirate()
     }
@@ -885,7 +895,12 @@ impl Data {
     fn smart_load_project_logs(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, project_logs, source, one, project_is_valid)
     }
-
+    fn smart_load_commit_languages(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<Language>> {
+        load_with_prerequisites!(self, commit_languages, source, two, commit_changes, paths)
+    }
+    fn smart_load_commit_languages_count(&mut self, source: &Source) -> &BTreeMap<CommitId, usize> {
+        load_with_prerequisites!(self, commit_languages_count, source, one, commit_languages)
+    }
     fn smart_load_commit_projects(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<ProjectId>> {
         load_with_prerequisites!(self, commit_projects, source, one, project_commits)
     }

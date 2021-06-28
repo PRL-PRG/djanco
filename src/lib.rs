@@ -1496,15 +1496,57 @@ macro_rules! impl_collection_membership {
                     })
                 }
             }
+            impl<'a, A, T, I> Filter<'a> for AnyWithin<A, $collection_type<I>>
+            where A: OptionGetter<'a, IntoItem=Vec<I>>,
+                  A: Attribute<Object=T>,
+                  I: $($requirements+)+ {
+            type Item = T;
+            fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
+                let vector = self.0.get_opt(item_with_data);
+                let vector_ref = vector.as_ref();
+                self.1.iter().any(|e| {
+                    vector_ref.map_or(false, |vector| vector.contains(e))
+                })
+            }
+        }
+            impl<'a, A, T, I> Filter<'a> for AllWithin<A, $collection_type<I>>
+                where A: OptionGetter<'a, IntoItem=Vec<I>>,
+                      A: Attribute<Object=T>,
+                      I: $($requirements+)+ {
+                type Item = T;
+                fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
+                    let vector = self.0.get_opt(item_with_data);
+                    let vector_ref = vector.as_ref();
+                    self.1.iter().all(|e| {
+                        vector_ref.map_or(false, |vector| vector.contains(e))
+                    })
+                }
+            }
         }
     }
 
 pub struct Member<A, C>(pub A, pub C);
 pub struct AnyIn<A, C>(pub A, pub C);
 pub struct AllIn<A, C>(pub A, pub C);
+pub struct Within<A, C>(pub A, pub C);
+pub struct AnyWithin<A, C>(pub A, pub C);
+pub struct AllWithin<A, C>(pub A, pub C);
+
 impl_collection_membership!(Vec<I> where I: Eq);
 impl_collection_membership!(BTreeSet<I> where I: Ord);
 impl_collection_membership!(HashSet<I> where I: Hash, Eq);
+
+impl<'a, A, T, I> Filter<'a> for Within<A, I>
+where A: OptionGetter<'a, IntoItem=Vec<I>>,
+    A: Attribute<Object=T>,
+    I: Eq {
+    type Item = T;
+    fn accept(&self, item_with_data: &objects::ItemWithData<'a, Self::Item>) -> bool {
+        self.0.get_opt(item_with_data).map_or(false, |e| {
+            e.contains(&self.1)
+        })
+    }
+}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
 impl<'a, T> Sampler<'a, T> for Top {

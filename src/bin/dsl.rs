@@ -42,5 +42,6 @@ fn main() {
     database.projects().filter_by(Member(project::Homepage, vec!["http://manasource.org/"].iter().map(|e| e.to_string()).collect::<Vec<String>>()));
     database.projects().filter_by(AnyIn(FromEach(project::Commits, commit::Id), vec![objects::CommitId::from(42u64), objects::CommitId::from(666u64)]));
     database.projects().filter_by(AllIn(FromEach(project::Commits, commit::Id), vec![objects::CommitId::from(42u64), objects::CommitId::from(666u64)]));
+    database.projects().filter_by(Within(FromEach(project::Commits, commit::Id), objects::CommitId::from(666u64)));
     // database.projects().map_into_attrib(Bucket(Count(project::Commits), Interval(1000))).into_csv_in_dir(&config.output_path,  "bucket_1000").unwrap();
 }

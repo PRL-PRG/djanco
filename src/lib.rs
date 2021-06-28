@@ -111,6 +111,7 @@ pub mod store {
         Scala,
         Shell,
         TypeScript,
+        Julia,
     }
 
     impl Display for Language {
@@ -135,6 +136,7 @@ pub mod store {
                 Language::Scala => write!(f, "Scala"),
                 Language::Shell => write!(f, "Shell"),
                 Language::TypeScript => write!(f, "TypeScript"),
+                Language::Julia => write!(f, "Julia"),
             }
         }
     }
@@ -142,6 +144,7 @@ pub mod store {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub enum Store {
+    None,
     Small,
     Large(store::Language),
     Generic,
@@ -150,6 +153,7 @@ pub enum Store {
 impl Display for Store {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            Store::None => write!(f, "None"),
             Store::Small => write!(f, "SmallProjects"),
             Store::Large(language) => write!(f, "{}", language),
             Store::Generic => write!(f, "Generic"),
@@ -169,6 +173,7 @@ impl Store {
     }
     pub fn kind(&self) -> StoreKind {
         match self {
+            Store::None => StoreKind::None,
             Store::Generic => StoreKind::Generic,
             Store::Small => StoreKind::SmallProjects,
             Store::Large(store::Language::JavaScript) => StoreKind::JavaScript,
@@ -190,12 +195,14 @@ impl Store {
             Store::Large(store::Language::Scala) => StoreKind::Scala,
             Store::Large(store::Language::Shell) => StoreKind::Shell,
             Store::Large(store::Language::TypeScript) => StoreKind::TypeScript,
+            Store::Large(store::Language::Julia) => StoreKind::Julia,
         }
     }
 }
 impl std::convert::From<StoreKind> for Store {
     fn from(kind: StoreKind) -> Self {
         match kind {
+            StoreKind::None => Store::None,
             StoreKind::Generic => Store::Generic,
             StoreKind::SmallProjects => Store::Small,
             StoreKind::JavaScript => Store::Large(store::Language::JavaScript),
@@ -217,8 +224,9 @@ impl std::convert::From<StoreKind> for Store {
             StoreKind::Scala => Store::Large(store::Language::Scala),
             StoreKind::Shell => Store::Large(store::Language::Shell),
             StoreKind::TypeScript => Store::Large(store::Language::TypeScript),
-            StoreKind::Unspecified =>
-                panic!("StoreKind::Unspecified is a sentinel, so it is not expected to occur."),
+            StoreKind::Julia => Store::Large(store::Language::Julia),
+            StoreKind::Sentinel =>
+                panic!("StoreKind::Sentinel is a sentinel, so it is not expected to occur."),
         }
     }
 }

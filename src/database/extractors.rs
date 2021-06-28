@@ -839,12 +839,10 @@ impl DoubleMapExtractor for CommitLanguagesExtractor {
     type B = BTreeMap<PathId, Path>;
     fn extract(_source: &Source, changes: &Self::A, paths: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
         changes.iter().map(|(commit_id, commit_changes)| {
-            (
-                commit_id.clone(), 
-                commit_changes.iter().flat_map(|(path_id, _snapshot_id)| {
-                    paths.get(path_id).map(|path| path.language()).flatten()
-                }).unique().collect::<Vec<Language>>()
-            )
+            (commit_id.clone(), 
+             commit_changes.iter().flat_map(|(path_id, _snapshot_id)| {
+                paths.get(path_id).map(|path| path.language()).flatten()
+             }).unique().collect::<Vec<Language>>())
         }).collect()
     }
 }

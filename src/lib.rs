@@ -1192,7 +1192,7 @@ pub mod commit {
     impl_attribute![?    objects::Commit, MessageLength, usize, message_length];
     impl_attribute![?    objects::Commit, AuthoredTimestamp, Timestamp, author_timestamp];
     impl_attribute![?    objects::Commit, CommittedTimestamp, Timestamp, committer_timestamp];
-    impl_attribute![?..  objects::Commit, Changes, objects::Change, changes, change_count];
+    impl_attribute![?+.. objects::Commit, Changes, objects::Change, changes_with_data, change_count];
     impl_attribute![?..  objects::Commit, PathIds, objects::PathId, changed_path_ids, changed_path_count];
     impl_attribute![?..  objects::Commit, SnapshotIds, objects::SnapshotId, changed_snapshot_ids, changed_snapshot_count];
     impl_attribute![!..  objects::Commit, ParentIds, objects::CommitId, parent_ids, parent_count];

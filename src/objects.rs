@@ -692,6 +692,25 @@ impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &Database) -> S
     store.snapshot(&self).unwrap().clone() }
 }
 
+// #[derive(Clone, Debug, Serialize, Deserialize)]
+// pub struct Tree {  }
+// impl Tree {
+    
+// }
+// impl PartialEq for Tree {
+//     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
+// }
+// impl PartialOrd for Tree {
+//     fn partial_cmp(&self, other: &Self) -> Option<Ordering>{ self.id.partial_cmp(&other.id) }
+// }
+// impl Eq for Tree {  }
+// impl Ord for Tree {
+//     fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
+// }
+// impl Hash for Tree {
+//     fn hash<H: Hasher>(&self, state: &mut H) { self.id.hash(state) }
+// }
+
 pub trait ItemWithoutData where Self: Sized {
     fn attach_data<'a>(self, data: &'a Database) -> ItemWithData<'a, Self>;
 }
@@ -1039,3 +1058,4 @@ impl<'a> ItemWithData<'a, Change> {
         self.item.snapshot(self.data).attach_data_to_inner(self.data)
     }
 }
+

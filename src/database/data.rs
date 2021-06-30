@@ -16,6 +16,7 @@ use super::source::Source;
 
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
+    
     project_substores:           PersistentMap<ProjectSubstoreExtractor>,
     project_urls:                PersistentMap<ProjectUrlExtractor>,
     project_heads:               PersistentMap<ProjectHeadsExtractor>,

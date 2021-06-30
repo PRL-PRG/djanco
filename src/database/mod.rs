@@ -4,6 +4,7 @@ pub mod persistent;
 pub mod source;
 pub mod data;
 pub mod extractors;
+pub mod lazy;
 
 use std::cell::RefCell;
 

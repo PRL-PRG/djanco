@@ -1337,7 +1337,7 @@ impl TripleMapExtractor for ProjectHeadTreesExtractor {
                         }
                     }
                 }
-                (name.clone(), contents.iter().filter(|x| x.1.is_some()).map(|x| (*x.0, x.1.unwrap())).collect())
+                (name.clone(), contents.iter().filter(|(_path_id, snapshot_id)| snapshot_id.is_some()).map(|(path_id, snapshot_id)| (*path_id, snapshot_id.unwrap())).collect())
             }).collect();
             (*pid, heads)
         }).collect()

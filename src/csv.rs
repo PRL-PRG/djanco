@@ -1,6 +1,6 @@
 use crate::Percentage;
 use std::io::Write;
-use std::fs::{File, create_dir_all};
+use std::fs::{File, OpenOptions, create_dir_all};
 use std::path::PathBuf;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
@@ -1121,5 +1121,39 @@ impl<'a, I> Dump for I where I: Iterator<Item=ItemWithData<'a, Project>> {
         }
         eprintln!("Done dumping to directory at {}", dir_path.as_os_str().to_str().unwrap_or("???"));
         Ok(())
+    }
+}
+
+pub trait FileWritable {
+    fn contents_as_bytes(&self) -> Option<&Vec<u8>>;
+}
+
+pub trait ContentsToFiles<T> where T: Identifiable + FileWritable {
+    fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error>;
+}
+
+impl<I, T> ContentsToFiles<T> for I where I: Iterator<Item=T>, T: Identifiable + FileWritable {
+
+    fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error> {
+        let dir = PathBuf::from(dir);
+        create_dir_all(dir.clone())?;
+
+        for item in self {
+            if let Some(contents) = item.contents_as_bytes() {            
+                let mut file_path = dir.clone();
+                file_path.push(format!("{}", item.id()));
+            
+                let mut file = OpenOptions::new().write(true).open(file_path)?;
+                file.write_all(contents)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl FileWritable for Snapshot {
+    fn contents_as_bytes(&self) -> Option<&Vec<u8>> {
+        Some(self.raw_contents())
     }
 }

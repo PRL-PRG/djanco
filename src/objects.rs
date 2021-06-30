@@ -350,8 +350,6 @@ impl Identifiable for Project {
     fn id(&self) -> ProjectId { self.id }
 }
 
-
-
 impl Project {
     pub fn new              (id: ProjectId, url: String) -> Self                            { Project { id, url }                            }
     pub fn url              (&self)                      -> String                          { self.url.to_string()                           }
@@ -752,6 +750,11 @@ impl<'a, T> Hash for ItemWithData<'a, T> where T: Hash {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.item.hash(state)
     }
+}
+
+impl<'a, T> Identifiable for ItemWithData<'a, T> where T: Identifiable {
+    type Identity = <T as Identifiable>::Identity;
+    fn id(&self) -> Self::Identity { self.item.id() }
 }
 
 impl<'a> Into<Project> for ItemWithData<'a, Project> { fn into(self) -> Project { self.item } }

@@ -1157,3 +1157,11 @@ impl FileWritable for Snapshot {
         Some(self.raw_contents())
     }
 }
+
+
+impl<'a> FileWritable for ItemWithData<'a, Snapshot> {
+    fn contents_as_bytes(&self) -> Option<&Vec<u8>> {
+        Some(self.raw_contents())
+    }
+}
+

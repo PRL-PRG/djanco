@@ -9,6 +9,7 @@ use crate::time::Duration;
 use crate::{CacheDir, Store, Percentage, Timestamp};
 
 use super::cache::*;
+use super::lazy::DoubleItemExtractor;
 use super::lazy::LazyMap;
 use super::persistent::*;
 use super::metadata::*;
@@ -597,6 +598,37 @@ impl Data {
     pub fn commit_languages(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Language>> {
         self.smart_load_commit_languages(source).get(id).pirate()   
     }
+    pub fn commit_trees(&mut self, id: &CommitId, source: &Source) -> Option<Tree> {
+
+        // if let Some(value) = self.commit_trees.get_if_loaded(item_id) {
+        //     return Some(value.clone())
+        // }
+
+        // self.commit_trees.get_or(*id, |id: CommitId| {
+        //     let commit_changes = self.smart_load_commit_changes(source);
+        //     let commits = self.smart_load_commits(source);
+        //     CommitTreeExtractor::extract(id, source, commit_changes, commits)
+        // }).pirate()
+
+//         let commit_changes = self.smart_load_commit_changes(source);
+//         let commits = self.smart_load_commits(source);
+//         self.commit_trees.get_two(*id, source, commit_changes, commits).pirate()
+
+//         mashup! {
+//             $( m["smart_load" $prereq] = smart_load_$prereq; )*
+//                m["load"] = load_from_$n;
+//         }
+// self.commit_trees.
+
+//         if !$self.$vector.is_loaded() {
+//             self.smart_load_commit_changes(source);
+//             self.smart_load_commits(source);
+//             self.commit_changes.load_from_($source, $($self.$prereq.grab_collection()), *); }
+//         }
+//         $self.$vector.grab_collection()
+
+        todo!()
+    }
     pub fn commit_languages_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
         self.smart_load_commit_languages_count(source).get(id).pirate()
     }
@@ -890,7 +922,6 @@ impl Data {
     }
     fn smart_load_snapshot_locs(&mut self, source: &Source) -> &BTreeMap<SnapshotId, usize> {
         load_from_source!(self, snapshot_locs, source)
-        //load_with_prerequisites!(self, is_abandoned, source, one, project_snapshots)
     }
     fn smart_load_project_locs(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_locs, source, three, project_head_trees,  project_default_branch, snapshot_locs)

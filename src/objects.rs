@@ -594,6 +594,9 @@ impl Commit {
     pub fn languages_count(& self, store: &Database) -> Option<usize> {
         store.commit_languages_count(&self.id)
     }
+    pub fn tree(&self, store: &Database) -> Option<Tree> {
+        store.commit_trees(&self.id)
+    }
 }
 
 impl Identifiable for Commit {
@@ -697,6 +700,9 @@ impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &Database) -> S
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Tree(BTreeMap<PathId, Option<SnapshotId>>);
 impl Tree {
+    pub fn new(files: BTreeMap<PathId, Option<SnapshotId>>) -> Self {
+        Tree(files)
+    }
     pub fn path_ids(&self) -> Vec<PathId> { 
         self.0.keys().unique().map(|path_id| *path_id).collect() 
     }
@@ -1041,6 +1047,11 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn changed_path_count  (&self) -> Option<usize>                     { self.item.changed_path_count(&self.data)   }
     pub fn changed_snapshots   (&self) -> Option<Vec<Snapshot>>             { self.item.changed_snapshots(&self.data)    }
     pub fn changed_snapshot_count (&self) -> Option<usize>                  { self.item.changed_snapshot_count(&self.data) }
+
+    pub fn tree(&self) -> Option<Tree> { self.item.tree(&self.data) }
+    pub fn tree_with_data<'b>(&'b self) -> Option<ItemWithData<'a, Tree>> { 
+        self.item.tree(&self.data).attach_data_to_inner(self.data) 
+    }
 
     pub fn author_with_data<'b>(&'b self) -> Option<ItemWithData<'a, User>> {
         self.item.author(self.data).attach_data_to_inner(self.data)

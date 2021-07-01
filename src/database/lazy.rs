@@ -7,7 +7,7 @@ use std::error::Error;
 use crate::log::Log;
 use crate::weights_and_measures::*;
 
-use super::persistent::{PERSISTENT_EXTENSION, Persistent, PersistentCollection};
+use super::persistent::{PERSISTENT_EXTENSION, Persistent};
 use super::source::Source;
 
 pub trait ItemExtractor {
@@ -108,8 +108,12 @@ impl<E> LazyMap<E> where E: ItemExtractor {
         self.map.iter()
     }
 
-    fn get_or<'a, F>(&'a mut self, item_id: E:: Key, extract: F) -> Option<&'a E::Value> 
-        where F: Fn(&mut Self, E:: Key) -> E::Value {
+    pub fn get_if_loaded(&self, item_id: E:: Key) -> Option<&E::Value> {
+        return self.map.get(&item_id)
+    }
+
+    pub fn get_or<'a, F>(&'a mut self, item_id: E:: Key, extract: F) -> Option<&'a E::Value> 
+        where F: Fn(E:: Key) -> E::Value {
 
 //        let value = self.map.get(item_id);
 
@@ -123,7 +127,7 @@ impl<E> LazyMap<E> where E: ItemExtractor {
 
         // Not retrieved yet, but cache exists
         if value_is_missing {            
-            let value = extract(self, item_id.clone());
+            let value = extract(item_id.clone());
             self.new_values += 1;
             self.map.insert(item_id.clone(), value);
             // Continue to the next if.
@@ -147,6 +151,10 @@ impl<E> LazyMap<E> where E: ItemExtractor {
         serde_cbor::to_writer(writer, &self.map)?;
         Ok(())
     }
+
+    pub fn is_loaded(&self) -> bool {
+        self.loaded
+    }
 }
 
 impl<E> Drop for LazyMap<E> where E: ItemExtractor {
@@ -159,25 +167,25 @@ impl<E> Drop for LazyMap<E> where E: ItemExtractor {
 
 impl<E> LazyMap<E> where E: SourceItemExtractor {
     pub fn get(&mut self, item_id: E:: Key, source: &Source) -> Option<&E::Value> {
-        self.get_or(item_id, |_this: &mut Self, item_id: E:: Key| { E::extract(item_id, source) }) // TODO figure out if I want to keep or remove `_this`
+        self.get_or(item_id, |item_id: E:: Key| { E::extract(item_id, source) }) // TODO figure out if I want to keep or remove `_this`
     }
 }
 
 impl<E> LazyMap<E> where E: SingleItemExtractor {
     pub fn get_one(&mut self, item_id: E:: Key, source: &Source, a: &E::A) -> Option<&E::Value> {
-        self.get_or(item_id, |_this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a) })
+        self.get_or(item_id, |item_id: E:: Key| { E::extract(item_id, source, a) })
     }
 }
 
 impl<E> LazyMap<E> where E: DoubleItemExtractor {
     pub fn get_two(&mut self, item_id: E:: Key, source: &Source, a: &E::A, b: &E::B) -> Option<&E::Value> {
-        self.get_or(item_id, |_this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a, b) })
+        self.get_or(item_id, |item_id: E:: Key| { E::extract(item_id, source, a, b) })
     }
 }
 
 impl<E> LazyMap<E> where E: TripleItemExtractor {
     pub fn get_three(&mut self, item_id: E:: Key, source: &Source, a: &E::A, b: &E::B, c: &E::C) -> Option<&E::Value> {
-        self.get_or(item_id, |_this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a, b, c) })
+        self.get_or(item_id, |item_id: E:: Key| { E::extract(item_id, source, a, b, c) })
     }
 }
 

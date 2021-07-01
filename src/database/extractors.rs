@@ -1378,7 +1378,7 @@ pub(crate) struct CommitTreeExtractor {}
 
 impl ItemExtractor for CommitTreeExtractor {
     type Key = CommitId;
-    type Value = BTreeMap<PathId, Option<SnapshotId>>;
+    type Value = Tree;
 }
 
 impl DoubleItemExtractor for CommitTreeExtractor {
@@ -1387,7 +1387,7 @@ impl DoubleItemExtractor for CommitTreeExtractor {
 
     fn extract(commit_id: Self::Key, _source: &Source, 
                commit_changes: &BTreeMap<CommitId, Vec<ChangeTuple>>, 
-               commits: &BTreeMap<CommitId, Commit>) -> Self::Value {
+               commits: &BTreeMap<CommitId, Commit>) -> Tree {
 
         let mut contents: BTreeMap<PathId, Option<SnapshotId>> = BTreeMap::new();
         
@@ -1413,7 +1413,7 @@ impl DoubleItemExtractor for CommitTreeExtractor {
             }
         }
 
-        contents
+        Tree::new(contents)
     }
 
     // fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {

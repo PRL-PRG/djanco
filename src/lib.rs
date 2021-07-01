@@ -1199,6 +1199,7 @@ pub mod commit {
     impl_attribute![?+.. objects::Commit, Paths, objects::Path, changed_paths_with_data, changed_path_count];
     impl_attribute![?+.. objects::Commit, Snapshots, objects::Snapshot, changed_snapshots_with_data, changed_snapshot_count];
     impl_attribute![!+.. objects::Commit, Parents, objects::Commit, parents_with_data, parent_count];
+    impl_attribute![?+   objects::Commit, Tree, objects::Tree, tree_with_data];
 
     /* The list of projects the commit belongs to. 
 

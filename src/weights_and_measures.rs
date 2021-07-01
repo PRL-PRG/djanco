@@ -77,6 +77,7 @@ quick_impl_countable!(Head);
 quick_impl_countable!(Change);
 quick_impl_countable!(Language);
 quick_impl_countable!(Store);
+quick_impl_countable!(Tree);
 
 quick_impl_countable!(UserId);
 quick_impl_countable!(ProjectId);
@@ -145,6 +146,7 @@ quick_impl_weighed!(SnapshotId);
 // quick_impl_weighed!(Change);
 quick_impl_weighed!(Language);
 quick_impl_weighed!(Store);
+quick_impl_weighed!(Tree);
 
 macro_rules! quick_impl_weighed_static_collection {
    ($t:ty, $e:ty) => {

@@ -159,25 +159,25 @@ impl<E> Drop for LazyMap<E> where E: ItemExtractor {
 
 impl<E> LazyMap<E> where E: SourceItemExtractor {
     pub fn get(&mut self, item_id: E:: Key, source: &Source) -> Option<&E::Value> {
-        self.get_or(item_id, |this: &mut Self, item_id: E:: Key| { E::extract(item_id, source) })
+        self.get_or(item_id, |_this: &mut Self, item_id: E:: Key| { E::extract(item_id, source) }) // TODO figure out if I want to keep or remove `_this`
     }
 }
 
 impl<E> LazyMap<E> where E: SingleItemExtractor {
     pub fn get_one(&mut self, item_id: E:: Key, source: &Source, a: &E::A) -> Option<&E::Value> {
-        self.get_or(item_id, |this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a) })
+        self.get_or(item_id, |_this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a) })
     }
 }
 
 impl<E> LazyMap<E> where E: DoubleItemExtractor {
     pub fn get_two(&mut self, item_id: E:: Key, source: &Source, a: &E::A, b: &E::B) -> Option<&E::Value> {
-        self.get_or(item_id, |this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a, b) })
+        self.get_or(item_id, |_this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a, b) })
     }
 }
 
 impl<E> LazyMap<E> where E: TripleItemExtractor {
     pub fn get_three(&mut self, item_id: E:: Key, source: &Source, a: &E::A, b: &E::B, c: &E::C) -> Option<&E::Value> {
-        self.get_or(item_id, |this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a, b, c) })
+        self.get_or(item_id, |_this: &mut Self, item_id: E:: Key| { E::extract(item_id, source, a, b, c) })
     }
 }
 

@@ -9,6 +9,7 @@ use crate::time::Duration;
 use crate::{CacheDir, Store, Percentage, Timestamp};
 
 use super::cache::*;
+use super::lazy::LazyMap;
 use super::persistent::*;
 use super::metadata::*;
 use super::extractors::*;
@@ -105,6 +106,9 @@ pub(crate) struct Data {
     commit_projects_count:       PersistentMap<CountPerKeyExtractor<CommitId, ProjectId>>,
     commit_languages:            PersistentMap<CommitLanguagesExtractor>,
     commit_languages_count:      PersistentMap<CountPerKeyExtractor<CommitId, Language>>,
+
+    commit_trees:                LazyMap<CommitTreeExtractor>,
+
     snapshot_projects :          PersistentMap<SnapshotProjectsExtractor>,
 
     // TODO frequency of commits/regularity of commits
@@ -219,7 +223,8 @@ impl Data {
             project_is_valid:               PersistentMap::new(CACHE_FILE_PROJECT_IS_VALID, log.clone(), dir.clone()),
             project_logs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOGS, log.clone(), dir.clone()),
             project_max_experience:         PersistentMap::new(CACHE_FILE_PROJECT_MAX_EXPERIENCE, log.clone(), dir.clone()),
-            project_experience:             PersistentMap::new(CACHE_FILE_PROJECT_EXPERIENCE, log.clone(), dir.clone())
+            project_experience:             PersistentMap::new(CACHE_FILE_PROJECT_EXPERIENCE, log.clone(), dir.clone()),
+            commit_trees:                   LazyMap::new(CACHE_COMMIT_TREES, log.clone(), dir.clone()),  
         }
     }
 }

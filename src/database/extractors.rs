@@ -10,6 +10,7 @@ use crate::piracy::*;
 use crate::weights_and_measures::{Weighed};
 use crate::{Store, Percentage, Timestamp};
 
+use super::lazy::{DoubleItemExtractor, ItemExtractor, TripleItemExtractor};
 use super::source::Source;
 use super::persistent::*;
 
@@ -1371,4 +1372,74 @@ impl TripleMapExtractor for ProjectExperienceExtractor {
             (project_id.clone(), result/total_commits)
         }).collect()
     }
+}
+
+pub(crate) struct CommitTreeExtractor {}
+
+impl ItemExtractor for CommitTreeExtractor {
+    type Key = CommitId;
+    type Value = BTreeMap<PathId, Option<SnapshotId>>;
+}
+
+impl DoubleItemExtractor for CommitTreeExtractor {
+    type A = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type B = BTreeMap<CommitId, Commit>;
+
+    fn extract(commit_id: Self::Key, _source: &Source, 
+               commit_changes: &BTreeMap<CommitId, Vec<ChangeTuple>>, 
+               commits: &BTreeMap<CommitId, Commit>) -> Self::Value {
+
+        let mut contents: BTreeMap<PathId, Option<SnapshotId>> = BTreeMap::new();
+        
+        let mut visited:  BTreeSet<CommitId> = BTreeSet::new();
+        let mut work_list: Vec<CommitId> = vec![commit_id];
+
+        let empty_vector: Vec<ChangeTuple> = Vec::new(); // This is dumb, just go with it xD
+
+        while let Some(commit_id) = work_list.pop() {
+            if visited.insert(commit_id) {
+
+                let changes = 
+                    commit_changes.get(&commit_id).unwrap_or(&empty_vector);
+                for (path_id, snapshot_id) in changes {
+                    if let Entry::Vacant(change) = contents.entry(*path_id) {
+                        change.insert(*snapshot_id);
+                    }
+                }
+
+                if let Some(commit) = commits.get(&commit_id) {
+                    work_list.extend(commit.parents.iter());
+                }
+            }
+        }
+
+        contents
+    }
+
+    // fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+    //     project_heads.iter().map(|(pid, heads)| {
+    //         let heads = heads.iter().map(|Head{name, commit}| {
+    //             let mut contents = BTreeMap::<PathId, Option<SnapshotId>>::new();
+    //             let mut visited = BTreeSet::<CommitId>::new();
+    //             let mut q = Vec::<CommitId>::new();
+    //             q.push(*commit);
+    //             while let Some(cid) = q.pop() {
+    //                 if visited.insert(cid) {
+    //                     if let Some(changes) = commit_changes.get(&cid) {
+    //                         for (path_id, snapshot_id) in changes {
+    //                             if let Entry::Vacant(e) = contents.entry(*path_id) {
+    //                                 e.insert(*snapshot_id);
+    //                             }
+    //                         }
+    //                     }
+    //                     if let Some(cinfo) = commits.get(&cid) {
+    //                         q.extend(cinfo.parents.iter());
+    //                     }
+    //                 }
+    //             }
+    //             (name.clone(), contents.iter().filter(|(_path_id, snapshot_id)| snapshot_id.is_some()).map(|(path_id, snapshot_id)| (*path_id, snapshot_id.unwrap())).collect())
+    //         }).collect();
+    //         (*pid, heads)
+    //     }).collect()
+    // }
 }

@@ -88,3 +88,4 @@ pub static CACHE_FILE_PROJECT_LOGS:                   &'static str = "project_lo
 pub static CACHE_FILE_PROJECT_IS_VALID:               &'static str = "project_is_valid";
 pub static CACHE_FILE_PROJECT_MAX_EXPERIENCE:         &'static str = "project_max_experience";
 pub static CACHE_FILE_PROJECT_EXPERIENCE:             &'static str = "project_experience";
+pub static CACHE_COMMIT_TREES:                        &'static str = "commit_trees";

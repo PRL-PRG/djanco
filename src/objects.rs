@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
@@ -692,19 +693,43 @@ impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &Database) -> S
     store.snapshot(&self).unwrap().clone() }
 }
 
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// pub struct Tree {  }
-// impl Tree {
-    
-// }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Tree(BTreeMap<PathId, Option<SnapshotId>>);
+impl Tree {
+    pub fn path_ids(&self) -> Vec<PathId> { 
+        self.0.keys().unique().map(|path_id| *path_id).collect() 
+    }
+    pub fn paths(&self, store: &Database) -> Vec<Path> { 
+        self.path_ids().reify(store) 
+    }
+    pub fn paths_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Path>> { 
+        self.paths(store).attach_data_to_each(store) 
+    }
+    pub fn snapshot_ids(&self) -> Vec<SnapshotId> { 
+        self.0.values().unique().flat_map(|snapshot_id| snapshot_id.clone()).collect() 
+    }
+    pub fn snapshots(&self, store: &Database) -> Vec<Snapshot> { 
+        self.snapshot_ids().reify(store) 
+    }
+    pub fn snapshots_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Snapshot>> { 
+        self.snapshots(store).attach_data_to_each(store) 
+    }
+    pub fn changes(&self) -> Vec<Change> { 
+        self.0.iter().map(|(path_id, snapshot_id)| Change { path: *path_id, snapshot: *snapshot_id }).collect()
+    }
+    pub fn changes_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Change>> { 
+        self.changes().attach_data_to_each(store)
+    }
+}
+
 // impl PartialEq for Tree {
-//     fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
+//      fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
 // }
 // impl PartialOrd for Tree {
-//     fn partial_cmp(&self, other: &Self) -> Option<Ordering>{ self.id.partial_cmp(&other.id) }
+//      fn partial_cmp(&self, other: &Self) -> Option<Ordering>{ self.id.partial_cmp(&other.id) }
 // }
 // impl Eq for Tree {  }
-// impl Ord for Tree {
+//  impl Ord for Tree {
 //     fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
 // }
 // impl Hash for Tree {

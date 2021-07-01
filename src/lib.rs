@@ -1235,6 +1235,19 @@ pub mod change {
     impl_attribute![?+  objects::Change, Snapshot, objects::Snapshot, snapshot_with_data];
 }
 
+pub mod tree {
+    use crate::objects;
+    use crate::attrib::*;
+
+    impl_attribute![!+   objects::Tree, Itself];
+    impl_attribute![!    objects::Tree, Raw];
+    impl_attribute![!..  objects::Tree, PathIds, objects::PathId, path_ids, path_count];
+    impl_attribute![!..  objects::Tree, SnapshotIds, objects::SnapshotId, snapshot_ids, snapshot_count];
+    impl_attribute![!+.. objects::Tree, Paths, objects::Path, paths_with_data, path_count];
+    impl_attribute![!+.. objects::Tree, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
+    impl_attribute![!+.. objects::Tree, Changes, objects::Change, changes_with_data, change_count];
+}
+
 pub mod user {
     use crate::objects;
     use crate::time;

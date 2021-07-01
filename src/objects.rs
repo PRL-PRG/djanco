@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use bstr::ByteSlice;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
+use delegate::delegate;
 
 use crate::database::Database;
 use crate::time::Duration;
@@ -705,6 +706,7 @@ impl Tree {
     pub fn paths_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Path>> { 
         self.paths(store).attach_data_to_each(store) 
     }
+    pub fn path_count(&self) -> usize { self.0.keys().count() }
     pub fn snapshot_ids(&self) -> Vec<SnapshotId> { 
         self.0.values().unique().flat_map(|snapshot_id| snapshot_id.clone()).collect() 
     }
@@ -714,27 +716,38 @@ impl Tree {
     pub fn snapshots_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Snapshot>> { 
         self.snapshots(store).attach_data_to_each(store) 
     }
+    pub fn snapshot_count(&self) -> usize { self.0.values().count() }
     pub fn changes(&self) -> Vec<Change> { 
         self.0.iter().map(|(path_id, snapshot_id)| Change { path: *path_id, snapshot: *snapshot_id }).collect()
     }
     pub fn changes_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Change>> { 
         self.changes().attach_data_to_each(store)
     }
+    pub fn change_count(&self) -> usize { 
+        self.0.len()
+    }
 }
 
-// impl PartialEq for Tree {
-//      fn eq(&self, other: &Self) -> bool { self.id.eq(&other.id) }
-// }
-// impl PartialOrd for Tree {
-//      fn partial_cmp(&self, other: &Self) -> Option<Ordering>{ self.id.partial_cmp(&other.id) }
-// }
-// impl Eq for Tree {  }
-//  impl Ord for Tree {
-//     fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
-// }
-// impl Hash for Tree {
-//     fn hash<H: Hasher>(&self, state: &mut H) { self.id.hash(state) }
-// }
+impl<'a> ItemWithData<'a, Tree> {
+    delegate! {
+        to self.item {
+                                        pub fn path_ids(&self) -> Vec<PathId>;
+                                        pub fn snapshot_ids(&self) -> Vec<SnapshotId>;
+
+            #[append_args(&self.data)]  pub fn paths(&self) -> Vec<Path>;
+            #[append_args(&self.data)]  pub fn snapshots(&self) -> Vec<Snapshot>;
+                                        pub fn changes(&self) -> Vec<Change>;
+
+                                        pub fn path_count(&self) -> usize;
+                                        pub fn snapshot_count(&self) -> usize;
+                                        pub fn change_count(&self) -> usize;
+
+            #[append_args(&self.data)]  pub fn paths_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Path>>;
+            #[append_args(&self.data)]  pub fn snapshots_with_data<'b>(&'b self)-> Vec<ItemWithData<'a, Snapshot>>;
+            #[append_args(&self.data)]  pub fn changes_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Change>>;
+        }
+    }
+}
 
 pub trait ItemWithoutData where Self: Sized {
     fn attach_data<'a>(self, data: &'a Database) -> ItemWithData<'a, Self>;

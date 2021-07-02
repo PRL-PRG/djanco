@@ -1413,7 +1413,7 @@ impl DoubleItemExtractor for CommitTreeExtractor {
             }
         }
 
-        Tree::new(contents)
+        Tree::new(commit_id, contents)
     }
 
     // fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {

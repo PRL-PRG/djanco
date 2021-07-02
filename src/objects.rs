@@ -698,39 +698,48 @@ impl Reifiable<Snapshot> for SnapshotId { fn reify(&self, store: &Database) -> S
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Tree(BTreeMap<PathId, Option<SnapshotId>>);
+pub struct Tree { 
+    commit_id: CommitId, 
+    files: BTreeMap<PathId, Option<SnapshotId>> 
+}
 impl Tree {
-    pub fn new(files: BTreeMap<PathId, Option<SnapshotId>>) -> Self {
-        Tree(files)
+    pub fn new(commit_id: CommitId, files: BTreeMap<PathId, Option<SnapshotId>>) -> Self {
+        Tree { commit_id, files }
+    }
+    pub fn commit_id(&self) -> CommitId {
+        self.commit_id.clone()
+    }
+    pub fn commit(&self, store: &Database) -> Option<Commit> {
+        store.commit(&self.commit_id)
     }
     pub fn path_ids(&self) -> Vec<PathId> { 
-        self.0.keys().unique().map(|path_id| *path_id).collect() 
+        self.files.keys().unique().map(|path_id| *path_id).collect() 
     }
     pub fn paths(&self, store: &Database) -> Vec<Path> { 
         self.path_ids().reify(store) 
     }
-    pub fn paths_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Path>> { 
-        self.paths(store).attach_data_to_each(store) 
-    }
-    pub fn path_count(&self) -> usize { self.0.keys().count() }
+    // pub fn paths_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Path>> { 
+    //     self.paths(store).attach_data_to_each(store) 
+    // }
+    pub fn path_count(&self) -> usize { self.files.keys().count() }
     pub fn snapshot_ids(&self) -> Vec<SnapshotId> { 
-        self.0.values().unique().flat_map(|snapshot_id| snapshot_id.clone()).collect() 
+        self.files.values().unique().flat_map(|snapshot_id| snapshot_id.clone()).collect() 
     }
     pub fn snapshots(&self, store: &Database) -> Vec<Snapshot> { 
         self.snapshot_ids().reify(store) 
     }
-    pub fn snapshots_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Snapshot>> { 
-        self.snapshots(store).attach_data_to_each(store) 
-    }
-    pub fn snapshot_count(&self) -> usize { self.0.values().count() }
+    // pub fn snapshots_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Snapshot>> { 
+    //     self.snapshots(store).attach_data_to_each(store) 
+    // }
+    pub fn snapshot_count(&self) -> usize { self.files.values().count() }
     pub fn changes(&self) -> Vec<Change> { 
-        self.0.iter().map(|(path_id, snapshot_id)| Change { path: *path_id, snapshot: *snapshot_id }).collect()
+        self.files.iter().map(|(path_id, snapshot_id)| Change { path: *path_id, snapshot: *snapshot_id }).collect()
     }
-    pub fn changes_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Change>> { 
-        self.changes().attach_data_to_each(store)
-    }
+    // pub fn changes_with_data<'a>(&self, store: &'a Database) -> Vec<ItemWithData<'a, Change>> { 
+    //     self.changes().attach_data_to_each(store)
+    // }
     pub fn change_count(&self) -> usize { 
-        self.0.len()
+        self.files.len()
     }
 }
 
@@ -739,7 +748,9 @@ impl<'a> ItemWithData<'a, Tree> {
         to self.item {
                                         pub fn path_ids(&self) -> Vec<PathId>;
                                         pub fn snapshot_ids(&self) -> Vec<SnapshotId>;
+                                        pub fn commit_id(&self) -> CommitId;
 
+            #[append_args(&self.data)]  pub fn commit(&self) -> Option<Commit>;
             #[append_args(&self.data)]  pub fn paths(&self) -> Vec<Path>;
             #[append_args(&self.data)]  pub fn snapshots(&self) -> Vec<Snapshot>;
                                         pub fn changes(&self) -> Vec<Change>;
@@ -747,11 +758,23 @@ impl<'a> ItemWithData<'a, Tree> {
                                         pub fn path_count(&self) -> usize;
                                         pub fn snapshot_count(&self) -> usize;
                                         pub fn change_count(&self) -> usize;
-
-            #[append_args(&self.data)]  pub fn paths_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Path>>;
-            #[append_args(&self.data)]  pub fn snapshots_with_data<'b>(&'b self)-> Vec<ItemWithData<'a, Snapshot>>;
-            #[append_args(&self.data)]  pub fn changes_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Change>>;
         }
+    }
+
+    pub fn commit_with_data<'b>(&'b self) -> Option<ItemWithData<'a, Commit>> {
+        self.commit().attach_data_to_inner(self.data)
+    }
+
+    pub fn paths_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Path>> {
+        self.paths().attach_data_to_each(self.data)
+    }
+
+    pub fn snapshots_with_data<'b>(&'b self)-> Vec<ItemWithData<'a, Snapshot>> {
+        self.snapshots().attach_data_to_each(self.data)
+    }
+
+    pub fn changes_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Change>> {
+        self.changes().attach_data_to_each(self.data)
     }
 }
 

@@ -623,6 +623,45 @@ impl CSVItem for Path {
 }
 impl_csv_item_with_data_inner!(Path);
 
+impl CSVItem for Tree {
+    fn column_headers() -> Vec<&'static str> { vec!["commit_id", "path_id", "snapshot_id"] }
+    fn row(&self) -> Vec<String> {
+        unimplemented!()
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        self.changes().into_iter().map(|change| {
+            vec![
+                self.commit_id().to_string(),
+                change.path_id().to_string(),
+                change.snapshot_id().to_string_or_empty(),
+            ]           
+        }).collect()        
+    }
+}
+impl<'a> CSVItem for ItemWithData<'a, Tree> {
+    fn column_headers() -> Vec<&'static str> { vec!["commit_id", "commit_hash", "path_id", "path", "language", "snapshot_id"] }
+    fn row(&self) -> Vec<String> {
+        unimplemented!()
+    }
+    fn rows(&self) -> Vec<Vec<String>> {
+        let commit_id = self.commit_id().to_string();
+        let commit_hash = self.commit_with_data()
+            .map(|commit| commit.hash())
+            .flatten()
+            .unwrap_or_else(String::new);
+        self.changes_with_data().into_iter().map(|change| {
+            vec![
+                commit_id.clone(),
+                commit_hash.clone(),
+                change.path_id().to_string(), 
+                change.path().map_or_else(String::new, |path| path.location()), 
+                change.path().map_or_else(String::new, |path| path.language().to_string_or_empty()), 
+                change.snapshot_id().to_string_or_empty(),
+            ]
+        }).collect()        
+    }
+}
+
 impl CSVItem for Change {
     fn column_headers() -> Vec<&'static str> { vec!["path_id", "snapshot_id"] }
     fn row(&self) -> Vec<String> {
@@ -638,7 +677,7 @@ impl CSVItem for Change {
         ]]
     }
 }
-impl_csv_item_with_data_inner!(Change);
+impl_csv_item_with_data_inner!(Change); // TODO
 
 impl CSVItem for Commit {
     fn column_headers() -> Vec<&'static str> {

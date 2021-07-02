@@ -599,35 +599,15 @@ impl Data {
         self.smart_load_commit_languages(source).get(id).pirate()   
     }
     pub fn commit_trees(&mut self, id: &CommitId, source: &Source) -> Option<Tree> {
+        // TODO what would be a good way to make commit_trees usable from other loaders?
+        if let Some(value) = self.commit_trees.get_if_loaded(id.clone()) {
+            return Some(value.clone())
+        }
 
-        // if let Some(value) = self.commit_trees.get_if_loaded(item_id) {
-        //     return Some(value.clone())
-        // }
+        self.smart_load_commit_changes(source);
+        self.smart_load_commits(source);
+        self.commit_trees.get_two(*id, source, self.commit_changes.grab_collection(), self.commits.grab_collection()).pirate()
 
-        // self.commit_trees.get_or(*id, |id: CommitId| {
-        //     let commit_changes = self.smart_load_commit_changes(source);
-        //     let commits = self.smart_load_commits(source);
-        //     CommitTreeExtractor::extract(id, source, commit_changes, commits)
-        // }).pirate()
-
-//         let commit_changes = self.smart_load_commit_changes(source);
-//         let commits = self.smart_load_commits(source);
-//         self.commit_trees.get_two(*id, source, commit_changes, commits).pirate()
-
-//         mashup! {
-//             $( m["smart_load" $prereq] = smart_load_$prereq; )*
-//                m["load"] = load_from_$n;
-//         }
-// self.commit_trees.
-
-//         if !$self.$vector.is_loaded() {
-//             self.smart_load_commit_changes(source);
-//             self.smart_load_commits(source);
-//             self.commit_changes.load_from_($source, $($self.$prereq.grab_collection()), *); }
-//         }
-//         $self.$vector.grab_collection()
-
-        todo!()
     }
     pub fn commit_languages_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
         self.smart_load_commit_languages_count(source).get(id).pirate()
@@ -947,91 +927,90 @@ impl Data {
     fn smart_load_snapshot_projects(& mut self, source: &Source) -> &BTreeMap<SnapshotId,(usize, ProjectId)> {
         load_with_prerequisites!(self, snapshot_projects, source, four, commit_changes, commit_projects, commit_author_timestamps, project_created)
     }
-    pub fn smart_load_project_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
+    fn smart_load_project_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
         load_with_prerequisites!(self, project_change_contributions, source, three, project_commits, commits, commit_changes)
     }
-    pub fn smart_load_project_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
+    fn smart_load_project_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(UserId, usize)>> {
         load_with_prerequisites!(self, project_commit_contributions, source, two, project_commits, commits)
     }
-    pub fn smart_load_project_cumulative_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<Percentage>> {
+    fn smart_load_project_cumulative_change_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<Percentage>> {
         load_with_prerequisites!(self, project_cumulative_change_contributions, source, one, project_change_contributions)
     }
-    pub fn smart_load_project_cumulative_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<Percentage>> {
+    fn smart_load_project_cumulative_commit_contributions(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<Percentage>> {
         load_with_prerequisites!(self, project_cumulative_commit_contributions, source, one, project_commit_contributions)
     }
 
-    pub fn smart_load_project_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_from_metadata!(self, project_issue_count, source)
     }
-    pub fn smart_load_project_buggy_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_buggy_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_from_metadata!(self, project_buggy_issue_count, source)
     }
-    pub fn smart_load_project_is_fork(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+    fn smart_load_project_is_fork(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_from_metadata!(self, project_is_fork, source)
     }
-    pub fn smart_load_project_is_archived(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+    fn smart_load_project_is_archived(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_from_metadata!(self, project_is_archived, source)
     }
-    pub fn smart_load_project_is_disabled(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+    fn smart_load_project_is_disabled(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_from_metadata!(self, project_is_disabled, source)
     }
-    pub fn smart_load_project_star_gazer_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_star_gazer_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_from_metadata!(self, project_star_gazer_count, source)
     }
-    pub fn smart_load_project_watcher_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_watcher_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_from_metadata!(self, project_watcher_count, source)
     }
-    pub fn smart_load_project_size(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_size(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_from_metadata!(self, project_project_size, source)
     }
-    pub fn smart_load_project_open_issue_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_open_issue_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_from_metadata!(self, project_open_issue_count, source)
     }
-    pub fn smart_load_project_fork_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_fork_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_from_metadata!(self, project_fork_count, source)
     }
-    pub fn smart_load_project_subscriber_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+    fn smart_load_project_subscriber_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_from_metadata!(self, project_subscriber_count, source)
     }
-    pub fn smart_load_project_license(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
+    fn smart_load_project_license(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
         load_from_metadata!(self, project_license, source)
     }
-    pub fn smart_load_project_language(&mut self, source: &Source) -> &BTreeMap<ProjectId, Language> {
+    fn smart_load_project_language(&mut self, source: &Source) -> &BTreeMap<ProjectId, Language> {
         load_from_metadata!(self, project_language, source)
     }
-    pub fn smart_load_project_description(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
+    fn smart_load_project_description(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
         load_from_metadata!(self, project_description, source)
     }
-    pub fn smart_load_project_homepage(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
+    fn smart_load_project_homepage(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
         load_from_metadata!(self, project_homepage, source)
     }
-    pub fn smart_load_project_has_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+    fn smart_load_project_has_issues(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_from_metadata!(self, project_has_issues, source)
     }
-    pub fn smart_load_project_has_downloads(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+    fn smart_load_project_has_downloads(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_from_metadata!(self, project_has_downloads, source)
     }
-    pub fn smart_load_project_has_wiki(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+    fn smart_load_project_has_wiki(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_from_metadata!(self, project_has_wiki, source)
     }
-    pub fn smart_load_project_has_pages(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+    fn smart_load_project_has_pages(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_from_metadata!(self, project_has_pages, source)
     }
     fn smart_load_project_created(&mut self, source: &Source) -> &BTreeMap<ProjectId, Timestamp> {
         load_from_metadata!(self, project_created, source)
     }
-    pub fn smart_load_project_updated(&mut self, source: &Source) -> &BTreeMap<ProjectId, Timestamp> {
+    fn smart_load_project_updated(&mut self, source: &Source) -> &BTreeMap<ProjectId, Timestamp> {
         load_from_metadata!(self, project_updated, source)
     }
-    pub fn smart_load_project_pushed(&mut self, source: &Source) -> &BTreeMap<ProjectId, Timestamp> {
+    fn smart_load_project_pushed(&mut self, source: &Source) -> &BTreeMap<ProjectId, Timestamp> {
         load_from_metadata!(self, project_pushed, source)
     }
-    pub fn smart_load_project_default_branch(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
+    fn smart_load_project_default_branch(&mut self, source: &Source) -> &BTreeMap<ProjectId, String> {
         load_from_metadata!(self, project_default_branch, source)
     }
-    pub fn smart_load_project_is_valid(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
-        load_from_source!(self, project_is_valid, source)
-        
+    fn smart_load_project_is_valid(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
+        load_from_source!(self, project_is_valid, source)    
     }
 }
 

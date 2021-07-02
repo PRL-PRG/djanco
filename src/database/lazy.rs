@@ -115,8 +115,6 @@ impl<E> LazyMap<E> where E: ItemExtractor {
     pub fn get_or<'a, F>(&'a mut self, item_id: E:: Key, extract: F) -> Option<&'a E::Value> 
         where F: Fn(E:: Key) -> E::Value {
 
-//        let value = self.map.get(item_id);
-
         let value_is_missing = !self.map.contains_key(&item_id);
 
         // Not retrieved yet  

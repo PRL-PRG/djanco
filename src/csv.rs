@@ -40,6 +40,19 @@ pub trait CSV<T>: Sized where T: CSVItem {
         let location = dir.join(PathBuf::from(file.into()));
         self.into_csv(location.into_os_string().to_str().unwrap())
     }
+
+    fn into_extended_csv_with_headers(self, headers: Vec<&str>, location: impl Into<String>) -> Result<(), std::io::Error>;
+    fn into_extended_csv_with_headers_in_dir(self, headers: Vec<&str>, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
+        let location = dir.join(PathBuf::from(file.into()));
+        self.into_extended_csv_with_headers(headers, location.into_os_string().to_str().unwrap())
+    }
+    fn into_extended_csv(self, location: impl Into<String>) -> Result<(), std::io::Error> {
+        self.into_extended_csv_with_headers(T::column_headers_extended(), location)
+    }
+    fn into_extended_csv_in_dir(self, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
+        let location = dir.join(PathBuf::from(file.into()));
+        self.into_extended_csv(location.into_os_string().to_str().unwrap())
+    }
 }
 
 impl<I, T> CSV<T> for I where I: Iterator<Item=T>, T: CSVItem {
@@ -55,26 +68,100 @@ impl<I, T> CSV<T> for I where I: Iterator<Item=T>, T: CSVItem {
         eprintln!("Done writing to CSV file at {}", location);
         Ok(())
     }
+
+    fn into_extended_csv_with_headers(self, headers: Vec<&str>, location: impl Into<String>) -> Result<(), std::io::Error> {
+        let location = location.into();
+        eprintln!("Writing to CSV file (extended) at {}", location);
+        let mut file = create_file!(location)?;
+        //T::write_column_headers_to(&mut file)?;
+        writeln!(file, "{}", headers.to_comma_separated_string())?;
+        for element in self {
+            element.write_extended_csv_items_to(&mut file)?;
+        }
+        eprintln!("Done writing to CSV file (extended)  at {}", location);
+        Ok(())
+    }
 }
 
 #[allow(non_snake_case)]
 pub trait CSVItem {
     fn column_headers() -> Vec<&'static str>;
+    fn column_headers_just_extended() -> Vec<&'static str> { vec![] }
+    fn column_headers_extended() -> Vec<&'static str> {
+        let mut headers = Self::column_headers();
+        headers.extend(Self::column_headers_just_extended().into_iter());
+        headers
+    }
+
     fn row(&self) -> Vec<String>;
-    fn rows(&self) -> Vec<Vec<String>>; //{ vec![self.row()] }
+    fn row_just_extended(&self) -> Vec<String> { vec![] }
+    fn row_extended(&self) -> Vec<String> {
+        let mut row = self.row();
+        row.extend(self.row_just_extended().into_iter());
+        row
+    }
+
+    fn rows(&self) -> Vec<Vec<String>> { vec![self.row()] }
+    fn rows_just_extended(&self) -> Vec<Vec<String>> { vec![self.row_just_extended()] }
+    fn rows_extended(&self) -> Vec<Vec<String>> {
+        let rows = self.rows();
+        let extended_rows = self.rows_just_extended();
+
+        let rows_length = rows.len();
+        let extended_rows_length = extended_rows.len();
+
+        if extended_rows_length == 0 {
+            return rows;
+        }
+
+        if rows_length == 0 {
+            return extended_rows;
+        }
+
+        if rows.len() != extended_rows.len() {
+            panic!("WARNING: When generating CSV the length of ordinary columns ({})
+                    and the length of extended columns ({}) does not match", 
+                    rows.len(), extended_rows.len());
+        }
+
+        rows.into_iter().zip(extended_rows.into_iter())
+            .map(|(mut row, extended_row)| {
+                row.extend(extended_row.into_iter());
+                row
+            })
+            .collect()
+    }
+
     fn csv_header() -> String {
         Self::column_headers().to_comma_separated_string()
+    }
+    fn extended_csv_header() -> String {
+        Self::column_headers_extended().to_comma_separated_string()
     }
     fn to_csv_items(&self) -> Vec<String> {
         self.rows().into_iter().map(|row: Vec<String>| {
             row.to_comma_separated_string()
         }).collect()
     }
+    fn to_extended_csv_items(&self) -> Vec<String> {
+        self.rows_extended().into_iter().map(|row: Vec<String>| {
+            row.to_comma_separated_string()
+        }).collect()
+    }
     fn write_column_headers_to<F>(file: &mut F) -> Result<(), std::io::Error> where F: Write {
         writeln!(file, "{}", Self::csv_header())
     }
+    fn write_extended_column_headers_to<F>(file: &mut F) -> Result<(), std::io::Error> where F: Write {
+        writeln!(file, "{}", Self::extended_csv_header())
+    }
     fn write_csv_items_to<F>(&self, file: &mut F) -> Result<(), std::io::Error> where F: Write {
         for item in self.to_csv_items() {
+            writeln!(file, "{}", item)?;
+        }
+        Ok(())
+    }
+    fn write_extended_csv_items_to<F>(&self, file: &mut F) -> Result<(), std::io::Error> where F: Write {
+        for item in self.to_extended_csv_items() {
             writeln!(file, "{}", item)?;
         }
         Ok(())
@@ -404,6 +491,12 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              "created", "updated", "pushed",
              "default_branch",
              "license", "homepage", "description",
+             "heads", "commits", "authors", "committers", "users",
+         ]
+    }
+
+    fn column_headers_just_extended() -> Vec<&'static str> {
+        vec!["paths", "snapshots", 
             //  "all_issues", "issues", "buggy_issues", 
              "unique_files", "original_files", "impact",
              "files",
@@ -434,14 +527,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.issue_count().to_string_or_empty(),
              self.fork_count().to_string_or_empty(),
              self.subscriber_count().to_string_or_empty(),
-             self.language().to_string_or_empty(),
-             self.head_count().to_string_or_empty(),
-             self.commit_count().to_string_or_empty(),
-             self.author_count().to_string_or_empty(),
-             self.path_count().to_string_or_empty(),
-             self.snapshot_count().to_string_or_empty(),
-             self.committer_count().to_string_or_empty(),
-             self.user_count().to_string_or_empty(),
+             self.language().to_string_or_empty(),             
              self.lifetime().to_string_or_empty(),
              self.has_issues().to_string_or_empty(),
              self.has_downloads().to_string_or_empty(),
@@ -454,6 +540,17 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
              self.license().to_string_or_empty().escape_quotes().quoted(),
              self.homepage().to_string_or_empty().escape_quotes().quoted(),
              self.description().to_string_or_empty().escape_quotes().quoted(),
+             self.head_count().to_string_or_empty(),
+             self.commit_count().to_string_or_empty(),
+             self.author_count().to_string_or_empty(),
+             self.committer_count().to_string_or_empty(),
+             self.user_count().to_string_or_empty(),
+        ]
+    }
+
+    fn row_just_extended(&self) -> Vec<String> {        
+        vec![self.path_count().to_string_or_empty(),
+             self.snapshot_count().to_string_or_empty(),
             //  self.combined_issue_count().to_string_or_empty(),
             //  self.issue_count().to_string_or_empty(),
             //  self.buggy_issue_count().to_string_or_empty(),
@@ -613,13 +710,6 @@ impl CSVItem for Path {
             self.language().to_string_or_empty()
         ]
     }
-    fn rows(&self) -> Vec<Vec<String>> {
-        vec![vec![
-            self.id().to_string(),
-            self.location().to_string(),
-            self.language().to_string_or_empty()
-        ]]
-    }
 }
 impl_csv_item_with_data_inner!(Path);
 
@@ -668,8 +758,11 @@ impl<'a> CSVItem for ItemWithData<'a, Commit> {
              "committer_id", "author_id",
              "parent_ids", "parent_count",
              "author_timestamp", "committer_timestamp",
-             "changed_paths", "changed_path_count" ,
-             "message", "message_length"]
+             "changed_paths", "changed_path_count"]
+    }
+
+    fn column_headers_just_extended() -> Vec<&'static str> {
+        vec!["message", "message_length"]
     }
 
     fn row(&self) -> Vec<String> {
@@ -677,19 +770,11 @@ impl<'a> CSVItem for ItemWithData<'a, Commit> {
              self.committer_id().to_string(), self.author_id().to_string(),
              self.parent_ids().to_space_separated_string().quoted(), self.parent_count().to_string(),
              self.author_timestamp().to_string_or_empty(), self.committer_timestamp().to_string_or_empty(),
-             self.changed_path_ids().to_space_separated_string().quoted(), self.changed_snapshot_count().to_string_or_empty(),
-             self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()]
+             self.changed_path_ids().to_space_separated_string().quoted(), self.changed_snapshot_count().to_string_or_empty()]
     }
 
-    fn rows(&self) -> Vec<Vec<String>> {
-        vec![vec![
-            self.id().to_string(), self.hash().to_string_or_empty(),
-            self.committer_id().to_string(), self.author_id().to_string(),
-            self.parent_ids().to_space_separated_string().quoted(), self.parent_count().to_string(),
-            self.author_timestamp().to_string_or_empty(), self.committer_timestamp().to_string_or_empty(),
-            self.changed_path_ids().to_space_separated_string().quoted(), self.changed_snapshot_count().to_string_or_empty(),
-            self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()
-        ]]
+    fn row_just_extended(&self) -> Vec<String> {
+        vec![self.message().to_string_or_empty().escape_quotes().quoted(), self.message_length().to_string_or_empty()]
     }
 }
 
@@ -1060,30 +1145,30 @@ impl<'a, I> Dump for I where I: Iterator<Item=ItemWithData<'a, Project>> {
         eprintln!("Dumping to directory at {}", dir_path.as_os_str().to_str().unwrap_or("???"));
         eprintln!("Initializing CSV files at {}", dir_path.as_os_str().to_str().unwrap_or("???"));
 
-        ItemWithData::<'a, Project>::write_column_headers_to(&mut project_sink)?;
-        ItemWithData::<'a, Commit>::write_column_headers_to(&mut commit_sink)?;
-        ItemWithData::<'a, Path>::write_column_headers_to(&mut path_sink)?;
-        ItemWithData::<'a, User>::write_column_headers_to(&mut user_sink)?;
-        //ItemWithData::<'a, Snapshot>::write_column_headers_to(&mut snapshot_sink)?;
+        ItemWithData::<'a, Project>::write_extended_column_headers_to(&mut project_sink)?;
+        ItemWithData::<'a, Commit>::write_extended_column_headers_to(&mut commit_sink)?;
+        ItemWithData::<'a, Path>::write_extended_column_headers_to(&mut path_sink)?;
+        ItemWithData::<'a, User>::write_extended_column_headers_to(&mut user_sink)?;
+        //ItemWithData::<'a, Snapshot>::write_extended_column_headers_to(&mut snapshot_sink)?;
 
-        <(ProjectId, CommitId)>::write_column_headers_to(&mut project_commit_map_sink)?;
-        <(ProjectId, UserId)>::write_column_headers_to(&mut project_user_map_sink)?;
-        <(CommitId, ItemWithData::<'a, Change>)>::write_column_headers_to(&mut commit_change_map_sink)?;
-        <(CommitId, ProjectId)>::write_column_headers_to(&mut commit_parent_map_sink)?;
+        <(ProjectId, CommitId)>::write_extended_column_headers_to(&mut project_commit_map_sink)?;
+        <(ProjectId, UserId)>::write_extended_column_headers_to(&mut project_user_map_sink)?;
+        <(CommitId, ItemWithData::<'a, Change>)>::write_extended_column_headers_to(&mut commit_change_map_sink)?;
+        <(CommitId, ProjectId)>::write_extended_column_headers_to(&mut commit_parent_map_sink)?;
 
         println!(">>");
 
         for project in self {
             eprintln!("Dumping data for project {}", project.url());
             eprintln!("  - project info");
-            project.write_csv_items_to(&mut project_sink)?;
+            project.write_extended_csv_items_to(&mut project_sink)?;
 
             let commits: Vec<ItemWithData<Commit>> = project.commits_with_data().unwrap_or(vec![]);
             eprintln!("  - project-commit mapping & info");
             for commit in commits {
-                (project.id(), commit.id()).write_csv_items_to(&mut project_commit_map_sink)?;
+                (project.id(), commit.id()).write_extended_csv_items_to(&mut project_commit_map_sink)?;
                 if !visited_commits.contains(&commit.id()) {
-                    commit.write_csv_items_to(&mut commit_sink)?;
+                    commit.write_extended_csv_items_to(&mut commit_sink)?;
                     visited_commits.insert(commit.id());
                 }
 
@@ -1091,7 +1176,7 @@ impl<'a, I> Dump for I where I: Iterator<Item=ItemWithData<'a, Project>> {
                 for change in changes {
                     if let Some(path) = &change.path() {
                         if !visited_paths.contains(&path.id()) {
-                            path.write_csv_items_to(&mut path_sink)?;
+                            path.write_extended_csv_items_to(&mut path_sink)?;
                             visited_paths.insert(path.id());
                         }
                     }
@@ -1105,16 +1190,16 @@ impl<'a, I> Dump for I where I: Iterator<Item=ItemWithData<'a, Project>> {
                         }
                     }
 
-                    (project.id(), change).write_csv_items_to(&mut commit_change_map_sink)?;
+                    (project.id(), change).write_extended_csv_items_to(&mut commit_change_map_sink)?;
                 }
             }
 
             let users: Vec<ItemWithData<User>> = project.users_with_data().unwrap_or(vec![]);
             eprintln!("  - project-user mapping & info");
             for user in users {
-                (project.id(), user.id()).write_csv_items_to(&mut project_user_map_sink)?;
+                (project.id(), user.id()).write_extended_csv_items_to(&mut project_user_map_sink)?;
                 if !visited_users.contains(&user.id()) {
-                    user.write_csv_items_to(&mut user_sink)?;
+                    user.write_extended_csv_items_to(&mut user_sink)?;
                     visited_users.insert(user.id());
                 }
             }

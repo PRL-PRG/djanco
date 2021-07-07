@@ -23,4 +23,10 @@ fn main() {
 
     database.snapshots().into_csv_in_dir(&config.output_path, "snapshots.csv").unwrap();
     database.snapshots().into_extended_csv_in_dir(&config.output_path, "snapshots-extended.csv").unwrap();
+
+    database.commits().map_into(commit::Tree).into_csv_in_dir(&config.output_path, "trees.csv").unwrap();
+    database.commits().map_into(commit::Tree).into_extended_csv_in_dir(&config.output_path, "trees-extended.csv").unwrap();
+
+    database.commits().map_into(commit::Changes).flat_map(|e| e).flat_map(|e| e).into_csv_in_dir(&config.output_path, "changes.csv").unwrap();
+    database.commits().map_into(commit::Changes).flat_map(|e| e).flat_map(|e| e).into_extended_csv_in_dir(&config.output_path, "changes-extended.csv").unwrap();
 }

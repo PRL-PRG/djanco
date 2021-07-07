@@ -40,6 +40,7 @@ pub trait CSV<T>: Sized where T: CSVItem {
         let location = dir.join(PathBuf::from(file.into()));
         self.into_csv(location.into_os_string().to_str().unwrap())
     }
+
     fn into_extended_csv_with_headers(self, headers: Vec<&str>, location: impl Into<String>) -> Result<(), std::io::Error>;
     fn into_extended_csv_with_headers_in_dir(self, headers: Vec<&str>, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
         let location = dir.join(PathBuf::from(file.into()));
@@ -67,6 +68,7 @@ impl<I, T> CSV<T> for I where I: Iterator<Item=T>, T: CSVItem {
         eprintln!("Done writing to CSV file at {}", location);
         Ok(())
     }
+
     fn into_extended_csv_with_headers(self, headers: Vec<&str>, location: impl Into<String>) -> Result<(), std::io::Error> {
         let location = location.into();
         eprintln!("Writing to CSV file (extended) at {}", location);
@@ -104,6 +106,21 @@ pub trait CSVItem {
     fn rows_extended(&self) -> Vec<Vec<String>> {
         let rows = self.rows();
         let extended_rows = self.rows_just_extended();
+
+        if extended_rows.is_empty() {
+            return rows;
+        }
+
+        if rows.is_empty() {
+            return extended_rows;
+        }
+
+        if rows.len() != extended_rows.len() {
+            panic!("WARNING: When generating CSV the length of ordinary columns ({})
+                    and the length of extended columns ({}) does not match", 
+                    rows.len(), extended_rows.len());
+        }
+
         rows.into_iter().zip(extended_rows.into_iter())
             .map(|(mut row, extended_row)| {
                 row.extend(extended_row.into_iter());
@@ -121,11 +138,11 @@ pub trait CSVItem {
     }
     fn to_csv_items(&self, extended: bool) -> Vec<String> {
         if extended {
-            self.rows().into_iter().map(|row: Vec<String>| {
+            self.rows_extended().into_iter().map(|row: Vec<String>| {
                 row.to_comma_separated_string()
             }).collect()
         } else {
-            self.rows_extended().into_iter().map(|row: Vec<String>| {
+            self.rows().into_iter().map(|row: Vec<String>| {
                 row.to_comma_separated_string()
             }).collect()
         }
@@ -461,7 +478,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
          ]
     }
 
-    fn column_headers_extended() -> Vec<&'static str> {
+    fn column_headers_just_extended() -> Vec<&'static str> {
         vec!["paths", "snapshots", 
             //  "all_issues", "issues", "buggy_issues", 
              "unique_files", "original_files", "impact",
@@ -514,7 +531,7 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
         ]
     }
 
-    fn row_extended(&self) -> Vec<String> {        
+    fn row_just_extended(&self) -> Vec<String> {        
         vec![self.path_count().to_string_or_empty(),
              self.snapshot_count().to_string_or_empty(),
             //  self.combined_issue_count().to_string_or_empty(),

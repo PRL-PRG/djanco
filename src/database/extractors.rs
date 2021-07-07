@@ -10,7 +10,7 @@ use crate::piracy::*;
 use crate::weights_and_measures::{Weighed};
 use crate::{Store, Percentage, Timestamp};
 
-use super::lazy::{DoubleItemExtractor, ItemExtractor, TripleItemExtractor};
+use super::lazy::{DoubleItemExtractor, ItemExtractor};
 use super::source::Source;
 use super::persistent::*;
 

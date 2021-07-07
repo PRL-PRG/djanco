@@ -9,7 +9,6 @@ use crate::time::Duration;
 use crate::{CacheDir, Store, Percentage, Timestamp};
 
 use super::cache::*;
-use super::lazy::DoubleItemExtractor;
 use super::lazy::LazyMap;
 use super::persistent::*;
 use super::metadata::*;

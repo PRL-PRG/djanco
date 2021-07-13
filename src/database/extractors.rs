@@ -802,7 +802,49 @@ impl TripleMapExtractor for ProjectLocsExtractor {
     }
 }
 
+// TODO change this to usize so that we are the same as the other duplication related attributes
+pub(crate) struct DuplicatedCodeExtractor {}
+impl MapExtractor for DuplicatedCodeExtractor {
+    type Key = ProjectId;
+    type Value = f64;
+}
 
+impl TripleMapExtractor for DuplicatedCodeExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
+
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes_with_contents : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, f64> {
+        // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
+        let mut visited = BTreeSet::<SnapshotId>::new();
+        return project_commits.iter().map(|(pid, commits)| {
+            // for all commits
+            let unique_files : usize = commits.iter().map(|cid| {
+                // for all changes with snapshots
+                if let Some(changes) = commit_changes_with_contents.get(cid) {
+                    changes.iter().map(|(_path_id, snapshot)| {
+                        if let Some(snapshot_id) = snapshot {
+                            if visited.insert(*snapshot_id) {
+                                return match snapshot_projects.get(snapshot_id) {
+                                    Some((_, original)) => if original == pid { 0 } else { 1 },
+                                    _ => 0, // TODO or maybe panic really?
+                                }
+                            }
+                        }
+                        0
+                    }).sum::<usize>()
+                } else {
+                    0
+                }
+            }).sum();
+            return (*pid, f64::trunc(unique_files as f64 / visited.len() as f64 * 100.0));
+        }).collect();        
+    }
+}
+
+
+
+/*
 pub(crate) struct DuplicatedCodeExtractor {}
 impl MapExtractor for DuplicatedCodeExtractor {
     type Key = ProjectId;
@@ -841,6 +883,7 @@ impl TripleMapExtractor for DuplicatedCodeExtractor {
         }).collect()
     }
 }
+*/
             
 pub(crate) struct CommitProjectsExtractor {}
 impl MapExtractor for CommitProjectsExtractor {
@@ -887,6 +930,7 @@ impl DoubleMapExtractor for CommitLanguagesExtractor {
 pub(crate) struct SnapshotCloneInfo {
     original : ProjectId,
     oldest_commit_time : Timestamp,
+    oldest_project_time : Timestamp,
     projects : BTreeSet<ProjectId>,
 }
 
@@ -895,8 +939,21 @@ impl SnapshotCloneInfo {
         return SnapshotCloneInfo{
             original : ProjectId(0),
             oldest_commit_time: Timestamp::MAX,
+            oldest_project_time : Timestamp::MAX,
             projects : BTreeSet::new(),
         };
+    }
+
+    pub fn possibly_update_original(& mut self, p : ProjectId, p_time : Option<Timestamp>) {
+        match p_time {
+            Some(t) => {
+                if self.oldest_project_time > t {
+                    self.oldest_project_time = t;
+                    self.original = p;
+                }
+            },
+            _ => {}, 
+        }
     }
 }
 
@@ -919,27 +976,16 @@ impl QuadrupleMapExtractor for SnapshotProjectsExtractor {
             let commit_time = *commit_author_timestamps.get(cid).unwrap();
             // for each snapshot
             changes.iter().for_each(|(_path_id, sid_option)| {
-                // if it is actually a snapshot (i.e. we have its code)
-                // TODO we might want to extend this to *all* snapshots even those we do not have the code for
+                // if it is actually a snapshot (i.e. not a deleted file)
                 if let Some(sid) = sid_option {
-                    // if it is not a delete TODO: can it be a delete, or are deletes deleted
-                    if *sid != SnapshotId(0) {
-                        let ref mut sinfo = snapshot_projects.entry(*sid).or_insert_with(|| { SnapshotCloneInfo::new() });
-                        // add the projects of the commit to the projects of the snapshot 
-                        if let Some(pids) = commit_projects.get(cid) {
-                            pids.iter().for_each(|pid| { sinfo.projects.insert(*pid); });
-                            // if the commit is older than the current time associated with the snapshot, determine the oldest project 
-                            if sinfo.oldest_commit_time > commit_time {
-                                sinfo.original = pids.iter()
-                                    .filter_map(|x| if let Some(ctime) = projects_created.get(x) { Some((*x, *ctime)) } else { None })
-                                    .min_by(|a, b| a.1.cmp(&b.1))
-                                    .unwrap().0; // there should be at least one
-                                    
-                                // TODO use oldest project really once we know how to get it, for now I am just using the first project
-                                /*if let Some(pid) = pids.get(0) {
-                                    sinfo.original = *pid;
-                                }
-                                */
+                    let ref mut sinfo = snapshot_projects.entry(*sid).or_insert_with(|| { SnapshotCloneInfo::new() });
+                    // add the projects of the commit to the projects of the snapshot 
+                    if let Some(pids) = commit_projects.get(cid) {
+                        pids.iter().for_each(|pid| { sinfo.projects.insert(*pid); });
+                        // if the commit time is older than the current oldest commit time, then the snapshots original will be amongst the projects of the current commit, find the oldest project amongst them and make it the original project
+                        if sinfo.oldest_commit_time >= commit_time {
+                            for pid in pids {
+                                sinfo.possibly_update_original(*pid, projects_created.get(pid).map(|x| *x));
                             }
                         }
                     }
@@ -1046,14 +1092,14 @@ impl TripleMapExtractor for ProjectUniqueFilesExtractor {
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
 
-    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes_with_contents : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
         // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
         let mut visited = BTreeSet::<SnapshotId>::new();
         return project_commits.iter().map(|(pid, commits)| {
             // for all commits
             let unique_files = commits.iter().map(|cid| {
                 // for all changes with snapshots
-                if let Some(changes) = commit_changes.get(cid) {
+                if let Some(changes) = commit_changes_with_contents.get(cid) {
                     changes.iter().map(|(_path_id, snapshot)| {
                         if let Some(snapshot_id) = snapshot {
                             if visited.insert(*snapshot_id) {
@@ -1085,14 +1131,15 @@ impl TripleMapExtractor for ProjectOriginalFilesExtractor {
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
 
-    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes_with_contents : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
         // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
         let mut visited = BTreeSet::<SnapshotId>::new();
         return project_commits.iter().map(|(pid, commits)| {
             // for all commits
             let unique_files = commits.iter().map(|cid| {
                 // for all changes with snapshots
-                if let Some(changes) = commit_changes.get(cid) {
+                if let Some(changes) = commit_changes_with_contents.get(cid) {
                     changes.iter().map(|(_path_id, snapshot)| {
                         if let Some(snapshot_id) = snapshot {
                             if visited.insert(*snapshot_id) {
@@ -1125,14 +1172,14 @@ impl TripleMapExtractor for ProjectImpactExtractor {
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type C = BTreeMap<SnapshotId, (usize, ProjectId)>;
 
-    fn extract (_: &Source, project_commits : &Self::A, commit_changes : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
+    fn extract (_: &Source, project_commits : &Self::A, commit_changes_with_contents : &Self::B, snapshot_projects : &Self::C) -> BTreeMap<ProjectId, usize> {
         // visited snapshots so that we only add each snapshot once (original & unique snapshots can be cloned within project too)
         let mut visited = BTreeSet::<SnapshotId>::new();
         return project_commits.iter().map(|(pid, commits)| {
             // for all commits
             let unique_files = commits.iter().map(|cid| {
                 // for all changes with snapshots
-                if let Some(changes) = commit_changes.get(cid) {
+                if let Some(changes) = commit_changes_with_contents.get(cid) {
                     changes.iter().map(|(_path_id, snapshot)| {
                         if let Some(snapshot_id) = snapshot {
                             if visited.insert(*snapshot_id) {

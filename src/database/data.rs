@@ -786,13 +786,13 @@ impl Data {
                                                                         commit_committer_timestamps)
     }
     fn smart_load_project_unique_files(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_unique_files, source, three, project_commits, commit_changes, snapshot_projects)
+        load_with_prerequisites!(self, project_unique_files, source, three, project_commits, commit_changes_with_contents, snapshot_projects)
     }
     fn smart_load_project_original_files(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_original_files, source, three, project_commits, commit_changes, snapshot_projects)
+        load_with_prerequisites!(self, project_original_files, source, three, project_commits, commit_changes_with_contents, snapshot_projects)
     }
     fn smart_load_project_impact(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
-        load_with_prerequisites!(self, project_impact, source, three, project_commits, commit_changes, snapshot_projects)
+        load_with_prerequisites!(self, project_impact, source, three, project_commits, commit_changes_with_contents, snapshot_projects)
     }
     fn smart_load_project_files(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_files, source, two, project_commits, commit_changes)
@@ -921,7 +921,7 @@ impl Data {
         load_with_prerequisites!(self, project_locs, source, three, project_head_trees,  project_default_branch, snapshot_locs)
     }
     fn smart_load_project_duplicated_code(&mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
-        load_with_prerequisites!(self, duplicated_code, source, three, project_commits,  commit_changes, snapshot_projects)
+        load_with_prerequisites!(self, duplicated_code, source, three, project_commits,  commit_changes_with_contents, snapshot_projects)
     }
     fn smart_load_project_logs(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, project_logs, source, one, project_is_valid)

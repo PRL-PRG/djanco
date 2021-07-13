@@ -254,11 +254,14 @@ impl Database {
             #[append_args(&self.source)] pub fn commit_projects_count(&self, id: &CommitId) -> Option<usize>;
             #[append_args(&self.source)] pub fn commit_languages(&self, id : &CommitId) -> Option<Vec<Language>>;
             #[append_args(&self.source)] pub fn commit_languages_count(&self, id: &CommitId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn commit_changes_with_contents(&self, id: &CommitId) -> Option<Vec<Change>>;
+            #[append_args(&self.source)] pub fn commit_change_with_contents_count(&self, id: &CommitId) -> Option<usize>;
 
             // Snapshot attributes
             #[append_args(&self.source)] pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize>;
             #[append_args(&self.source)] pub fn snapshot_unique_projects(&self, id: &SnapshotId) -> usize;
             #[append_args(&self.source)] pub fn snapshot_original_project(&self, id: &SnapshotId) -> ProjectId;
+            #[append_args(&self.source)] pub fn snapshot_has_contents(&self, id: &SnapshotId) -> bool;
 
             // Entity IDs
             #[append_args(&self.source)] pub fn all_project_ids(&self) -> Vec<ProjectId>;

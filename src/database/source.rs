@@ -219,6 +219,14 @@ impl Source {
         // black hole of `small files` that don't make a lot of sense when filtering.
     }
 
+    pub fn snapshot_has_contents(&self) -> impl Iterator<Item = objects::SnapshotId> {
+        self.store.contents(self.substore)
+            .into_iter()
+            .map(|(id, _)| {
+                convert!(SnapshotId from id)
+            })
+    }
+
     pub fn snapshot_metadata(&self) -> impl Iterator<Item=(objects::SnapshotId, Result<JSON>)> {
         self.store.contents_metadata(self.substore)
             .into_iter()

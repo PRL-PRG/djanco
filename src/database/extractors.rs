@@ -261,11 +261,12 @@ impl MapExtractor for ProjectSnapshotsExtractor {
     type Key = ProjectId;
     type Value = Vec<SnapshotId>;
 }
-impl DoubleMapExtractor for ProjectSnapshotsExtractor {
+impl TripleMapExtractor for ProjectSnapshotsExtractor {
     type A = BTreeMap<ProjectId, Vec<CommitId>>;
     type B = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type C = BTreeMap<SnapshotId, bool>;
 
-    fn extract(_: &Source, project_commit_ids: &Self::A, commit_change_ids: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+    fn extract(_: &Source, project_commit_ids: &Self::A, commit_change_ids: &Self::B, snapshots_with_contents : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         project_commit_ids.iter().map(|(project_id, commit_ids)| {
             let path_ids /* Iterator equivalent of Vec<Vec<PathId>>*/ =
                 commit_ids.iter().flat_map(|commit_id| {
@@ -279,7 +280,10 @@ impl DoubleMapExtractor for ProjectSnapshotsExtractor {
                         });
                     path_ids_option
                 });
-            (project_id.clone(), path_ids.flatten().unique().collect())
+            // filter unique snapshots only and only those for which we have contents actually
+            (project_id.clone(), path_ids.flatten().unique().filter(|x| {
+                snapshots_with_contents.get(x).map_or(false, |x| *x)
+            }).collect())
         }).collect()
     }
 }
@@ -684,6 +688,27 @@ impl SourceMapExtractor for CommitChangesExtractor {
     }
 }
 
+pub(crate) struct CommitChangesWithContentsExtractor { }
+impl MapExtractor for CommitChangesWithContentsExtractor {
+    type Key = CommitId;
+    type Value = Vec<ChangeTuple>;
+}
+impl DoubleMapExtractor for CommitChangesWithContentsExtractor {
+    type A = BTreeMap<CommitId, Vec<ChangeTuple>>;
+    type B = BTreeMap<SnapshotId, bool>;
+    fn extract(_: &Source, commit_changes: &Self::A, snapshot_has_contents: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        commit_changes.iter().map(|(pid, changes)| {
+            (*pid, changes.iter().filter_map(|(path_id, snapshot_id)| {
+                match snapshot_id {
+                    None => Some((*path_id, None)), 
+                    Some(snapshot_id) => snapshot_has_contents.get(&snapshot_id).map_or(None, |_| Some((*path_id, Some(*snapshot_id))))
+                }
+            }).collect())
+        }).collect()
+    }
+}
+
+
 pub(crate) struct AuthorTimestampExtractor {}
 impl MapExtractor for AuthorTimestampExtractor {
     type Key = CommitId;
@@ -711,6 +736,18 @@ impl SourceMapExtractor for SnapshotLocsExtractor {
        }).collect()
     }
 }
+
+pub(crate) struct SnapshotHasContentsExtractor{}
+impl MapExtractor for SnapshotHasContentsExtractor {
+    type Key = SnapshotId;
+    type Value = bool;
+}
+impl SourceMapExtractor for SnapshotHasContentsExtractor {
+    fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
+        source.snapshot_has_contents().map(|x| (x, true)).collect()
+    }
+}
+
 
 pub(crate) struct ProjectLocsExtractor{} 
 impl MapExtractor for ProjectLocsExtractor{

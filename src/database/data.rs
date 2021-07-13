@@ -97,14 +97,18 @@ pub(crate) struct Data {
     commit_author_timestamps:    PersistentMap<AuthorTimestampExtractor>,
     commit_committer_timestamps: PersistentMap<CommitterTimestampExtractor>,
     commit_changes:              PersistentMap<CommitChangesExtractor>,
+    commit_changes_with_contents:PersistentMap<CommitChangesWithContentsExtractor>,
 
     commit_change_count:         PersistentMap<CountPerKeyExtractor<CommitId, ChangeTuple>>,
+    commit_change_with_contents_count: PersistentMap<CountPerKeyExtractor<CommitId, ChangeTuple>>,
 
     commit_projects:             PersistentMap<CommitProjectsExtractor>,
     commit_projects_count:       PersistentMap<CountPerKeyExtractor<CommitId, ProjectId>>,
     commit_languages:            PersistentMap<CommitLanguagesExtractor>,
     commit_languages_count:      PersistentMap<CountPerKeyExtractor<CommitId, Language>>,
     snapshot_projects :          PersistentMap<SnapshotProjectsExtractor>,
+
+    snapshot_has_contents :      PersistentMap<SnapshotHasContentsExtractor>,
 
     // TODO frequency of commits/regularity of commits
     // TODO maybe some of these could be pre-cached all at once (eg all commit properties)
@@ -201,7 +205,10 @@ impl Data {
             commit_author_timestamps:       PersistentMap::new(CACHE_FILE_COMMIT_AUTHOR_TIMESTAMPS,       log.clone(),dir.clone()),
             commit_committer_timestamps:    PersistentMap::new(CACHE_FILE_COMMIT_COMMITTER_TIMESTAMPS,    log.clone(),dir.clone()),
             commit_changes:                 PersistentMap::new(CACHE_FILE_COMMIT_CHANGES,                 log.clone(),dir.clone()).without_cache(),
+            // note changes with contents are cached since we do not have then readily available in parasite's dataset
+            commit_changes_with_contents:   PersistentMap::new(CACHE_FILE_COMMIT_CHANGES_WITH_CONTENTS,   log.clone(),dir.clone()),
             commit_change_count:            PersistentMap::new(CACHE_FILE_COMMIT_CHANGE_COUNT,            log.clone(),dir.clone()),
+            commit_change_with_contents_count: PersistentMap::new(CACHE_FILE_COMMIT_CHANGE_WITH_CONTENTS_COUNT, log.clone(),dir.clone()),
             commit_projects:                PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS,                log.clone(),dir.clone()),
             commit_projects_count:          PersistentMap::new(CACHE_FILE_COMMIT_PROJECTS_COUNT,          log.clone(),dir.clone()),
             commit_languages:               PersistentMap::new(CACHE_FILE_COMMIT_LANGUAGES,               log.clone(),dir.clone()),
@@ -213,6 +220,7 @@ impl Data {
             project_time_since_first_commit:PersistentMap::new(CACHE_FILE_TIME_SINCE_FIRST_COMMIT, log.clone(), dir.clone()),
             is_abandoned:                   PersistentMap::new(CACHE_FILE_IS_ABANDONED, log.clone(), dir.clone()),
             snapshot_locs:                  PersistentMap::new(CACHE_FILE_SNAPSHOT_LOCS, log.clone(), dir.clone()),
+            snapshot_has_contents:          PersistentMap::new(CACHE_FILE_SNAPSHOT_HAS_CONTENTS, log.clone(), dir.clone()),
             project_locs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOCS, log.clone(), dir.clone()),
             duplicated_code:                PersistentMap::new(CACHE_FILE_DUPLICATED_CODE, log.clone(), dir.clone()),
             project_is_valid:               PersistentMap::new(CACHE_FILE_PROJECT_IS_VALID, log.clone(), dir.clone()),
@@ -569,6 +577,13 @@ impl Data {
             }).collect()
         })
     }
+    pub fn commit_changes_with_contents(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Change>> {
+        self.smart_load_commit_changes_with_contents(source).get(id).map(|vector| {
+            vector.iter().map(|(path_id, snapshot_id)| {
+                Change::new(path_id.clone(), snapshot_id.clone())
+            }).collect()
+        })
+    }
     pub fn commit_changed_paths(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Path>> {
         self.smart_load_commit_changes(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|change| self.path(&change.0/*path_id()*/, source)).collect()
@@ -576,6 +591,9 @@ impl Data {
     }
     pub fn commit_change_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
         self.smart_load_commit_change_count(source).get(id).pirate()
+    }
+    pub fn commit_change_with_contents_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
+        self.smart_load_commit_change_with_contents_count(source).get(id).pirate()
     }
     pub fn commit_changed_path_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {
         self.smart_load_commit_change_count(source).get(id).pirate()
@@ -658,6 +676,9 @@ impl Data {
     pub fn snapshot_locs(&mut self, id: &SnapshotId, source: &Source) -> Option<usize> {
         self.smart_load_snapshot_locs(source).get(id).pirate()
     }
+    pub fn snapshot_has_contents(&mut self, id: &SnapshotId, source: &Source) -> bool {
+        self.smart_load_snapshot_has_contents(source).get(id).map(|x| *x).unwrap_or(false)
+    }
     pub fn project_locs(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_locs(source).get(id).pirate()
     }
@@ -739,7 +760,7 @@ impl Data {
         load_with_prerequisites!(self, project_paths, source, two, project_commits, commit_changes)
     }
     fn smart_load_project_snapshots(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<SnapshotId>> {
-        load_with_prerequisites!(self, project_snapshots, source, two, project_commits, commit_changes)
+        load_with_prerequisites!(self, project_snapshots, source, three, project_commits, commit_changes, snapshot_has_contents)
     }
     fn smart_load_project_user_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_user_count, source, one, project_users)
@@ -858,8 +879,14 @@ impl Data {
     fn smart_load_commit_changes(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<ChangeTuple>> {
         load_from_source!(self, commit_changes, source)
     }
+    fn smart_load_commit_changes_with_contents(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<ChangeTuple>> {
+        load_with_prerequisites!(self, commit_changes_with_contents, source, two, commit_changes, snapshot_has_contents)
+    }
     fn smart_load_commit_change_count(&mut self, source: &Source) -> &BTreeMap<CommitId, usize> {
         load_with_prerequisites!(self, commit_change_count, source, one, commit_changes)
+    }
+    fn smart_load_commit_change_with_contents_count(&mut self, source: &Source) -> &BTreeMap<CommitId, usize> {
+        load_with_prerequisites!(self, commit_change_with_contents_count, source, one, commit_changes_with_contents)
     }
     fn smart_load_project_max_commit_delta(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
         load_with_prerequisites!(self, project_max_commit_delta, source, two, project_commits, commit_committer_timestamps)
@@ -884,6 +911,10 @@ impl Data {
     }
     fn smart_load_snapshot_locs(&mut self, source: &Source) -> &BTreeMap<SnapshotId, usize> {
         load_from_source!(self, snapshot_locs, source)
+        //load_with_prerequisites!(self, is_abandoned, source, one, project_snapshots)
+    }
+    fn smart_load_snapshot_has_contents(&mut self, source: &Source) -> &BTreeMap<SnapshotId, bool> {
+        load_from_source!(self, snapshot_has_contents, source)
         //load_with_prerequisites!(self, is_abandoned, source, one, project_snapshots)
     }
     fn smart_load_project_locs(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {

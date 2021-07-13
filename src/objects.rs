@@ -480,6 +480,10 @@ impl From<(String, CommitId)> for Head {
     }
 }
 
+/** Contains the path id and snapshot id of the change.
+ 
+    If the file has been deleted as part of the change, snapshot is None. Otherwise snapshot is the snapshot id. 
+ */
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Change {
     pub(crate) path: PathId,
@@ -574,6 +578,10 @@ impl Commit {
     pub fn changed_path_ids    (&self, store: &Database) -> Option<Vec<PathId>>               {  store.commit_changes(&self.id).map(|v| v.into_iter().map(|change| change.path_id()).unique().collect())     }
     pub fn changed_snapshot_ids(&self, store: &Database) -> Option<Vec<SnapshotId>>           {  store.commit_changes(&self.id).map(|v| v.into_iter().flat_map(|change| change.snapshot_id()).unique().collect())     }
     pub fn change_count        (&self, store: &Database) -> Option<usize>                     {  store.commit_change_count(&self.id)                }
+
+    pub fn changes_with_contents(&self, store: &Database) -> Option<Vec<Change>>               {  store.commit_changes_with_contents(&self.id)                     }
+    pub fn change_with_contents_count        (&self, store: &Database) -> Option<usize>                     {  store.commit_change_with_contents_count(&self.id)                }
+
 
     pub fn changed_paths       (&self, store: &Database) -> Option<Vec<Path>>                 {  store.commit_changed_paths(&self.id)               }
     pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
@@ -683,6 +691,10 @@ impl Snapshot {
 
     // FIXME add hashes
     pub fn snapshot_locs      (&self, store: &Database)    -> Option<usize>                   { store.snapshot_locs(&self.id)                   }
+
+    pub fn snapshot_has_contents(&self, store: &Database) -> bool {
+        store.snapshot_has_contents(&self.id)
+    }
 }
 impl Identifiable for Snapshot {
     type Identity = SnapshotId;
@@ -935,6 +947,7 @@ impl<'a> ItemWithData<'a, Snapshot> {
     pub fn contents_owned(&self) -> String { self.item.contents_owned() }
     pub fn contains(&self, needle: &str) -> bool { self.item.contains(needle) }
     pub fn snapshot_locs (&self)        -> Option<usize>                    { self.item.snapshot_locs(&self.data) }
+    pub fn snapshot_has_contents(&self) -> bool { self.item.snapshot_has_contents(&self.data) }
     pub fn unique_projects(&self) -> usize { self.item.unique_projects(&self.data) }
     pub fn original_project(&self) -> ProjectId { self.item.original_project(&self.data) }
 }
@@ -978,6 +991,7 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn committer_timestamp(&self) -> Option<Timestamp>                  { self.item.committer_timestamp(&self.data)  }
     pub fn changes            (&self) -> Option<Vec<Change>>                { self.item.changes(&self.data)              }
     pub fn change_count       (&self) -> Option<usize>                      { self.item.change_count(&self.data)         }
+    pub fn change_with_contents_count(&self) -> Option<usize>               { self.item.change_with_contents_count(&self.data)         }
     pub fn changed_path_ids    (&self) -> Option<Vec<PathId>>               { self.item.changed_path_ids(&self.data)     }
     pub fn changed_snapshot_ids(&self) -> Option<Vec<SnapshotId>>           { self.item.changed_snapshot_ids(&self.data) }
     pub fn changed_paths       (&self) -> Option<Vec<Path>>                 { self.item.changed_paths(&self.data)        }
@@ -996,6 +1010,9 @@ impl<'a> ItemWithData<'a, Commit> {
     }
     pub fn changes_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Change>>> {
         self.item.changes(self.data).attach_data_to_each(self.data)
+    }
+    pub fn changes_with_contents<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Change>>> {
+        self.item.changes_with_contents(self.data).attach_data_to_each(self.data)
     }
     pub fn changed_paths_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Path>>> {
         self.item.changed_paths(self.data).attach_data_to_each(self.data)

@@ -797,6 +797,7 @@ impl<T> OptionWithoutData<T> for Option<T> where T: ItemWithoutData {
 }
 
 pub struct ItemWithData<'a, T> { pub data: &'a Database, pub item: T }
+
 impl<'a, T> ItemWithData<'a, T> {
     pub fn new(data: &'a Database, item: T) -> Self {
         ItemWithData { data, item }

@@ -119,7 +119,9 @@ impl<E> LazyMap<E> where E: ItemExtractor {
 
         // Not retrieved yet  
         if value_is_missing && !self.loaded {
-            self.load_from_cache().unwrap(); // Probably not the best thing to do here: unwrap
+            if self.already_cached() {
+                self.load_from_cache().unwrap(); // Probably not the best thing to do here: unwrap
+            }
             return self.get_or(item_id, extract)
         }
 
@@ -135,6 +137,10 @@ impl<E> LazyMap<E> where E: ItemExtractor {
         return self.map.get(&item_id)
 
         // note:ifs, not match to avoid double mutable borrow of self/self+value
+    }
+
+    fn already_cached(&self) -> bool {
+        self.cache_path.as_ref().map_or(false, |p| p.is_file())
     }
 
     fn load_from_cache(&mut self) -> Result<(), Box<dyn Error>> {

@@ -255,7 +255,7 @@ impl Database {
             #[append_args(&self.source)] pub fn commit_projects_count(&self, id: &CommitId) -> Option<usize>;
             #[append_args(&self.source)] pub fn commit_languages(&self, id : &CommitId) -> Option<Vec<Language>>;
             #[append_args(&self.source)] pub fn commit_languages_count(&self, id: &CommitId) -> Option<usize>;
-            #[append_args(&self.source)] pub fn commit_trees(&self, id: &CommitId) -> Option<Tree>;
+            #[append_args(&self.source)] pub fn commit_trees(&self, id: &CommitId) -> Tree;
 
             // Snapshot attributes
             #[append_args(&self.source)] pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize>;

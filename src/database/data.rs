@@ -597,15 +597,15 @@ impl Data {
     pub fn commit_languages(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Language>> {
         self.smart_load_commit_languages(source).get(id).pirate()   
     }
-    pub fn commit_trees(&mut self, id: &CommitId, source: &Source) -> Option<Tree> {
+    pub fn commit_trees(&mut self, id: &CommitId, source: &Source) -> Tree {
         // TODO what would be a good way to make commit_trees usable from other loaders?
         if let Some(value) = self.commit_trees.get_if_loaded(id.clone()) {
-            return Some(value.clone())
+            return value.clone()
         }
 
         self.smart_load_commit_changes(source);
         self.smart_load_commits(source);
-        self.commit_trees.get_two(*id, source, self.commit_changes.grab_collection(), self.commits.grab_collection()).pirate()
+        self.commit_trees.get_two(*id, source, self.commit_changes.grab_collection(), self.commits.grab_collection()).clone()
 
     }
     pub fn commit_languages_count(&mut self, id: &CommitId, source: &Source) -> Option<usize> {

@@ -1146,8 +1146,137 @@ pub trait FileWritable {
     fn contents_as_bytes(&self) -> Option<&Vec<u8>>;
 }
 
-pub trait ContentsToFiles<T> where T: Identifiable + FileWritable {
+pub trait ContentsToFiles<T> {
     fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error>;
+}
+
+impl<'a, I> ContentsToFiles<ItemWithData<'a, Change>> for I where I: Iterator<Item=ItemWithData<'a, Change>> {
+    fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error> {
+        let mut skipped_path_ids: Vec<PathId> = Vec::new();
+        let mut skipped_locations: Vec<PathBuf> = Vec::new();
+        let mut skipped_snapshot_ids: Vec<SnapshotId> = Vec::new();
+
+        create_dir_all(&dir)?;
+
+        for change in self {
+            let location = change.path().map(|path| path.location_as_file_path());
+            if location.is_none() {
+                skipped_path_ids.push(change.path_id());
+                continue;
+            }
+            let location = location.unwrap();
+
+            let snapshot_id = change.snapshot_id();
+            if snapshot_id.is_none() {                
+                skipped_locations.push(location);
+                continue;
+            }
+            let snapshot_id = snapshot_id.unwrap();
+
+            let snapshot = change.snapshot();
+            if snapshot.is_none() {
+                skipped_snapshot_ids.push(snapshot_id);
+                continue;
+            }
+            let snapshot = snapshot.unwrap();
+            
+            let mut full_path = PathBuf::from(dir);
+            full_path.push(location);
+
+            let mut full_dir = PathBuf::from(&full_path);
+            full_dir.pop();
+            create_dir_all(full_dir)?;
+            
+            //println!("Writing contents to {:?}", &full_path);
+            snapshot.write_contents_to(&full_path)?;
+        }
+
+        let skipped_count = skipped_snapshot_ids.len() + skipped_path_ids.len() + skipped_locations.len();
+
+        if skipped_count == 0 {
+            return Ok(())
+        }
+
+        let mut skipped_path = PathBuf::from(dir);
+        skipped_path.push("djanco-skipped-files.log");
+        let mut skipped_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(true)
+            .open(&skipped_path)?;
+        
+        for path_id in skipped_path_ids {
+            writeln!(skipped_file, "PathId:{}:not in dataset", path_id)?;   
+        }
+
+        for location in skipped_locations {
+            writeln!(skipped_file, "Path:{:?}:no file contents", location)?;   
+        }
+
+        for snapshot_id in skipped_snapshot_ids {
+            writeln!(skipped_file, "SnapshotId:{:?}:not in dataset", snapshot_id)?;   
+        }
+
+        eprintln!("Skipped {} files. Details at {:?}", skipped_count, skipped_path);
+
+        Ok(())
+    }
+}
+
+impl<'a, I> ContentsToFiles<ItemWithData<'a, Tree>> for I where I: Iterator<Item=ItemWithData<'a, Tree>> {
+    fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error> {
+        let mut skipped_commits: Vec<CommitId> = Vec::new();
+        let mut skipped_hashes: Vec<CommitId> = Vec::new();
+
+        create_dir_all(&dir)?;
+
+        for tree in self {
+            let commit = tree.commit_with_data();
+            if commit.is_none() {
+                skipped_commits.push(tree.commit_id());
+                continue;
+            } 
+
+            let hash = commit.unwrap().hash();
+            if hash.is_none() {
+                skipped_hashes.push(tree.commit_id());
+                continue;
+            }
+
+            let tree_subdir_name = format!("{}", hash.unwrap());            
+            let mut tree_subdir = PathBuf::from(&dir);
+            tree_subdir.push(tree_subdir_name);
+
+            tree.changes_with_data().into_iter().into_files_in_dir(&tree_subdir)?;
+        }
+
+        let skipped_count = skipped_commits.len() + skipped_hashes.len();
+
+        if skipped_count == 0 {
+            return Ok(())
+        }
+
+
+        let mut skipped_path = PathBuf::from(dir);
+        skipped_path.push("djanco-skipped-files.log");
+        let mut skipped_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(true)
+            .open(&skipped_path)?;
+
+        for commit_id in skipped_commits {
+            writeln!(skipped_file, "CommitId:{:?}:not in dataset", commit_id)?;   
+        }
+
+        for commit_id in skipped_hashes {
+            writeln!(skipped_file, "CommitId:{:?}:no hash found", commit_id)?;   
+        }
+
+        eprintln!("Skipped {} changes writing tree. Details at {:?}", skipped_count, skipped_path);
+
+        Ok(())
+    }
 }
 
 impl<I, T> ContentsToFiles<T> for I where I: Iterator<Item=T>, T: Identifiable + FileWritable {

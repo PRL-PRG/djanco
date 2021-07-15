@@ -624,8 +624,11 @@ impl Hash for Commit {
 pub struct Path { pub(crate) id: PathId, pub(crate) location: String }
 impl Path {
     pub fn new(id: PathId, location: String) -> Self { Path { id, location } }
-    pub fn location(&self) -> String { self.location.to_string() }
+    pub fn location(&self) -> String { self.location.clone() }
     pub fn language(&self) -> Option<Language> { Language::from_path(self.location.as_str()) }
+    pub fn location_as_file_path(&self) -> PathBuf {
+        PathBuf::from(&self.location)
+    }
 }
 impl Identifiable for Path {
     type Identity = PathId;
@@ -687,7 +690,9 @@ impl Snapshot {
     }
 
     // FIXME add hashes
-    pub fn snapshot_locs      (&self, store: &Database)    -> Option<usize>                   { store.snapshot_locs(&self.id)                   }
+    pub fn snapshot_locs(&self, store: &Database) -> Option<usize> { 
+        store.snapshot_locs(&self.id)
+    }
 }
 impl Identifiable for Snapshot {
     type Identity = SnapshotId;

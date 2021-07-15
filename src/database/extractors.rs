@@ -1385,35 +1385,43 @@ impl DoubleItemExtractor for CommitTreeExtractor {
     type A = BTreeMap<CommitId, Vec<ChangeTuple>>;
     type B = BTreeMap<CommitId, Commit>;
 
-    fn extract(commit_id: Self::Key, _source: &Source, 
-               commit_changes: &BTreeMap<CommitId, Vec<ChangeTuple>>, 
-               commits: &BTreeMap<CommitId, Commit>) -> Tree {
+    // fn extract(commit_id: Self::Key, _source: &Source, 
+    //            commit_changes: &BTreeMap<CommitId, Vec<ChangeTuple>>, 
+    //            commits: &BTreeMap<CommitId, Commit>) -> Tree {
 
-        let mut contents: BTreeMap<PathId, Option<SnapshotId>> = BTreeMap::new();
+    //     let mut contents: BTreeMap<PathId, Option<SnapshotId>> = BTreeMap::new();
         
-        let mut visited:  BTreeSet<CommitId> = BTreeSet::new();
-        let mut work_list: Vec<CommitId> = vec![commit_id];
+    //     let mut visited:  BTreeSet<CommitId> = BTreeSet::new();
+    //     let mut work_list: Vec<CommitId> = vec![commit_id];
 
-        let empty_vector: Vec<ChangeTuple> = Vec::new(); // This is dumb, just go with it xD
+    //     let empty_vector: Vec<ChangeTuple> = Vec::new(); // This is dumb, just go with it xD
 
-        while let Some(commit_id) = work_list.pop() {
-            if visited.insert(commit_id) {
+    //     while let Some(commit_id) = work_list.pop() {
+    //         if visited.insert(commit_id) {
 
-                let changes = 
-                    commit_changes.get(&commit_id).unwrap_or(&empty_vector);
-                for (path_id, snapshot_id) in changes {
-                    if let Entry::Vacant(change) = contents.entry(*path_id) {
-                        change.insert(*snapshot_id);
-                    }
-                }
+    //             let changes = 
+    //                 commit_changes.get(&commit_id).unwrap_or(&empty_vector);
+    //             for (path_id, snapshot_id) in changes {
+    //                 if let Entry::Vacant(change) = contents.entry(*path_id) {
+    //                     change.insert(*snapshot_id);
+    //                 }
+    //             }
 
-                if let Some(commit) = commits.get(&commit_id) {
-                    work_list.extend(commit.parents.iter());
-                }
-            }
-        }
+    //             if let Some(commit) = commits.get(&commit_id) {
+    //                 work_list.extend(commit.parents.iter());
+    //             }
+    //         }
+    //     }
 
-        Tree::new(commit_id, contents)
+    //     Tree::new(commit_id, contents)
+    // }
+
+    fn previous(item_id: &Self::Key, source: &Source, a: &Self::A, b: &Self::B) -> Option<Self::Key> {
+        todo!()
+    }
+
+    fn extract(starting_value: Option<Self::Value>, item_id: Self::Key, source: &Source, a: &Self::A, b: &Self::B) -> Self::Value {
+        todo!()
     }
 
     // fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {

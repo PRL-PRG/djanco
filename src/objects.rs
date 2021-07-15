@@ -776,6 +776,15 @@ impl<'a> ItemWithData<'a, Tree> {
     pub fn changes_with_data<'b>(&'b self) -> Vec<ItemWithData<'a, Change>> {
         self.changes().attach_data_to_each(self.data)
     }
+
+    pub fn path_list(&self) -> Vec<String> {
+        self.changes().into_iter()
+            .map(|change| change.path)
+            .flat_map(|path_id| self.data.path(&path_id))
+            .map(|path| path.location)
+            .sorted()
+            .collect()
+    }
 }
 
 pub trait ItemWithoutData where Self: Sized {
@@ -1116,7 +1125,6 @@ impl<'a> ItemWithData<'a, Head> {
         self.item.commit(self.data).attach_data_to_inner(self.data)
     }
 }
-
 
 impl<'a> ItemWithData<'a, Change> {
     pub fn path_id(&self) -> PathId { self.item.path_id() }

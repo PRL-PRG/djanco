@@ -759,7 +759,7 @@ impl MapExtractor for ProjectLocsExtractor{
 // project_default_branch, project_head_trees, snapshot_locs
 
 impl TripleMapExtractor for ProjectLocsExtractor {
-    type A = BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>>;
+    type A = BTreeMap<ProjectId, Vec<(String, Tree)>>;
     type B = BTreeMap<ProjectId, String>;
     type C = BTreeMap<SnapshotId, usize>;
     fn extract(_: &Source, project_head_trees: &Self::A, project_default_branch: &Self::B, snapshot_locs: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
@@ -767,7 +767,9 @@ impl TripleMapExtractor for ProjectLocsExtractor {
             if let Some(default_branch_name) = project_default_branch.get(pid) {
                 let ref_name = format!("refs/heads/{}", default_branch_name);
                 if let Some((_, tree)) = heads.iter().filter(|(name, _)| *name == ref_name ).next() {
-                    let snapshot_locs = tree.iter().filter_map(|(_, snapshot_id)| snapshot_locs.get(snapshot_id)).sum(); 
+                    let snapshot_locs = tree.snapshot_ids().iter().filter_map(|snapshot_id| {
+                        snapshot_locs.get(snapshot_id)
+                    }).sum();
                     return Some((*pid, snapshot_locs));
                 }
             } 
@@ -1393,7 +1395,7 @@ pub(crate) struct ProjectHeadTreesExtractor {}
 
 impl MapExtractor for ProjectHeadTreesExtractor {
     type Key = ProjectId;
-    type Value = Vec<(String, Vec<(PathId, SnapshotId)>)>;
+    type Value = Vec<(String, Tree)>;
 }
 
 impl TripleMapExtractor for ProjectHeadTreesExtractor {
@@ -1401,7 +1403,7 @@ impl TripleMapExtractor for ProjectHeadTreesExtractor {
     type B = BTreeMap<CommitId, Commit>;
     type C = BTreeMap<CommitId, Vec<ChangeTuple>>;
 
-    fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+    fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Tree)>> {
         project_heads.iter().map(|(pid, heads)| {
             let heads = heads.iter().map(|Head{name, commit}| {
                 let mut contents = BTreeMap::<PathId, Option<SnapshotId>>::new();
@@ -1422,7 +1424,12 @@ impl TripleMapExtractor for ProjectHeadTreesExtractor {
                         }
                     }
                 }
-                (name.clone(), contents.iter().filter(|(_path_id, snapshot_id)| snapshot_id.is_some()).map(|(path_id, snapshot_id)| (*path_id, snapshot_id.unwrap())).collect())
+                let changes = contents.iter()
+                    .filter(|(_path_id, snapshot_id)| snapshot_id.is_some())
+                    .map(|(path_id, snapshot_id)| (*path_id, snapshot_id.clone()))
+                    .collect();
+                let tree = Tree::new(*commit, changes);
+                (name.clone(), tree)
             }).collect();
             (*pid, heads)
         }).collect()

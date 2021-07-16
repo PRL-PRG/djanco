@@ -15,6 +15,19 @@ use super::metadata::*;
 use super::extractors::*;
 use super::source::Source;
 
+// trait SmartLoadMap<K, V> {
+//     fn smart_load(&self, data: &mut Data) -> &BTreeMap<K, V>;
+//     fn require_loaded(&self, data: &mut Data) {
+//         self.smart_load(data);
+//     }
+// }
+
+// impl<E> SmartLoadMap<E::Key, E::Value> for PersistentMap<E> where E: MapExtractor {
+//     fn smart_load(&self, data: &mut Data) -> &BTreeMap<E::Key, E::Value> {
+//         todo!()
+//     }
+// }
+
 pub(crate) struct Data {
     project_metadata:            ProjectMetadataSource,
     
@@ -53,7 +66,7 @@ pub(crate) struct Data {
     project_all_forks:              PersistentMap<ProjectAllForksExtractor>,
     project_all_forks_count:        PersistentMap<CountPerKeyExtractor<ProjectId, ProjectId>>,
     project_head_trees:             PersistentMap<ProjectHeadTreesExtractor>,
-    project_head_trees_count:       PersistentMap<CountPerKeyExtractor<ProjectId, (String, Vec<(PathId, SnapshotId)>)>>,
+    project_head_trees_count:       PersistentMap<CountPerKeyExtractor<ProjectId, (String, Tree)>>,
 
     project_buggy_issue_count:   PersistentMap<ProjectBuggyIssuesExtractor>,
     project_issue_count:         PersistentMap<ProjectBuggyIssuesExtractor>,
@@ -547,7 +560,7 @@ impl Data {
         self.smart_load_project_all_forks_count(source).get(id)
             .pirate()
     }
-    pub fn project_head_trees(& mut self, id: &ProjectId, source: &Source) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+    pub fn project_head_trees(& mut self, id: &ProjectId, source: &Source) -> Option<Vec<(String, Tree)>> {
         self.smart_load_project_head_trees(source).get(id)
             .pirate()
     }
@@ -799,8 +812,8 @@ impl Data {
     }
     fn smart_load_project_lifetimes(&mut self, source: &Source) -> &BTreeMap<ProjectId, u64> {
         load_with_prerequisites!(self, project_lifetimes, source, three, project_commits,
-                                                                        commit_author_timestamps,
-                                                                        commit_committer_timestamps)
+                                                                         commit_author_timestamps,
+                                                                         commit_committer_timestamps)
     }
     fn smart_load_project_unique_files(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_unique_files, source, three, project_commits, commit_changes_with_contents, snapshot_projects)
@@ -835,7 +848,7 @@ impl Data {
     fn smart_load_project_all_forks_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_all_forks_count, source, one, project_all_forks)
     }
-    fn smart_load_project_head_trees(& mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+    fn smart_load_project_head_trees(& mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<(String, Tree)>> {
         load_with_prerequisites!(self, project_head_trees, source, three, project_heads, commits, commit_changes)
     }
     fn smart_load_project_head_trees_count(& mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
@@ -860,8 +873,8 @@ impl Data {
     }
     fn smart_load_user_experience(&mut self, source: &Source) -> &BTreeMap<UserId, u64> {
         load_with_prerequisites!(self, user_experience, source, three, user_committed_commits,
-                                                                      commit_author_timestamps,
-                                                                      commit_committer_timestamps)
+                                                                       commit_author_timestamps,
+                                                                       commit_committer_timestamps)
     }
     fn smart_load_user_committed_commit_count(&mut self, source: &Source) -> &BTreeMap<UserId, usize> {
         load_with_prerequisites!(self, user_committed_commit_count, source, one, user_committed_commits)

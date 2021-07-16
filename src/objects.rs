@@ -449,7 +449,7 @@ impl Project {
     pub fn all_forks        (&self, store: &Database) -> Option<Vec<ProjectId>>             { store.project_all_forks(&self.id)               }
     pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id)         }
     pub fn project_max_experience  (&self, store: &Database) -> Option<i32>                      { store.project_max_experience(&self.id)     }
-    pub fn head_trees   (&self, store: &Database) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+    pub fn head_trees   (&self, store: &Database) -> Option<Vec<(String, Tree)>> {
         store.project_head_trees(&self.id)
     }    
     pub fn head_trees_count (&self, store: &Database) -> Option<usize> {
@@ -755,6 +755,9 @@ impl Tree {
     pub fn change_count(&self) -> usize { 
         self.files.len()
     }
+    pub fn files(&self) -> &BTreeMap<PathId, Option<SnapshotId>> {
+        return &self.files
+    }
 }
 
 impl<'a> ItemWithData<'a, Tree> {
@@ -1030,7 +1033,7 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn all_forks_count(&self) -> Option<usize> {
         self.item.all_forks_count(&self.data)
     }
-    pub fn head_trees(&self) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
+    pub fn head_trees(&self) -> Option<Vec<(String, Tree)>> {
         self.item.head_trees(&self.data)
     }
     pub fn head_trees_count(&self) -> Option<usize> {

@@ -211,7 +211,7 @@ impl Database {
             #[append_args(&self.source)] pub fn project_major_language_changes(&self, id: &ProjectId) -> Option<usize>;
             #[append_args(&self.source)] pub fn project_all_forks(&self, id: &ProjectId) -> Option<Vec<ProjectId>>;
             #[append_args(&self.source)] pub fn project_all_forks_count(&self, id: &ProjectId) -> Option<usize>;
-            #[append_args(&self.source)] pub fn project_head_trees(&self, id: &ProjectId) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>>;
+            #[append_args(&self.source)] pub fn project_head_trees(&self, id: &ProjectId) -> Option<Vec<(String, Tree)>>;
             #[append_args(&self.source)] pub fn project_head_trees_count(&self, id : &ProjectId) -> Option<usize>;
             #[append_args(&self.source)] pub fn project_max_commit_delta(&self, id: &ProjectId) -> Option<i64>;
             #[append_args(&self.source)] pub fn project_experience(&self, id: &ProjectId) -> Option<f64>;

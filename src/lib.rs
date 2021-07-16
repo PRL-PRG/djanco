@@ -1178,7 +1178,7 @@ pub mod project {
      
        The tree is a mapping from path ids to snapshot ids. All paths are considered. Deleted files are not displayed.
      */
-    impl_attribute![?..   objects::Project, HeadTrees, (String, Vec<(objects::PathId, objects::SnapshotId)>), head_trees, head_trees_count];
+    impl_attribute![?..   objects::Project, HeadTrees, (String, objects::Tree), head_trees, head_trees_count];
 }
 
 pub mod commit {

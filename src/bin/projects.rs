@@ -13,4 +13,5 @@ fn main() {
             .expect("Error initializing datastore.");
 
     database.projects().into_csv_in_dir(&config.output_path, "projects").unwrap();
+    database.projects().into_extended_csv_in_dir(&config.output_path, "projects_extended").unwrap();
 }

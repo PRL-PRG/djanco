@@ -974,6 +974,8 @@ pub mod project {
 
     /*
      * Returns the IDs in of all the file contents constituting any of the branches of this project.
+      
+       Only files for which the contents is in the database are counted. 
      */
     impl_attribute![?+..  objects::Project, Snapshots, objects::Snapshot, snapshots_with_data, snapshot_count];
 
@@ -1112,10 +1114,14 @@ pub mod project {
      */
     impl_attribute![?+..  objects::Project, AuthorsContributingChanges(Percentage), objects::User, authors_contributing_changes_with_data, authors_contributing_changes_count];
 
-    /* Number of snapshots in the project that only ever exist in the project. 
+    /* Number of snapshots in the project that only ever exist in the project.
+    
+       Takes only the snapshots for which we have data into account. 
      */
     impl_attribute![?     objects::Project, UniqueFiles, usize, unique_files];
     /* Number of snapshots in the project where the project is the original, i.e. the oldest occurence of the particular snapshot in the dataset. 
+
+       Takes only the snapshots for which we have data into account. 
      */
     impl_attribute![?     objects::Project, OriginalFiles, usize, original_files];
     /* The impact of the project. 
@@ -1192,7 +1198,16 @@ pub mod commit {
     impl_attribute![?    objects::Commit, MessageLength, usize, message_length];
     impl_attribute![?    objects::Commit, AuthoredTimestamp, Timestamp, author_timestamp];
     impl_attribute![?    objects::Commit, CommittedTimestamp, Timestamp, committer_timestamp];
+    /* Returns all changes made by the commit. 
+     
+        These include deleted files (snapshot id is None) and files for which we do not have snapshots. 
+     */
     impl_attribute![?+.. objects::Commit, Changes, objects::Change, changes_with_data, change_count];
+    /* Returns changes made by the commit that we have data for. 
+     
+        These include deleted files (snapshot id is None), but *not* files for which we do not have data. 
+     */ 
+    impl_attribute![?+.. objects::Commit, ChangesWithContents, objects::Change, changes_with_contents, change_with_contents_count];
     impl_attribute![?..  objects::Commit, PathIds, objects::PathId, changed_path_ids, changed_path_count];
     impl_attribute![?..  objects::Commit, SnapshotIds, objects::SnapshotId, changed_snapshot_ids, changed_snapshot_count];
     impl_attribute![!..  objects::Commit, ParentIds, objects::CommitId, parent_ids, parent_count];
@@ -1289,14 +1304,21 @@ pub mod snapshot {
     impl_attribute![!   objects::Snapshot, Bytes, Vec<u8>, raw_contents_owned];
     impl_attribute![!   objects::Snapshot, Contents, String, contents_owned];
     impl_attribute![?   objects::Snapshot, Loc, usize, snapshot_locs];
+    impl_attribute![!   objects::Snapshot, HasContents, bool, snapshot_has_contents];
 
     /* Number of projects in the database that contain the snapshot (or did in the past). 
     
-        This is count of projects, not occurences, i.e. if the file appears multiple times in a project, this will still only grow by one. 
+       This is count of projects, not occurences, i.e. if the file appears multiple times in a project, this will still only grow by one. 
+
+       Contains indformation about *all* snapshots, not just those for which we have contents stored as well. 
      */
     impl_attribute![!   objects::Snapshot, NumProjects, usize, unique_projects];
 
     /* The oldest project in which we have seen the snapshot appear. 
+
+       This is either the project where the snapshot appears in the oldest commit, or if there are more such projects, the oldest of these.
+
+       Contains indformation about *all* snapshots, not just those for which we have contents stored as well. 
      */
     impl_attribute![!   objects::Snapshot, OriginalProject, objects::ProjectId, original_project];
 }

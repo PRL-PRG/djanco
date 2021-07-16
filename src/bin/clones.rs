@@ -16,7 +16,7 @@ fn main() {
         Djanco::from_config(&config, timestamp!(December 2020), stores!(Generic), log.clone())
             .expect("Error initializing datastore.");
 
-    projects_all(&config, &log, &database).into_csv_in_dir(&config.output_path, "projects_all").unwrap();
+    projects_all(&config, &log, &database).into_extended_csv_in_dir(&config.output_path, "projects_all").unwrap();
     /*
     //snapshots_by_num_projects(&config, &log, &database).into_csv(path!("snapshots_by_projects")).unwrap();
     projects_by_unique_files(&config, &log, &database).into_csv(path!("projects_by_unique_files")).unwrap();

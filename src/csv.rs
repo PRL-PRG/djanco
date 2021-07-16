@@ -37,20 +37,23 @@ pub trait CSV<T>: Sized where T: CSVItem {
         self.into_csv_with_headers(T::column_headers(), location)
     }
     fn into_csv_in_dir(self, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
-        let location = dir.join(PathBuf::from(file.into()));
+        let mut location = dir.join(PathBuf::from(file.into()));
+        location.set_extension("csv");
         self.into_csv(location.into_os_string().to_str().unwrap())
     }
 
     fn into_extended_csv_with_headers(self, headers: Vec<&str>, location: impl Into<String>) -> Result<(), std::io::Error>;
     fn into_extended_csv_with_headers_in_dir(self, headers: Vec<&str>, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
-        let location = dir.join(PathBuf::from(file.into()));
+        let mut location = dir.join(PathBuf::from(file.into()));
+        location.set_extension("csv");
         self.into_extended_csv_with_headers(headers, location.into_os_string().to_str().unwrap())
     }
     fn into_extended_csv(self, location: impl Into<String>) -> Result<(), std::io::Error> {
         self.into_extended_csv_with_headers(T::column_headers_extended(), location)
     }
     fn into_extended_csv_in_dir(self, dir: &std::path::Path, file: impl Into<String>) -> Result<(), std::io::Error> {
-        let location = dir.join(PathBuf::from(file.into()));
+        let mut location = dir.join(PathBuf::from(file.into()));
+        location.set_extension("csv");
         self.into_extended_csv(location.into_os_string().to_str().unwrap())
     }
 }
@@ -101,7 +104,9 @@ pub trait CSVItem {
         row
     }
 
-    fn rows(&self) -> Vec<Vec<String>> { vec![self.row()] }
+    fn rows(&self) -> Vec<Vec<String>> { 
+        vec![self.row()] 
+    }
     fn rows_just_extended(&self) -> Vec<Vec<String>> { vec![self.row_just_extended()] }
     fn rows_extended(&self) -> Vec<Vec<String>> {
         let rows = self.rows();
@@ -508,31 +513,40 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
         vec![self.id().to_string(),
              self.substore().to_string_or_empty(),
              self.url(),
+
              self.is_fork().to_string_or_empty(),
              self.is_archived().to_string_or_empty(),
              self.is_disabled().to_string_or_empty(),
+
              self.star_count().to_string_or_empty(),
              self.watcher_count().to_string_or_empty(),
              self.size().to_string_or_empty(),
+
              self.open_issue_count().to_string_or_empty(),
              self.buggy_issue_count().to_string_or_empty(),
              self.combined_issue_count().to_string_or_empty(),
              self.issue_count().to_string_or_empty(),
+
              self.fork_count().to_string_or_empty(),
              self.subscriber_count().to_string_or_empty(),
+
              self.language().to_string_or_empty(),             
              self.lifetime().to_string_or_empty(),
+
              self.has_issues().to_string_or_empty(),
              self.has_downloads().to_string_or_empty(),
              self.has_wiki().to_string_or_empty(),
              self.has_pages().to_string_or_empty(),
+
              self.created().to_string_or_empty(),
              self.updated().to_string_or_empty(),
              self.pushed().to_string_or_empty(),
+
              self.default_branch().to_string_or_empty().escape_quotes().quoted(),
              self.license().to_string_or_empty().escape_quotes().quoted(),
              self.homepage().to_string_or_empty().escape_quotes().quoted(),
              self.description().to_string_or_empty().escape_quotes().quoted(),
+
              self.head_count().to_string_or_empty(),
              self.commit_count().to_string_or_empty(),
              self.author_count().to_string_or_empty(),
@@ -544,27 +558,33 @@ impl<'a> CSVItem for ItemWithData<'a, Project> {
     fn row_just_extended(&self) -> Vec<String> {        
         vec![self.path_count().to_string_or_empty(),
              self.snapshot_count().to_string_or_empty(),
-            //  self.combined_issue_count().to_string_or_empty(),
-            //  self.issue_count().to_string_or_empty(),
-            //  self.buggy_issue_count().to_string_or_empty(),
+             
              self.unique_files().to_string_or_empty(),
              self.original_files().to_string_or_empty(),
              self.impact().to_string_or_empty(),
+
              self.files().to_string_or_empty(),
+
              self.major_language().to_string_or_empty(),
              self.major_language_ratio().to_string_or_empty(),
              self.major_language_changes().to_string_or_empty(),
+
              self.all_forks_count().to_string_or_empty(),
+
              self.max_commit_delta().to_string_or_empty(),
              self.avg_commit_delta().to_string_or_empty(),
+
              self.time_since_first_commit().to_string_or_empty(),
              self.time_since_last_commit().to_string_or_empty(),
+
              self.is_abandoned().to_string_or_empty(),
              self.project_locs().to_string_or_empty(),
+
              self.duplicated_code().to_string_or_empty(),
              self.is_valid().to_string_or_empty(),
              self.project_max_experience().to_string_or_empty(),
              self.project_experience().to_string_or_empty(),
+
              self.authors_contributing_commits_count(95).to_string_or_empty(),
              self.authors_contributing_commits_count(80).to_string_or_empty(),
              self.authors_contributing_commits_count(50).to_string_or_empty(),

@@ -83,7 +83,7 @@ struct LanguageExtractor;
 impl MetadataFieldExtractor for LanguageExtractor {
     type Value = Language;
     fn get(&self, value: &JSON) -> Option<Self::Value> {
-        println!("language extraction form {:?}", value);
+        //println!("language extraction form {:?}", value);
         match value {
             JSON::String(s) => {
                 Language::from_str(s)

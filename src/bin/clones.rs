@@ -16,7 +16,7 @@ fn main() {
         Djanco::from_config(&config, timestamp!(December 2020), stores!(Generic), log.clone())
             .expect("Error initializing datastore.");
 
-
+    /*
     projects_all(&config, &log, &database).map(|project| {
         return (
             project.id(),
@@ -32,7 +32,7 @@ fn main() {
         &config.output_path,
         "projects_codedj_2_quick"
     ).unwrap();
-        
+    */    
 
 
     //projects_all(&config, &log, &database).into_extended_csv_in_dir(&config.output_path, "projects_all").unwrap();
@@ -42,7 +42,6 @@ fn main() {
     // variadic stuff rulez!!!!!!!!! 
     // but this helps the memory down
     // constructive comment: We split the table into multiple tables as the macros & traits required for the thing to be glued together properly are only defined up to certain length
-    /*
     projects_all(&config, &log, &database).map(|project| {
         return (
             project.id(),
@@ -113,7 +112,6 @@ fn main() {
         &config.output_path,
         "projects_codedj_2_d"
     ).unwrap();
-    */
     /*
     //snapshots_by_num_projects(&config, &log, &database).into_csv(path!("snapshots_by_projects")).unwrap();
     projects_by_unique_files(&config, &log, &database).into_csv(path!("projects_by_unique_files")).unwrap();

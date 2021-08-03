@@ -1243,6 +1243,14 @@ impl<'a, I> ContentsToFiles<ItemWithData<'a, Change>> for I where I: Iterator<It
     }
 }
 
+
+impl<'a> ContentsToFiles<ItemWithData<'a, Tree>> for ItemWithData<'a, Tree> {
+    fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error> {
+        create_dir_all(&dir)?;
+        self.changes_with_data().into_iter().into_files_in_dir(&dir)
+    }
+}
+
 impl<'a, I> ContentsToFiles<ItemWithData<'a, Tree>> for I where I: Iterator<Item=ItemWithData<'a, Tree>> {
     fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error> {
         let mut skipped_commits: Vec<CommitId> = Vec::new();
@@ -1275,7 +1283,6 @@ impl<'a, I> ContentsToFiles<ItemWithData<'a, Tree>> for I where I: Iterator<Item
         if skipped_count == 0 {
             return Ok(())
         }
-
 
         let mut skipped_path = PathBuf::from(dir);
         skipped_path.push("djanco-skipped-files.log");

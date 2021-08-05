@@ -107,9 +107,10 @@ fn main() {
             project.latest_update_time(),
             project.oldest_commit_with_data().map(|x| x.committer_timestamp()),
             project.newest_commit_with_data().map(|x| x.committer_timestamp()),
+            project.main_branch_commits_with_data().map(|x| x.len()),
         );        
     }).into_csv_with_headers_in_dir(
-        vec!["id", "paths", "snapshots","major_language_ratio", /*"all_forks",*/ "locs", "impact", "latestUpdateTime","oldestCommitTime","newestCommitTime"],
+        vec!["id", "paths", "snapshots","major_language_ratio", /*"all_forks",*/ "locs", "impact", "latestUpdateTime","oldestCommitTime","newestCommitTime", "mbrCommits"],
         &config.output_path,
         "projects_codedj_2_d"
     ).unwrap();

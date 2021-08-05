@@ -478,8 +478,19 @@ impl TripleMapExtractor for ProjectMainBranchCommitsExtractor {
     type C = BTreeMap<ProjectId, String>;
     fn extract(_: &Source, heads: &Self::A, commits: &Self::B, main_branches : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         heads.iter().filter_map(|(project_id, heads)| {
+            //println!("Analyzing project {}", project_id);
             if let Some(main_branch) = main_branches.get(project_id) {
-                if let Some(head) = heads.iter().filter(|head| &head.name() == main_branch ).next() {
+                let main_ref = format!("refs/heads/{}", main_branch);
+                //println!("    main branch: {}", main_branch);
+                if let Some(head) = heads.iter().filter(|head| {
+                    if head.name() != main_ref {
+                        //println!("    skipping branch {}", head.name());
+                        return false;
+                    } else {
+                        //println!("    FOUND {}", head.name());
+                        return true;
+                    }
+                }).next() {
                     return Some((* project_id, ProjectCommitsExtractor::commits_from_head(commits, & head.commit_id()).iter().map(|x| *x).collect::<Vec<_>>()));
                 }                
             }

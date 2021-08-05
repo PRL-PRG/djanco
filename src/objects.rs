@@ -989,6 +989,18 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.commits(&self.data).attach_data_to_each(self.data)
     }
+
+    pub fn main_branch_commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
+        self.item.main_branch_commits(&self.data).attach_data_to_each(self.data)
+    }
+
+    pub fn oldest_commit_with_data<'b>(&'b self) -> Option<ItemWithData<'a, Commit>> {
+        self.item.oldest_commit(&self.data).attach_data_to_inner(self.data)
+    }
+    pub fn newest_commit_with_data<'b>(&'b self) -> Option<ItemWithData<'a, Commit>> {
+        self.item.newest_commit(&self.data).attach_data_to_inner(self.data)
+    }
+
     pub fn authors_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, User>>> {
         self.item.authors(&self.data).attach_data_to_each(self.data)
     }

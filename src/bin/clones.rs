@@ -104,11 +104,12 @@ fn main() {
             //project.all_forks(),
             project.project_locs(),
             project.impact(),
-            project.time_since_last_commit(),
-
+            project.latest_update_time(),
+            project.oldest_commit_with_data().map(|x| x.committer_timestamp()),
+            project.newest_commit_with_data().map(|x| x.committer_timestamp()),
         );        
     }).into_csv_with_headers_in_dir(
-        vec!["id", "paths", "snapshots","major_language_ratio", /*"all_forks",*/ "locs", "impact", "lastCommit"],
+        vec!["id", "paths", "snapshots","major_language_ratio", /*"all_forks",*/ "locs", "impact", "latestUpdateTime","oldestCommitTime","newestCommitTime"],
         &config.output_path,
         "projects_codedj_2_d"
     ).unwrap();

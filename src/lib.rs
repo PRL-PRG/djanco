@@ -930,7 +930,7 @@ pub mod project {
     /* 
      * Returns the commits that belong to the main branch of this project. 
      */
-    impl_attribute![?..   objects::Project, MainBranchCommits, objects::Commit, main_branch_commits, main_branch_commit_count];
+    impl_attribute![?+..   objects::Project, MainBranchCommits, objects::Commit, main_branch_commits_with_data, main_branch_commit_count];
     /*
      * Returns the IDs of all the users who authored any commit in any of the branches of this project.
      */
@@ -1021,11 +1021,11 @@ pub mod project {
 
     /* Committer time of the oldest commit that belongs to the project.
      */
-    impl_attribute![?    objects::Project, OldestCommit, objects::Commit, oldest_commit];
+    impl_attribute![?+    objects::Project, OldestCommit, objects::Commit, oldest_commit_with_data];
 
     /* Committer time of the newest commit that belongs to the project.
      */
-    impl_attribute![?    objects::Project, NewestCommit, objects::Commit, newest_commit];
+    impl_attribute![?+    objects::Project, NewestCommit, objects::Commit, newest_commit_with_data];
 
     /* Newest time at which parasite checked the project, i.e. the time at which the stored information was obtained.
      */

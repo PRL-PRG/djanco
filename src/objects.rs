@@ -384,7 +384,11 @@ impl Project {
     pub fn heads            (&self, store: &Database)    -> Option<Vec<Head>>               { store.project_heads(&self.id)                  }
     pub fn head_count       (&self, store: &Database)    -> Option<usize>                   { self.heads(store).map(|v| v.len())             }
     pub fn commit_ids       (&self, store: &Database)    -> Option<Vec<CommitId>>           { store.project_commit_ids(&self.id)             }
-    pub fn commits          (&self, store: &Database)    -> Option<Vec<Commit>>             { store.project_commits(&self.id)                }
+    pub fn main_branch_commit_ids (&self, store: &Database) -> Option<Vec<CommitId>>        { store.project_main_branch_commit_ids(&self.id)             }
+    pub fn main_branch_commit_count (&self, store: &Database) -> Option<usize>              { store.project_main_branch_commit_count(&self.id)             }
+    pub fn main_branch_commits (&self, store: &Database) -> Option<Vec<Commit>>             { store.project_main_branch_commits(&self.id)             }
+    pub fn commits          (&self, store: &Database)    -> Option<Vec<Commit>>             { store.project_commits(&self.id)          
+                    }
     pub fn commit_count     (&self, store: &Database)    -> Option<usize>                   { store.project_commit_count(&self.id)           }
     pub fn author_ids       (&self, store: &Database)    -> Option<Vec<UserId>>             { store.project_author_ids(&self.id)             }
     pub fn authors          (&self, store: &Database)    -> Option<Vec<User>>               { store.project_authors(&self.id)                }
@@ -442,6 +446,9 @@ impl Project {
     pub fn avg_commit_delta    (&self, store: &Database)    -> Option<i64>                 { store.project_avg_commit_delta(&self.id)                 }
     pub fn time_since_last_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_last_commit(&self.id)  }
     pub fn time_since_first_commit      (&self, store: &Database)    -> Option<i64>          { store.project_time_since_first_commit(&self.id)}
+    pub fn oldest_commit           (&self, store: &Database) -> Option<Commit>            { store.project_oldest_commit(&self.id) }
+    pub fn newest_commit           (&self, store: &Database) -> Option<Commit>            { store.project_newest_commit(&self.id) }
+    pub fn latest_update_time           (&self, store: &Database) -> Option<i64>            { store.project_latest_update_time(&self.id) }
     pub fn is_abandoned      (&self, store: &Database)    -> Option<bool>                   { store.project_is_abandoned(&self.id)                    }
     pub fn project_locs      (&self, store: &Database)    -> Option<usize>                  { store.project_locs(&self.id)                    }
     pub fn duplicated_code      (&self, store: &Database)    -> Option<f64>                 { store.project_duplicated_code(&self.id)                 }
@@ -914,6 +921,9 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn heads            (&self)    -> Option<Vec<Head>>               { self.item.heads(&self.data)                  } // TODO test
     pub fn head_count       (&self)    -> Option<usize>                   { self.item.head_count(&self.data)             }
     pub fn commit_ids       (&self)    -> Option<Vec<CommitId>>           { self.item.commit_ids(&self.data)             } // TODO test
+    pub fn main_branch_commit_ids (&self) -> Option<Vec<CommitId>>        { self.item.main_branch_commit_ids(&self.data) }
+    pub fn main_branch_commit_count (&self) -> Option<usize>              { self.item.main_branch_commit_count(&self.data) }
+    pub fn main_branch_commits (&self) -> Option<Vec<Commit>>             { self.item.main_branch_commits(&self.data)    }
     pub fn commits          (&self)    -> Option<Vec<Commit>>             { self.item.commits(&self.data)                } // TODO test
     pub fn commit_count     (&self)    -> Option<usize>                   { self.item.commit_count(&self.data)           } // TODO test
     pub fn author_ids       (&self)    -> Option<Vec<UserId>>             { self.item.author_ids(&self.data)             } // TODO test
@@ -942,9 +952,12 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn default_branch   (&self)    -> Option<String>                  { self.item.default_branch(&self.data)            }
     pub fn max_commit_delta (&self) -> Option<i64>                        { self.item.max_commit_delta(&self.data) }
     pub fn project_experience (&self) -> Option<f64>                      { self.item.project_experience(&self.data) }
-    pub fn avg_commit_delta (&self)      -> Option<i64>                    { self.item.avg_commit_delta(&self.data) }
+    pub fn avg_commit_delta (&self)      -> Option<i64>                   { self.item.avg_commit_delta(&self.data) }
     pub fn time_since_last_commit (&self) -> Option<i64>                  { self.item.time_since_last_commit(&self.data) }
     pub fn time_since_first_commit (&self) -> Option<i64>                 { self.item.time_since_first_commit(&self.data) }
+    pub fn oldest_commit           (&self) -> Option<Commit>              { self.item.oldest_commit(&self.data) }
+    pub fn newest_commit           (&self) -> Option<Commit>              { self.item.newest_commit(&self.data) }
+    pub fn latest_update_time      (&self) -> Option<i64>                 { self.item.latest_update_time(&self.data) }
     pub fn is_abandoned (&self)        -> Option<bool>                    { self.item.is_abandoned(&self.data) }
     pub fn project_locs (&self)        -> Option<usize>                   { self.item.project_locs(&self.data) }
     pub fn duplicated_code (&self)        -> Option<f64>                  { self.item.duplicated_code(&self.data) }

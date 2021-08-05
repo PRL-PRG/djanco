@@ -86,6 +86,8 @@ quick_impl_countable!(PathId);
 quick_impl_countable!(SnapshotId);
 
 quick_impl_countable!((usize, ProjectId));
+quick_impl_countable!((CommitId, CommitId));
+
 
 //quick_impl_countable!(ChangeTuple);
 

@@ -34,7 +34,6 @@ fn main() {
     ).unwrap();
     */    
 
-
     //projects_all(&config, &log, &database).into_extended_csv_in_dir(&config.output_path, "projects_all").unwrap();
     // for lack of better names
     // for lack of better tools
@@ -102,13 +101,14 @@ fn main() {
             project.path_count(),
             project.snapshot_count(),
             project.major_language_ratio(),
-            project.all_forks(),
+            //project.all_forks(),
             project.project_locs(),
             project.impact(),
+            project.time_since_last_commit(),
 
         );        
     }).into_csv_with_headers_in_dir(
-        vec!["id", "paths", "snapshots","major_language_ratio", "all_forks", "locs", "impact"],
+        vec!["id", "paths", "snapshots","major_language_ratio", /*"all_forks",*/ "locs", "impact", "lastCommit"],
         &config.output_path,
         "projects_codedj_2_d"
     ).unwrap();

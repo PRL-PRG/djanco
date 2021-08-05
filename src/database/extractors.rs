@@ -144,26 +144,68 @@ impl TripleMapExtractor for TimeSinceLastCommitExtractor  {
     type C = BTreeMap<ProjectId, Timestamp>;
     fn extract(_source: &Source, project_commits: &Self::A, committed_timestamps: &Self::B, last_checkpoint: &Self::C) -> BTreeMap<Self::Key, Self::Value> {
         
-        project_commits.iter().flat_map(|(project_id, commit_ids)| {
-            let mut timestamps: Vec<Timestamp> = Vec::new();
-            for commit_id in commit_ids {
-                let committer_timestamp = committed_timestamps.get(&commit_id);
-                if let Some(timestamp) = committer_timestamp { timestamps.push(*timestamp) };
+        project_commits.iter().map(|(project_id, commit_ids)| {
+
+            if let Some(time_checked) = last_checkpoint.get(&project_id) {
+                if let Some(ts) = commit_ids.iter().filter_map(|cid| committed_timestamps.get(&cid)).max() {
+                    //println!("project {}, update: {}, last commit: {}", project_id, time_checked, ts);
+                    return (*project_id, time_checked - ts);
+                } 
             }
-            if timestamps.len() == 0 {
-                Some((project_id.clone(), 0))
-            }else{
-                timestamps.sort();
-                if let Some(now) = last_checkpoint.get(&project_id) {
-                    if *now > 0 {
-                        return Some((project_id.clone(), (*now) - timestamps[timestamps.len()-1]));
-                    }   
-                }   
-                Some((project_id.clone(), 0))
+            return (*project_id, 0);
+
+        }).collect()
+    }
+}
+
+pub(crate) struct OldestNewestCommitExtractor {}
+impl MapExtractor for OldestNewestCommitExtractor {
+    type Key = ProjectId;
+    type Value = (CommitId, CommitId);
+}
+
+impl DoubleMapExtractor for OldestNewestCommitExtractor {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, i64>;
+
+    fn extract(_source: &Source, project_commits : & Self::A, commit_committer_timestamps : &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_commits.iter().filter_map(|(project_id, commit_ids)| {
+            match commit_ids.iter().minmax_by_key(|x| commit_committer_timestamps.get(x)) {
+                MinMaxResult::NoElements => None,
+                MinMaxResult::OneElement(x) => Some((*project_id, (*x, *x))),
+                MinMaxResult::MinMax(min,max) => Some((*project_id, (*min, *max))),
             }
         }).collect()
     }
 }
+
+/*
+pub(crate) struct LastUpdateTimeExtractor {}
+impl MapExtractor for LastUpdateTimeExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+
+impl SingleMapExtractor for TimeSinceLastCommitExtractor  {
+    type A = BTreeMap<ProjectId, Vec<CommitId>>;
+    fn extract(_source: &Source, last_checkpoint: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
+        
+        project_commits.iter().filter_map(|(project_id, commit_ids)| last_checkpoint.get(&project_id)).collect()
+
+        /*
+            if let Some(time_checked) = last_checkpoint.get(&project_id) {
+                if let Some(ts) = commit_ids.iter().filter_map(|cid| committed_timestamps.get(&cid)).max() {
+                    //println!("project {}, update: {}, last commit: {}", project_id, time_checked, ts);
+                    return (*project_id, time_checked - ts);
+                } 
+            }
+            return (*project_id, 0);
+
+        }).collect()
+        */
+    }
+}
+*/
 
 
 pub(crate) struct TimeSinceFirstCommitExtractor {}
@@ -421,6 +463,27 @@ impl DoubleMapExtractor for ProjectCommitsExtractor {
              }).collect::<BTreeSet<CommitId>>())
         }).map(|(project_id, commits)| {
             (project_id, Vec::from_iter(commits.into_iter()))
+        }).collect()
+    }
+}
+
+pub(crate) struct ProjectMainBranchCommitsExtractor {}
+impl MapExtractor for ProjectMainBranchCommitsExtractor {
+    type Key = ProjectId;
+    type Value = Vec<CommitId>;
+}
+impl TripleMapExtractor for ProjectMainBranchCommitsExtractor {
+    type A = BTreeMap<ProjectId, Vec<Head>>;
+    type B = BTreeMap<CommitId, Commit>;
+    type C = BTreeMap<ProjectId, String>;
+    fn extract(_: &Source, heads: &Self::A, commits: &Self::B, main_branches : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        heads.iter().filter_map(|(project_id, heads)| {
+            if let Some(main_branch) = main_branches.get(project_id) {
+                if let Some(head) = heads.iter().filter(|head| &head.name() == main_branch ).next() {
+                    return Some((* project_id, ProjectCommitsExtractor::commits_from_head(commits, & head.commit_id()).iter().map(|x| *x).collect::<Vec<_>>()));
+                }                
+            }
+            return None;
         }).collect()
     }
 }
@@ -1315,12 +1378,12 @@ impl SingleMapExtractor for ProjectMajorLanguageChangesExtractor {
     }
 }
 
-pub(crate) struct ProjectLogsExtractor;
-impl MapExtractor for ProjectLogsExtractor {
+pub(crate) struct ProjectLatestUpdateTimeExtractor;
+impl MapExtractor for ProjectLatestUpdateTimeExtractor {
     type Key = ProjectId;
     type Value = i64;
 }
-impl SingleMapExtractor for ProjectLogsExtractor {
+impl SingleMapExtractor for ProjectLatestUpdateTimeExtractor {
     type A = BTreeMap<ProjectId, bool>;
     fn extract(source: &Source, project_is_valid: &Self::A) -> BTreeMap<Self::Key, Self::Value> {
         source.project_logs().map(|(project_id, logs)|{

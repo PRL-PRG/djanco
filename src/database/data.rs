@@ -27,6 +27,7 @@ pub(crate) struct Data {
     project_authors:             PersistentMap<ProjectAuthorsExtractor>,
     project_committers:          PersistentMap<ProjectCommittersExtractor>,
     project_commits:             PersistentMap<ProjectCommitsExtractor>,
+    project_main_branch_commits: PersistentMap<ProjectMainBranchCommitsExtractor>,
     project_lifetimes:           PersistentMap<ProjectLifetimesExtractor>,
 
     project_path_count:          PersistentMap<CountPerKeyExtractor<ProjectId, PathId>>,
@@ -35,6 +36,7 @@ pub(crate) struct Data {
     project_author_count:        PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_committer_count:     PersistentMap<CountPerKeyExtractor<ProjectId, UserId>>,
     project_commit_count:        PersistentMap<CountPerKeyExtractor<ProjectId, CommitId>>,
+    project_main_branch_commit_count: PersistentMap<CountPerKeyExtractor<ProjectId, CommitId>>,
 
     project_change_contributions:            PersistentMap<ProjectChangeContributionsExtractor>,
     project_commit_contributions:            PersistentMap<ProjectCommitContributionsExtractor>,
@@ -112,7 +114,7 @@ pub(crate) struct Data {
     commit_trees:                LazyMap<CommitTreeExtractor>,
 
     snapshot_projects :          PersistentMap<SnapshotProjectsExtractor>,
-
+    
     snapshot_has_contents :      PersistentMap<SnapshotHasContentsExtractor>,
 
     // TODO frequency of commits/regularity of commits
@@ -122,12 +124,13 @@ pub(crate) struct Data {
     avg_commit_delta:              PersistentMap<AvgCommitDeltaExtractor>,
     project_time_since_last_commit:       PersistentMap<TimeSinceLastCommitExtractor>,
     project_time_since_first_commit:       PersistentMap<TimeSinceFirstCommitExtractor>,
+    project_oldest_newest_commits:   PersistentMap<OldestNewestCommitExtractor>,
     is_abandoned:                 PersistentMap<IsAbandonedExtractor>,
     snapshot_locs:                PersistentMap<SnapshotLocsExtractor>,
     project_locs:                 PersistentMap<ProjectLocsExtractor>,
     duplicated_code:              PersistentMap<DuplicatedCodeExtractor>,
     project_is_valid:             PersistentMap<ProjectIsValidExtractor>,
-    project_logs:                 PersistentMap<ProjectLogsExtractor>,
+    project_latest_update_time:   PersistentMap<ProjectLatestUpdateTimeExtractor>,
     project_max_experience:       PersistentMap<ProjectMaxExperienceExtractor>,
     project_experience:           PersistentMap<ProjectExperienceExtractor>
 }
@@ -153,6 +156,8 @@ impl Data {
             project_committer_count:        PersistentMap::new(CACHE_FILE_PROJECT_COMMITTER_COUNT,        log.clone(),dir.clone()),
             project_commits:                PersistentMap::new(CACHE_FILE_PROJECT_COMMITS,                log.clone(),dir.clone()),
             project_commit_count:           PersistentMap::new(CACHE_FILE_PROJECT_COMMIT_COUNT,           log.clone(),dir.clone()),
+            project_main_branch_commits:    PersistentMap::new(CACHE_FILE_PROJECT_MAIN_BRANCH_COMMITS,    log.clone(),dir.clone()),
+            project_main_branch_commit_count: PersistentMap::new(CACHE_FILE_PROJECT_MAIN_BRANCH_COMMIT_COUNT, log.clone(),dir.clone()),
             project_lifetimes:              PersistentMap::new(CACHE_FILE_PROJECT_LIFETIME,               log.clone(),dir.clone()),
             project_issue_count:            PersistentMap::new(CACHE_FILE_PROJECT_ISSUE_COUNT,            log.clone(),dir.clone()),
             project_buggy_issue_count:      PersistentMap::new(CACHE_FILE_PROJECT_BUGGY_ISSUE_COUNT,      log.clone(),dir.clone()),
@@ -223,13 +228,14 @@ impl Data {
             avg_commit_delta:               PersistentMap::new(CACHE_FILE_AVG_COMMIT_DELTA, log.clone(), dir.clone()),
             project_time_since_last_commit: PersistentMap::new(CACHE_FILE_TIME_SINCE_LAST_COMMIT, log.clone(), dir.clone()),
             project_time_since_first_commit:PersistentMap::new(CACHE_FILE_TIME_SINCE_FIRST_COMMIT, log.clone(), dir.clone()),
+            project_oldest_newest_commits:  PersistentMap::new(CACHE_FILE_OLDEST_NEWEST_COMMITS, log.clone(), dir.clone()),
+            project_latest_update_time:     PersistentMap::new(CACHE_FILE_LATEST_UPDATE_TIME, log.clone(), dir.clone()),
             is_abandoned:                   PersistentMap::new(CACHE_FILE_IS_ABANDONED, log.clone(), dir.clone()),
             snapshot_locs:                  PersistentMap::new(CACHE_FILE_SNAPSHOT_LOCS, log.clone(), dir.clone()),
             snapshot_has_contents:          PersistentMap::new(CACHE_FILE_SNAPSHOT_HAS_CONTENTS, log.clone(), dir.clone()),
             project_locs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOCS, log.clone(), dir.clone()),
             duplicated_code:                PersistentMap::new(CACHE_FILE_DUPLICATED_CODE, log.clone(), dir.clone()),
             project_is_valid:               PersistentMap::new(CACHE_FILE_PROJECT_IS_VALID, log.clone(), dir.clone()),
-            project_logs:                   PersistentMap::new(CACHE_FILE_PROJECT_LOGS, log.clone(), dir.clone()),
             project_max_experience:         PersistentMap::new(CACHE_FILE_PROJECT_MAX_EXPERIENCE, log.clone(), dir.clone()),
             project_experience:             PersistentMap::new(CACHE_FILE_PROJECT_EXPERIENCE, log.clone(), dir.clone()),
             commit_trees:                   LazyMap::new(CACHE_COMMIT_TREES, log.clone(), dir.clone()),  
@@ -430,6 +436,21 @@ impl Data {
     pub fn project_commit_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<CommitId>> {
         self.smart_load_project_commits(source).get(id).pirate()
     }
+    pub fn project_main_branch_commit_ids(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<CommitId>> {
+        self.smart_load_project_main_branch_commits(source).get(id).pirate()
+    }
+
+    pub fn project_main_branch_commit_count(& mut self, id : &ProjectId, source: &Source) -> Option<usize> {
+        self.smart_load_project_main_branch_commit_count(source).get(id).pirate()
+    }
+
+    pub fn project_main_branch_commits(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Commit>> {
+        self.smart_load_project_main_branch_commits(source).get(id).pirate().map(|ids| {
+            ids.iter().flat_map(|id| self.commit(id, source)).collect()
+            // FIXME issue warnings in situations like these (when self.commit(id) fails etc.)
+        })
+    }
+
     pub fn project_commits(&mut self, id: &ProjectId, source: &Source) -> Option<Vec<Commit>> {
         self.smart_load_project_commits(source).get(id).pirate().map(|ids| {
             ids.iter().flat_map(|id| self.commit(id, source)).collect()
@@ -687,6 +708,23 @@ impl Data {
     pub fn project_time_since_first_commit(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_time_since_first_commit(source).get(id).pirate()
     }
+    pub fn project_oldest_commit(& mut self, id : &ProjectId, source : &Source) -> Option<Commit> {
+        if let Some((oldest, _newest)) = self.smart_load_project_oldest_newest_commits(source).get(id).pirate() {
+            self.commit(& oldest, source)
+        } else {
+            None
+        }
+    }
+    pub fn project_newest_commit(& mut self, id : &ProjectId, source : &Source) -> Option<Commit> {
+        if let Some((_oldest, newest)) = self.smart_load_project_oldest_newest_commits(source).get(id).pirate() {
+            self.commit(& newest, source)
+        } else {
+            None
+        }
+    }
+    pub fn project_latest_update_time(& mut self, id : &ProjectId, source: &Source) -> Option<i64> {
+        self.smart_load_project_latest_update_time(source).get(id).pirate()
+    }
     pub fn project_is_abandoned(&mut self, id: &ProjectId, source: &Source) -> Option<bool> {
         self.smart_load_project_is_abandoned(source).get(id).pirate()
     }
@@ -698,9 +736,6 @@ impl Data {
     }
     pub fn project_locs(&mut self, id: &ProjectId, source: &Source) -> Option<usize> {
         self.smart_load_project_locs(source).get(id).pirate()
-    }
-    pub fn project_logs(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
-        self.smart_load_project_logs(source).get(id).pirate()
     }
     pub fn project_duplicated_code(&mut self, id: &ProjectId, source: &Source) -> Option<f64> {
         self.smart_load_project_duplicated_code(source).get(id).pirate()
@@ -773,6 +808,9 @@ impl Data {
     fn smart_load_project_commits(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<CommitId>> {
         load_with_prerequisites!(self, project_commits, source, two, project_heads, commits)
     }
+    fn smart_load_project_main_branch_commits(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<CommitId>> {
+        load_with_prerequisites!(self, project_main_branch_commits, source, three, project_heads, commits, project_default_branch)
+    }
     fn smart_load_project_paths(&mut self, source: &Source) -> &BTreeMap<ProjectId, Vec<PathId>> {
         load_with_prerequisites!(self, project_paths, source, two, project_commits, commit_changes)
     }
@@ -796,6 +834,9 @@ impl Data {
     }
     fn smart_load_project_commit_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
         load_with_prerequisites!(self, project_commit_count, source, one, project_commits)
+    }
+    fn smart_load_project_main_branch_commit_count(&mut self, source: &Source) -> &BTreeMap<ProjectId, usize> {
+        load_with_prerequisites!(self, project_main_branch_commit_count, source, one, project_main_branch_commits)
     }
     fn smart_load_project_lifetimes(&mut self, source: &Source) -> &BTreeMap<ProjectId, u64> {
         load_with_prerequisites!(self, project_lifetimes, source, three, project_commits,
@@ -918,10 +959,16 @@ impl Data {
         load_with_prerequisites!(self, avg_commit_delta, source, two, project_commits, commit_committer_timestamps)
     }
     fn smart_load_project_time_since_last_commit(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
-        load_with_prerequisites!(self, project_time_since_last_commit, source, three, project_commits, commit_committer_timestamps, project_logs)
+        load_with_prerequisites!(self, project_time_since_last_commit, source, three, project_commits, commit_committer_timestamps, project_latest_update_time)
     }
     fn smart_load_project_time_since_first_commit(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
-        load_with_prerequisites!(self, project_time_since_first_commit, source, three, project_commits, commit_committer_timestamps, project_logs)
+        load_with_prerequisites!(self, project_time_since_first_commit, source, three, project_commits, commit_committer_timestamps, project_latest_update_time)
+    }
+    fn smart_load_project_oldest_newest_commits(& mut self, source: &Source) -> &BTreeMap<ProjectId, (CommitId, CommitId)> {
+        load_with_prerequisites!(self, project_oldest_newest_commits, source, two, project_commits, commit_committer_timestamps)
+    }
+    fn smart_load_project_latest_update_time(& mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, project_latest_update_time, source, one, project_is_valid)
     }
     fn smart_load_project_is_abandoned(&mut self, source: &Source) -> &BTreeMap<ProjectId, bool> {
         load_with_prerequisites!(self, is_abandoned, source, two, project_max_commit_delta, project_time_since_last_commit)
@@ -938,9 +985,6 @@ impl Data {
     }
     fn smart_load_project_duplicated_code(&mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
         load_with_prerequisites!(self, duplicated_code, source, three, project_commits,  commit_changes_with_contents, snapshot_projects)
-    }
-    fn smart_load_project_logs(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
-        load_with_prerequisites!(self, project_logs, source, one, project_is_valid)
     }
     fn smart_load_commit_languages(&mut self, source: &Source) -> &BTreeMap<CommitId, Vec<Language>> {
         load_with_prerequisites!(self, commit_languages, source, two, commit_changes, paths)

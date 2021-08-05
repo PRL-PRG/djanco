@@ -182,8 +182,11 @@ impl Database {
             #[append_args(&self.source)] pub fn project_url(&self, id: &ProjectId) -> Option<String>;
             #[append_args(&self.source)] pub fn project_heads(&self, id: &ProjectId) -> Option<Vec<Head>>;
             #[append_args(&self.source)] pub fn project_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>>;
+            #[append_args(&self.source)] pub fn project_main_branch_commit_ids(&self, id: &ProjectId) -> Option<Vec<CommitId>>;
+            #[append_args(&self.source)] pub fn project_main_branch_commits(&self, id: &ProjectId) -> Option<Vec<Commit>>;
             #[append_args(&self.source)] pub fn project_commits(&self, id: &ProjectId) -> Option<Vec<Commit>>;
             #[append_args(&self.source)] pub fn project_commit_count(&self, id: &ProjectId) -> Option<usize>;
+            #[append_args(&self.source)] pub fn project_main_branch_commit_count(&self, id: &ProjectId) -> Option<usize>;
             #[append_args(&self.source)] pub fn project_author_ids(&self, id: &ProjectId) -> Option<Vec<UserId>>;
             #[append_args(&self.source)] pub fn project_authors(&self, id: &ProjectId) -> Option<Vec<User>>;
             #[append_args(&self.source)] pub fn project_author_count(&self, id: &ProjectId) -> Option<usize>;
@@ -219,10 +222,12 @@ impl Database {
             #[append_args(&self.source)] pub fn project_avg_commit_delta(&self, id: &ProjectId) -> Option<i64>;
             #[append_args(&self.source)] pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64>;
             #[append_args(&self.source)] pub fn project_time_since_first_commit(&self, id: &ProjectId) -> Option<i64>;
+            #[append_args(&self.source)] pub fn project_oldest_commit(&self, id: &ProjectId) -> Option<Commit>;
+            #[append_args(&self.source)] pub fn project_newest_commit(&self, id: &ProjectId) -> Option<Commit>;
             #[append_args(&self.source)] pub fn project_is_abandoned(&self, id: &ProjectId) -> Option<bool>;
             #[append_args(&self.source)] pub fn project_locs(&self, id: &ProjectId) -> Option<usize>;
             #[append_args(&self.source)] pub fn project_duplicated_code(&self, id: &ProjectId) -> Option<f64>;
-            #[append_args(&self.source)] pub fn project_logs(&self, id : &ProjectId) -> Option<i64>;
+            #[append_args(&self.source)] pub fn project_latest_update_time(&self, id : &ProjectId) -> Option<i64>;
             #[append_args(&self.source)] pub fn project_is_valid(&self, id : &ProjectId) -> Option<bool>;
 
             // User/developer/author/committer attributes

@@ -922,6 +922,15 @@ pub mod project {
      */
     impl_attribute![?..   objects::Project, CommitIds, objects::CommitId, commit_ids, commit_count];
 
+    /* 
+     * Returns the IDs of all the commits in the main branch of this project.  
+     */
+    impl_attribute![?..   objects::Project, MainBranchCommitIds, objects::CommitId, main_branch_commit_ids, main_branch_commit_count];
+
+    /* 
+     * Returns the commits that belong to the main branch of this project. 
+     */
+    impl_attribute![?+..   objects::Project, MainBranchCommits, objects::Commit, main_branch_commits_with_data, main_branch_commit_count];
     /*
      * Returns the IDs of all the users who authored any commit in any of the branches of this project.
      */
@@ -997,14 +1006,30 @@ pub mod project {
     /*
      * Returns the time in seconds. It is the time passed between the last commit and the last time
      * parasite updated a given project. 
+     * 
+     * TODO should be removed? superseeded by NewestCommit & LatestUpdateTime
     */
     impl_attribute![?    objects::Project, TimeSinceLastCommit, i64, time_since_last_commit];
 
     /*
      * Returns the time in seconds. It is the time passed between the first commit and the last time
      * parasite updated a given project.
+     * 
+     * TODO should be removed? superseeded by OldestCommit & LatestUpdateTime
     */
     impl_attribute![?    objects::Project, TimeSinceFirstCommit, i64, time_since_first_commit];
+
+    /* Committer time of the oldest commit that belongs to the project.
+     */
+    impl_attribute![?+    objects::Project, OldestCommit, objects::Commit, oldest_commit_with_data];
+
+    /* Committer time of the newest commit that belongs to the project.
+     */
+    impl_attribute![?+    objects::Project, NewestCommit, objects::Commit, newest_commit_with_data];
+
+    /* Newest time at which parasite checked the project, i.e. the time at which the stored information was obtained.
+     */
+    impl_attribute![?    objects::Project, LatestUpdateTime, i64, latest_update_time];
 
     /*
      * If MaxCommitDelta is less than TimeSinceLastCommit then it returns true.
@@ -1179,6 +1204,7 @@ pub mod project {
        The tree is a mapping from path ids to snapshot ids. All paths are considered. Deleted files are not displayed.
      */
     impl_attribute![?..   objects::Project, HeadTrees, (String, Vec<(objects::PathId, objects::SnapshotId)>), head_trees, head_trees_count];
+
 }
 
 pub mod commit {

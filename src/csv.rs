@@ -1306,20 +1306,69 @@ impl<'a, I> ContentsToFiles<ItemWithData<'a, Tree>> for I where I: Iterator<Item
     }
 }
 
+impl<'a> ContentsToFiles<ItemWithData<'a, Snapshot>> for ItemWithData<'a, Snapshot> {
+    fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error> {
+        let mut file_path = PathBuf::from(dir);
+        file_path.push(format!("{}", self.id()));
+   
+        let mut file = OpenOptions::new()
+           .create(true)
+           .write(true)
+           .open(&file_path)?;
+           
+        let contents = self.contents_as_bytes();
+        if let Some(contents) = contents {
+            file.write_all(&contents)?
+        }
+
+        Ok(())
+    }
+}
+
+impl ContentsToFiles<Snapshot> for Snapshot {
+    fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error> {
+        let mut file_path = PathBuf::from(dir);
+        file_path.push(format!("{}", self.id()));
+   
+        let mut file = OpenOptions::new()
+           .create(true)
+           .write(true)
+           .open(&file_path)?;
+           
+        let contents = self.contents_as_bytes();
+        if let Some(contents) = contents {
+            file.write_all(&contents)?
+        }
+
+        Ok(())
+    }
+}
+
 impl<I, T> ContentsToFiles<T> for I where I: Iterator<Item=T>, T: Identifiable + FileWritable {
 
     fn into_files_in_dir(self, dir: &std::path::Path) -> Result<(), std::io::Error> {
         let dir = PathBuf::from(dir);
         create_dir_all(dir.clone())?;
+            //.with_context(|| format!("Error creating directory {:?}", dir))?;
 
         for item in self {
+            //print!("Item {}", item.id());
             if let Some(contents) = item.contents_as_bytes() {            
-                let mut file_path = dir.clone();
-                file_path.push(format!("{}", item.id()));
+                 let mut file_path = dir.clone();
+                 file_path.push(format!("{}", item.id()));
+
+                 //print!(" path={:?}", file_path);
             
-                let mut file = OpenOptions::new().write(true).open(file_path)?;
-                file.write_all(contents)?;
+                 let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .open(&file_path)?;
+                    //.with_context(|| format!("Error opening file {:?}", file_path))?;
+                    
+                 file.write_all(contents)?;
+                    //.with_context(|| format!("Error writing to file {:?}", file_path))?;
             }
+            //println!("");
         }
 
         Ok(())

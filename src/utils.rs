@@ -26,6 +26,9 @@ macro_rules! timed_query {
         let result = $method($database, $log, $output);
         let elapsed_secs = start.elapsed().as_secs();
         eprintln!("Finished query {} in {}s", name, elapsed_secs);
+        if let Err(error) = result.as_ref() {
+            eprintln!("ERROR: {}", error);
+        }
 
         let error = result.map_or_else(
             |error| { format!("\"{}\"", error) },

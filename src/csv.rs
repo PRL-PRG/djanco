@@ -201,7 +201,7 @@ macro_rules! impl_csv_item {
 
 macro_rules! impl_csv_item_quoted {
     ($type:ident, $header:expr) => {
-        impl_csv_item!($type, $header, |selfie: &$type| vec![selfie.quoted()]);
+        impl_csv_item!($type, $header, |selfie: &$type| vec![selfie.escape_quotes().quoted()]);
     }
 }
 

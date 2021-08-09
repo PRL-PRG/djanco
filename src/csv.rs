@@ -240,12 +240,12 @@ macro_rules! impl_csv_item_with_data_inner {
             fn row(&self) -> Vec<String> {
                 self.item.as_ref()
                     .map(|object| ItemWithData::new(self.data, object.clone()).row())
-                    .unwrap_or(vec![])
+                    .unwrap_or(vec![]) // FIXME! 
             }
             fn rows(&self) -> Vec<Vec<String>> {
                 self.item.as_ref()
                     .map(|object| ItemWithData::new(self.data, object.clone()).rows())
-                    .unwrap_or(vec![])
+                    .unwrap_or(vec![vec![]]) // FIXME!
             }
         }
     };
@@ -265,7 +265,7 @@ macro_rules! impl_csv_item_with_data_inner {
             fn row(&self) -> Vec<String> {
                 self.item.as_ref()
                     .map(|object| ItemWithData::new(self.data, object.clone()).row())
-                    .unwrap_or(vec![])
+                    .unwrap_or(vec![]) // FIXME!
             }
         }
     };
@@ -288,12 +288,12 @@ macro_rules! impl_csv_item_with_data_inner {
             fn row(&self) -> Vec<String> {
                 self.item.as_ref()
                     .map(|object| ItemWithData::new(self.data, object.clone()).row())
-                    .unwrap_or(vec![])
+                    .unwrap_or(vec![]) // FIXME!
             }
             fn rows(&self) -> Vec<Vec<String>> {
                 self.item.as_ref()
                     .map(|object| ItemWithData::new(self.data, object.clone()).rows())
-                    .unwrap_or(vec![])
+                    .unwrap_or(vec![vec![]])  // FIXME!
             }
         }
     }
@@ -352,10 +352,10 @@ macro_rules! impl_csv_item_tuple {
 impl<T> CSVItem for Option<T> where T: CSVItem {
     fn column_headers() -> Vec<&'static str> { T::column_headers() }
     fn row(&self) -> Vec<String> {
-        self.as_ref().map_or(vec![], |e| e.row())
+        self.as_ref().map_or(vec![String::new()], |e| e.row())  // FIXME!
     }
     fn rows(&self) -> Vec<Vec<String>> {
-        self.as_ref().map_or(vec![], |e| e.rows())
+        self.as_ref().map_or(vec![vec![String::new()]], |e| e.rows())  // FIXME!
     }
 }
 
@@ -1033,7 +1033,7 @@ pub trait Missing {
 
 impl<T> Missing for Option<T> where T: Display {
     fn to_string_or_empty(&self) -> String {
-        self.as_ref().map_or(String::new(), |e| e.to_string())
+        self.as_ref().map_or_else(String::new, |e| e.to_string())
     }
 }
 

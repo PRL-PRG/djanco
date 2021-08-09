@@ -18,14 +18,14 @@ fn combine_rows<T>(mut a: Vec<T>, mut b: Vec<T>) -> Vec<T> {
     combined
 }
 
-pub fn megaproduct<T>(mut vector_of_objects: Vec<Vec<Vec<T>>>) -> Vec<Vec<T>> where T: Clone {
+pub fn megaproduct<T>(vector_of_objects: Vec<Vec<Vec<T>>>) -> Vec<Vec<T>> where T: Clone {
     let number_of_objects = vector_of_objects.len();
     if number_of_objects == 0usize {
         return Vec::new()
     }
-    if number_of_objects == 1usize {
-        return vector_of_objects.pop().unwrap()
-    }
+    // if number_of_objects == 1usize {
+    //     return vector_of_objects.pop().unwrap()
+    // }
 
     // let number_of_items_from_each_object: Vec<usize> =
     //     vector_of_objects.iter().map(|v| v.len()).collect();

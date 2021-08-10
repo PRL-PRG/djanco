@@ -34,6 +34,7 @@ fn main() {
     ).unwrap();
     */    
 
+    /*
     //projects_all(&config, &log, &database).into_extended_csv_in_dir(&config.output_path, "projects_all").unwrap();
     // for lack of better names
     // for lack of better tools
@@ -95,13 +96,14 @@ fn main() {
         &config.output_path,
         "projects_codedj_2_c"
     ).unwrap();
+    */
     projects_all(&config, &log, &database).map(|project| {
         return (
             project.id(),
             project.path_count(),
             project.snapshot_count(),
             project.major_language_ratio(),
-            project.all_forks().map(|x| x.len()).unwrap_or(0),
+            project.all_forks_count().unwrap_or(0),
             project.project_locs(),
             project.impact(),
             project.latest_update_time(),

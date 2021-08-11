@@ -219,6 +219,7 @@ impl Database {
             #[append_args(&self.source)] pub fn project_max_commit_delta(&self, id: &ProjectId) -> Option<i64>;
             #[append_args(&self.source)] pub fn project_experience(&self, id: &ProjectId) -> Option<f64>;
             #[append_args(&self.source)] pub fn project_max_experience(&self, id: &ProjectId) -> Option<i32>;
+            #[append_args(&self.source)] pub fn project_max_user_lifetime(&self, id: &ProjectId) -> Option<i64>;
             #[append_args(&self.source)] pub fn project_avg_commit_delta(&self, id: &ProjectId) -> Option<i64>;
             #[append_args(&self.source)] pub fn project_time_since_last_commit(&self, id: &ProjectId) -> Option<i64>;
             #[append_args(&self.source)] pub fn project_time_since_first_commit(&self, id: &ProjectId) -> Option<i64>;
@@ -242,6 +243,7 @@ impl Database {
             #[append_args(&self.source)] pub fn user_authored_commit_count(&self, id: &UserId) -> Option<usize>;
             #[append_args(&self.source)] pub fn user_committed_commits(&self, id: &UserId) -> Option<Vec<Commit>>;
             #[append_args(&self.source)] pub fn developer_experience(&self, id: &UserId) -> Option<i32>;
+            #[append_args(&self.source)] pub fn user_lifetime(&self, id: &UserId) -> Option<(i64, i64)>;
 
             // File path attributes
             #[append_args(&self.source)] pub fn path(&self, id: &PathId) -> Option<Path>;

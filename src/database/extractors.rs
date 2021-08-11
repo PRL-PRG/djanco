@@ -74,6 +74,27 @@ impl DoubleMapExtractor for MaxCommitDeltaExtractor  {
     }
 }
 
+pub(crate) struct ProjectMaxUserLifetimeExtractor {
+}
+impl MapExtractor for ProjectMaxUserLifetimeExtractor {
+    type Key = ProjectId;
+    type Value = i64;
+}
+
+impl DoubleMapExtractor for ProjectMaxUserLifetimeExtractor  {
+    type A = BTreeMap<ProjectId, Vec<UserId>>;
+    type B = BTreeMap<UserId, (i64, i64)>;
+
+    fn extract(_: &Source, project_authors: &Self::A, user_lifetime: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_authors.iter().filter_map(|(project_id, author_ids)| {
+            match author_ids.iter().filter_map(|id| user_lifetime.get(id)).map(|(min, max)| max - min).max() {
+                Some(x) => Some((*project_id, x)),
+                None => None
+            }
+        }).collect()
+    }
+}
+
 pub(crate) struct ProjectMaxExperienceExtractor {}
 impl MapExtractor for ProjectMaxExperienceExtractor {
     type Key = ProjectId;
@@ -591,6 +612,27 @@ impl DoubleMapExtractor for UserExperienceExtractor  {
         }).collect()
     }
 }
+
+pub(crate) struct UserLifetimeExtractor {}
+impl MapExtractor for UserLifetimeExtractor {
+    type Key = UserId;
+    type Value = (i64, i64);
+}
+
+impl DoubleMapExtractor for UserLifetimeExtractor {
+    type A = BTreeMap<UserId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Timestamp>;
+    fn extract(_: &Source, user_commits: &Self::A, timestamps: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        user_commits.iter().filter_map(|(user_id, commits)| {
+            match commits.iter().filter_map(|x| timestamps.get(x)).minmax() {
+                MinMaxResult::NoElements => None,
+                MinMaxResult::OneElement(x) => Some((*user_id, (*x, *x))),
+                MinMaxResult::MinMax(min, max) => Some((*user_id, (*min, *max))),
+            }
+        }).collect()
+    }
+}
+
 
 pub(crate) struct DeveloperExperienceExtractor {}
 impl MapExtractor for DeveloperExperienceExtractor {

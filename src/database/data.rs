@@ -88,6 +88,7 @@ pub(crate) struct Data {
     user_committer_experience:   PersistentMap<UserExperienceExtractor>,
     user_experience:             PersistentMap<CombinedUserExperienceExtractor>,
     developer_experience:        PersistentMap<DeveloperExperienceExtractor>,
+    user_lifetime:               PersistentMap<UserLifetimeExtractor>,
 
     user_authored_commit_count:  PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
     user_committed_commit_count: PersistentMap<CountPerKeyExtractor<UserId, CommitId>>,
@@ -132,6 +133,7 @@ pub(crate) struct Data {
     project_is_valid:             PersistentMap<ProjectIsValidExtractor>,
     project_latest_update_time:   PersistentMap<ProjectLatestUpdateTimeExtractor>,
     project_max_experience:       PersistentMap<ProjectMaxExperienceExtractor>,
+    project_max_user_lifetime:    PersistentMap<ProjectMaxUserLifetimeExtractor>,
     project_experience:           PersistentMap<ProjectExperienceExtractor>
 }
 
@@ -208,6 +210,7 @@ impl Data {
             user_authored_commit_count:     PersistentMap::new(CACHE_FILE_USER_AUTHORED_COMMIT_COUNT,     log.clone(),dir.clone()),
             user_committed_commit_count:    PersistentMap::new(CACHE_FILE_USER_COMMITTED_COMMIT_COUNT,    log.clone(),dir.clone()),
             developer_experience:           PersistentMap::new(CACHE_FILE_DEVELOPER_EXPERIENCE,           log.clone(),dir.clone()),
+            user_lifetime:                  PersistentMap::new(CACHE_FILE_USER_LIFETIME,                  log.clone(),dir.clone()),
             paths:                          PersistentMap::new(CACHE_FILE_PATHS,                          log.clone(),dir.clone()).without_cache(),
             commits:                        PersistentMap::new(CACHE_FILE_COMMITS,                        log.clone(),dir.clone()),
             commit_hashes:                  PersistentMap::new(CACHE_FILE_COMMIT_HASHES,                  log.clone(),dir.clone()).without_cache(),
@@ -237,6 +240,7 @@ impl Data {
             duplicated_code:                PersistentMap::new(CACHE_FILE_DUPLICATED_CODE, log.clone(), dir.clone()),
             project_is_valid:               PersistentMap::new(CACHE_FILE_PROJECT_IS_VALID, log.clone(), dir.clone()),
             project_max_experience:         PersistentMap::new(CACHE_FILE_PROJECT_MAX_EXPERIENCE, log.clone(), dir.clone()),
+            project_max_user_lifetime:      PersistentMap::new(CACHE_FILE_PROJECT_MAX_USER_LIFETIME, log.clone(), dir.clone()),
             project_experience:             PersistentMap::new(CACHE_FILE_PROJECT_EXPERIENCE, log.clone(), dir.clone()),
             commit_trees:                   LazyMap::new(CACHE_COMMIT_TREES, log.clone(), dir.clone()),  
         }
@@ -690,12 +694,19 @@ impl Data {
     pub fn developer_experience(&mut self, id: &UserId, source: &Source) -> Option<i32> {
         self.smart_load_developer_experience(source).get(id).pirate()
     }
+    pub fn user_lifetime(& mut self, id: &UserId, source: &Source) -> Option<(i64,i64)> {
+        self.smart_load_user_lifetime(source).get(id).pirate()
+    }
     pub fn project_max_commit_delta(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
         self.smart_load_project_max_commit_delta(source).get(id).pirate()
     }
     pub fn project_max_experience(&mut self, id: &ProjectId, source: &Source) -> Option<i32> {
         self.smart_load_project_max_experience(source).get(id).pirate()
     }
+    pub fn project_max_user_lifetime(&mut self, id: &ProjectId, source: &Source) -> Option<i64> {
+        self.smart_load_project_max_user_lifetime(source).get(id).pirate()
+    }
+    
     pub fn project_experience(&mut self, id: &ProjectId, source: &Source) -> Option<f64> {
         self.smart_load_project_experience(source).get(id).pirate()
     }
@@ -913,6 +924,10 @@ impl Data {
     fn smart_load_developer_experience(&mut self, source: &Source) -> &BTreeMap<UserId, i32> {
         load_with_prerequisites!(self, developer_experience, source, two, user_authored_commits, commit_author_timestamps)
     }
+    fn smart_load_user_lifetime(& mut self, source: &Source) -> &BTreeMap<UserId, (i64, i64)> {
+        load_with_prerequisites!(self, user_lifetime, source, two, user_authored_commits, commit_author_timestamps)
+        
+    }
     fn smart_load_paths(&mut self, source: &Source) -> &BTreeMap<PathId, Path> {
         load_from_source!(self, paths, source)
     }
@@ -951,6 +966,9 @@ impl Data {
     }
     fn smart_load_project_max_experience(&mut self, source: &Source) -> &BTreeMap<ProjectId, i32> {
         load_with_prerequisites!(self, project_max_experience, source, two, project_authors, developer_experience)
+    }
+    fn smart_load_project_max_user_lifetime(&mut self, source: &Source) -> &BTreeMap<ProjectId, i64> {
+        load_with_prerequisites!(self, project_max_user_lifetime, source, two, project_authors, user_lifetime)
     }
     fn smart_load_project_experience(&mut self, source: &Source) -> &BTreeMap<ProjectId, f64> {
         load_with_prerequisites!(self, project_experience, source, three, developer_experience, project_commits, commits)

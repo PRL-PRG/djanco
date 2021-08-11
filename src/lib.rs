@@ -1048,6 +1048,12 @@ pub mod project {
     */
     impl_attribute![?    objects::Project, MaxExperience, i32, project_max_experience];
 
+    /* Returns the longest lifetime of a user contributing to the project. 
+
+       User lifetime is calculated as the distance between the oldest and youngest commits ever committed by them. 
+     */
+    impl_attribute![?    objects::Project, MaxUserLifetime, i64, max_user_lifetime];
+
     /*
      * Return a single number. Let DE be a number that describes some developer's experience,
      * DC the number of commits of a given developer, and PC the total sum of commits of a given project.
@@ -1307,6 +1313,10 @@ pub mod user {
     impl_attribute![?+.. objects::User, AuthoredCommits, objects::Commit, authored_commits_with_data, authored_commit_count];
     impl_attribute![?+.. objects::User, CommittedCommits, objects::Commit, committed_commits_with_data, committed_commit_count];
     impl_attribute![?    objects::User, DeveloperExperience, i32, developer_experience];
+
+    /* The min and max of commit times of commits where the user is a committer.
+     */
+    impl_attribute![?    objects::User, Lifetime, (i64, i64), lifetime];
 }
 
 pub mod path {

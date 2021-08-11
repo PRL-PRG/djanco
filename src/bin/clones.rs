@@ -96,7 +96,6 @@ fn main() {
         &config.output_path,
         "projects_codedj_2_c"
     ).unwrap();
-    */
     projects_all(&config, &log, &database).map(|project| {
         return (
             project.id(),
@@ -115,6 +114,17 @@ fn main() {
         vec!["id", "paths", "snapshots","major_language_ratio", "all_forks", "locs", "impact", "latestUpdateTime","oldestCommitTime","newestCommitTime", "mbrCommits"],
         &config.output_path,
         "projects_codedj_2_d"
+    ).unwrap();
+    */
+    projects_all(&config, &log, &database).map(|project| {
+        return (
+            project.id(),
+            project.max_user_lifetime(),
+        );        
+    }).into_csv_with_headers_in_dir(
+        vec!["id", "max_user_lifetime"],
+        &config.output_path,
+        "projects_codedj_2_e"
     ).unwrap();
     /*
     //snapshots_by_num_projects(&config, &log, &database).into_csv(path!("snapshots_by_projects")).unwrap();

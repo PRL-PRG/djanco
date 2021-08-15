@@ -120,9 +120,11 @@ fn main() {
         return (
             project.id(),
             project.max_user_lifetime(),
+            project.max_h_index1(),
+            project.max_h_index2(),
         );        
     }).into_csv_with_headers_in_dir(
-        vec!["id", "max_user_lifetime"],
+        vec!["id", "max_user_lifetime", "max_hindex1", "max_hindex2"],
         &config.output_path,
         "projects_codedj_2_e"
     ).unwrap();

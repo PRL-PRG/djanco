@@ -457,6 +457,8 @@ impl Project {
     pub fn all_forks_count  (&self, store: &Database) -> Option<usize>                      { store.project_all_forks_count(&self.id)         }
     pub fn project_max_experience  (&self, store: &Database) -> Option<i32>                      { store.project_max_experience(&self.id)     }
     pub fn max_user_lifetime  (&self, store: &Database) -> Option<i64>                      { store.project_max_user_lifetime(&self.id)     }
+    pub fn max_h_index1       (&self, store: &Database) -> Option<u64>                      { store.project_max_h_index1(&self.id) }
+    pub fn max_h_index2       (&self, store: &Database) -> Option<u64>                      { store.project_max_h_index2(&self.id) }
     pub fn head_trees   (&self, store: &Database) -> Option<Vec<(String, Vec<(PathId, SnapshotId)>)>> {
         store.project_head_trees(&self.id)
     }    
@@ -531,6 +533,10 @@ impl User {
     pub fn experience            (&self, store: &Database)   -> Option<Duration>      { store.user_experience(&self.id)                    }
     pub fn developer_experience  (&self, store: &Database)   -> Option<i32>           { store.developer_experience(&self.id)          }
     pub fn lifetime              (&self, store: &Database)   -> Option<(i64,i64)>     { store.user_lifetime(&self.id) }
+    pub fn h_index1               (&self, store: &Database)   -> Option<u64>           { store.user_h_index1(&self.id)  }
+    pub fn h_index2               (&self, store: &Database)   -> Option<u64>           { store.user_h_index2(&self.id)  }
+    pub fn project_ids           (&self, store: &Database)   -> Option<Vec<ProjectId>> { store.user_project_ids(&self.id) }
+    pub fn project_ids_count     (&self, store: &Database)   -> Option<usize>         { store.user_project_ids_count(&self.id) }
 }
 impl Identifiable for User {
     type Identity = UserId;
@@ -967,6 +973,8 @@ impl<'a> ItemWithData<'a, Project> {
     pub fn is_valid   (&self)    -> Option<bool>                          { self.item.is_valid(&self.data)     }
     pub fn project_max_experience   (&self)    -> Option<i32>             { self.item.project_max_experience(&self.data)     }
     pub fn max_user_lifetime   (&self)    -> Option<i64>             { self.item.max_user_lifetime(&self.data)     }
+    pub fn max_h_index1        (&self)    -> Option<u64>             { self.item.max_h_index1(&self.data)          }
+    pub fn max_h_index2        (&self)    -> Option<u64>             { self.item.max_h_index2(&self.data)          }
 
     pub fn change_contributions(&self)            -> Option<Vec<(User, usize)>>   { self.item.change_contributions(self.data)    }
     pub fn commit_contributions(&self)            -> Option<Vec<(User, usize)>>   { self.item.commit_contributions(self.data)    }
@@ -1092,6 +1100,10 @@ impl<'a> ItemWithData<'a, User> {
     pub fn experience            (&self)   -> Option<Duration>      { self.item.experience(&self.data)             }
     pub fn developer_experience  (&self)   -> Option<i32>           { self.item.developer_experience(&self.data)   }
     pub fn lifetime              (&self)   -> Option<(i64,i64)>     { self.item.lifetime(&self.data)               }
+    pub fn h_index1               (&self)   -> Option<u64>           { self.item.h_index1(&self.data)                } 
+    pub fn h_index2               (&self)   -> Option<u64>           { self.item.h_index2(&self.data)                } 
+    pub fn project_ids           (&self)   -> Option<Vec<ProjectId>> { self.item.project_ids(&self.data)           }
+    pub fn project_ids_count     (&self)   -> Option<usize>         { self.item.project_ids_count(&self.data)      }
 
     pub fn authored_commits_with_data<'b>(&'b self) -> Option<Vec<ItemWithData<'a, Commit>>> {
         self.item.authored_commits(&self.data).attach_data_to_each(self.data)

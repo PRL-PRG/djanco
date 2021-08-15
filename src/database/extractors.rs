@@ -74,8 +74,7 @@ impl DoubleMapExtractor for MaxCommitDeltaExtractor  {
     }
 }
 
-pub(crate) struct ProjectMaxUserLifetimeExtractor {
-}
+pub(crate) struct ProjectMaxUserLifetimeExtractor { }
 impl MapExtractor for ProjectMaxUserLifetimeExtractor {
     type Key = ProjectId;
     type Value = i64;
@@ -94,6 +93,47 @@ impl DoubleMapExtractor for ProjectMaxUserLifetimeExtractor  {
         }).collect()
     }
 }
+
+pub(crate) struct ProjectMaxHIndex1 { }
+impl MapExtractor for ProjectMaxHIndex1 {
+    type Key = ProjectId;
+    type Value = u64;
+}
+
+impl DoubleMapExtractor for ProjectMaxHIndex1  {
+    type A = BTreeMap<ProjectId, Vec<UserId>>;
+    type B = BTreeMap<UserId, u64>;
+
+    fn extract(_: &Source, project_authors: &Self::A, user_hindex1: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_authors.iter().filter_map(|(project_id, author_ids)| {
+            match author_ids.iter().filter_map(|id| user_hindex1.get(id)).max() {
+                Some(x) => Some((*project_id, *x)),
+                None => None
+            }
+        }).collect()
+    }
+}
+
+pub(crate) struct ProjectMaxHIndex2 { }
+impl MapExtractor for ProjectMaxHIndex2 {
+    type Key = ProjectId;
+    type Value = u64;
+}
+
+impl DoubleMapExtractor for ProjectMaxHIndex2  {
+    type A = BTreeMap<ProjectId, Vec<UserId>>;
+    type B = BTreeMap<UserId, u64>;
+
+    fn extract(_: &Source, project_authors: &Self::A, user_hindex2: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        project_authors.iter().filter_map(|(project_id, author_ids)| {
+            match author_ids.iter().filter_map(|id| user_hindex2.get(id)).max() {
+                Some(x) => Some((*project_id, *x)),
+                None => None
+            }
+        }).collect()
+    }
+}
+
 
 pub(crate) struct ProjectMaxExperienceExtractor {}
 impl MapExtractor for ProjectMaxExperienceExtractor {
@@ -609,6 +649,113 @@ impl DoubleMapExtractor for UserExperienceExtractor  {
                 MinMaxResult::OneElement(_) => Some((user_id.clone(), 0)),
                 MinMaxResult::MinMax(min, max) => Some((user_id.clone(), (max - min) as u64)),
             }
+        }).collect()
+    }
+}
+
+pub(crate) struct UserHIndex1Extractor {}
+impl MapExtractor for UserHIndex1Extractor {
+    type Key = UserId;
+    type Value = u64;
+}
+
+impl TripleMapExtractor for UserHIndex1Extractor {
+    type A = BTreeMap<UserId, Vec<ProjectId>>;
+    type B = BTreeMap<ProjectId, Vec<CommitId>>;
+    type C = BTreeMap<UserId, Vec<CommitId>>;
+    fn extract(_: &Source, user_projects: &Self::A, project_commits: &Self::B, user_commits : &Self::C) -> BTreeMap<Self::Key, Self::Value> {
+        user_projects.iter().filter_map(|(user_id, projects)| {
+            // get the user commits and convert them to a set for faster searching
+            if let Some(this_user_commits) = user_commits.get(user_id).map(|x| x.iter().collect::<BTreeSet<_>>()) {
+                let mut own_commits:Vec<u64> = projects.iter().filter_map(|project_id| 
+                    project_commits.get(project_id)
+                ).map(
+                    |x| x.iter().filter(|x| this_user_commits.contains(x)).count() as u64
+                ).collect();
+                // we have list of own commits for the project, sort it by descending order
+                own_commits.sort_by(|a, b| b.cmp(a));
+                // and determine the appropriate N
+                let mut result:u64 = 0;
+                for n in own_commits {
+                    if n >= result {
+                        result += 1;
+                    } else {
+                        break;
+                    }
+                }
+                return Some((*user_id, result));
+            } 
+            return None;
+        }).collect()
+    }
+}
+
+pub(crate) struct UserHIndex2Extractor {}
+impl MapExtractor for UserHIndex2Extractor {
+    type Key = UserId;
+    type Value = u64;
+}
+impl QuadrupleMapExtractor for UserHIndex2Extractor {
+    type A = BTreeMap<UserId, Vec<ProjectId>>;
+    type B = BTreeMap<ProjectId, Vec<CommitId>>;
+    type C = BTreeMap<UserId, Vec<CommitId>>;
+    type D = BTreeMap<ProjectId, usize>;
+    fn extract(_: &Source, user_projects: &Self::A, project_commits: &Self::B, user_commits : &Self::C, project_user_count: &Self::D) -> BTreeMap<Self::Key, Self::Value> {
+        user_projects.iter().filter_map(|(user_id, projects)| {
+            // get the user commits and convert them to a set for faster searching
+            if let Some(this_user_commits) = user_commits.get(user_id).map(|x| x.iter().collect::<BTreeSet<_>>()) {
+                let mut own_commits:Vec<u64> = projects.iter().filter_map(|project_id| {
+                    // for each project get (commits in the projects, number of users in the project)
+                    if let Some(users) = project_user_count.get(project_id) {
+                        if let Some(commits) = project_commits.get(project_id) {
+                            return Some((commits, users));
+                        }
+                    }
+                    return None;
+                }).map(
+                    |(x, users)| {
+                        // filter commits of the projects to keep only those authored by current user
+                        let commits = x.iter().filter(|x| this_user_commits.contains(x)).count() as u64;
+                        // and return either the number of commits, or the number of users in the project, whichever is smaller
+                        std::cmp::min(*users as u64, commits)
+                    }
+                ).collect();
+                // we have list of own commits for the project, sort it by descending order
+                own_commits.sort_by(|a, b| b.cmp(a));
+                // and determine the appropriate N
+                let mut result:u64 = 0;
+                for n in own_commits {
+                    if n >= result {
+                        result += 1;
+                    } else {
+                        break;
+                    }
+                }
+                return Some((*user_id, result));
+            } 
+            return None;
+        }).collect()
+    }
+}
+
+pub(crate) struct UserProjectIdsExtractor {} 
+impl MapExtractor for UserProjectIdsExtractor {
+    type Key = UserId;
+    type Value = Vec<ProjectId>;
+}
+
+impl DoubleMapExtractor for UserProjectIdsExtractor {
+    type A = BTreeMap<UserId, Vec<CommitId>>;
+    type B = BTreeMap<CommitId, Vec<ProjectId>>;
+    fn extract(_: &Source, user_commits: &Self::A, commit_projects: &Self::B) -> BTreeMap<Self::Key, Self::Value> {
+        user_commits.iter().filter_map(|(user_id, commits)| {
+            let mut projects = BTreeSet::<ProjectId>::new();
+            for commit_id in commits {
+                if let Some(cprojs) = commit_projects.get(commit_id) {
+                    projects.extend(cprojs.iter())
+                }
+            }
+            Some((*user_id, projects.into_iter().collect::<Vec<_>>()))
         }).collect()
     }
 }

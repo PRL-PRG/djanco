@@ -1054,6 +1054,14 @@ pub mod project {
      */
     impl_attribute![?    objects::Project, MaxUserLifetime, i64, max_user_lifetime];
 
+    /* Max HIndex1 for all users in the project. See the details in user's hindex 1 description.
+     */
+    impl_attribute![?    objects::Project, MaxHIndex1, u64, max_h_index1];
+
+    /* Max HIndex2 for all users in the project. See the details in user's hindex 2 description.
+     */
+    impl_attribute![?    objects::Project, MaxHIndex2, u64, max_h_index2];
+
     /*
      * Return a single number. Let DE be a number that describes some developer's experience,
      * DC the number of commits of a given developer, and PC the total sum of commits of a given project.
@@ -1317,6 +1325,20 @@ pub mod user {
     /* The min and max of commit times of commits where the user is a committer.
      */
     impl_attribute![?    objects::User, Lifetime, (i64, i64), lifetime];
+
+    /* H-Index of a user is the largest N such that:
+     
+        - the user committed at least N distinct commits to at least N projects (h_index1) 
+        - the user committed at least N distinct commits to at least N projects where each of the projects has at least N developers (h_index2)
+
+        The commits are distinct by their SHA. 
+     */
+    impl_attribute![?    objects::User, HIndex1, u64, h_index1];
+    impl_attribute![?    objects::User, HIndex2, u64, h_index2];
+    
+    /* Ids of all projects the user contributes to (at least one authored commit)
+     */
+    impl_attribute![?..  objects::User, ProjectIds, objects::ProjectId, project_ids, project_ids_count];
 }
 
 pub mod path {

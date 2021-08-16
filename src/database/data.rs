@@ -116,6 +116,7 @@ pub(crate) struct Data {
     commit_languages:            PersistentMap<CommitLanguagesExtractor>,
     commit_languages_count:      PersistentMap<CountPerKeyExtractor<CommitId, Language>>,
 
+    commit_preceding_commits:    LazyMap<CommitPrecedingCommitExtractor>,
     commit_trees:                LazyMap<CommitTreeExtractor>,
 
     snapshot_projects :          PersistentMap<SnapshotProjectsExtractor>,
@@ -255,6 +256,7 @@ impl Data {
             project_max_user_lifetime:      PersistentMap::new(CACHE_FILE_PROJECT_MAX_USER_LIFETIME, log.clone(), dir.clone()),
             project_experience:             PersistentMap::new(CACHE_FILE_PROJECT_EXPERIENCE, log.clone(), dir.clone()),
             commit_trees:                   LazyMap::new(CACHE_COMMIT_TREES, log.clone(), dir.clone()),  
+            commit_preceding_commits:       LazyMap::new(CACHE_COMMIT_PRECEDING_COMMITS, log.clone(), dir.clone()),  
         }
     }
 }
@@ -651,6 +653,19 @@ impl Data {
     }
     pub fn commit_languages(&mut self, id: &CommitId, source: &Source) -> Option<Vec<Language>> {
         self.smart_load_commit_languages(source).get(id).pirate()   
+    }
+    pub fn commit_preceding_commit_ids(&mut self, id: &CommitId, source: &Source) -> Vec<CommitId> {
+        if let Some(value) = self.commit_preceding_commits.get_if_loaded(id.clone()) {
+            return value.clone()
+        }
+
+        self.smart_load_commits(source);
+        self.commit_preceding_commits.get_one(*id, source, self.commits.grab_collection()).clone()
+    }
+    pub fn commit_preceding_commits(&mut self, id: &CommitId, source: &Source) -> Vec<Commit> {
+        self.commit_preceding_commit_ids(id, source).iter()
+            .flat_map(|id| self.commit(id, source))
+            .collect() 
     }
     pub fn commit_trees(&mut self, id: &CommitId, source: &Source) -> Tree {
         // TODO what would be a good way to make commit_trees usable from other loaders?

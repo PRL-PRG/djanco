@@ -478,6 +478,16 @@ impl Head {
     pub fn name(&self) -> String { self.name.to_string() }
     pub fn commit_id(&self) -> CommitId { self.commit.clone() }
     pub fn commit(&self, store: &Database) -> Option<Commit> { store.commit(&self.commit) }
+
+    pub fn commit_ids(&self, store: &Database) -> Vec<CommitId> {
+        store.commit_preceding_commit_ids(&self.commit)
+    }
+    pub fn commits(&self, store: &Database) -> Vec<Commit> {
+        store.commit_preceding_commits(&self.commit)
+    }
+    pub fn commit_count(&self, store: &Database) -> usize {
+        store.commit_preceding_commit_ids(&self.commit).len()
+    }
 }
 
 impl From<(CommitId, String)> for Head {
@@ -604,6 +614,17 @@ impl Commit {
     pub fn changed_path_count  (&self, store: &Database) -> Option<usize>                     {  store.commit_changed_path_count(&self.id)          }
     pub fn changed_snapshots   (&self, store: &Database) -> Option<Vec<Snapshot>>             {  self.changed_snapshot_ids(store).reify(store)      }
     pub fn changed_snapshot_count (&self, store: &Database) -> Option<usize>                  {  self.changed_snapshot_ids(store).map(|v| v.len() ) }
+
+
+    pub fn preceding_commit_ids(&self, store: &Database) -> Vec<CommitId> {
+        store.commit_preceding_commit_ids(&self.id)
+    }
+    pub fn preceding_commits(&self, store: &Database) -> Vec<Commit> {
+        store.commit_preceding_commits(&self.id)
+    }
+    pub fn preceding_commit_count(&self, store: &Database) -> usize {
+        store.commit_preceding_commit_ids(&self.id).len()
+    }
 
     pub fn projects(& self, store: &Database) -> Option<Vec<Project>> {
         store.commit_projects(&self.id)
@@ -1169,6 +1190,19 @@ impl<'a> ItemWithData<'a, Commit> {
     pub fn languages(&self) -> Option<Vec<Language>> { self.item.languages(&self.data) }
     pub fn languages_count(& self) -> Option<usize> { self.item.languages_count(& self.data) }
 
+
+    pub fn preceding_commit_ids(&self) -> Vec<CommitId> {
+        self.item.preceding_commit_ids(&self.data)
+    }
+    pub fn preceding_commits(&self) -> Vec<Commit> {
+        self.item.preceding_commits(&self.data)
+    }
+    pub fn preceding_commits_with_data<'b> (&'b self) -> Vec<ItemWithData<'a, Commit>> {
+        self.item.preceding_commits(&self.data).attach_data_to_each(self.data)
+    }
+    pub fn preceding_commit_count(&self) -> usize {
+        self.item.preceding_commit_count(&self.data)
+    }
 }
 impl<'a> ItemWithData<'a, Path> {
     pub fn id      (&self) -> PathId           { self.item.id()       }
@@ -1183,6 +1217,19 @@ impl<'a> ItemWithData<'a, Head> {
 
     pub fn commit_with_data<'b> (&'b self) -> Option<ItemWithData<'a, Commit>> {
         self.item.commit(self.data).attach_data_to_inner(self.data)
+    }
+
+    pub fn commit_ids(&self) -> Vec<CommitId> {
+        self.item.commit_ids(&self.data)
+    }
+    pub fn commits(&self) -> Vec<Commit> {
+        self.item.commits(&self.data)
+    }
+    pub fn commits_with_data<'b> (&'b self) -> Vec<ItemWithData<'a, Commit>> {
+        self.item.commits(&self.data).attach_data_to_each(self.data)
+    }
+    pub fn commit_count(&self) -> usize {
+        self.item.commit_count(&self.data)
     }
 }
 

@@ -1266,17 +1266,29 @@ pub mod commit {
      * The list of all languages in a commit.
      */
     impl_attribute![?..  objects::Commit, Languages, objects::Language, languages, languages_count];
+
+    /*
+     * All commit ids that are the ancestors of this commit in the commit graph. I.e. all the commits in the branch if this commit is the head of that branch.
+     */ 
+    impl_attribute![!..  objects::Commit, PrecedingCommitIds, objects::CommitId, preceding_commit_ids, preceding_commit_count];
+
+    /*
+     * All commit ids that are the ancestors of this commit in the commit graph. I.e. all the commits in the branch if this commit is the head of that branch.
+     */
+    impl_attribute![!+.. objects::Commit, PrecedingCommits, objects::Commit, preceding_commits_with_data, preceding_commit_count];
 }
 
 pub mod head {
     use crate::objects;
     use crate::attrib::*;
 
-    impl_attribute![!+  objects::Head, Itself];
-    impl_attribute![!   objects::Head, Raw];
-    impl_attribute![!   objects::Head, Name, String, name];
-    impl_attribute![!   objects::Head, CommitId, objects::CommitId, commit_id];
-    impl_attribute![?+  objects::Head, Commit, objects::Commit, commit_with_data];
+    impl_attribute![!+   objects::Head, Itself];
+    impl_attribute![!    objects::Head, Raw];
+    impl_attribute![!    objects::Head, Name, String, name];
+    impl_attribute![!    objects::Head, CommitId, objects::CommitId, commit_id];
+    impl_attribute![?+   objects::Head, Commit, objects::Commit, commit_with_data];
+    impl_attribute![!..  objects::Head, CommitIds, objects::CommitId, commit_ids, commit_count];
+    impl_attribute![!+.. objects::Head, Commits, objects::Commit, commits_with_data, commit_count];
 }
 
 pub mod change {

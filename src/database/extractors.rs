@@ -10,7 +10,7 @@ use crate::piracy::*;
 use crate::weights_and_measures::{Weighed};
 use crate::{Store, Percentage, Timestamp};
 
-use super::lazy::{DoubleItemExtractor, ItemExtractor};
+use super::lazy::{DoubleItemExtractor, ItemExtractor, SingleItemExtractor};
 use super::source::Source;
 use super::persistent::*;
 
@@ -1171,7 +1171,6 @@ impl SingleMapExtractor for CommitProjectsExtractor {
     }
 }
 
-
 pub(crate) struct CommitLanguagesExtractor {}
 impl MapExtractor for CommitLanguagesExtractor {
     type Key = CommitId;
@@ -1718,6 +1717,22 @@ impl TripleMapExtractor for ProjectExperienceExtractor {
             }
             (project_id.clone(), result/total_commits)
         }).collect()
+    }
+}
+
+pub(crate) struct CommitPrecedingCommitExtractor {}
+
+impl ItemExtractor for CommitPrecedingCommitExtractor  {
+    type Key = CommitId;
+    type Value = Vec<CommitId>;
+}
+
+impl SingleItemExtractor for CommitPrecedingCommitExtractor {
+    type A = BTreeMap<CommitId, Commit>;
+
+    fn extract(commit_id: Self::Key, _source: &Source, commits: &Self::A) -> Self::Value {
+        ProjectCommitsExtractor::commits_from_head(commits, &commit_id)
+            .into_iter().collect()        
     }
 }
 

@@ -103,3 +103,4 @@ pub static CACHE_FILE_PROJECT_MAX_HINDEX2:            &'static str = "project_ma
 pub static CACHE_FILE_PROJECT_MAX_USER_LIFETIME:      &'static str = "project_max_user_lifetime";
 pub static CACHE_FILE_PROJECT_EXPERIENCE:             &'static str = "project_experience";
 pub static CACHE_COMMIT_TREES:                        &'static str = "commit_trees";
+pub static CACHE_COMMIT_PRECEDING_COMMITS:            &'static str = "commit_preceding_commits";

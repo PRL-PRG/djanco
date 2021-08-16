@@ -271,6 +271,8 @@ impl Database {
             #[append_args(&self.source)] pub fn commit_changes_with_contents(&self, id: &CommitId) -> Option<Vec<Change>>;
             #[append_args(&self.source)] pub fn commit_change_with_contents_count(&self, id: &CommitId) -> Option<usize>;
             #[append_args(&self.source)] pub fn commit_trees(&self, id: &CommitId) -> Tree;
+            #[append_args(&self.source)] pub fn commit_preceding_commit_ids(&self, id: &CommitId) -> Vec<CommitId>;
+            #[append_args(&self.source)] pub fn commit_preceding_commits(&self, id: &CommitId) -> Vec<Commit>;
 
             // Snapshot attributes
             #[append_args(&self.source)] pub fn snapshot_locs(&self, id: &SnapshotId) -> Option<usize>;

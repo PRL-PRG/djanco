@@ -82,6 +82,10 @@ impl Database {
     pub fn snapshots_with_data<'a>(&'a self) -> impl Iterator<Item=ItemWithData<'a, Snapshot>> + 'a {
         self.snapshots().attach_data_to_each(self)
     }
+
+    pub fn source(&self) -> &Source {
+        &self.source
+    }
 }
 
 impl Database {

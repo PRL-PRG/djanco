@@ -137,7 +137,6 @@ impl Source {
             })
     }
 
-
     pub fn project_credentials(&self) -> impl Iterator<Item=(objects::ProjectId, String)> {
         self.store.project_urls()
             .into_iter()
@@ -148,7 +147,7 @@ impl Source {
 
     pub fn project_heads(&self) -> impl Iterator<Item=(objects::ProjectId, HashMap<String, (objects::CommitId, SHA)>)> {
         self.store.project_heads()
-            .into_iter()
+            .into_iter()            
             .map(|(project_id, heads)| {
                 let heads = heads.into_iter()
                     .map(|(name, (commit_id, hash))| {

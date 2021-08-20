@@ -1668,7 +1668,122 @@ where A: OptionGetter<'a, IntoItem=Vec<I>>,
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Top(pub usize);
+#[macro_export]
+macro_rules! Strata {
+    ($($name:literal -> $sampler:expr),+) =>  {{
+        let strata = vec![$(($name, $sampler),)+];
+        // Vec here rather than a set to remove additional include
+        let mut uniq: Vec<&str> = Vec::new(); 
+        strata.iter().for_each(|(name, _)| {
+            if uniq.contains(name) {
+                panic!("Attempting to define two or more strata named {}", name);               
+            }
+            uniq.push(name)
+        });
+        strata.into_iter().collect()
+    }}
+}
+
+pub trait StrataClassifier<T> {
+    fn classify(&self, item: Option<&T>) -> &'static str;
+}
+
+pub struct Custom<F>(pub F);
+impl<T, F> StrataClassifier<T> for Custom<F> where F: Fn(Option<&T>) -> &'static str {
+    fn classify(&self, item: Option<&T>) -> &'static str {
+        self.0(item)
+    }
+}
+
+pub enum Threshold<T>{
+    Inclusive(T, &'static str, &'static str),
+    Exclusive(T, &'static str, &'static str),
+}
+
+impl<T> StrataClassifier<T> for Threshold<T> where T: Ord {
+    fn classify(&self, item: Option<&T>) -> &'static str {
+        match (item, self) {
+            (None, _) => "NA",
+            (Some(item), Threshold::Inclusive(threshold, yes, no)) => { if threshold >= item { yes } else { no } },
+            (Some(item), Threshold::Exclusive(threshold, yes, no)) => { if threshold >  item { yes } else { no } },
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! Conditions {
+    ($($name:literal -> $sampler:expr),+) =>  {{
+        let strata = vec![$(($name, $sampler),)+];
+        // Vec here rather than a set to remove additional include
+        let mut uniq: Vec<&str> = Vec::new(); 
+        strata.iter().for_each(|(name, _)| {
+            if uniq.contains(name) {
+                panic!("Attempting to define multiple conditions for stratum named {}", name);               
+            }
+            uniq.push(name)
+        });
+        strata.into_iter().collect()
+    }}
+}
+
+pub enum Thresholds<T>{
+    Inclusive(Vec<(&'static str, T)>, &'static str),
+    Exclusive(Vec<(&'static str, T)>, &'static str),
+}
+
+impl<T> StrataClassifier<T> for Thresholds<T> where T: Ord {
+    fn classify(&self, item: Option<&T>) -> &'static str {
+        match (item, self) {
+            (None, _) => "NA",
+            (Some(item), Thresholds::Inclusive(thresholds, default)) => { 
+                for (stratum, threshold) in thresholds {
+                    if threshold >= item { 
+                        return stratum;
+                    }
+                }
+                return default;
+            },
+            (Some(item), Thresholds::Exclusive(thresholds, default)) => { 
+                for (stratum, threshold) in thresholds {
+                    if threshold > item { 
+                        return stratum;
+                    }
+                }
+                return default;
+            }
+        }
+    }
+}
+
+pub struct Stratified<A, S, C>(pub A, pub HashMap<&'static str, S>, pub C);
+impl<'a, A, V, T, C, S> Sampler<'a, T> for Stratified<A, S, C> where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=V>, S: Sampler<'a, T>, C: StrataClassifier<V> {
+    fn sample<I>(&self, iter: I) -> Vec<objects::ItemWithData<'a, T>>
+        where I: Iterator<Item=objects::ItemWithData<'a, T>> {       
+            let strata = iter
+                .map(|object| (self.0.get_opt(&object), object))
+                .map(|(attribute, object)| (self.2.classify(attribute.as_ref()), object)).into_group_map();
+
+            strata.into_iter()
+                .flat_map(|(stratum, objects)| {
+                    let sampler = self.1.get(&stratum);
+                    if let Some(sampler) = sampler {
+                        Some((stratum, sampler, objects))
+                    } else {
+                        eprintln!("WARNING: No sampling method was specified for stratum {}, 
+                                  so the sample will not contain any objects from this stratum.", 
+                                  stratum);
+                        None
+                    }
+                })
+                .flat_map(|(_stratum, sampler, objects)|{
+                    sampler.sample(objects.into_iter())
+                })
+                .collect()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] 
+pub struct Top(pub usize);
 impl<'a, T> Sampler<'a, T> for Top {
     fn sample<I>(&self, iter: I) -> Vec<objects::ItemWithData<'a, T>>
         where I: Iterator<Item=objects::ItemWithData<'a, T>> {

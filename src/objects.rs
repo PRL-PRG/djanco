@@ -465,6 +465,32 @@ impl Project {
     pub fn head_trees_count (&self, store: &Database) -> Option<usize> {
         store.project_head_trees_count(&self.id)
     }
+    pub fn default_head(&self, store: &Database) -> Option<Head> {
+        let branch_name = self.default_branch(store);
+        if branch_name.is_none() {
+            return None;
+        }
+        let branch_name = branch_name.unwrap();
+
+        let heads = self.heads(store);
+        if heads.is_none() {
+            return None;
+        }
+        let heads = heads.unwrap();
+
+        for head in heads {
+            if head.name == branch_name {
+                return Some(head);
+            }
+        }
+        return None;
+    }
+    pub fn default_commit(&self, store: &Database) -> Option<Commit> {
+        self.default_head(store).map(|head| head.commit(store)).flatten()
+    }
+    pub fn default_tree(&self, store: &Database) -> Option<Tree> {
+        self.default_commit(store).map(|commit| commit.tree(store))
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1092,6 +1118,21 @@ impl<'a> ItemWithData<'a, Project> {
     }
     pub fn head_trees_count(&self) -> Option<usize> {
         self.item.head_trees_count(&self.data)
+    }
+
+    pub fn default_commit(&self) -> Option<Commit> { self.item.default_commit(&self.data) }
+    pub fn default_commit_with_data<'b>(&'b self) -> Option<ItemWithData<'a, Commit>> { 
+        self.item.default_commit(&self.data).attach_data_to_inner(self.data) 
+    }
+
+    pub fn default_head(&self) -> Option<Head> { self.item.default_head(&self.data) }
+    pub fn default_head_with_data<'b>(&'b self) -> Option<ItemWithData<'a, Head>> { 
+        self.item.default_head(&self.data).attach_data_to_inner(self.data) 
+    }
+
+    pub fn default_tree(&self) -> Option<Tree> { self.item.default_tree(&self.data) }
+    pub fn default_tree_with_data<'b>(&'b self) -> Option<ItemWithData<'a, Tree>> { 
+        self.item.default_tree(&self.data).attach_data_to_inner(self.data) 
     }
 }
 impl<'a> ItemWithData<'a, Snapshot> {

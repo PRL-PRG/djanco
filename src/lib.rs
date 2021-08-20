@@ -1219,6 +1219,15 @@ pub mod project {
      */
     impl_attribute![?..   objects::Project, HeadTrees, (String, Vec<(objects::PathId, objects::SnapshotId)>), head_trees, head_trees_count];
 
+    /* Returns the head of the default branch. */
+    impl_attribute![?+   objects::Project, DefaultHead, objects::Head, default_head_with_data];
+
+    /* Returns the head commit of the default branch. */
+    impl_attribute![?+   objects::Project, DefaultCommit, objects::Commit, default_commit_with_data];
+
+    /* Returns the head tree of the default branch. */
+    impl_attribute![?+   objects::Project, DefaultTree, objects::Tree, default_tree_with_data];
+
 }
 
 pub mod commit {
@@ -1704,8 +1713,8 @@ impl<T> StrataClassifier<T> for Threshold<T> where T: Ord {
     fn classify(&self, item: Option<&T>) -> &'static str {
         match (item, self) {
             (None, _) => "NA",
-            (Some(item), Threshold::Inclusive(threshold, yes, no)) => { if threshold >= item { yes } else { no } },
-            (Some(item), Threshold::Exclusive(threshold, yes, no)) => { if threshold >  item { yes } else { no } },
+            (Some(item), Threshold::Inclusive(threshold, yes, no)) => { if item >= threshold { yes } else { no } },
+            (Some(item), Threshold::Exclusive(threshold, yes, no)) => { if item >  threshold { yes } else { no } },
         }
     }
 }
@@ -1737,15 +1746,19 @@ impl<T> StrataClassifier<T> for Thresholds<T> where T: Ord {
             (None, _) => "NA",
             (Some(item), Thresholds::Inclusive(thresholds, default)) => { 
                 for (stratum, threshold) in thresholds {
-                    if threshold >= item { 
+                    print!("Checking {} ", stratum);
+                    if item >= threshold { 
+                        //println!("yes");
                         return stratum;
                     }
+                    //println!("no");
                 }
+                //println!("Using default {}", default);
                 return default;
             },
             (Some(item), Thresholds::Exclusive(thresholds, default)) => { 
                 for (stratum, threshold) in thresholds {
-                    if threshold > item { 
+                    if item > threshold { 
                         return stratum;
                     }
                 }

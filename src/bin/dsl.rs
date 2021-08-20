@@ -45,9 +45,9 @@ fn main() {
     database.projects().filter_by(Within(FromEach(project::Commits, commit::Id), objects::CommitId::from(666u64)));
     database.snapshots_with_data().sample(Random(10, Seed(42))).into_files_in_dir(&config.output_path).unwrap();
     // database.projects().map_into_attrib(Bucket(Count(project::Commits), Interval(1000))).into_csv_in_dir(&config.output_path,  "bucket_1000").unwrap();
-    database.commits().map_into(commit::Tree).into_csv_in_dir(&config.output_path, "commit_trees.csv").unwrap();
-    database.projects().sample(Stratified(project::Size, Strata!("big" -> Random(5, Seed(42)), "small" -> Random(10, Seed(42))), Custom(|size: Option<&usize>| if let Some(size) = size { if *size > 10000 {"big"} else {"small"} } else { "unknown" }))).into_csv_in_dir(&config.output_path,  "stratified_1").unwrap();
+    database.commits().map_into(commit::Tree);//.into_csv_in_dir(&config.output_path, "commit_trees.csv").unwrap();
+    database.projects().sample(Stratified(project::Size, Strata!("big" -> Random(5, Seed(42)), "small" -> Random(10, Seed(42))), Custom(|size: Option<&usize>| match size { None => "NA", Some(n) if *n >= 10000 => "big", Some(n) => "small" }))).into_csv_in_dir(&config.output_path,  "stratified_1").unwrap();
     database.projects().sample(Stratified(project::Size, Strata!("big" -> Random(5, Seed(42)), "small" -> Random(10, Seed(42))), Threshold::Inclusive(10000, "big", "small"))).into_csv_in_dir(&config.output_path,  "stratified_2").unwrap();
-    database.projects().sample(Stratified(project::Size, Strata!("big" -> Random(5, Seed(42)), "medium" -> Random(10, Seed(42)), "small" -> Random(10, Seed(42))), Thresholds::Inclusive(Conditions!("big" -> 10000, "medium" -> 1000), "small"))).into_csv_in_dir(&config.output_path,  "stratified_2").unwrap();
+    database.projects().sample(Stratified(project::Size, Strata!("big" -> Random(5, Seed(42)), "medium" -> Random(10, Seed(42)), "small" -> Random(10, Seed(42))), Thresholds::Inclusive(Conditions!("big" -> 10000, "medium" -> 1000), "small"))).into_csv_in_dir(&config.output_path,  "stratified_3").unwrap();
 
 }

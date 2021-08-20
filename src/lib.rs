@@ -1746,7 +1746,7 @@ impl<T> StrataClassifier<T> for Thresholds<T> where T: Ord {
             (None, _) => "NA",
             (Some(item), Thresholds::Inclusive(thresholds, default)) => { 
                 for (stratum, threshold) in thresholds {
-                    print!("Checking {} ", stratum);
+                    //print!("Checking {} ", stratum);
                     if item >= threshold { 
                         //println!("yes");
                         return stratum;

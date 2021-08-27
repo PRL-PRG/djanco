@@ -351,8 +351,8 @@ impl SourceMapExtractor for ProjectHeadsExtractor {
     fn extract(source: &Source) -> BTreeMap<Self::Key, Self::Value> {
         source.project_heads().map(|(project_id, map)| {
             let heads = map.into_iter()
-                .map(|(branch_name, (commit_id, _hash))| {
-                    Head::new(branch_name, commit_id)
+                .map(|(branch_name, (commit_id, hash))| {
+                    Head::new(branch_name, commit_id, hash)
                 }).collect::<Vec<Head>>();
 
             (project_id, heads)
@@ -1665,7 +1665,7 @@ impl TripleMapExtractor for ProjectHeadTreesExtractor {
 
     fn extract (_: &Source, project_heads: &Self::A, commits: &Self::B, commit_changes: & Self::C) -> BTreeMap<ProjectId, Vec<(String, Vec<(PathId, SnapshotId)>)>> {
         project_heads.iter().map(|(pid, heads)| {
-            let heads = heads.iter().map(|Head{name, commit}| {
+            let heads = heads.iter().map(|Head{name, commit, hash: _}| {
                 let mut contents = BTreeMap::<PathId, Option<SnapshotId>>::new();
                 let mut visited = BTreeSet::<CommitId>::new();
                 let mut q = Vec::<CommitId>::new();

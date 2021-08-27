@@ -497,11 +497,13 @@ impl Project {
 pub struct Head {
     pub(crate) name: String,
     pub(crate) commit: CommitId,
+    pub(crate) hash: String,
 }
 
 impl Head {
-    pub fn new(name: String, commit: CommitId) -> Self { Head { name, commit } }
+    pub fn new(name: String, commit: CommitId, hash: String ) -> Self { Head { name, commit, hash } }
     pub fn name(&self) -> String { self.name.to_string() }
+    pub fn hash(&self) -> String { self.hash.to_string() }
     pub fn commit_id(&self) -> CommitId { self.commit.clone() }
     pub fn commit(&self, store: &Database) -> Option<Commit> { store.commit(&self.commit) }
 
@@ -516,15 +518,15 @@ impl Head {
     }
 }
 
-impl From<(CommitId, String)> for Head {
-    fn from((commit_id, name): (CommitId, String)) -> Self {
-        Head::new(name, commit_id)
+impl From<(CommitId, String, String)> for Head {
+    fn from((commit_id, hash, name): (CommitId, String, String)) -> Self {
+        Head::new(name, commit_id, hash)
     }
 }
 
-impl From<(String, CommitId)> for Head {
-    fn from((name, commit_id): (String, CommitId)) -> Self {
-        Head::new(name, commit_id)
+impl From<(String, CommitId, String)> for Head {
+    fn from((name, commit_id, hash): (String, CommitId, String)) -> Self {
+        Head::new(name, commit_id, hash)
     }
 }
 

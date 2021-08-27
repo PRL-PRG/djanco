@@ -1,6 +1,6 @@
 [package]
 name = "djanco"
-version = "0.3.7"
+version = "0.3.8"
 authors = ["Konrad Siek <konrad.siek@gmail.com>"]
 edition = "2018"
 

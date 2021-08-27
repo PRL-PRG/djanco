@@ -1255,6 +1255,7 @@ impl<'a> ItemWithData<'a, Path> {
 
 impl<'a> ItemWithData<'a, Head> {
     pub fn name(&self) -> String { self.item.name() }
+    pub fn hash(&self) -> String { self.item.hash() }
     pub fn commit_id(&self) -> CommitId { self.item.commit_id() }
     pub fn commit(&self) -> Option<Commit> { self.item.commit(&self.data) }
 

@@ -812,13 +812,13 @@ impl_csv_item_with_data_inner!(ProjectMetadata);
 
 impl CSVItem for Head {
     fn column_headers() -> Vec<&'static str> {
-        vec!["name", "commit_id"]
+        vec!["name", "commit_id", "hash"]
     }
     fn row(&self) -> Vec<String> {
-        vec![self.name(), self.commit_id().to_string()]
+        vec![self.name(), self.commit_id().to_string(), self.hash()]
     }
     fn rows(&self) -> Vec<Vec<String>> {
-        vec![vec![self.name(), self.commit_id().to_string()]]
+        vec![vec![self.name(), self.commit_id().to_string(), self.hash()]]
     }
 }
 impl_csv_item_with_data_inner!(Head);

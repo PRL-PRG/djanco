@@ -53,5 +53,7 @@ fn main() {
     database.projects().sample(Distinct(Top(10), ByAttribute(project::License))).into_csv_in_dir(&config.output_path,  "distinct_licenses").unwrap();
     database.projects().sample(Distinct(Top(10), ByAttribute(project::Language))).into_csv_in_dir(&config.output_path,  "distinct_languages").unwrap();
     database.projects().sample(Distinct(Top(10), ByAttribute(project::Locs))).into_csv_in_dir(&config.output_path,  "distinct_locs").unwrap();
+    database.projects().map_into(project::Heads).into_csv_in_dir(&config.output_path,  "heads").unwrap();
+    database.projects().flat_map(|project| project.heads()).flat_map(|heads| heads).map(|head| head.hash()).into_csv_in_dir(&config.output_path,  "head_commit_hashes").unwrap();
 
 }

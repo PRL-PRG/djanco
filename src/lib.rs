@@ -1866,6 +1866,42 @@ impl<'a, A, T, I> SimilarityCriterion<'a> for MinRatio<A>
     }
 }
 
+pub struct ByAttribute<A>(pub A);
+impl<'a, A, T, I> SimilarityCriterion<'a> for ByAttribute<A> 
+    where A: Attribute<Object=T> + OptionGetter<'a, IntoItem=I>,
+          Option<I>: Similarity<I> {
+    type Item = T;
+    type IntoItem = I;
+    type Similarity = Option<I>;
+
+    fn from(&self, object: &objects::ItemWithData<'a, Self::Item>) -> Self::Similarity {
+        self.0.get_opt(object)
+    }
+}
+
+impl<T> Similarity<T> for Option<objects::ProjectId> {}
+impl<T> Similarity<T> for objects::ProjectId {}
+impl<T> Similarity<T> for Option<objects::CommitId> {}
+impl<T> Similarity<T> for objects::CommitId {}
+impl<T> Similarity<T> for Option<objects::UserId> {}
+impl<T> Similarity<T> for objects::UserId {}
+impl<T> Similarity<T> for Option<objects::PathId> {}
+impl<T> Similarity<T> for objects::PathId {}
+impl<T> Similarity<T> for Option<objects::SnapshotId> {}
+impl<T> Similarity<T> for objects::SnapshotId {}
+impl<T> Similarity<T> for usize {}
+impl<T> Similarity<T> for Option<usize> {}
+//impl<T> Similarity<T> for usize {}
+impl<T> Similarity<T> for Option<bool> {}
+impl<T> Similarity<T> for bool {}
+impl<T> Similarity<T> for Option<String> {}
+impl<T> Similarity<T> for String {}
+impl<T> Similarity<T> for Option<Timestamp> {}
+impl<T> Similarity<T> for Timestamp {}
+impl<T> Similarity<T> for Option<objects::Language> {}
+impl<T> Similarity<T> for objects::Language {}
+// TODO more types.
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct Distinct<S, C>(pub S, pub C);
 impl<'a, T, S, C> Sampler<'a, T> for Distinct<S, C> where S: Sampler<'a, T>, C: SimilarityCriterion<'a, Item=T> {
     fn sample<I>(&self, iter: I) -> Vec<objects::ItemWithData<'a, T>>

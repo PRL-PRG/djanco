@@ -49,5 +49,9 @@ fn main() {
     database.projects().sample(Stratified(project::Size, Strata!("big" -> Random(5, Seed(42)), "small" -> Random(10, Seed(42))), Custom(|size: Option<&usize>| match size { None => "NA", Some(n) if *n >= 10000 => "big", Some(n) => "small" }))).into_csv_in_dir(&config.output_path,  "stratified_1").unwrap();
     database.projects().sample(Stratified(project::Size, Strata!("big" -> Random(5, Seed(42)), "small" -> Random(10, Seed(42))), Threshold::Inclusive(10000, "big", "small"))).into_csv_in_dir(&config.output_path,  "stratified_2").unwrap();
     database.projects().sample(Stratified(project::Size, Strata!("big" -> Random(5, Seed(42)), "medium" -> Random(10, Seed(42)), "small" -> Random(10, Seed(42))), Thresholds::Inclusive(Conditions!("big" -> 10000, "medium" -> 1000), "small"))).into_csv_in_dir(&config.output_path,  "stratified_3").unwrap();
+        
+    database.projects().sample(Distinct(Top(10), ByAttribute(project::License))).into_csv_in_dir(&config.output_path,  "distinct_licenses").unwrap();
+    database.projects().sample(Distinct(Top(10), ByAttribute(project::Language))).into_csv_in_dir(&config.output_path,  "distinct_languages").unwrap();
+    database.projects().sample(Distinct(Top(10), ByAttribute(project::Locs))).into_csv_in_dir(&config.output_path,  "distinct_locs").unwrap();
 
 }

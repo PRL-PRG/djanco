@@ -8,7 +8,7 @@ pub mod lazy;
 
 use std::cell::RefCell;
 
-use anyhow::*;
+use anyhow::Result;
 use delegate::delegate;
 
 use crate::objects::*;

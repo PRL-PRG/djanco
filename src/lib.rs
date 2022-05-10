@@ -55,7 +55,7 @@ use rand_pcg::Pcg64Mcg;
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
 use chrono::{NaiveDateTime, DateTime, Utc};
-use anyhow::*;
+use anyhow::{Result,Context};
 
 use parasite;
 use parasite::{StoreKind};

@@ -10,7 +10,7 @@ use parasite::StoreKind;
 use parasite::ValidateAll;
 use parasite::Table;
 
-use anyhow::*;
+use anyhow::{Result, Context};
 use serde_json::Value as JSON;
 
 use itertools::Itertools;

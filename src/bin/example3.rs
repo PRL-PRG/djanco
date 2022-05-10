@@ -1,4 +1,4 @@
-use clap::Clap;
+use clap::Parser;
 
 use djanco::*;
 use djanco::objects::*;

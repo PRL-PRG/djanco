@@ -120,7 +120,7 @@ impl Task {
 #[derive(Debug, Clone)]
 pub struct CompletedTask {
     event: Event,
-    mark: Instant,
+    _mark: Instant,
     elapsed: Duration,
     //comment: String,
     touched: Option<(usize, String)>,
@@ -140,7 +140,7 @@ impl CompletedTask {
     fn new(item: &Task, touched: usize) -> Self {
         CompletedTask {
             event: item.event.clone(),
-            mark: item.mark,
+            _mark: item.mark,
             elapsed: item.mark.elapsed(),
             //comment: comment.into(),
             touched: Some((touched, item.touched.as_ref().map_or(String::new(), |e| e.clone()))),
@@ -151,7 +151,7 @@ impl CompletedTask {
 impl From<&Task> for CompletedTask {
     fn from(task: &Task) -> Self {
         CompletedTask {
-            event: task.event.clone(), mark: task.mark, elapsed: task.mark.elapsed(), touched: None,
+            event: task.event.clone(), _mark: task.mark, elapsed: task.mark.elapsed(), touched: None,
         }
     }
 }
@@ -159,7 +159,7 @@ impl From<&Task> for CompletedTask {
 impl From<Task> for CompletedTask {
     fn from(task: Task) -> Self {
         CompletedTask {
-            event: task.event, mark: task.mark, elapsed: task.mark.elapsed(), touched: None,
+            event: task.event, _mark: task.mark, elapsed: task.mark.elapsed(), touched: None,
         }
     }
 }

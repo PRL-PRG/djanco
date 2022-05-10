@@ -1,12 +1,12 @@
 use anyhow::{Context, bail};
 use std::{path::PathBuf, str::FromStr};
-use clap::{Clap, crate_version, crate_authors};
+use clap::{Parser, crate_version, crate_authors};
 
 use crate::log::Verbosity;
 
 pub type CommandLineOptions = Configuration;
 
-#[derive(Clap)]
+#[derive(Parser, Debug)]
 #[clap(version = crate_version!(), author = crate_authors!(), name = "Djanco query execution helper")]
 pub struct Configuration {
     #[clap(short = 'o', long = "output-path", alias = "output-dir", parse(from_os_str))]

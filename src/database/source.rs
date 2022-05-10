@@ -55,7 +55,7 @@ macro_rules! convert {
 macro_rules! parse_github_json {
     ($entity_name:expr, $id:expr, $string:expr) => {
         JSON::from_str($string.as_str())
-           .with_context(|| format!("Cannot read GitHub metadata for {} {}", $entity_name, $id));
+           .with_context(|| format!("Cannot read GitHub metadata for {} {}", $entity_name, $id))
     }
 }
 

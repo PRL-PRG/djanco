@@ -20,7 +20,7 @@ rand_pcg = "0.3.0"          # specific/better RNG implementations in queries
 regex = "1.3.9"             # regular expressions in queries?
 csv = "1.1.4"               # parsing CSV input and writing CSV output from queries
 
-clap = "3.0.0-beta.2"       # command line options
+clap = { version = "3.1.17", features = ["derive", "cargo"] } # command line options
 
 tempfile = "3.2.0"          # creating temporary files (when running archived queries)
 fs_extra = "1.2.0"          # copying directories

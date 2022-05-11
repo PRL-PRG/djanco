@@ -24,6 +24,7 @@
 
 // Re-export
 pub use commandline::*;
+use rand::prelude::SliceRandom;
 
 // TODO features
 // maybe it's time to capitulate from the whole ItemWithData oidea and just make it a trait.
@@ -1818,6 +1819,43 @@ impl<'a, T> Sampler<'a, T> for Random {
 
         let mut rng = Pcg64Mcg::from_seed(self.1.to_be_bytes());
         iter.choose_multiple(&mut rng, self.0)
+    }
+}
+
+// This combines Distinct and Random into one operation. Here Distinct's
+// criteria will be calculated only for the selected projects and projects that
+// were considered for sampling and rejected. The input set will be materialized
+// into a vector before the operation (in order to shuffle it). This should work
+// *faster* for large, relatively distinct input collections and relatively
+// small output colelctions.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)] pub struct DistinctRandom<S>(pub usize, pub Seed, pub S);
+impl<'a, T, S> Sampler<'a, T> for DistinctRandom<S> where S: SimilarityCriterion<'a, Item=T> {
+    fn sample<I>(&self, iter: I) -> Vec<objects::ItemWithData<'a, T>>
+        where I: Iterator<Item=objects::ItemWithData<'a, T>> {
+        
+        let mut rng = Pcg64Mcg::from_seed(self.1.to_be_bytes());
+        let mut vector: Vec<objects::ItemWithData<'a, T>> = iter.collect();
+        let mut selected: Vec<objects::ItemWithData<'a, T>>  = Vec::new();
+        let mut similarity_criteria: Vec<S::Similarity> = Vec::new();
+        
+        vector.shuffle(&mut rng);       
+
+        for object in vector {
+            let object_similarity_criterion = self.2.from(&object);
+            let object_is_repeated = similarity_criteria.contains(&object_similarity_criterion);            
+            if object_is_repeated {
+                continue;
+            }
+
+            selected.push(object);
+            similarity_criteria.push(object_similarity_criterion);
+
+            if selected.len() >= self.0 {
+                break;
+            }
+        }
+        
+        selected
     }
 }
 
